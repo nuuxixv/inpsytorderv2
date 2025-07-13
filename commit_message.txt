@@ -1,0 +1,6 @@
+feat: Implement dynamic order email content and Resend integration
+
+- Integrate ordermail.html content into Edge Function for dynamic email generation.
+- Replace hardcoded email body with HTML template from ordermail.html.
+- Implement dynamic data binding for customer details and order items.
+- Update Resend 'from' address to 'onboarding@resend.dev' for testing purposes.
