@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "../Order/inpsytmm"
+		},
+		{
+			"name": "inpsytmm-1",
+			"path": "../Order/inpsytmm-1"
+		},
+		{
+			"path": "../Order"
+		},
+		{
+			"path": "../비즈메일러 템플릿"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "inpsytmm"
+	}
+}
