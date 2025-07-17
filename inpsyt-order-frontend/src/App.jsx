@@ -40,17 +40,11 @@ function App() {
 
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (_event, session) => {
         setUser(session?.user || null);
         setLoading(false);
       }
     );
-
-    // 초기 로드 시 사용자 세션 확인
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user || null);
-      setLoading(false);
-    });
 
     return () => {
       authListener.subscription.unsubscribe();
