@@ -27,6 +27,7 @@ import {
   Modal,
   Backdrop,
   Fade,
+  Skeleton,
 } from '@mui/material';
 import { DateRangePicker } from 'react-date-range';
 import 'react-date-range/dist/styles.css'; // main style file
@@ -35,10 +36,11 @@ import { format, startOfDay, endOfDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../AuthContext';
+import { useNotification } from '../NotificationContext';
 import { Close as CloseIcon } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 
-const AdminPage = () => {
+const OrderManagementPage = () => {
   const { user, masterPassword } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,13 +53,14 @@ const AdminPage = () => {
   const [endDate, setEndDate] = useState(null);
   const [openOrderDetailModal, setOpenOrderDetailModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const { addNotification } = useNotification();
   const [openNewOrderModal, setOpenNewOrderModal] = useState(false); // New state for new order modal
   const [newOrderCustomerName, setNewOrderCustomerName] = useState('');
   const [newOrderCustomerEmail, setNewOrderCustomerEmail] = useState('');
   const [newOrderSelectedEvent, setNewOrderSelectedEvent] = useState('');
   const [newOrderItems, setNewOrderItems] = useState([{ product_id: '', quantity: 1, price_at_purchase: 0 }]); // Default with one item
 
+  const [products, setProducts] = useState([]);
   const [productsMap, setProductsMap] = useState({});
 
   useEffect(() => {
@@ -65,12 +68,14 @@ const AdminPage = () => {
       try {
         const { data, error } = await supabase
           .from('products')
-          .select('id, product_code, name, list_price')
+          .select('id, product_code, name, list_price');
 
         if (error) {
           console.error('Error fetching products:', error);
           return;
         }
+        
+        setProducts(data);
 
         const newProductsMap = {};
         data.forEach(product => {
@@ -125,7 +130,7 @@ const AdminPage = () => {
 
   const handleSaveNewOrder = async () => {
     if (!newOrderCustomerName || !newOrderCustomerEmail || !newOrderSelectedEvent || newOrderItems.length === 0) {
-      setSnackbar({ open: true, message: '모든 필수 필드를 채워주세요.', severity: 'warning' });
+      addNotification('모든 필수 필드를 채워주세요.', 'warning');
       return;
     }
 
@@ -166,18 +171,18 @@ const AdminPage = () => {
         throw orderItemsError;
       }
 
-      setSnackbar({ open: true, message: '신규 주문이 성공적으로 추가되었습니다.', severity: 'success' });
+      addNotification('신규 주문이 성공적으로 추가되었습니다.', 'success');
       handleCloseNewOrderModal();
       fetchOrders(); // Refresh the order list
     } catch (error) {
       console.error('Error saving new order:', error);
-      setSnackbar({ open: true, message: `신규 주문 추가 실패: ${error.message}`, severity: 'error' });
+      addNotification(`신규 주문 추가 실패: ${error.message}`, 'error');
     }
   };
 
   const handleDownloadExcel = () => {
     if (orders.length === 0) {
-      setSnackbar({ open: true, message: '다운로드할 주문이 없습니다.', severity: 'info' });
+      addNotification('다운로드할 주문이 없습니다.', 'info');
       return;
     }
 
@@ -197,7 +202,7 @@ const AdminPage = () => {
     XLSX.utils.book_append_sheet(wb, ws, '주문 목록');
     XLSX.writeFile(wb, '주문_목록.xlsx');
 
-    setSnackbar({ open: true, message: '엑셀 파일 다운로드가 시작되었습니다.', severity: 'success' });
+    addNotification('엑셀 파일 다운로드가 시작되었습니다.', 'success');
   };
 
   const fetchEvents = useCallback(async () => {
@@ -207,7 +212,7 @@ const AdminPage = () => {
       .order('name', { ascending: true });
     if (error) {
       console.error('Error fetching events:', error);
-      setError('학회 정보를 불러오는 데 실패했습니다.');
+      addNotification('학회 정보를 불러오는 데 실패했습니다.', 'error');
     } else {
       setEvents(data);
     }
@@ -247,7 +252,7 @@ const AdminPage = () => {
 
     if (error) {
       console.error('Error fetching orders:', error);
-      setError('주문 정보를 불러오는 데 실패했습니다.');
+      addNotification('주문 정보를 불러오는 데 실패했습니다.', 'error');
     } else {
       setOrders(data);
     }
@@ -268,10 +273,6 @@ const AdminPage = () => {
     setEndDate(today);
   }, []);
 
-  const handleSearch = () => {
-    fetchOrders(); // 검색 버튼 클릭 시 fetchOrders 호출
-  };
-
   const handleClearFilters = () => {
     setSearchTerm('');
     setSelectedStatus('');
@@ -283,7 +284,7 @@ const AdminPage = () => {
 
   const handleStatusChange = useCallback(async (orderId, newStatus) => {
     if (!user || !masterPassword) {
-      setSnackbar({ open: true, message: '권한이 없습니다.', severity: 'error' });
+      addNotification('권한이 없습니다.', 'error');
       return;
     }
 
@@ -331,46 +332,22 @@ const AdminPage = () => {
       }
 
       console.log('Edge Function Response:', edgeFunctionData);
-      setSnackbar({ open: true, message: '주문 상태가 업데이트되고 이메일이 발송되었습니다.', severity: 'success' });
+      addNotification(`주문 ${updatedOrder.id}의 상태가 '${statusToKorean[newStatus]}'으로 업데이트되었습니다.`, 'success');
       fetchOrders(); // Refresh orders list
     } catch (err) {
       console.error('Error updating order status or sending email:', err);
-      setSnackbar({ open: true, message: `상태 업데이트 및 이메일 발송 실패: ${err.message}`, severity: 'error' });
+      addNotification(`주문 상태 업데이트 및 이메일 발송 실패: ${err.message}`, 'error');
     }
   }, [user, masterPassword, fetchOrders]);
-
-  const handleUpdateEventDiscount = useCallback(async (eventId, newDiscountRate) => {
-    if (!user || !masterPassword) {
-      setSnackbar({ open: true, message: '권한이 없습니다.', severity: 'error' });
-      return;
-    }
-
-    try {
-      const { error: updateError } = await supabase
-        .from('events')
-        .update({ discount_rate: newDiscountRate })
-        .eq('id', eventId);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      setSnackbar({ open: true, message: '할인율이 업데이트되었습니다.', severity: 'success' });
-      fetchEvents(); // 학회 목록 갱신
-    } catch (err) {
-      console.error('Error updating event discount rate:', err);
-      setSnackbar({ open: true, message: `할인율 업데이트 실패: ${err.message}`, severity: 'error' });
-    }
-  }, [user, masterPassword, fetchEvents]);
-
-  const handleRowClick = (order) => {
-    setSelectedOrder(order);
-    setOpenOrderDetailModal(true);
-  };
 
   const handleCloseOrderDetailModal = () => {
     setOpenOrderDetailModal(false);
     setSelectedOrder(null);
+  };
+
+  const handleRowClick = (order) => {
+    setSelectedOrder(order);
+    setOpenOrderDetailModal(true);
   };
 
   if (!user) {
@@ -458,59 +435,11 @@ const AdminPage = () => {
               setEndDate(today);
             }}>3일</Button>
           </Box>
-          <Button variant="contained" onClick={handleSearch}>
-            검색
-          </Button>
           <Button variant="outlined" onClick={handleClearFilters}>
             필터 초기화
           </Button>
           
         </Box>
-      </Paper>
-
-      {/* Event Management Section */}
-      <Paper elevation={3} sx={{ p: 3, mt: 3, borderRadius: '12px', bgcolor: '#fff' }}>
-        <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold' }}>학회 관리</Typography>
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 'bold' }}>학회 ID</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>학회명</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>할인율</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>작업</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {events.map((event) => (
-                <TableRow key={event.id}>
-                  <TableCell>{event.id}</TableCell>
-                  <TableCell>{event.name}</TableCell>
-                  <TableCell>
-                    <TextField
-                      type="number"
-                      value={event.discount_rate || 0}
-                      onChange={(e) => {
-                        const updatedEvents = events.map(evt =>
-                          evt.id === event.id ? { ...evt, discount_rate: parseFloat(e.target.value) } : evt
-                        );
-                        setEvents(updatedEvents);
-                      }}
-                      inputProps={{ step: "0.01", min: "0", max: "1" }}
-                      size="small"
-                      sx={{ width: 80 }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="outlined" size="small" onClick={() => handleUpdateEventDiscount(event.id, event.discount_rate)}>
-                      저장
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
       </Paper>
 
       {/* Order Table Section */}
@@ -539,11 +468,13 @@ const AdminPage = () => {
             </TableHead>
             <TableBody>
               {loading ? (
-                <TableRow>
-                  <TableCell colSpan={8} align="center">
-                    <CircularProgress />
-                  </TableCell>
-                </TableRow>
+                Array.from(new Array(10)).map((_, index) => (
+                  <TableRow key={index}>
+                    <TableCell colSpan={8}>
+                      <Skeleton animation="wave" />
+                    </TableCell>
+                  </TableRow>
+                ))
               ) : error ? (
                 <TableRow>
                   <TableCell colSpan={8} align="center">
@@ -609,7 +540,9 @@ const AdminPage = () => {
           order={selectedOrder}
           statusToKorean={statusToKorean}
           productsMap={productsMap}
+          products={products}
           events={events}
+          addNotification={addNotification}
         />
       )}
 
@@ -654,7 +587,24 @@ const AdminPage = () => {
               <Select
                 value={newOrderSelectedEvent}
                 label="학회 선택"
-                onChange={(e) => setNewOrderSelectedEvent(e.target.value)}
+                onChange={(e) => {
+                  const newEventId = e.target.value;
+                  setNewOrderSelectedEvent(newEventId);
+
+                  const selectedEventData = events.find(event => event.id === newEventId);
+                  if (selectedEventData) {
+                    const discountRate = selectedEventData.discount_rate || 0;
+                    const updatedItems = newOrderItems.map(item => {
+                      const product = products.find(p => p.product_code === item.product_id);
+                      if (product) {
+                        const newPrice = product.list_price * (1 - discountRate);
+                        return { ...item, price_at_purchase: newPrice };
+                      }
+                      return item;
+                    });
+                    setNewOrderItems(updatedItems);
+                  }
+                }}
               >
                 <MenuItem value="">학회 선택</MenuItem>
                 {events.map((event) => (
@@ -666,14 +616,29 @@ const AdminPage = () => {
             <Typography variant="h6" sx={{ mt: 2 }}>주문 상품</Typography>
             {newOrderItems.map((item, index) => (
               <Box key={index} sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                <TextField
-                  label="상품명"
-                  variant="outlined"
-                  size="small"
-                  value={item.product_id}
-                  onChange={(e) => handleNewOrderItemChange(index, 'product_id', e.target.value)}
-                  sx={{ flex: 3 }}
-                />
+                <FormControl size="small" sx={{ flex: 3 }}>
+                  <InputLabel>상품명</InputLabel>
+                  <Select
+                    value={item.product_id}
+                    label="상품명"
+                    onChange={(e) => {
+                      const newProductId = e.target.value;
+                      const product = products.find(p => p.product_code === newProductId);
+                      if (product) {
+                        const selectedEventData = events.find(event => event.id === newOrderSelectedEvent);
+                        const discountRate = selectedEventData ? selectedEventData.discount_rate || 0 : 0;
+                        const newPrice = product.list_price * (1 - discountRate);
+                        handleNewOrderItemChange(index, 'product_id', newProductId);
+                        handleNewOrderItemChange(index, 'price_at_purchase', newPrice);
+                      }
+                    }}
+                  >
+                    <MenuItem value="">상품 선택</MenuItem>
+                    {products.map((p) => (
+                      <MenuItem key={p.id} value={p.product_code}>{p.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
                 <TextField
                   label="수량"
                   variant="outlined"
@@ -689,7 +654,7 @@ const AdminPage = () => {
                   size="small"
                   type="number"
                   value={item.price_at_purchase}
-                  onChange={(e) => handleNewOrderItemChange(index, 'price_at_purchase', parseInt(e.target.value) || 0)}
+                  disabled // 자동 계산되므로 수정 불가
                   sx={{ flex: 1 }}
                 />
                 {newOrderItems.length > 1 && (
@@ -713,26 +678,14 @@ const AdminPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Snackbar for notifications */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };
 
-export default AdminPage;
+export default OrderManagementPage;
 
 // OrderDetailModal component definition
-const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, events }) => {
+const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, products, events, addNotification }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentStatus, setCurrentStatus] = useState(order.status);
   const [editedCustomerName, setEditedCustomerName] = useState(order.customer_name);
@@ -743,6 +696,20 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, e
   const [editedShippingDetail, setEditedShippingDetail] = useState(order.shipping_address?.detail || '');
   const [editedCustomerRequest, setEditedCustomerRequest] = useState(order.customer_request || '');
   const [editedOrderItems, setEditedOrderItems] = useState(order.order_items || []);
+  const [editedEventId, setEditedEventId] = useState(order.event_id);
+
+  useEffect(() => {
+    setEditedOrderItems(order.order_items || []);
+    setCurrentStatus(order.status);
+    setEditedCustomerName(order.customer_name);
+    setEditedCustomerEmail(order.email);
+    setEditedPhoneNumber(order.phone_number || '');
+    setEditedShippingAddress(order.shipping_address?.address || '');
+    setEditedShippingPostcode(order.shipping_address?.postcode || '');
+    setEditedShippingDetail(order.shipping_address?.detail || '');
+    setEditedCustomerRequest(order.customer_request || '');
+    setEditedEventId(order.event_id);
+  }, [order]);
 
   const handleAddOrderItem = () => {
     setEditedOrderItems([...editedOrderItems, { product_id: '', quantity: 1, price_at_purchase: 0 }]);
@@ -776,6 +743,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, e
               shipping_address: updatedShippingAddress,
               customer_request: editedCustomerRequest,
               total_amount: newTotalAmount, // Update total_amount
+              event_id: editedEventId,
             })
             .eq('id', order.id);
 
@@ -795,12 +763,20 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, e
             throw deleteItemsError;
           }
 
-          const orderItemsToInsert = editedOrderItems.map(item => ({
-            order_id: order.id,
-            product_id: item.product_id,
-            quantity: item.quantity,
-            price_at_purchase: item.price_at_purchase, // Assuming price_at_purchase is still relevant or can be recalculated
-          }));
+          const orderItemsToInsert = editedOrderItems.map(item => {
+            const product = products.find(p => p.product_code === item.product_id);
+            const originalPrice = product ? product.list_price : 0;
+            const event = events.find(e => e.id === order.event_id);
+            const discountRate = event ? (event.discount_rate || 0) : 0;
+            const discountedPrice = originalPrice * (1 - discountRate);
+
+            return {
+              order_id: order.id,
+              product_id: item.product_id,
+              quantity: item.quantity,
+              price_at_purchase: discountedPrice, 
+            };
+          });
 
           const { error: insertItemsError } = await supabase
             .from('order_items')
@@ -810,12 +786,12 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, e
             throw insertItemsError;
           }
 
-          alert('주문 정보가 업데이트되었습니다.');
+          addNotification('주문 정보가 업데이트되었습니다.', 'success');
           setIsEditing(false);
           onClose(); // 모달 닫기 또는 데이터 새로고침
         } catch (error) {
           console.error('Error updating order:', error);
-          alert('주문 정보 업데이트 실패: ' + error.message);
+          addNotification(`주문 정보 업데이트 실패: ${error.message}`, 'error');
         }
       };
 
@@ -877,6 +853,44 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, e
                   <TableRow>
                     <TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>주문일</TableCell>
                     <TableCell>{new Date(order.created_at).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>학회명</TableCell>
+                    <TableCell>
+                      {isEditing ? (
+                        <FormControl size="small" fullWidth>
+                          <Select
+                            value={editedEventId}
+                            onChange={(e) => setEditedEventId(e.target.value)}
+                          >
+                            {events.map((event) => (
+                              <MenuItem key={event.id} value={event.id}>{event.name}</MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      ) : (
+                        events.find(e => e.id === order.event_id)?.name || 'N/A'
+                      )}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>총 금액</TableCell>
+                    <TableCell>{(order.total_amount || 0).toLocaleString()}원</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>상태</TableCell>
+                    <TableCell>
+                      <FormControl size="small" fullWidth>
+                        <Select
+                          value={currentStatus}
+                          onChange={(e) => setCurrentStatus(e.target.value)}
+                        >
+                          {Object.entries(statusToKorean).map(([key, value]) => (
+                            <MenuItem key={key} value={key}>{value}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -1017,7 +1031,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, e
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  { (order.order_items || []).map((item, index) => {
+                  { (editedOrderItems || []).map((item, index) => {
                     const product = productsMap[item.product_id];
                     const originalPrice = product ? product.list_price : 0;
                     const event = events.find(e => e.id === order.event_id);
@@ -1029,20 +1043,26 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, e
                       <TableRow key={index}>
                         <TableCell>
                         {isEditing ? (
-                          <TextField
-                            value={item.product_id}
-                            onChange={(e) => {
-                              const newProductId = e.target.value;
-                              const updatedItems = editedOrderItems.map(edi =>
-                                edi.product_id === item.product_id ? { ...edi, product_id: newProductId } : edi
-                              );
-                              setEditedOrderItems(updatedItems);
-                            }}
-                            size="small"
-                            fullWidth
-                          />
+                          <FormControl size="small" fullWidth>
+                            <Select
+                              value={item.product_id}
+                              onChange={(e) => {
+                                const newProductId = e.target.value;
+                                const updatedItems = editedOrderItems.map((it, i) => 
+                                  i === index ? { ...it, product_id: newProductId } : it
+                                );
+                                setEditedOrderItems(updatedItems);
+                              }}
+                            >
+                              {products.map((p) => (
+                                <MenuItem key={p.id} value={p.product_code}>
+                                  {p.name}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
                         ) : (
-                          product?.name || item.product_id || '알 수 없는 상품'
+                          products.find(p => p.product_code === item.product_id)?.name || item.product_id || '알 수 없는 상품'
                         )}
                       </TableCell>
                         <TableCell align="right">{originalPrice.toLocaleString()}원</TableCell>
@@ -1054,8 +1074,8 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, e
                             value={item.quantity}
                             onChange={(e) => {
                               const newQuantity = parseInt(e.target.value) || 0;
-                              const updatedItems = editedOrderItems.map(edi =>
-                                edi.product_id === item.product_id ? { ...edi, quantity: newQuantity } : edi
+                              const updatedItems = editedOrderItems.map((it, i) => 
+                                i === index ? { ...it, quantity: newQuantity } : it
                               );
                               setEditedOrderItems(updatedItems);
                             }}
@@ -1081,6 +1101,11 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, e
                     );
                   })}</TableBody>
               </Table>
+              {isEditing && (
+                <Box sx={{ mt: 2, textAlign: 'right' }}>
+                  <Button onClick={handleAddOrderItem} variant="outlined">상품 추가</Button>
+                </Box>
+              )}
             </TableContainer>
             <Box sx={{ mt: 2, textAlign: 'right' }}>
               <Typography variant="h6">총 결제 금액: {(order.total_amount || 0).toLocaleString()}원</Typography>

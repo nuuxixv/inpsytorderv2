@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }) => {
 
     // For demonstration, setting a dummy master password. In a real app, this would be securely managed.
     // You might fetch this from an environment variable or a secure configuration.
-    setMasterPassword('your_master_password_here');
+    setMasterPassword(import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY);
 
     return () => {
       if (authListener && authListener.data && authListener.data.subscription) {

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { supabase } from './supabaseClient';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './AuthContext';
+import { NotificationProvider } from './NotificationContext';
 import OrderPage from './components/OrderPage';
-import AdminPage from './components/AdminPage';
+import AdminLayout from './components/AdminLayout'; // 새로 만들 컴포넌트
 import LoginPage from './components/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import {
@@ -34,51 +35,48 @@ const theme = createTheme({
   },
 });
 
-function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user || null);
-        setLoading(false);
-      }
-    );
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
+function AppRoutes() {
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-          <CircularProgress />
-        </Box>
-      </ThemeProvider>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
     );
   }
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Router>
-        <Routes>
-          <Route path="/" element={<OrderPage />} />
-          <Route path="/login" element={<LoginPage />} />
+    <Router>
+      <Routes>
+        <Route path="/" element={<OrderPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        {/* Redirect /smartadmin to /admin */}
+          <Route path="/smartadmin" element={<Navigate to="/admin" replace />} />
+
+          {/* Admin Routes */}
           <Route
-            path="/smartAdmin"
+            path="/admin/*"
             element={
               <ProtectedRoute user={user}>
-                <AdminPage />
+                <AdminLayout />
               </ProtectedRoute>
             }
           />
-        </Routes>
-      </Router>
+      </Routes>
+    </Router>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <AuthProvider>
+        <NotificationProvider>
+          <AppRoutes />
+        </NotificationProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

@@ -31,7 +31,7 @@ const LoginPage = () => {
 
       if (error) throw error;
 
-      navigate('/smartAdmin'); // 로그인 성공 시 관리자 페이지로 이동
+      navigate('/admin'); // 로그인 성공 시 관리자 페이지로 이동
     } catch (error) {
       setError(error.message);
     } finally {
