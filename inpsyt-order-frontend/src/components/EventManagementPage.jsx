@@ -143,7 +143,7 @@ const EventManagementPage = () => {
               <TableRow>
                 <TableCell sx={{ fontWeight: 'bold' }}>학회 ID</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>학회명</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>URL 슬러그</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>고유 주소</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>할인율</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>시작일</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>종료일</TableCell>
@@ -191,12 +191,12 @@ const EventManagementPage = () => {
           <TextField
             margin="dense"
             name="order_url_slug"
-            label="URL 슬러그 (고유값)"
+            label="고유 주소 (Slug)"
             type="text"
             fullWidth
             value={currentEvent?.order_url_slug || ''}
             onChange={handleChange}
-            helperText="예: spring-conference-2024 (공백 없이 소문자, 하이픈 사용)"
+            helperText="주문 페이지 주소로 사용됩니다. 예: spring-2024 (영문, 숫자, 하이픈만 가능)"
           />
           <TextField
             margin="dense"

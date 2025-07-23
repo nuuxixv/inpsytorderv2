@@ -9,9 +9,8 @@ import {
 
 const SHIPPING_FEE = 3000;
 const FREE_SHIPPING_THRESHOLD = 30000;
-const DISCOUNT_RATE = 0.15; // 15% 할인율
 
-const CostSummary = ({ cart }) => {
+const CostSummary = ({ cart, discountRate = 0 }) => {
   const calculateCosts = () => {
     let totalOriginalPrice = 0;
     let totalDiscountedPrice = 0;
@@ -24,7 +23,7 @@ const CostSummary = ({ cart }) => {
         totalOriginalPrice += originalPrice * quantity;
 
         if (item.is_discountable) {
-          totalDiscountedPrice += Math.round((originalPrice * (1 - DISCOUNT_RATE))) * quantity;
+          totalDiscountedPrice += Math.round((originalPrice * (1 - discountRate))) * quantity;
         } else {
           totalDiscountedPrice += originalPrice * quantity;
         }

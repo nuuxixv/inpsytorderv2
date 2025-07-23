@@ -6,11 +6,13 @@ import { ko } from 'date-fns/locale';
 import { useNotification } from '../NotificationContext';
 import { useAuth } from '../AuthContext';
 import LogoutIcon from '@mui/icons-material/Logout';
+import { useNavigate } from 'react-router-dom'; // useNavigate 임포트
 
 const AdminHeader = () => {
   const { user, logout } = useAuth();
   const { notifications } = useNotification();
   const [anchorEl, setAnchorEl] = useState(null);
+  const navigate = useNavigate(); // useNavigate 훅 사용
 
   const handleNotificationClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -18,6 +20,11 @@ const AdminHeader = () => {
 
   const handleNotificationClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleLogout = async () => {
+    await logout(); // AuthContext의 logout 함수 호출
+    navigate('/login'); // 로그아웃 후 로그인 페이지로 이동
   };
 
   const open = Boolean(anchorEl);
@@ -76,7 +83,7 @@ const AdminHeader = () => {
           <Typography variant="body1" sx={{ mr: 2 }}>
             {user?.email}
           </Typography>
-          <Button color="inherit" startIcon={<LogoutIcon />} onClick={logout}>
+          <Button color="inherit" startIcon={<LogoutIcon />} onClick={handleLogout}> {/* onClick 변경 */}
             로그아웃
           </Button>
         </Box>
@@ -84,5 +91,6 @@ const AdminHeader = () => {
     </AppBar>
   );
 };
+
 
 export default AdminHeader;

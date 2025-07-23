@@ -145,7 +145,7 @@ const OrderManagementPage = () => {
           customer_name: newOrderCustomerName,
           email: newOrderCustomerEmail,
           event_id: newOrderSelectedEvent,
-          total_amount: totalAmount,
+          final_payment: totalAmount,
           status: 'pending', // Default status for new orders
         })
         .select()
@@ -191,7 +191,7 @@ const OrderManagementPage = () => {
       '고객명': order.customer_name,
       '이메일': order.email,
       '학회명': events.find(e => e.id === order.event_id)?.name || 'N/A',
-      '총 금액': order.total_amount,
+      '총 금액': order.final_payment,
       '주문일시': format(new Date(order.created_at), 'yyyy-MM-dd HH:mm', { locale: ko }),
       '상태': statusToKorean[order.status],
       '상품 목록': order.order_items.map(item => `${item.product_id} (${item.quantity}개)`).join(', '),
@@ -499,7 +499,7 @@ const OrderManagementPage = () => {
                     <TableCell>{order.customer_name}</TableCell>
                     <TableCell>{order.email}</TableCell>
                     <TableCell>{events.find(e => e.id === order.event_id)?.name || 'N/A'}</TableCell>
-                    <TableCell>{(order.total_amount || 0).toLocaleString()}원</TableCell>
+                    <TableCell>{(order.final_payment || 0).toLocaleString()}원</TableCell>
                     <TableCell>{format(new Date(order.created_at), 'yyyy-MM-dd HH:mm', { locale: ko })}</TableCell>
                     <TableCell>
                       {user && masterPassword ? (
@@ -697,6 +697,8 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
   const [editedCustomerRequest, setEditedCustomerRequest] = useState(order.customer_request || '');
   const [editedOrderItems, setEditedOrderItems] = useState(order.order_items || []);
   const [editedEventId, setEditedEventId] = useState(order.event_id);
+  const [calculatedTotal, setCalculatedTotal] = useState(order.final_payment);
+  const [shippingFee, setShippingFee] = useState(0);
 
   useEffect(() => {
     setEditedOrderItems(order.order_items || []);
@@ -709,91 +711,96 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
     setEditedShippingDetail(order.shipping_address?.detail || '');
     setEditedCustomerRequest(order.customer_request || '');
     setEditedEventId(order.event_id);
+    setCalculatedTotal(order.final_payment);
+    setShippingFee(order.final_payment > 30000 ? 0 : 3000); // Initial shipping fee based on final_payment
   }, [order]);
 
+  useEffect(() => {
+    const event = events.find(e => e.id === editedEventId);
+    const discountRate = event ? (event.discount_rate || 0) : 0;
+    
+    const newTotalAmount = (editedOrderItems || []).reduce((sum, item) => {
+      const product = products.find(p => p.product_code === item.product_id);
+      const originalPrice = product ? product.list_price : 0;
+      const discountedPrice = originalPrice * (1 - discountRate);
+      return sum + (discountedPrice * item.quantity);
+    }, 0);
+
+    // 할인 적용 전 총액 계산
+    const subtotalBeforeDiscount = (editedOrderItems || []).reduce((sum, item) => {
+      const product = products.find(p => p.product_code === item.product_id);
+      const originalPrice = product ? product.list_price : 0;
+      return sum + (originalPrice * item.quantity);
+    }, 0);
+
+    // 배송비 계산 (3만원 이상 무료 - 할인 적용 전 금액 기준)
+    const calculatedShippingFee = subtotalBeforeDiscount >= 30000 ? 0 : 3000;
+    setShippingFee(calculatedShippingFee);
+    setCalculatedTotal(newTotalAmount + calculatedShippingFee);
+  }, [editedOrderItems, editedEventId, products, events]);
+
   const handleAddOrderItem = () => {
-    setEditedOrderItems([...editedOrderItems, { product_id: '', quantity: 1, price_at_purchase: 0 }]);
+    if (products && products.length > 0) {
+      const defaultProduct = products[0];
+      setEditedOrderItems([...editedOrderItems, { product_id: defaultProduct.product_code, quantity: 1, price_at_purchase: 0 }]);
+    } else {
+      addNotification('추가할 상품 정보가 없습니다.', 'warning');
+    }
   };
 
   const handleSave = async () => {
-        try {
-          const updatedShippingAddress = {
-            postcode: editedShippingPostcode,
-            address: editedShippingAddress,
-            detail: editedShippingDetail,
-          };
-
-          // Calculate new total_amount based on editedOrderItems
-          const newTotalAmount = editedOrderItems.reduce((sum, item) => {
-            const product = productsMap[item.product_id];
-            const originalPrice = product ? product.list_price : 0;
-            const event = events.find(e => e.id === order.event_id);
-            const discountRate = event ? (event.discount_rate || 0) : 0;
-            const discountedPrice = originalPrice * (1 - discountRate);
-            return sum + (discountedPrice * item.quantity);
-          }, 0);
-
-          const { error: updateOrderError } = await supabase
-            .from('orders')
-            .update({
-              status: currentStatus,
-              customer_name: editedCustomerName,
-              email: editedCustomerEmail,
-              phone_number: editedPhoneNumber,
-              shipping_address: updatedShippingAddress,
-              customer_request: editedCustomerRequest,
-              total_amount: newTotalAmount, // Update total_amount
-              event_id: editedEventId,
-            })
-            .eq('id', order.id);
-
-          if (updateOrderError) {
-            throw updateOrderError;
-          }
-
-          // Update order_items
-          // For simplicity, we'll delete existing and insert new ones. 
-          // A more robust solution would compare and update/insert/delete selectively.
-          const { error: deleteItemsError } = await supabase
-            .from('order_items')
-            .delete()
-            .eq('order_id', order.id);
-
-          if (deleteItemsError) {
-            throw deleteItemsError;
-          }
-
-          const orderItemsToInsert = editedOrderItems.map(item => {
-            const product = products.find(p => p.product_code === item.product_id);
-            const originalPrice = product ? product.list_price : 0;
-            const event = events.find(e => e.id === order.event_id);
-            const discountRate = event ? (event.discount_rate || 0) : 0;
-            const discountedPrice = originalPrice * (1 - discountRate);
-
-            return {
-              order_id: order.id,
-              product_id: item.product_id,
-              quantity: item.quantity,
-              price_at_purchase: discountedPrice, 
-            };
-          });
-
-          const { error: insertItemsError } = await supabase
-            .from('order_items')
-            .insert(orderItemsToInsert);
-
-          if (insertItemsError) {
-            throw insertItemsError;
-          }
-
-          addNotification('주문 정보가 업데이트되었습니다.', 'success');
-          setIsEditing(false);
-          onClose(); // 모달 닫기 또는 데이터 새로고침
-        } catch (error) {
-          console.error('Error updating order:', error);
-          addNotification(`주문 정보 업데이트 실패: ${error.message}`, 'error');
-        }
+    try {
+      const updatedShippingAddress = {
+        postcode: editedShippingPostcode,
+        address: editedShippingAddress,
+        detail: editedShippingDetail,
       };
+
+      const orderUpdates = {
+        status: currentStatus,
+        customer_name: editedCustomerName,
+        email: editedCustomerEmail,
+        phone_number: editedPhoneNumber,
+        shipping_address: updatedShippingAddress,
+        customer_request: editedCustomerRequest,
+        final_payment: calculatedTotal,
+        event_id: editedEventId,
+      };
+
+      const orderItemsPayload = editedOrderItems.map(item => {
+        const product = products.find(p => p.product_code === item.product_id);
+        const originalPrice = product ? product.list_price : 0;
+        const event = events.find(e => e.id === editedEventId);
+        const discountRate = event ? (event.discount_rate || 0) : 0;
+        const discountedPrice = originalPrice * (1 - discountRate);
+
+        return {
+          product_id: item.product_id,
+          quantity: item.quantity,
+          price_at_purchase: discountedPrice, 
+        };
+      });
+
+      const { data, error } = await supabase.functions.invoke('update-order', {
+        body: {
+          orderId: order.id,
+          updates: orderUpdates,
+          items: orderItemsPayload,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      addNotification('주문 정보가 성공적으로 업데이트되었습니다.', 'success');
+      setIsEditing(false);
+      onClose(); // Close modal and potentially refresh data
+    } catch (error) {
+      console.error('Error updating order via function:', error);
+      addNotification(`주문 정보 업데이트 실패: ${error.message}`, 'error');
+    }
+  };
 
   if (!order) return null;
 
@@ -875,7 +882,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
                   </TableRow>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>총 금액</TableCell>
-                    <TableCell>{(order.total_amount || 0).toLocaleString()}원</TableCell>
+                    <TableCell>{(calculatedTotal || 0).toLocaleString()}원</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>상태</TableCell>
@@ -1048,9 +1055,16 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
                               value={item.product_id}
                               onChange={(e) => {
                                 const newProductId = e.target.value;
-                                const updatedItems = editedOrderItems.map((it, i) => 
-                                  i === index ? { ...it, product_id: newProductId } : it
-                                );
+                                const product = products.find(p => p.product_code === newProductId);
+                                const updatedItems = editedOrderItems.map((it, i) => {
+                                  if (i === index && product) {
+                                    const event = events.find(e => e.id === editedEventId);
+                                    const discountRate = event ? (event.discount_rate || 0) : 0;
+                                    const newPrice = product.list_price * (1 - discountRate);
+                                    return { ...it, product_id: newProductId, price_at_purchase: newPrice };
+                                  }
+                                  return it;
+                                });
                                 setEditedOrderItems(updatedItems);
                               }}
                             >
@@ -1134,7 +1148,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
                   </TableRow>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>배송비</TableCell>
-                    <TableCell align="right">{3000..toLocaleString()}원</TableCell>
+                    <TableCell align="right">{shippingFee.toLocaleString()}원</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>총 결제 금액</TableCell>

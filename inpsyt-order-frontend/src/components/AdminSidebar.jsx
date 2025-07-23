@@ -17,11 +17,11 @@ const allMenuItems = [
 ];
 
 const AdminSidebar = () => {
-  const { masterPassword } = useAuth();
+  const { isMaster } = useAuth();
 
   const filteredMenuItems = allMenuItems.filter(item => {
     if (item.role === 'master') {
-      return !!masterPassword;
+      return isMaster;
     }
     return true;
   });
