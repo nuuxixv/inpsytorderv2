@@ -10,6 +10,11 @@ serve(async (req) => {
   try {
     const { orderId, updates, items } = await req.json()
 
+    console.log('--- update-order function started ---'); // 추가
+    console.log('Received orderId:', orderId); // 추가
+    console.log('Received updates:', JSON.stringify(updates, null, 2)); // 추가
+    console.log('Received items:', JSON.stringify(items, null, 2)); // 추가
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -19,10 +24,6 @@ serve(async (req) => {
         },
       }
     )
-
-    console.log('Received orderId:', orderId);
-    console.log('Received updates:', JSON.stringify(updates, null, 2));
-    console.log('Received items:', JSON.stringify(items, null, 2));
 
     // Update order in 'orders' table
     console.log('Attempting to update orders table...');
@@ -63,6 +64,7 @@ serve(async (req) => {
       throw insertItemsError
     }
     console.log('Successfully inserted new order items.');
+    console.log('--- update-order function finished successfully ---'); // 추가
 
     return new Response(JSON.stringify({ message: 'Order updated successfully!' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -70,6 +72,7 @@ serve(async (req) => {
     })
   } catch (error) {
     console.error('Error in update-order function:', error.message)
+    console.log('--- update-order function finished with error ---'); // 추가
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400, // Bad Request or Internal Server Error
