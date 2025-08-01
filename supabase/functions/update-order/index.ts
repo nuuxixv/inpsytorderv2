@@ -37,7 +37,7 @@ serve(async (req) => {
       console.error('Error updating orders table:', orderError);
       throw orderError
     }
-    console.log('Successfully updated orders table:', updatedOrderData);
+    console.log('Successfully updated orders table. Data returned:', updatedOrderData);
 
     // Delete existing order_items for this order
     console.log('Attempting to delete existing order items...');
