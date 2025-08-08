@@ -1,38 +1,41 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import postgres from "postgres";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.2";
 
+// 환경 변수 로드
+const DATABASE_URL = Deno.env.get("SUPABASE_DB_URL")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-serve(async (req) => {
-  if (req.method !== "POST") {
-    return new Response("Method Not Allowed", { status: 405 });
-  }
+// Supabase 클라이언트 초기화 (데이터 조회용)
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: false },
+});
 
+// 이메일 발송 로직
+export async function sendOrderEmail(orderId: number) {
+  console.log(`Processing order ID: ${orderId}`);
   try {
-    const { record: order } = await req.json();
-    if (!order) {
-      return new Response("Order data not found", { status: 400 });
-    }
+    // 1. 주문 정보 및 관련 데이터 조회
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select("*, events(name)")
+      .eq("id", orderId)
+      .single();
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false },
-    });
+    if (orderError) throw orderError;
+    if (!order) throw new Error(`Order with ID ${orderId} not found.`);
 
     const { data: orderItems, error: orderItemsError } = await supabase
       .from("order_items")
       .select("*, products(*)")
       .eq("order_id", order.id);
 
-    if (orderItemsError) {
-      throw new Error(`Failed to fetch order items: ${orderItemsError.message}`);
-    }
+    if (orderItemsError) throw orderItemsError;
 
-    // 이메일 템플릿 읽기
+    // 2. 이메일 템플릿 및 내용 구성 (기존 로직 재사용)
     const emailTemplate = await Deno.readTextFile('./ordermail.html');
-
-    // 주문 아이템 HTML 생성
+    
     let orderItemsHtml = '';
     if (orderItems && orderItems.length > 0) {
       orderItems.forEach(item => {
@@ -57,17 +60,16 @@ serve(async (req) => {
       orderItemsHtml = `<tr><td colspan="9" style="text-align: center; padding: 10px;">주문 내역이 없습니다.</td></tr>`;
     }
 
-    // 주소 포맷팅
-    const formatAddress = (shipping_address) => {
+    const formatAddress = (shipping_address: any) => {
       if (!shipping_address) return 'N/A';
       const { postcode, address, detail } = shipping_address;
       return `(${postcode}) ${address} ${detail || ''}`.trim();
     };
 
-    // 데이터 객체 생성
     const emailData = {
       customerName: order.customer_name || '고객님',
       orderDate: new Date(order.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
+      eventName: order.events?.name || 'N/A', // 학회명 추가
       phoneNumber: order.phone_number || 'N/A',
       customerEmail: order.email,
       inpsytId: order.inpsyt_id || 'N/A',
@@ -80,13 +82,12 @@ serve(async (req) => {
       orderItemsHtml: orderItemsHtml,
     };
 
-    // 템플릿에 데이터 채우기
     let emailBody = emailTemplate;
     for (const [key, value] of Object.entries(emailData)) {
       emailBody = emailBody.replace(new RegExp(`{{${key}}}`, 'g'), String(value));
     }
 
-    // Resend API 호출
+    // 3. Resend API로 이메일 발송
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -105,20 +106,38 @@ serve(async (req) => {
       const errorData = await resendResponse.json();
       throw new Error(`Resend API Error: ${JSON.stringify(errorData)}`);
     }
-
-    const data = await resendResponse.json();
-    console.log("Email sent successfully:", data);
-
-    return new Response(JSON.stringify(data), {
-      headers: { "Content-Type": "application/json" },
-      status: 200,
-    });
+    
+    console.log(`Email for order ${orderId} sent successfully.`);
 
   } catch (error) {
-    console.error("Edge Function Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { "Content-Type": "application/json" },
-      status: 500,
-    });
+    console.error(`Failed to process order ${orderId}:`, error);
+    throw error; // <--- Add this line to re-throw the error
   }
+}
+
+// 데이터베이스 리스너 설정
+async function setupListener() {
+  const sql = postgres(DATABASE_URL);
+  
+  // 'order_paid' 채널을 리슨
+  await sql.listen("order_paid", async (payload) => {
+    try {
+      const orderId = parseInt(payload, 10);
+      if (isNaN(orderId)) {
+        throw new Error(`Invalid order ID received: ${payload}`);
+      }
+      await sendOrderEmail(orderId);
+    } catch (e) {
+      console.error("Error processing notification payload:", e);
+    }
+  });
+
+  console.log("Database listener started for 'order_paid' channel.");
+}
+
+// 리스너 실행
+setupListener().catch(e => {
+  console.error("Failed to setup database listener:", e);
+  // 리스너 설정에 실패하면 프로세스를 종료하여 재시작을 유도할 수 있습니다.
+  Deno.exit(1);
 });

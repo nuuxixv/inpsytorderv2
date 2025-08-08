@@ -1,8 +1,1 @@
-feat: Implement admin page authentication and role-based access control
-
-- Implemented Supabase authentication for the admin page.
-- Added role-based access control (RBAC) with master and manager roles.
-- Integrated custom claims for user roles in JWT.
-- Updated AdminPage to display order details including order items.
-- Configured RLS policies for orders, order_items, and products tables to enable read access for authenticated users.
-- Changed admin page path from /admin to /smartAdmin.
+Feat: Log updatedOrderData in update-order Edge Function for debugging

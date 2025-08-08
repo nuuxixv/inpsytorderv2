@@ -1,7 +1,0 @@
-feat: Implement event-specific order management
-
-- Integrate URL query parameter 'events' to identify specific events for orders.
-- Modify OrderPage.jsx to fetch event details (id, discount_rate) based on the 'events' slug.
-- Implement an event selection dialog in OrderPage.jsx when no valid event slug is provided.
-- Update CostSummary.jsx to dynamically apply discount rates based on the selected event.
-- Ensure event_id is saved with order data in the 'orders' table.

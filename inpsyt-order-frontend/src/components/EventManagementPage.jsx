@@ -73,16 +73,48 @@ const EventManagementPage = () => {
     setCurrentEvent(null);
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setCurrentEvent(prev => ({ ...prev, [name]: value }));
+  const handleChange = (name, value) => {
+    if (name === 'name') {
+      const slug = value
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '');
+      setCurrentEvent(prev => ({ ...prev, name: value, order_url_slug: slug }));
+    } else {
+      setCurrentEvent(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSave = async () => {
     if (!currentEvent) return;
 
     if (!currentEvent.name || !currentEvent.order_url_slug) {
-      addNotification('학회명과 URL 슬러그는 필수입니다.', 'error');
+      addNotification('학회명과 고유 주소는 필수입니다.', 'error');
+      return;
+    }
+
+    // URL 슬러그 유효성 검사 (소문자, 숫자, 하이픈만 허용)
+    const slugRegex = /^[a-z0-9-]+$/;
+    if (!slugRegex.test(currentEvent.order_url_slug)) {
+      addNotification('고유 주소는 영문 소문자, 숫자, 하이픈만 사용할 수 있습니다.', 'error');
+      return;
+    }
+
+    // URL 슬러그 중복 검사
+    const { data: existingEvent, error: fetchError } = await supabase
+      .from('events')
+      .select('id')
+      .eq('order_url_slug', currentEvent.order_url_slug)
+      .not('id', 'eq', currentEvent.id || -1) // 수정 시 현재 학회는 제외
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116: no rows found
+      addNotification(`중복 검사 실패: ${fetchError.message}`, 'error');
+      return;
+    }
+
+    if (existingEvent) {
+      addNotification('이미 사용중인 고유 주소입니다.', 'error');
       return;
     }
 
@@ -186,7 +218,7 @@ const EventManagementPage = () => {
             type="text"
             fullWidth
             value={currentEvent?.name || ''}
-            onChange={handleChange}
+            onChange={(e) => handleChange(e.target.name, e.target.value)}
           />
           <TextField
             margin="dense"
@@ -195,7 +227,7 @@ const EventManagementPage = () => {
             type="text"
             fullWidth
             value={currentEvent?.order_url_slug || ''}
-            onChange={handleChange}
+            onChange={(e) => handleChange(e.target.name, e.target.value)}
             helperText="주문 페이지 주소로 사용됩니다. 예: spring-2024 (영문, 숫자, 하이픈만 가능)"
           />
           <TextField
@@ -205,7 +237,7 @@ const EventManagementPage = () => {
             type="number"
             fullWidth
             value={currentEvent?.discount_rate || 0}
-            onChange={handleChange}
+            onChange={(e) => handleChange(e.target.name, e.target.value)}
             inputProps={{ step: "0.01", min: "0", max: "1" }}
           />
           <TextField
@@ -215,7 +247,7 @@ const EventManagementPage = () => {
             type="date"
             fullWidth
             value={currentEvent?.start_date || ''}
-            onChange={handleChange}
+            onChange={(e) => handleChange(e.target.name, e.target.value)}
             InputLabelProps={{
               shrink: true,
             }}
@@ -227,7 +259,7 @@ const EventManagementPage = () => {
             type="date"
             fullWidth
             value={currentEvent?.end_date || ''}
-            onChange={handleChange}
+            onChange={(e) => handleChange(e.target.name, e.target.value)}
             InputLabelProps={{
               shrink: true,
             }}

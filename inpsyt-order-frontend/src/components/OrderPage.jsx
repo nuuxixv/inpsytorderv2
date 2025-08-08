@@ -50,8 +50,14 @@ const OrderPage = () => {
         if (productsError) throw productsError;
         setProducts(productsData);
 
-        // Fetch all events for the dialog
-        const { data: allEventsData, error: allEventsError } = await supabase.from('events').select('id, name, discount_rate, order_url_slug').order('name', { ascending: true });
+        // Fetch all events for the dialog, filtering by current date
+        const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+        const { data: allEventsData, error: allEventsError } = await supabase
+          .from('events')
+          .select('id, name, discount_rate, order_url_slug')
+          .lte('start_date', today) // start_date <= today
+          .gte('end_date', today)   // end_date >= today
+          .order('name', { ascending: true });
         if (allEventsError) throw allEventsError;
         setAllEvents(allEventsData);
 
@@ -106,63 +112,26 @@ const OrderPage = () => {
     setIsSubmitting(true);
     setError(null);
 
-    const discountRate = eventInfo.discount_rate; // Use event-specific discount rate
-
-    let totalOriginalPrice = 0;
-    let totalDiscountedPrice = 0;
-    cart.forEach(item => {
-      if (item && item.id) {
-        const quantity = item.quantity || 0;
-        const originalPrice = item.list_price || 0;
-        totalOriginalPrice += originalPrice * quantity;
-        const discountedPrice = item.is_discountable ? Math.round(originalPrice * (1 - discountRate)) : originalPrice;
-        totalDiscountedPrice += discountedPrice * quantity;
-      }
-    });
-    const totalDiscountAmount = totalOriginalPrice - totalDiscountedPrice;
-    const shippingCost = totalOriginalPrice >= FREE_SHIPPING_THRESHOLD || totalOriginalPrice === 0 ? 0 : SHIPPING_FEE;
-    const finalCost = totalDiscountedPrice + shippingCost;
-
-    const orderData = {
-      customer_name: customerInfo.name,
-      email: customerInfo.email,
-      phone_number: customerInfo.phone,
-      shipping_address: {
-        postcode: customerInfo.postcode,
-        address: customerInfo.address,
-        detail: customerInfo.detailAddress,
-      },
-      inpsyt_id: customerInfo.inpsytId,
-      customer_request: customerInfo.request,
-      total_cost: totalOriginalPrice,
-      discount_amount: totalDiscountAmount,
-      delivery_fee: shippingCost,
-      final_payment: finalCost,
-      is_email_sent: false,
-      event_id: eventInfo.id, // Save event_id
-    };
-
     try {
-      const { data: newOrder, error: orderError } = await supabase
-        .from('orders')
-        .insert(orderData)
-        .select()
-        .single();
+      const { data, error: invokeError } = await supabase.functions.invoke('create-order', {
+        body: {
+          customer_name: customerInfo.name,
+          email: customerInfo.email,
+          phone_number: customerInfo.phone,
+          shipping_address: {
+            postcode: customerInfo.postcode,
+            address: customerInfo.address,
+            detail: customerInfo.detailAddress,
+          },
+          inpsyt_id: customerInfo.inpsytId,
+          customer_request: customerInfo.request,
+          cart: cart.filter(item => item.id).map(item => ({ product_id: item.id, quantity: item.quantity })),
+          event_id: eventInfo.id,
+        },
+      });
 
-      if (orderError) throw orderError;
-
-      const orderItemsData = cart
-        .filter(item => item.id)
-        .map(item => ({
-          order_id: newOrder.id,
-          product_id: item.id,
-          quantity: item.quantity,
-          price_at_purchase: item.is_discountable ? Math.round(item.list_price * (1 - discountRate)) : item.list_price,
-        }));
-
-      const { error: itemsError } = await supabase.from('order_items').insert(orderItemsData);
-
-      if (itemsError) throw itemsError;
+      if (invokeError) throw invokeError;
+      if (data.error) throw new Error(data.error);
 
       setShowSuccessDialog(true);
 

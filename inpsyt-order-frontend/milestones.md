@@ -109,3 +109,92 @@ RLS 정책을 이해하셨으니, 다시 한번 Supabase 대시보드에서 `ord
     *   **주의:** 이 변경은 보안에 취약하므로, 테스트 목적으로만 사용하고 문제가 해결되면 원래대로 복구하거나 더 적절한 정책을 설정해야 합니다.
 
 이 조치 후에 다시 모달에서 학회명 수정을 시도해 보시고 결과를 알려주세요.
+
+## 2025년 7월 23일
+
+### 7. URL 쿼리 파라미터를 이용한 학회별 주문 관리 구현
+*   **기능:** URL 쿼리 파라미터 `?events=학회슬러그`를 통해 특정 학회 전용 주문 페이지를 제공하고, 해당 학회 정보를 주문 데이터에 연결.
+*   **세부 구현:**
+    *   `src/components/OrderPage.jsx`에서 `react-router-dom`의 `useSearchParams` 훅을 사용하여 `events` 쿼리 파라미터 값을 읽음.
+    *   읽어온 학회 슬러그를 기반으로 Supabase `events` 테이블에서 해당 학회의 `id`와 `discount_rate`를 조회.
+    *   조회된 `discount_rate`를 주문 금액 계산(`CostSummary.jsx` 포함)에 동적으로 적용.
+    *   주문 생성 시 조회된 `event_id`를 `orders` 테이블에 저장하도록 `OrderPage.jsx` 로직 수정.
+*   **학회 선택 팝업:**
+    *   `events` 쿼리 파라미터가 없거나 유효하지 않은 경우, 사용자에게 학회를 선택하도록 유도하는 팝업(`Dialog`) 구현.
+    *   팝업에 표시되는 학회 목록은 `start_date`와 `end_date`가 오늘 날짜 범위에 해당하는 학회만 필터링하여 표시.
+
+### 8. Supabase Edge Function을 통한 안전한 주문 처리 시스템 구축
+*   **문제점:** 기존 클라이언트 측 직접 삽입 방식은 RLS 정책으로 인한 오류 발생 및 보안 취약점 존재.
+*   **해결:** `create-order` Supabase Edge Function을 도입하여 서버 측에서 주문 생성 로직 처리.
+*   **세부 구현:**
+    *   `supabase/functions/create-order/index.ts`에 `create-order` Edge Function 생성 및 배포.
+    *   Edge Function은 클라이언트로부터 받은 주문 데이터를 기반으로 `products` 및 `events` 테이블에서 실제 가격 및 할인율을 조회하여 주문 금액을 서버에서 재계산.
+    *   `orders` 및 `order_items` 테이블에 데이터를 하나의 트랜잭션으로 안전하게 삽입.
+    *   `src/components/OrderPage.jsx`의 `handleSubmitOrder` 함수를 수정하여 직접 Supabase 테이블에 삽입하는 대신 `create-order` Edge Function을 호출하도록 변경.
+    *   `orders` 및 `order_items` 테이블의 RLS 정책을 `service_role`만 `INSERT`를 허용하도록 조정하여 보안 강화.
+    *   Edge Function 내부에 CORS 헤더(`Access-Control-Allow-Origin`, `Access-Control-Allow-Headers`)를 추가하여 `OPTIONS` preflight 요청 및 실제 요청에 대한 CORS 오류 해결.
+
+---
+
+## 2025년 8월 1일
+
+### 9. 관리자 패널 기능 개선
+*   **학회 관리:**
+    *   학회명 입력 시 `order_url_slug`가 자동으로 생성되고, 형식 및 중복 유효성을 검사하는 기능 추가.
+    *   페이지 간 UI 일관성을 위해 날짜 선택기(DatePicker)를 주문 관리 페이지와 동일한 스타일(기본 HTML Date Input)로 통일.
+*   **주문 관리:**
+    *   대량의 주문 데이터를 효율적으로 처리하기 위해 페이지네이션(Pagination) 기능 구현.
+    *   엑셀 다운로드 시, 현재 필터링된 모든 주문 내역을 다운로드하도록 기능 개선.
+
+### 10. 알림 시스템 개선
+*   관리자 페이지에 새로운 주문이 접수되면 실시간으로 화면 하단에 알림(Snackbar)이 표시되도록 구현.
+*   고객에게 발송되는 주문 확인 이메일에 '학회명' 정보를 추가하여 어떤 학회 관련 주문인지 명확히 함.
+
+### 11. 테스트 및 배포 자동화 (CI/CD)
+*   **테스트:** `Vitest`와 `React Testing Library`를 도입하여 프론트엔드 테스트 환경을 구축하고, `DashboardPage`에 대한 샘플 테스트 코드 작성 완료.
+*   **CI/CD:**
+    *   Vercel 배포 시 `npm test`가 자동으로 실행되도록 `package.json`의 `build` 스크립트 수정.
+    *   `main` 브랜치에 `supabase/functions` 관련 변경사항이 푸시될 때마다 자동으로 Supabase Edge Function을 배포하는 GitHub Actions 워크플로우 설정.
+
+### 12. 버그 수정 및 안정화
+*   `EventManagementPage.jsx`에서 `useNotification` 훅 중복 선언 및 `DatePicker` 라이브러리 설정 오류로 인해 페이지가 로딩되지 않던 문제 해결.
+*   `orders` 테이블 RLS 정책 문제로 인해 주문 목록이 보이지 않고 상태 변경이 되지 않던 문제 해결 (RLS 정책 재설정).
+*   `OrderDetailModal.jsx`에서 주문 상태 변경은 '편집' 버튼 없이 상시 가능하도록 수정.
+*   `update-order` Edge Function의 `order_items` 업데이트 버그 수정.
+*   `OrderDetailModal` 내 `Select` 컴포넌트의 `out-of-range value` 오류 해결 시도 (productsMap 키 변경, MenuItem value 변경).
+
+---
+
+## 앞으로의 개발 제안 사항
+
+### 1. 관리자 패널 기능 개선
+*   **학회 관리:**
+    *   학회명 기반 `order_url_slug` 자동 생성 기능 (수동 편집 옵션 포함).
+    *   `order_url_slug`의 유니크함 및 형식(소문자, 하이픈만 허용 등) 유효성 검사 강화.
+    *   `start_date`, `end_date` 입력 필드에 사용자 친화적인 캘린더 컴포넌트 도입.
+*   **주문 관리:**
+    *   고객명, 이메일, 학회, 상태 등 다양한 조건으로 주문 검색/필터링 기능 구현.
+    *   대량 데이터 처리를 위한 주문 목록 페이지네이션(Pagination) 기능 추가.
+    *   주문 데이터 CSV 내보내기 기능 구현.
+    *   (선택 사항) 고객용 주문 내역 조회 페이지 구현 (고객 인증 시스템 필요).
+*   **상품 관리:**
+    *   상품 이미지 업로드 및 관리 기능 추가.
+    *   재고 관리 기능 구현.
+
+### 2. 알림 시스템 개선
+*   관리자 패널에 새로운 주문 발생 시 실시간 알림 기능 추가.
+*   주문 확인 및 상태 업데이트를 위한 이메일 템플릿 개선.
+
+### 3. 테스트 프레임워크 통합
+*   React 컴포넌트(Vitest/React Testing Library 활용) 및 Edge Function에 대한 단위 및 통합 테스트 코드 작성.
+
+### 4. 배포 자동화 (CI/CD)
+*   프론트엔드(Vercel 등) 및 백엔드/함수(Supabase)에 대한 자동화된 테스트 및 배포 파이프라인 구축.
+
+### 5. 오류 처리 및 로깅 강화
+*   클라이언트 및 서버 측 오류 로깅 시스템 개선을 통한 디버깅 및 모니터링 효율 증대.
+*   사용자에게 더 명확하고 친절한 오류 메시지 제공.
+
+### 6. UI/UX 개선
+*   전반적인 사용자 인터페이스 및 경험의 일관성 및 사용 편의성 검토 및 개선.
+*   다양한 화면 크기에 대응하는 반응형 디자인 구현.

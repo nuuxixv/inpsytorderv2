@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Box, Toolbar } from '@mui/material';
+import { Box, Toolbar, Container } from '@mui/material';
 import AdminHeader from './AdminHeader';
 import AdminSidebar from './AdminSidebar';
 import DashboardPage from './DashboardPage';
@@ -8,34 +8,57 @@ import OrderManagementPage from './OrderManagementPage';
 import EventManagementPage from './EventManagementPage';
 import ProductManagementPage from './ProductManagementPage';
 import NotificationsDisplay from './NotificationsDisplay';
-import { useAuth } from '../AuthContext'; // useAuth 훅 임포트
+import { useAuth } from '../AuthContext';
+import { useNotification } from '../NotificationContext';
+import { supabase } from '../supabaseClient';
 
 const AdminLayout = () => {
-  const { isMaster } = useAuth(); // isMaster 상태 가져오기
+  const { isMaster } = useAuth();
+  const { addNotification } = useNotification();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('realtime-orders')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'orders' },
+        (payload) => {
+          console.log('New order received:', payload);
+          addNotification('새로운 주문이 도착했습니다!', 'success');
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [addNotification]);
 
   return (
     <Box sx={{ display: 'flex' }}>
       <AdminHeader />
       <AdminSidebar />
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+      <Box component="main" sx={{ flexGrow: 1, p: 3, backgroundColor: '#f4f6f8' }}>
         <Toolbar />
-        <Routes>
-          <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/orders" element={<OrderManagementPage />} />
+        <Container maxWidth="xl">
+          <Routes>
+            <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/orders" element={<OrderManagementPage />} />
 
-          {/* 학회 관리 (마스터 권한 필요) */}
-          <Route
-            path="/events/:slug?"
-            element={isMaster ? <EventManagementPage /> : <Navigate to="/admin/dashboard" replace />}
-          />
+            {/* 학회 관리 (마스터 권한 필요) */}
+            <Route
+              path="/events/:slug?"
+              element={isMaster ? <EventManagementPage /> : <Navigate to="/admin/dashboard" replace />}
+            />
 
-          {/* 상품 관리 (마스터 권한 필요) */}
-          <Route
-            path="/products"
-            element={isMaster ? <ProductManagementPage /> : <Navigate to="/admin/dashboard" replace />}
-          />
-        </Routes>
+            {/* 상품 관리 (마스터 권한 필요) */}
+            <Route
+              path="/products"
+              element={isMaster ? <ProductManagementPage /> : <Navigate to="/admin/dashboard" replace />}
+            />
+          </Routes>
+        </Container>
         <NotificationsDisplay />
       </Box>
     </Box>

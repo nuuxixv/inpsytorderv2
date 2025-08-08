@@ -24,7 +24,7 @@ const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: '"Noto Sans KR", sans-serif',
+    fontFamily: '"Toss Product Sans", sans-serif',
     h4: { fontWeight: 700, fontSize: '1.8rem' },
     h5: { fontWeight: 600, fontSize: '1.4rem' },
   },
