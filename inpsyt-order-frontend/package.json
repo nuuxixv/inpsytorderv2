@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "npm test && vite build",
     "lint": "eslint .",
-    "test": "vitest",
+    "test": "set NODE_OPTIONS=--max-old-space-size=4096 && npx vitest",
     "preview": "vite preview"
   },
   "dependencies": {

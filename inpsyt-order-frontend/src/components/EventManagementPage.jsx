@@ -19,11 +19,9 @@ import {
   DialogTitle,
 } from '@mui/material';
 import { supabase } from '../supabaseClient';
-import { useAuth } from '../AuthContext';
-import { useNotification } from '../NotificationContext';
+import { useNotification } from '../hooks/useNotification';
 
 const EventManagementPage = () => {
-  const { user, masterPassword } = useAuth();
   const [events, setEvents] = useState([]);
   const [open, setOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -41,7 +39,7 @@ const EventManagementPage = () => {
     } else {
       setEvents(data);
     }
-  }, []);
+  }, [addNotification]);
 
   useEffect(() => {
     fetchEvents();
@@ -51,7 +49,7 @@ const EventManagementPage = () => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'events' },
-        (payload) => {
+        () => {
           fetchEvents();
         }
       )
@@ -138,78 +136,53 @@ const EventManagementPage = () => {
     }
   };
 
-  const handleUpdateEventDiscount = useCallback(async (eventId, newDiscountRate) => {
-    if (!user || !masterPassword) {
-      addNotification('권한이 없습니다.', 'error');
-      return;
-    }
-
-    try {
-      const { error: updateError } = await supabase
-        .from('events')
-        .update({ discount_rate: newDiscountRate })
-        .eq('id', eventId);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      addNotification('할인율이 업데이트되었습니다.', 'success');
-      fetchEvents(); // 학회 목록 갱신
-    } catch (err) {
-      console.error('Error updating event discount rate:', err);
-      addNotification(`할인율 업데이트 실패: ${err.message}`, 'error');
-    }
-  }, [user, masterPassword, fetchEvents]);
 
   return (
-    <Box>
+    <Paper sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h4">학회 관리</Typography>
         <Button variant="contained" onClick={() => handleOpen()}>새 학회 추가</Button>
       </Box>
-      <Paper elevation={3} sx={{ p: 3, mt: 3, borderRadius: '12px', bgcolor: '#fff' }}>
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 'bold' }}>학회 ID</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>학회명</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>고유 주소</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>할인율</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>시작일</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>종료일</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>작업</TableCell>
+      <TableContainer sx={{ mt: 3 }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ fontWeight: 'bold' }}>학회 ID</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>학회명</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>고유 주소</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>할인율</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>시작일</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>종료일</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>작업</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {events.map((event) => (
+              <TableRow key={event.id}>
+                <TableCell>{event.id}</TableCell>
+                <TableCell>{event.name}</TableCell>
+                <TableCell>{event.order_url_slug}</TableCell>
+                <TableCell>
+                  <Typography variant="body2" component="span">
+                    {(event.discount_rate * 100).toFixed(0)}%
+                  </Typography>
+                </TableCell>
+                <TableCell>{event.start_date}</TableCell>
+                <TableCell>{event.end_date}</TableCell>
+                <TableCell>
+                  <Button variant="outlined" size="small" onClick={() => handleOpen(event)}>
+                    수정
+                  </Button>
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {events.map((event) => (
-                <TableRow key={event.id}>
-                  <TableCell>{event.id}</TableCell>
-                  <TableCell>{event.name}</TableCell>
-                  <TableCell>{event.order_url_slug}</TableCell>
-                  <TableCell>
-                    <Typography variant="body2" component="span" sx={{ ml: 1 }}>
-                      {(event.discount_rate * 100).toFixed(0)}%
-                    </Typography>
-                  </TableCell>
-                  <TableCell>{event.start_date}</TableCell>
-                  <TableCell>{event.end_date}</TableCell>
-                  <TableCell>
-                    <Button variant="outlined" size="small" onClick={() => handleOpen(event)}>
-                      수정
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>{isEditing ? '학회 수정' : '새 학회 추가'}</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ p: 3 }}>
           <TextField
             autoFocus
             margin="dense"
@@ -265,12 +238,12 @@ const EventManagementPage = () => {
             }}
           />
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ p: 2 }}>
           <Button onClick={handleClose}>취소</Button>
           <Button onClick={handleSave}>저장</Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </Paper>
   );
 };
 

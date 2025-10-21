@@ -1,8 +1,7 @@
-import React, { createContext, useState, useContext, useCallback } from 'react';
+import React, { createContext, useState, useCallback } from 'react';
 
-const NotificationContext = createContext();
-
-export const useNotification = () => useContext(NotificationContext);
+// eslint-disable-next-line react-refresh/only-export-components
+export const NotificationContext = createContext();
 
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);

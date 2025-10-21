@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Snackbar, Alert } from '@mui/material';
-import { useNotification } from '../NotificationContext';
+import { useNotification } from '../hooks/useNotification';
 
 const NotificationsDisplay = () => {
   const { notifications } = useNotification();

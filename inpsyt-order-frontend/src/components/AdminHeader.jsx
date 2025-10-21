@@ -1,96 +1,107 @@
 import React, { useState } from 'react';
-import { AppBar, Toolbar, Typography, Button, Box, IconButton, Popover, List, ListItem, ListItemText, Divider } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import { Box, Typography, IconButton, Popover, List, ListItem, ListItemText, Divider, Avatar, Menu, MenuItem } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { useNotification } from '../NotificationContext';
-import { useAuth } from '../AuthContext';
-import LogoutIcon from '@mui/icons-material/Logout';
-import { useNavigate } from 'react-router-dom'; // useNavigate 임포트
+import { useNotification } from '../hooks/useNotification';
+import { useAuth } from '../hooks/useAuth';
 
 const AdminHeader = () => {
   const { user, logout } = useAuth();
   const { notifications } = useNotification();
-  const [anchorEl, setAnchorEl] = useState(null);
-  const navigate = useNavigate(); // useNavigate 훅 사용
+  const navigate = useNavigate();
 
-  const handleNotificationClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
+  const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
+  const [userAnchorEl, setUserAnchorEl] = useState(null);
 
-  const handleNotificationClose = () => {
-    setAnchorEl(null);
-  };
+  const handleNotificationClick = (event) => setNotificationAnchorEl(event.currentTarget);
+  const handleNotificationClose = () => setNotificationAnchorEl(null);
+
+  const handleUserMenuClick = (event) => setUserAnchorEl(event.currentTarget);
+  const handleUserMenuClose = () => setUserAnchorEl(null);
 
   const handleLogout = async () => {
-    await logout(); // AuthContext의 logout 함수 호출
-    navigate('/login'); // 로그아웃 후 로그인 페이지로 이동
+    handleUserMenuClose();
+    await logout();
+    navigate('/login');
   };
 
-  const open = Boolean(anchorEl);
-  const id = open ? 'notification-popover' : undefined;
+  const openNotification = Boolean(notificationAnchorEl);
+  const openUserMenu = Boolean(userAnchorEl);
+
 
   return (
-    <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-          INPSYT ADMIN
-        </Typography>
-        
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <IconButton
-            aria-describedby={id}
-            color="inherit"
-            onClick={handleNotificationClick}
-          >
-            <NotificationsIcon />
-          </IconButton>
-          <Popover
-            id={id}
-            open={open}
-            anchorEl={anchorEl}
-            onClose={handleNotificationClose}
-            anchorOrigin={{
-              vertical: 'bottom',
-              horizontal: 'right',
-            }}
-            transformOrigin={{
-              vertical: 'top',
-              horizontal: 'right',
-            }}
-          >
-            <List sx={{ width: 300, maxHeight: 400, overflow: 'auto' }}>
+    <Box
+      sx={(theme) => ({
+        display: 'flex',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        width: '100%',
+        height: 64,
+        p: 2,
+        mb: 3,
+        backgroundColor: theme.palette.background.paper,
+        borderRadius: theme.shape.borderRadius,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.05)', // 테마와 일치하는 그림자
+      })}
+    >
+      {/* 우측: 알림 및 사용자 메뉴 */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <IconButton onClick={handleNotificationClick} color="inherit" size="small">
+          <NotificationsIcon />
+        </IconButton>
+        <Popover
+          open={openNotification}
+          anchorEl={notificationAnchorEl}
+          onClose={handleNotificationClose}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <List sx={{ width: 320, maxHeight: 400, overflow: 'auto' }}>
+            <ListItem>
+              <ListItemText primary="알림" primaryTypographyProps={{ fontWeight: 'bold' }} />
+            </ListItem>
+            <Divider />
+            {notifications.length === 0 ? (
               <ListItem>
-                <ListItemText primary="알림" />
+                <ListItemText secondary="새로운 알림이 없습니다." />
               </ListItem>
-              <Divider />
-              {notifications.length === 0 ? (
-                <ListItem>
-                  <ListItemText secondary="새로운 알림이 없습니다." />
+            ) : (
+              notifications.map((notification) => (
+                <ListItem key={notification.id}>
+                  <ListItemText
+                    primary={notification.message}
+                    secondary={format(notification.timestamp, 'yyyy-MM-dd HH:mm', { locale: ko })}
+                  />
                 </ListItem>
-              ) : (
-                notifications.map((notification) => (
-                  <ListItem key={notification.id} alignItems="flex-start">
-                    <ListItemText
-                      primary={notification.message}
-                      secondary={format(notification.timestamp, 'yyyy-MM-dd HH:mm:ss', { locale: ko })}
-                    />
-                  </ListItem>
-                ))
-              )}
-            </List>
-          </Popover>
-          <Typography variant="body1" sx={{ mr: 2 }}>
-            {user?.email}
-          </Typography>
-          <Button color="inherit" startIcon={<LogoutIcon />} onClick={handleLogout}> {/* onClick 변경 */}
-            로그아웃
-          </Button>
-        </Box>
-      </Toolbar>
-    </AppBar>
+              ))
+            )}
+          </List>
+        </Popover>
+
+        <IconButton onClick={handleUserMenuClick} size="small">
+          <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+            {user?.email?.[0].toUpperCase()}
+          </Avatar>
+        </IconButton>
+        <Menu
+          anchorEl={userAnchorEl}
+          open={openUserMenu}
+          onClose={handleUserMenuClose}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <Box sx={{ px: 2, py: 1 }}>
+            <Typography variant="body1" sx={{ fontWeight: 'bold' }}>{user?.email}</Typography>
+            <Typography variant="body2" color="text.secondary">관리자</Typography>
+          </Box>
+          <Divider />
+          <MenuItem onClick={handleLogout}>로그아웃</MenuItem>
+        </Menu>
+      </Box>
+    </Box>
   );
 };
-
 
 export default AdminHeader;

@@ -1,39 +1,19 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './AuthContext';
+import { AuthProvider } from './AuthContext';
+import { useAuth } from './hooks/useAuth';
 import { NotificationProvider } from './NotificationContext';
 import OrderPage from './components/OrderPage';
-import AdminLayout from './components/AdminLayout'; // 새로 만들 컴포넌트
+import AdminLayout from './components/AdminLayout';
 import LoginPage from './components/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import theme from './theme'; // theme.js 파일 임포트
 import {
   CssBaseline,
   CircularProgress,
-  Box
+  Box,
+  ThemeProvider
 } from '@mui/material';
-import { createTheme, ThemeProvider } from '@mui/material/styles';
-
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#2B398F',
-    },
-    background: {
-      default: '#f4f6f8',
-      paper: '#ffffff',
-    },
-  },
-  typography: {
-    fontFamily: '"Toss Product Sans", sans-serif',
-    h4: { fontWeight: 700, fontSize: '1.8rem' },
-    h5: { fontWeight: 600, fontSize: '1.4rem' },
-  },
-  components: {
-    MuiCard: { styleOverrides: { root: { borderRadius: 16, boxShadow: 'none', padding: '24px' } } },
-    MuiTextField: { defaultProps: { variant: 'filled', fullWidth: true } },
-    MuiButton: { styleOverrides: { root: { borderRadius: 8, fontWeight: 600 } } },
-  },
-});
 
 function AppRoutes() {
   const { user, loading } = useAuth();

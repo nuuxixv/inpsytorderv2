@@ -25,7 +25,7 @@ const DashboardPage = () => {
   const [summaryData, setSummaryData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [dateRange, setDateRange] = useState(30); // Default to last 30 days
+  const [dateRange] = useState(30); // Default to last 30 days
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -113,16 +113,9 @@ const DashboardPage = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h4" gutterBottom>
-          대시보드
-        </Typography>
-        <ButtonGroup variant="outlined" aria-label="outlined button group">
-          <Button onClick={() => setDateRange(7)} variant={dateRange === 7 ? 'contained' : 'outlined'}>최근 7일</Button>
-          <Button onClick={() => setDateRange(30)} variant={dateRange === 30 ? 'contained' : 'outlined'}>최근 30일</Button>
-          <Button onClick={() => setDateRange('all')} variant={dateRange === 'all' ? 'contained' : 'outlined'}>전체</Button>
-        </ButtonGroup>
-      </Box>
+      <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', color: 'text.primary', mb: 3 }}>
+        대시보드
+      </Typography>
       <Grid container spacing={3}>
         <Grid item xs={12} md={6} lg={3}>
           <StatCard title="총 매출" value={`${summaryData.totalSales.toLocaleString()}원`} />

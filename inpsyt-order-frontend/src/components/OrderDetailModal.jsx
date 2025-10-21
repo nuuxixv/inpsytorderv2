@@ -20,7 +20,7 @@ import {
   Backdrop,
   Fade,
 } from '@mui/material';
-import { Close as CloseIcon } from '@mui/icons-material';
+import CloseIcon from '@mui/icons-material/Close';
 import { supabase } from '../supabaseClient';
 
 const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, products, events, addNotification, onUpdate, productsLoading }) => {
@@ -35,6 +35,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
   const [editedCustomerRequest, setEditedCustomerRequest] = useState(order.customer_request || '');
   const [editedOrderItems, setEditedOrderItems] = useState(order.order_items || []);
   const [editedEventId, setEditedEventId] = useState(order.event_id);
+  const [editedAdminMemo, setEditedAdminMemo] = useState(order.admin_memo || '');
   
   // State for calculated amounts
   const [subtotal, setSubtotal] = useState(0);
@@ -54,6 +55,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
     setEditedShippingDetail(order.shipping_address?.detail || '');
     setEditedCustomerRequest(order.customer_request || '');
     setEditedEventId(order.event_id);
+    setEditedAdminMemo(order.admin_memo || '');
     setIsEditing(false); // Reset editing state
 
     console.log('Modal useEffect - Order changed:', order);
@@ -70,7 +72,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
 
     let currentSubtotal = 0;
     
-    const calculatedItems = (editedOrderItems || []).map(item => {
+    (editedOrderItems || []).forEach(item => {
       const product = productsMap[item.product_id];
       const originalPrice = product?.list_price || 0;
       currentSubtotal += originalPrice * item.quantity;
@@ -117,6 +119,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
 
   const handleSaveAll = async () => {
     try {
+      // 1. Prepare all the data to be updated
       const updatedShippingAddress = {
         postcode: editedShippingPostcode,
         address: editedShippingAddress,
@@ -132,6 +135,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
         customer_request: editedCustomerRequest,
         final_payment: finalTotal,
         event_id: editedEventId,
+        admin_memo: editedAdminMemo,
       };
 
       const currentEvent = events.find(e => e.id === editedEventId);
@@ -142,35 +146,30 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
         const originalPrice = product?.list_price || 0;
         const discountedPrice = originalPrice * (1 - discountRate);
         return {
+          order_id: order.id,
           product_id: item.product_id,
           quantity: item.quantity,
-          price_at_purchase: discountedPrice, 
+          price_at_purchase: discountedPrice,
         };
       });
 
-      console.log('--- handleSaveAll started ---'); // ADD THIS
-      console.log('Payload for update-order:', { orderId: order.id, updates: orderUpdates, items: orderItemsPayload }); // ADD THIS
-
-      const { data, error } = await supabase.functions.invoke('update-order', {
-        body: {
-          orderId: order.id,
-          updates: orderUpdates,
-          items: orderItemsPayload,
-        },
+      // 2. Call the RPC function to update everything in one transaction
+      const { error } = await supabase.rpc('update_order_details', {
+        order_id_param: order.id,
+        updates_param: orderUpdates,
+        items_param: orderItemsPayload
       });
 
-      console.log('Result from update-order invocation:', { data, error }); // ADD THIS
+      if (error) throw error;
 
-      if (error) {
-        throw error;
-      }
-
+      // 3. Success!
       addNotification('주문 정보가 성공적으로 업데이트되었습니다.', 'success');
       setIsEditing(false);
-      onUpdate();
-      onClose();
+      onUpdate(); // Refresh the list
+      onClose(); // Close the modal
+
     } catch (error) {
-      console.error('Client-side error in handleSaveAll:', error); // MODIFY THIS
+      console.error('Client-side error in handleSaveAll:', error);
       addNotification(`주문 정보 업데이트 실패: ${error.message}`, 'error');
     }
   };

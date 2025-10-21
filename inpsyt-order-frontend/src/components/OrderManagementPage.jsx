@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useReducer } from 'react';
 import {
   Box,
   Typography,
@@ -29,236 +29,204 @@ import {
   Divider,
   Grid,
 } from '@mui/material';
-import { format, startOfDay, endOfDay } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { format, subDays } from 'date-fns';
 import { supabase } from '../supabaseClient';
-import { useAuth } from '../AuthContext';
-import { useNotification } from '../NotificationContext';
+import { useAuth } from '../hooks/useAuth';
+import { useNotification } from '../hooks/useNotification';
 import { Close as CloseIcon } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import OrderDetailModal from './OrderDetailModal';
+import { getEvents } from '../api/events';
+import { getProducts } from '../api/products';
+import { getOrders } from '../api/orders';
+
+const statusToKorean = {
+  pending: '결제대기',
+  paid: '결제완료',
+  completed: '처리완료',
+  cancelled: '주문취소',
+  refunded: '결제취소',
+};
+
+const initialState = {
+  orders: [],
+  loading: true,
+  productsLoading: true,
+  currentPage: 1,
+  totalOrders: 0,
+  searchTerm: '',
+  selectedStatus: '',
+  events: [],
+  selectedEvent: '',
+  startDate: subDays(new Date(), 30),
+  endDate: new Date(),
+  products: [],
+  productsMap: {},
+  openOrderDetailModal: false,
+  selectedOrder: null,
+  openNewOrderModal: false,
+  newOrder: {
+    isOnSiteSale: false,
+    customerName: '',
+    customerEmail: '',
+    contact: '',
+    address: '',
+    selectedEvent: '',
+    items: [{ product_id: '', quantity: 1, price_at_purchase: 0 }],
+  },
+  newOrderCalculations: {
+    totalAmount: 0,
+    discountAmount: 0,
+    shippingCost: 0,
+    finalPayment: 0,
+  },
+};
+
+function reducer(state, action) {
+  switch (action.type) {
+    case 'SET_STATE':
+      return { ...state, ...action.payload };
+    case 'SET_FILTER':
+      return { ...state, currentPage: 1, [action.payload.key]: action.payload.value };
+    case 'CLEAR_FILTERS':
+      return {
+        ...state,
+        searchTerm: '',
+        selectedStatus: '',
+        selectedEvent: '',
+        startDate: subDays(new Date(), 30),
+        endDate: new Date(),
+      };
+    case 'OPEN_ORDER_DETAIL':
+      return { ...state, selectedOrder: action.payload, openOrderDetailModal: true };
+    case 'CLOSE_ORDER_DETAIL':
+      return { ...state, selectedOrder: null, openOrderDetailModal: false };
+    case 'OPEN_NEW_ORDER':
+      return { ...state, openNewOrderModal: true, newOrder: initialState.newOrder };
+    case 'CLOSE_NEW_ORDER':
+      return { ...state, openNewOrderModal: false };
+    case 'UPDATE_NEW_ORDER_FIELD':
+      return { ...state, newOrder: { ...state.newOrder, [action.payload.key]: action.payload.value } };
+    case 'TOGGLE_ONSITE_SALE': {
+        const isOnSite = action.payload;
+        return {
+            ...state,
+            newOrder: {
+                ...state.newOrder,
+                isOnSiteSale: isOnSite,
+                customerName: isOnSite ? `현장판매_${Date.now()}` : '',
+                customerEmail: '',
+                contact: '',
+                address: '',
+            }
+        };
+    }
+    case 'UPDATE_NEW_ORDER_ITEM': {
+        const newItems = [...state.newOrder.items];
+        newItems[action.payload.index][action.payload.field] = action.payload.value;
+        return { ...state, newOrder: { ...state.newOrder, items: newItems } };
+    }
+    case 'ADD_NEW_ORDER_ITEM':
+        return { ...state, newOrder: { ...state.newOrder, items: [...state.newOrder.items, { product_id: '', quantity: 1, price_at_purchase: 0 }] } };
+    case 'REMOVE_NEW_ORDER_ITEM':
+        return { ...state, newOrder: { ...state.newOrder, items: state.newOrder.items.filter((_, i) => i !== action.payload) } };
+    case 'SET_NEW_ORDER_CALCULATIONS':
+        return { ...state, newOrderCalculations: action.payload };
+    default:
+      throw new Error();
+  }
+}
 
 const OrderManagementPage = () => {
   const { user } = useAuth();
   const { addNotification } = useNotification();
+  const [state, dispatch] = useReducer(reducer, initialState);
 
-  // Page state
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalOrders, setTotalOrders] = useState(0);
   const ordersPerPage = 10;
 
-  // Filter state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('');
-  const [events, setEvents] = useState([]);
-  const [selectedEvent, setSelectedEvent] = useState('');
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
-
-  // Product state
-  const [products, setProducts] = useState([]);
-  const [productsMap, setProductsMap] = useState({});
-  const [productsLoading, setProductsLoading] = useState(true);
-
-  // Order Detail Modal state
-  const [openOrderDetailModal, setOpenOrderDetailModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-
-  // New Order Modal state
-  const [openNewOrderModal, setOpenNewOrderModal] = useState(false);
-  const [isOnSiteSale, setIsOnSiteSale] = useState(false);
-  const [newOrderCustomerName, setNewOrderCustomerName] = useState('');
-  const [newOrderCustomerEmail, setNewOrderCustomerEmail] = useState('');
-  const [newOrderContact, setNewOrderContact] = useState('');
-  const [newOrderAddress, setNewOrderAddress] = useState('');
-  const [newOrderSelectedEvent, setNewOrderSelectedEvent] = useState('');
-  const [newOrderItems, setNewOrderItems] = useState([{ product_id: '', quantity: 1, price_at_purchase: 0 }]);
-  
-  // New Order Calculation State
-  const [totalAmount, setTotalAmount] = useState(0);
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const [shippingCost, setShippingCost] = useState(0);
-  const [finalPayment, setFinalPayment] = useState(0);
-
-  const statusToKorean = {
-    pending: '결제대기',
-    paid: '결제완료',
-    completed: '처리완료',
-    cancelled: '주문취소',
-    refunded: '결제취소',
-  };
-
-  // Fetching data
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      setProductsLoading(true);
-      try {
-        const { data: productsData, error: productsError } = await supabase
-          .from('products')
-          .select('id, product_code, name, list_price');
-        if (productsError) throw productsError;
-        
-        setProducts(productsData);
-        const newProductsMap = {};
-        productsData.forEach(p => {
-          newProductsMap[p.id] = { id: p.id, name: p.name, list_price: p.list_price };
-        });
-        setProductsMap(newProductsMap);
-
-      } catch (err) {
-        console.error('Error fetching products:', err);
-        addNotification('상품 정보를 불러오는 데 실패했습니다.', 'error');
-      } finally {
-        setProductsLoading(false);
-      }
-    };
-    fetchInitialData();
+  const fetchProducts = useCallback(async () => {
+    dispatch({ type: 'SET_STATE', payload: { productsLoading: true } });
+    try {
+      const productsData = await getProducts();
+      const newProductsMap = {};
+      productsData.forEach(p => { newProductsMap[p.id] = { id: p.id, name: p.name, list_price: p.list_price }; });
+      dispatch({ type: 'SET_STATE', payload: { products: productsData, productsMap: newProductsMap } });
+    } catch {
+      addNotification('상품 정보를 불러오는 데 실패했습니다.', 'error');
+    } finally {
+      dispatch({ type: 'SET_STATE', payload: { productsLoading: false } });
+    }
   }, [addNotification]);
 
   const fetchEvents = useCallback(async () => {
-    const { data, error } = await supabase.from('events').select('id, name, discount_rate').order('name', { ascending: true });
-    if (error) {
-      console.error('Error fetching events:', error);
+    try {
+      const eventsData = await getEvents();
+      dispatch({ type: 'SET_STATE', payload: { events: eventsData } });
+    } catch {
       addNotification('학회 정보를 불러오는 데 실패했습니다.', 'error');
-    } else {
-      setEvents(data);
     }
   }, [addNotification]);
 
   const fetchOrders = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    const from = (currentPage - 1) * ordersPerPage;
-    const to = from + ordersPerPage - 1;
-
-    let query = supabase
-      .from('orders')
-      .select(`*, order_items (product_id, quantity, price_at_purchase)`, { count: 'exact' })
-      .order('created_at', { ascending: false });
-
-    if (searchTerm) query = query.or(`customer_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
-    if (selectedStatus) query = query.eq('status', selectedStatus);
-    if (selectedEvent && selectedEvent !== '') query = query.eq('event_id', selectedEvent);
-    if (startDate && endDate) {
-      const start = format(startOfDay(startDate), 'yyyy-MM-dd HH:mm:ss');
-      const end = format(endOfDay(endDate), 'yyyy-MM-dd HH:mm:ss');
-      query = query.gte('created_at', start).lte('created_at', end);
-    }
-
-    const { data, error, count } = await query.range(from, to);
-
-    if (error) {
-      console.error('Error fetching orders:', error);
+    dispatch({ type: 'SET_STATE', payload: { loading: true } });
+    try {
+      const { data, count } = await getOrders({
+        currentPage: state.currentPage,
+        ordersPerPage,
+        searchTerm: state.searchTerm,
+        selectedStatus: state.selectedStatus,
+        selectedEvent: state.selectedEvent,
+        startDate: state.startDate,
+        endDate: state.endDate,
+      });
+      dispatch({ type: 'SET_STATE', payload: { orders: data, totalOrders: count || 0 } });
+    } catch {
       addNotification('주문 정보를 불러오는 데 실패했습니다.', 'error');
-      setOrders([]);
-      setTotalOrders(0);
-    } else {
-      setOrders(data);
-      setTotalOrders(count || 0);
+      dispatch({ type: 'SET_STATE', payload: { orders: [], totalOrders: 0 } });
     }
-    setLoading(false);
-  }, [searchTerm, selectedStatus, selectedEvent, startDate, endDate, addNotification, currentPage, ordersPerPage]);
+    dispatch({ type: 'SET_STATE', payload: { loading: false } });
+  }, [state.currentPage, state.searchTerm, state.selectedStatus, state.selectedEvent, state.startDate, state.endDate, addNotification]);
 
   useEffect(() => {
+    fetchProducts();
     fetchEvents();
-    fetchOrders();
-  }, [fetchEvents, fetchOrders]);
+  }, [fetchProducts, fetchEvents]);
 
   useEffect(() => {
-    const today = new Date();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(today.getDate() - 30);
-    setStartDate(thirtyDaysAgo);
-    setEndDate(today);
-  }, []);
+    fetchOrders();
+  }, [fetchOrders]);
 
   // New Order Modal Calculations
   useEffect(() => {
-    const currentEvent = events.find(e => e.id === newOrderSelectedEvent);
-    const discountRate = currentEvent ? currentEvent.discount_rate : 0; // e.g., 0.15 for 15%
+    const currentEvent = state.events.find(e => e.id === state.newOrder.selectedEvent);
+    const discountRate = currentEvent ? currentEvent.discount_rate : 0;
 
-    const subtotal = newOrderItems.reduce((sum, item) => {
+    const subtotal = state.newOrder.items.reduce((sum, item) => {
       const price = item.price_at_purchase || 0;
       const quantity = item.quantity || 0;
       return sum + (price * quantity);
     }, 0);
 
     const calculatedDiscount = subtotal * discountRate;
-    const calculatedShipping = subtotal > 0 && subtotal < 50000 ? 3000 : 0; // 5만원 미만 배송비 3000원 정책 예시
+    const calculatedShipping = subtotal > 0 && subtotal < 50000 ? 3000 : 0;
     const calculatedFinalPayment = subtotal - calculatedDiscount + calculatedShipping;
 
-    setTotalAmount(subtotal);
-    setDiscountAmount(calculatedDiscount);
-    setShippingCost(calculatedShipping);
-    setFinalPayment(calculatedFinalPayment);
-
-  }, [newOrderItems, newOrderSelectedEvent, events]);
-
-  // Event Handlers
-  const handleOpenNewOrderModal = () => {
-    setIsOnSiteSale(false);
-    setNewOrderCustomerName('');
-    setNewOrderCustomerEmail('');
-    setNewOrderContact('');
-    setNewOrderAddress('');
-    setNewOrderSelectedEvent('');
-    setNewOrderItems([{ product_id: '', quantity: 1, price_at_purchase: 0 }]);
-    setOpenNewOrderModal(true);
-  };
-
-  const handleCloseNewOrderModal = () => setOpenNewOrderModal(false);
-
-  const handleIsOnSiteSaleChange = (event) => {
-    const checked = event.target.checked;
-    setIsOnSiteSale(checked);
-    if (checked) {
-      setNewOrderCustomerName(`현장판매_${Date.now()}`);
-      setNewOrderCustomerEmail('');
-      setNewOrderContact('');
-      setNewOrderAddress('');
-    } else {
-      setNewOrderCustomerName('');
-    }
-  };
-
-  const handleNewOrderItemChange = (index, field, value) => {
-    const updatedItems = [...newOrderItems];
-    updatedItems[index][field] = value;
-    setNewOrderItems(updatedItems);
-  };
-  
-  const handleProductChange = (index, newValue) => {
-    const updatedItems = [...newOrderItems];
-    if (newValue) {
-      updatedItems[index].product_id = newValue.id;
-      updatedItems[index].price_at_purchase = newValue.list_price;
-    } else {
-      updatedItems[index].product_id = '';
-      updatedItems[index].price_at_purchase = 0;
-    }
-    setNewOrderItems(updatedItems);
-  };
-
-  const handleAddNewOrderItem = () => setNewOrderItems([...newOrderItems, { product_id: '', quantity: 1, price_at_purchase: 0 }]);
-  const handleRemoveNewOrderItem = (index) => {
-    const updatedItems = newOrderItems.filter((_, i) => i !== index);
-    setNewOrderItems(updatedItems);
-  };
+    dispatch({ type: 'SET_NEW_ORDER_CALCULATIONS', payload: { totalAmount: subtotal, discountAmount: calculatedDiscount, shippingCost: calculatedShipping, finalPayment: calculatedFinalPayment } });
+  }, [state.newOrder.items, state.newOrder.selectedEvent, state.events]);
 
   const handleSaveNewOrder = async () => {
-    if (!isOnSiteSale && (!newOrderCustomerName || !newOrderCustomerEmail)) {
+    const { isOnSiteSale, customerName, customerEmail, selectedEvent, items } = state.newOrder;
+    const { finalPayment, totalAmount, discountAmount, shippingCost } = state.newOrderCalculations;
+
+    if (!isOnSiteSale && (!customerName || !customerEmail)) {
       addNotification('일반 주문은 고객명과 이메일을 모두 입력해야 합니다.', 'warning');
       return;
     }
-    if (!newOrderSelectedEvent) {
+    if (!selectedEvent) {
       addNotification('학회를 선택해주세요.', 'warning');
       return;
     }
-    if (newOrderItems.some(item => !item.product_id || item.quantity <= 0)) {
+    if (items.some(item => !item.product_id || item.quantity <= 0)) {
       addNotification('유효하지 않은 상품 항목이 있습니다. 상품을 선택하고 수량을 1 이상으로 입력하세요.', 'warning');
       return;
     }
@@ -266,36 +234,18 @@ const OrderManagementPage = () => {
     try {
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
-        .insert({
-          customer_name: newOrderCustomerName,
-          email: newOrderCustomerEmail,
-          contact: newOrderContact,
-          address: newOrderAddress,
-          event_id: newOrderSelectedEvent,
-          total_amount: totalAmount,
-          discount_amount: discountAmount,
-          shipping_cost: shippingCost,
-          final_payment: finalPayment,
-          status: 'pending',
-          is_on_site_sale: isOnSiteSale,
-        })
+        .insert({ ...state.newOrder, final_payment: finalPayment, total_amount: totalAmount, discount_amount: discountAmount, shipping_cost: shippingCost, status: 'pending' })
         .select()
         .single();
 
       if (orderError) throw orderError;
 
-      const orderItemsToInsert = newOrderItems.map(item => ({
-        order_id: orderData.id,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        price_at_purchase: item.price_at_purchase,
-      }));
-
+      const orderItemsToInsert = items.map(item => ({ ...item, order_id: orderData.id }));
       const { error: orderItemsError } = await supabase.from('order_items').insert(orderItemsToInsert);
       if (orderItemsError) throw orderItemsError;
 
       addNotification('신규 주문이 성공적으로 추가되었습니다.', 'success');
-      handleCloseNewOrderModal();
+      dispatch({ type: 'CLOSE_NEW_ORDER' });
       fetchOrders();
     } catch (error) {
       console.error('Error saving new order:', error);
@@ -303,15 +253,40 @@ const OrderManagementPage = () => {
     }
   };
 
-  const handleClearFilters = () => {
-    setSearchTerm('');
-    setSelectedStatus('');
-    setSelectedEvent('');
-    const today = new Date();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(today.getDate() - 30);
-    setStartDate(thirtyDaysAgo);
-    setEndDate(today);
+  const handleExcelDownload = async () => {
+    dispatch({ type: 'SET_STATE', payload: { loading: true } });
+    try {
+      const { data: allOrders, error } = await getOrders({ ...state, currentPage: 1, ordersPerPage: state.totalOrders });
+      if (error) throw error;
+
+      const dataForExcel = allOrders.map(order => ({
+        '주문번호': order.id,
+        '주문일시': format(new Date(order.created_at), 'yyyy-MM-dd HH:mm'),
+        '학회명': state.events.find(e => e.id === order.event_id)?.name || 'N/A',
+        '고객명': order.customer_name,
+        '이메일': order.email,
+        '연락처': order.phone_number,
+        '주소': `${order.shipping_address?.postcode || ''} ${order.shipping_address?.address || ''} ${order.shipping_address?.detail || ''}`.trim(),
+        '고객 요청사항': order.customer_request,
+        '관리자 메모': order.admin_memo,
+        '주문 상품': order.order_items.map(item => `${state.productsMap[item.product_id]?.name || 'N/A'} x ${item.quantity}`).join('\n'),
+        '총 상품금액': order.total_cost,
+        '할인금액': order.discount_amount,
+        '배송비': order.delivery_fee,
+        '최종 결제금액': order.final_payment,
+        '상태': statusToKorean[order.status] || order.status,
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(dataForExcel);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '주문 목록');
+      XLSX.writeFile(workbook, '주문목록.xlsx');
+      addNotification('엑셀 파일이 성공적으로 다운로드되었습니다.', 'success');
+    } catch (err) {
+      addNotification(`엑셀 다운로드 실패: ${err.message}`, 'error');
+    } finally {
+      dispatch({ type: 'SET_STATE', payload: { loading: false } });
+    }
   };
 
   const handleStatusChange = useCallback(async (orderId, newStatus) => {
@@ -321,61 +296,37 @@ const OrderManagementPage = () => {
       addNotification(`주문 ${orderId}의 상태가 '${statusToKorean[newStatus]}'으로 업데이트되었습니다.`, 'success');
       fetchOrders();
     } catch (err) {
-      console.error('Error updating order status:', err);
       addNotification(`주문 상태 업데이트 실패: ${err.message}`, 'error');
     }
-  }, [fetchOrders, addNotification, statusToKorean]);
-
-  const handleRowClick = (order) => {
-    setSelectedOrder(order);
-    setOpenOrderDetailModal(true);
-  };
-  
-  // Render helpers
-  const renderPriceSummary = () => (
-    <Paper variant="outlined" sx={{ p: 2, mt: 2, backgroundColor: 'grey.50' }}>
-      <Typography variant="h6" gutterBottom>주문 요약</Typography>
-      <Grid container spacing={1}>
-        <Grid item xs={6}><Typography>총 상품 금액:</Typography></Grid>
-        <Grid item xs={6} textAlign="right"><Typography>{totalAmount.toLocaleString()}원</Typography></Grid>
-        <Grid item xs={6}><Typography color="error">할인 금액:</Typography></Grid>
-        <Grid item xs={6} textAlign="right"><Typography color="error">- {discountAmount.toLocaleString()}원</Typography></Grid>
-        <Grid item xs={6}><Typography>배송비:</Typography></Grid>
-        <Grid item xs={6} textAlign="right"><Typography>{shippingCost.toLocaleString()}원</Typography></Grid>
-        <Grid item xs={12}><Divider sx={{ my: 1 }} /></Grid>
-        <Grid item xs={6}><Typography variant="h6" component="div">최종 결제 금액:</Typography></Grid>
-        <Grid item xs={6} textAlign="right"><Typography variant="h6" component="div">{finalPayment.toLocaleString()}원</Typography></Grid>
-      </Grid>
-    </Paper>
-  );
+  }, [fetchOrders, addNotification]);
 
   if (!user) {
     return <Box sx={{ p: 3 }}><Typography>로그인이 필요합니다.</Typography></Box>;
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', p: 2, bgcolor: '#f5f5f5' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', p: 2 }}>
       <Typography variant="h4" gutterBottom sx={{ color: '#333', fontWeight: 'bold' }}>주문 관리</Typography>
       
-      <Paper elevation={3} sx={{ p: 2, mb: 2, borderRadius: '12px' }}>
+      <Paper sx={{ p: 2, mb: 2 }}>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
           <FormControl size="small" sx={{ minWidth: 180, flexGrow: 1 }}>
             <InputLabel>학회 선택</InputLabel>
             <Select
-              value={selectedEvent}
+              value={state.selectedEvent}
               label="학회 선택"
-              onChange={(e) => { setSelectedEvent(e.target.value); setCurrentPage(1); }}
+              onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'selectedEvent', value: e.target.value } })}
             >
               <MenuItem value=""><em>전체</em></MenuItem>
-              {events.map((event) => <MenuItem key={event.id} value={event.id}>{event.name}</MenuItem>)}
+              {state.events.map((event) => <MenuItem key={event.id} value={event.id}>{event.name}</MenuItem>)}
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 180, flexGrow: 1 }}>
             <InputLabel>주문 상태</InputLabel>
             <Select
-              value={selectedStatus}
+              value={state.selectedStatus}
               label="주문 상태"
-              onChange={(e) => { setSelectedStatus(e.target.value); setCurrentPage(1); }}
+              onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'selectedStatus', value: e.target.value } })}
             >
               <MenuItem value=""><em>전체</em></MenuItem>
               {Object.entries(statusToKorean).map(([key, value]) => <MenuItem key={key} value={key}>{value}</MenuItem>)}
@@ -385,8 +336,8 @@ const OrderManagementPage = () => {
             label="고객 이름/이메일 검색"
             variant="outlined"
             size="small"
-            value={searchTerm}
-            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+            value={state.searchTerm}
+            onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'searchTerm', value: e.target.value } })}
             sx={{ minWidth: 240, flexGrow: 2 }}
           />
           <TextField
@@ -394,8 +345,8 @@ const OrderManagementPage = () => {
             type="date"
             variant="outlined"
             size="small"
-            value={startDate ? format(startDate, 'yyyy-MM-dd') : ''}
-            onChange={(e) => setStartDate(e.target.value ? new Date(e.target.value) : null)}
+            value={state.startDate ? format(state.startDate, 'yyyy-MM-dd') : ''}
+            onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'startDate', value: e.target.value ? new Date(e.target.value) : null } })}
             InputLabelProps={{ shrink: true }}
             sx={{ minWidth: 150, flexGrow: 1 }}
           />
@@ -404,22 +355,21 @@ const OrderManagementPage = () => {
             type="date"
             variant="outlined"
             size="small"
-            value={endDate ? format(endDate, 'yyyy-MM-dd') : ''}
-            onChange={(e) => setEndDate(e.target.value ? new Date(e.target.value) : null)}
+            value={state.endDate ? format(state.endDate, 'yyyy-MM-dd') : ''}
+            onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'endDate', value: e.target.value ? new Date(e.target.value) : null } })}
             InputLabelProps={{ shrink: true }}
             sx={{ minWidth: 150, flexGrow: 1 }}
           />
-          <Button variant="outlined" onClick={handleClearFilters} sx={{ flexShrink: 0 }}>
+          <Button variant="outlined" onClick={() => dispatch({ type: 'CLEAR_FILTERS' })} sx={{ flexShrink: 0 }}>
             필터 초기화
           </Button>
         </Box>
       </Paper>
 
-      {/* Orders Table Section */}
-      <Paper elevation={3} sx={{ flexGrow: 1, borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <Paper sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-          <Button variant="contained" color="primary" onClick={handleOpenNewOrderModal}>신규 주문 추가</Button>
-          <Button variant="outlined" onClick={() => { /* Excel Download Logic */ }}>엑셀 다운로드</Button>
+          <Button variant="contained" color="primary" onClick={() => dispatch({ type: 'OPEN_NEW_ORDER' })}>신규 주문 추가</Button>
+          <Button variant="outlined" onClick={handleExcelDownload}>엑셀 다운로드</Button>
         </Box>
         <TableContainer sx={{ flexGrow: 1 }}>
           <Table stickyHeader>
@@ -435,19 +385,19 @@ const OrderManagementPage = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {loading ? (
+              {state.loading ? (
                 Array.from(new Array(ordersPerPage)).map((_, index) => (
                   <TableRow key={index}><TableCell colSpan={7}><Skeleton animation="wave" /></TableCell></TableRow>
                 ))
-              ) : orders.length === 0 ? (
+              ) : state.orders.length === 0 ? (
                 <TableRow><TableCell colSpan={7} align="center">조회된 주문이 없습니다.</TableCell></TableRow>
               ) : (
-                orders.map((order) => (
-                  <TableRow key={order.id} hover onClick={() => handleRowClick(order)} sx={{ cursor: 'pointer' }}>
+                state.orders.map((order) => (
+                  <TableRow key={order.id} hover onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })} sx={{ cursor: 'pointer' }}>
                     <TableCell>{order.id}</TableCell>
                     <TableCell>{order.customer_name}</TableCell>
                     <TableCell>{order.email}</TableCell>
-                    <TableCell>{events.find(e => e.id === order.event_id)?.name || 'N/A'}</TableCell>
+                    <TableCell>{state.events.find(e => e.id === order.event_id)?.name || 'N/A'}</TableCell>
                     <TableCell>{(order.final_payment || 0).toLocaleString()}원</TableCell>
                     <TableCell>{format(new Date(order.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
                     <TableCell>
@@ -464,61 +414,69 @@ const OrderManagementPage = () => {
           </Table>
         </TableContainer>
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-          <Pagination count={Math.ceil(totalOrders / ordersPerPage)} page={currentPage} onChange={(_, value) => setCurrentPage(value)} color="primary" />
+          <Pagination count={Math.ceil(state.totalOrders / ordersPerPage)} page={state.currentPage} onChange={(_, value) => dispatch({ type: 'SET_FILTER', payload: { key: 'currentPage', value } })} color="primary" />
         </Box>
       </Paper>
 
-      {/* Order Detail Modal */}
-      {selectedOrder && !productsLoading && (
+      {state.selectedOrder && !state.productsLoading && (
         <OrderDetailModal
-          open={openOrderDetailModal}
-          onClose={() => setOpenOrderDetailModal(false)}
-          order={selectedOrder}
+          open={state.openOrderDetailModal}
+          onClose={() => dispatch({ type: 'CLOSE_ORDER_DETAIL' })}
+          order={state.selectedOrder}
           statusToKorean={statusToKorean}
-          productsMap={productsMap}
-          products={products}
-          events={events}
+          productsMap={state.productsMap}
+          products={state.products}
+          events={state.events}
           addNotification={addNotification}
           onUpdate={fetchOrders}
         />
       )}
 
-      {/* New Order Modal */}
-      <Dialog open={openNewOrderModal} onClose={handleCloseNewOrderModal} maxWidth="md" fullWidth>
+      <Dialog open={state.openNewOrderModal} onClose={() => dispatch({ type: 'CLOSE_NEW_ORDER' })} maxWidth="md" fullWidth>
         <DialogTitle>신규 주문 추가</DialogTitle>
         <DialogContent>
           <FormControlLabel
-            control={<Checkbox checked={isOnSiteSale} onChange={handleIsOnSiteSaleChange} />}
+            control={<Checkbox checked={state.newOrder.isOnSiteSale} onChange={(e) => dispatch({ type: 'TOGGLE_ONSITE_SALE', payload: e.target.checked })} />}
             label="현장판매"
           />
-          <TextField margin="dense" label="고객명" fullWidth variant="standard" value={newOrderCustomerName} onChange={(e) => setNewOrderCustomerName(e.target.value)} disabled={isOnSiteSale} required={!isOnSiteSale} />
-          <TextField margin="dense" label="이메일" type="email" fullWidth variant="standard" value={newOrderCustomerEmail} onChange={(e) => setNewOrderCustomerEmail(e.target.value)} disabled={isOnSiteSale} required={!isOnSiteSale} />
-          <TextField margin="dense" label="연락처" fullWidth variant="standard" value={newOrderContact} onChange={(e) => setNewOrderContact(e.target.value)} disabled={isOnSiteSale} />
-          <TextField margin="dense" label="주소" fullWidth variant="standard" value={newOrderAddress} onChange={(e) => setNewOrderAddress(e.target.value)} disabled={isOnSiteSale} />
+          <TextField margin="dense" label="고객명" fullWidth variant="standard" value={state.newOrder.customerName} onChange={(e) => dispatch({ type: 'UPDATE_NEW_ORDER_FIELD', payload: { key: 'customerName', value: e.target.value } })} disabled={state.newOrder.isOnSiteSale} required={!state.newOrder.isOnSiteSale} />
+          <TextField margin="dense" label="이메일" type="email" fullWidth variant="standard" value={state.newOrder.customerEmail} onChange={(e) => dispatch({ type: 'UPDATE_NEW_ORDER_FIELD', payload: { key: 'customerEmail', value: e.target.value } })} disabled={state.newOrder.isOnSiteSale} required={!state.newOrder.isOnSiteSale} />
+          <TextField margin="dense" label="연락처" fullWidth variant="standard" value={state.newOrder.contact} onChange={(e) => dispatch({ type: 'UPDATE_NEW_ORDER_FIELD', payload: { key: 'contact', value: e.target.value } })} disabled={state.newOrder.isOnSiteSale} />
+          <TextField margin="dense" label="주소" fullWidth variant="standard" value={state.newOrder.address} onChange={(e) => dispatch({ type: 'UPDATE_NEW_ORDER_FIELD', payload: { key: 'address', value: e.target.value } })} disabled={state.newOrder.isOnSiteSale} />
           
           <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 2, mt: 2 }}>
             <FormControl fullWidth margin="dense">
               <InputLabel>학회 선택 *</InputLabel>
-              <Select value={newOrderSelectedEvent} onChange={(e) => setNewOrderSelectedEvent(e.target.value)} required>
-                {events.map((event) => <MenuItem key={event.id} value={event.id}>{event.name}</MenuItem>)}
+              <Select value={state.newOrder.selectedEvent} onChange={(e) => dispatch({ type: 'UPDATE_NEW_ORDER_FIELD', payload: { key: 'selectedEvent', value: e.target.value } })} required>
+                {state.events.map((event) => <MenuItem key={event.id} value={event.id}>{event.name}</MenuItem>)}
               </Select>
             </FormControl>
-            {newOrderSelectedEvent && (
+            {state.newOrder.selectedEvent && (
               <Typography variant="body2" color="primary" sx={{ mb: 1, whiteSpace: 'nowrap' }}>
-                (할인율: {Math.round((events.find(e => e.id === newOrderSelectedEvent)?.discount_rate || 0) * 100)}%)
+                (할인율: {Math.round((state.events.find(e => e.id === state.newOrder.selectedEvent)?.discount_rate || 0) * 100)}%)
               </Typography>
             )}
           </Box>
 
           <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>주문 항목</Typography>
-          {newOrderItems.map((item, index) => (
+          {state.newOrder.items.map((item, index) => (
             <Box key={index} sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
               <Autocomplete
-                options={products}
+                options={state.products}
                 getOptionLabel={(option) => option.name || ''}
-                value={products.find(p => p.id === item.product_id) || null}
-                onChange={(event, newValue) => handleProductChange(index, newValue)}
-                loading={productsLoading}
+                value={state.products.find(p => p.id === item.product_id) || null}
+                onChange={(event, newValue) => {
+                    const newItems = [...state.newOrder.items];
+                    if (newValue) {
+                        newItems[index].product_id = newValue.id;
+                        newItems[index].price_at_purchase = newValue.list_price;
+                    } else {
+                        newItems[index].product_id = '';
+                        newItems[index].price_at_purchase = 0;
+                    }
+                    dispatch({ type: 'UPDATE_NEW_ORDER_FIELD', payload: { key: 'items', value: newItems } });
+                }}
+                loading={state.productsLoading}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -528,7 +486,7 @@ const OrderManagementPage = () => {
                       ...params.InputProps,
                       endAdornment: (
                         <>
-                          {productsLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                          {state.productsLoading ? <CircularProgress color="inherit" size={20} /> : null}
                           {params.InputProps.endAdornment}
                         </>
                       ),
@@ -537,18 +495,31 @@ const OrderManagementPage = () => {
                 )}
                 sx={{ flexGrow: 1 }}
               />
-              <TextField label="수량" type="number" value={item.quantity} onChange={(e) => handleNewOrderItemChange(index, 'quantity', parseInt(e.target.value, 10) || 1)} sx={{ width: 100 }} InputProps={{ inputProps: { min: 1 } }} />
-              <TextField label="개당 가격" type="number" value={item.price_at_purchase} onChange={(e) => handleNewOrderItemChange(index, 'price_at_purchase', parseFloat(e.target.value) || 0)} sx={{ width: 150 }} />
-              <IconButton onClick={() => handleRemoveNewOrderItem(index)}><CloseIcon /></IconButton>
+              <TextField label="수량" type="number" value={item.quantity} onChange={(e) => dispatch({ type: 'UPDATE_NEW_ORDER_ITEM', payload: { index, field: 'quantity', value: parseInt(e.target.value, 10) || 1 } })} sx={{ width: 100 }} InputProps={{ inputProps: { min: 1 } }} />
+              <TextField label="개당 가격" type="number" value={item.price_at_purchase} onChange={(e) => dispatch({ type: 'UPDATE_NEW_ORDER_ITEM', payload: { index, field: 'price_at_purchase', value: parseFloat(e.target.value) || 0 } })} sx={{ width: 150 }} />
+              <IconButton onClick={() => dispatch({ type: 'REMOVE_NEW_ORDER_ITEM', payload: index })}><CloseIcon /></IconButton>
             </Box>
           ))}
-          <Button onClick={handleAddNewOrderItem} sx={{ mt: 1 }}>항목 추가</Button>
+          <Button onClick={() => dispatch({ type: 'ADD_NEW_ORDER_ITEM' })} sx={{ mt: 1 }}>항목 추가</Button>
           
-          {renderPriceSummary()}
+          <Paper variant="outlined" sx={{ p: 2, mt: 2, backgroundColor: 'grey.50' }}>
+            <Typography variant="h6" gutterBottom>주문 요약</Typography>
+            <Grid container spacing={1}>
+                <Grid item xs={6}><Typography>총 상품 금액:</Typography></Grid>
+                <Grid item xs={6} textAlign="right"><Typography>{state.newOrderCalculations.totalAmount.toLocaleString()}원</Typography></Grid>
+                <Grid item xs={6}><Typography color="error">할인 금액:</Typography></Grid>
+                <Grid item xs={6} textAlign="right"><Typography color="error">- {state.newOrderCalculations.discountAmount.toLocaleString()}원</Typography></Grid>
+                <Grid item xs={6}><Typography>배송비:</Typography></Grid>
+                <Grid item xs={6} textAlign="right"><Typography>{state.newOrderCalculations.shippingCost.toLocaleString()}원</Typography></Grid>
+                <Grid item xs={12}><Divider sx={{ my: 1 }} /></Grid>
+                <Grid item xs={6}><Typography variant="h6" component="div">최종 결제 금액:</Typography></Grid>
+                <Grid item xs={6} textAlign="right"><Typography variant="h6" component="div">{state.newOrderCalculations.finalPayment.toLocaleString()}원</Typography></Grid>
+            </Grid>
+        </Paper>
 
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseNewOrderModal}>취소</Button>
+          <Button onClick={() => dispatch({ type: 'CLOSE_NEW_ORDER' })}>취소</Button>
           <Button onClick={handleSaveNewOrder} variant="contained">저장</Button>
         </DialogActions>
       </Dialog>
