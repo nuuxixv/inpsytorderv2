@@ -6,24 +6,32 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import EventIcon from '@mui/icons-material/Event';
 import CategoryIcon from '@mui/icons-material/Category';
+import PeopleIcon from '@mui/icons-material/People'; // PeopleIcon 추가
 import { useAuth } from '../hooks/useAuth';
 
 const drawerWidth = 260;
 
 const allMenuItems = [
-  { text: '대시보드', icon: <DashboardIcon />, path: '/admin/dashboard' },
-  { text: '주문 관리', icon: <ShoppingCartIcon />, path: '/admin/orders' },
-  { text: '학회 관리', icon: <EventIcon />, path: '/admin/events', role: 'master' },
-  { text: '상품 관리', icon: <CategoryIcon />, path: '/admin/products', role: 'master' },
+  { text: '대시보드', icon: <DashboardIcon />, path: '/admin/dashboard', permissionKey: 'dashboard:view' },
+  { text: '주문 관리', icon: <ShoppingCartIcon />, path: '/admin/orders', permissionKey: 'orders:view' },
+  { text: '학회 관리', icon: <EventIcon />, path: '/admin/events', permissionKey: 'events:view' },
+  { text: '상품 관리', icon: <CategoryIcon />, path: '/admin/products', permissionKey: 'products:view' },
+  { text: '사용자 관리', icon: <PeopleIcon />, path: '/admin/users', permissionKey: 'users:manage' },
 ];
 
 const AdminSidebar = () => {
-  const { isMaster } = useAuth();
+  const { hasPermission, permissions } = useAuth();
 
   const filteredMenuItems = allMenuItems.filter(item => {
-    if (item.role === 'master') {
-      return isMaster;
+    // master 역할은 모든 권한을 가집니다.
+    if (permissions.includes('master')) {
+      return true;
     }
+    // 특정 권한이 필요한 메뉴는 hasPermission으로 확인
+    if (item.permissionKey) {
+      return hasPermission(item.permissionKey);
+    }
+    // permissionKey가 없는 일반 메뉴는 기본적으로 표시
     return true;
   });
 

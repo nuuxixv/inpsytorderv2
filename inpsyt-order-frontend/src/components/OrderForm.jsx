@@ -61,7 +61,7 @@ const OrderForm = ({ customerInfo, setCustomerInfo }) => {
   };
 
   return (
-    <Card>
+    <Card sx={{ p: { xs: 2, sm: 3 } }}>
       <Typography variant="h5" gutterBottom>주문자 정보</Typography>
       <Stack spacing={2}>
         <TextField required id="name" name="name" label="성함" value={customerInfo.name} onChange={handleChange} />

@@ -42,7 +42,7 @@ const CostSummary = ({ cart, discountRate = 0 }) => {
   const remainingForFreeShipping = FREE_SHIPPING_THRESHOLD - totalOriginalPrice;
 
   return (
-    <Card>
+    <Card sx={{ p: { xs: 2, sm: 3 } }}>
       <Typography variant="h5" gutterBottom>결제 정보</Typography>
       
       <Box sx={{ my: 2 }}>

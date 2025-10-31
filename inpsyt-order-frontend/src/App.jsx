@@ -30,6 +30,7 @@ function AppRoutes() {
     <Router>
       <Routes>
         <Route path="/" element={<OrderPage />} />
+        <Route path="/order" element={<OrderPage />} />
         <Route path="/login" element={<LoginPage />} />
         {/* Redirect /smartadmin to /admin */}
           <Route path="/smartadmin" element={<Navigate to="/admin" replace />} />

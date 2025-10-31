@@ -8,13 +8,14 @@ import DashboardPage from './DashboardPage';
 import OrderManagementPage from './OrderManagementPage';
 import EventManagementPage from './EventManagementPage';
 import ProductManagementPage from './ProductManagementPage';
+import UserManagementPage from './UserManagementPage'; // UserManagementPage 임포트
 import NotificationsDisplay from './NotificationsDisplay';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import { supabase } from '../supabaseClient';
 
 const AdminLayout = () => {
-  const { isMaster } = useAuth();
+  const { hasPermission, permissions } = useAuth();
   const { addNotification } = useNotification();
 
   useEffect(() => {
@@ -52,19 +53,25 @@ const AdminLayout = () => {
         <Box sx={{ flexGrow: 1, width: '100%' }}> {/* Routes를 감싸는 Box 추가 */}
           <Routes>
             <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/orders" element={<OrderManagementPage />} />
+            <Route path="/dashboard" element={hasPermission('dashboard:view') ? <DashboardPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/orders" element={hasPermission('orders:view') ? <OrderManagementPage /> : <Navigate to="/admin" replace />} />
 
-            {/* 학회 관리 (마스터 권한 필요) */}
+            {/* 학회 관리 (권한 필요) */}
             <Route
               path="/events/:slug?"
-              element={isMaster ? <EventManagementPage /> : <Navigate to="/admin/dashboard" replace />}
+              element={hasPermission('events:view') ? <EventManagementPage /> : <Navigate to="/admin" replace />}
             />
 
-            {/* 상품 관리 (마스터 권한 필요) */}
+            {/* 상품 관리 (권한 필요) */}
             <Route
               path="/products"
-              element={isMaster ? <ProductManagementPage /> : <Navigate to="/admin/dashboard" replace />}
+              element={hasPermission('products:view') ? <ProductManagementPage /> : <Navigate to="/admin" replace />}
+            />
+
+            {/* 사용자 관리 (권한 필요) */}
+            <Route
+              path="/users"
+              element={hasPermission('users:manage') ? <UserManagementPage /> : <Navigate to="/admin" replace />}
             />
           </Routes>
         </Box>

@@ -1,37 +1,60 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext(null);
 
+
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [isMaster, setIsMaster] = useState(false);
+  const [accessToken, setAccessToken] = useState(null); // New state for access token
+  const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const defaultOperatorPermissions = [
+    'orders:view',
+    'products:view',
+    'events:view',
+  ];
+
+  const hasPermission = useCallback((permissionKey) => {
+    if (!user) return false;
+    // master 역할은 모든 권한을 가집니다.
+    if (permissions.includes('master')) return true; // 'master' role itself acts as a wildcard
+    return permissions.includes(permissionKey);
+  }, [user, permissions]);
+
   useEffect(() => {
-    const checkUserRole = (session) => {
-      console.log("Auth state changed, session object:", session); // <-- 디버깅 로그 추가
+    const checkUserPermissions = (session) => {
       if (session?.user) {
-        console.log("User metadata:", session.user.user_metadata); // <-- 디버깅 로그 추가
-        const userRole = session.user.app_metadata?.role || ''; // app_metadata에서 role 읽기
-        console.log("Extracted user role:", userRole); // <-- 디버깅 로그 추가
-        setIsMaster(userRole === 'master');
-        console.log("Is master:", userRole === 'master'); // <-- 디버깅 로그 추가
+        const userRole = session.user.app_metadata?.role;
+        const userPermissions = session.user.app_metadata?.permissions || [];
+
+        if (userRole === 'master') {
+          setPermissions(['master']); // master는 모든 권한을 가짐을 나타내는 특수 값
+        } else if (userPermissions.length > 0) {
+          setPermissions(userPermissions);
+        } else {
+          // 역할이나 권한이 명시되지 않은 경우 기본 operator 권한 부여
+          setPermissions(defaultOperatorPermissions);
+        }
         setUser(session.user);
+        setAccessToken(session.access_token); // Set access token here
       } else {
         setUser(null);
-        setIsMaster(false);
+        setAccessToken(null); // Clear access token
+        setPermissions([]);
       }
       setLoading(false);
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      checkUserRole(session);
+      checkUserPermissions(session);
     });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      checkUserRole(session);
+      checkUserPermissions(session);
     });
 
     return () => {
@@ -39,22 +62,21 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  // 로그아웃 함수 추가
   const logout = async () => {
-    setLoading(true); // 로그아웃 중 로딩 상태 표시
+    setLoading(true);
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error("Error logging out:", error.message);
     } else {
-      setUser(null); // 사용자 상태 초기화
-      setIsMaster(false); // 마스터 상태 초기화
-      // navigate('/login'); // 여기서는 navigate를 직접 호출하지 않습니다.
+      setUser(null);
+      setAccessToken(null); // Clear access token
+      setPermissions([]);
     }
     setLoading(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, isMaster, loading, setUser, logout }}> {/* logout 추가 */}
+    <AuthContext.Provider value={{ user, accessToken, permissions, hasPermission, loading, setUser, logout }}>
       {!loading && children}
     </AuthContext.Provider>
   );

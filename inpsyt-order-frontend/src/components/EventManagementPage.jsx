@@ -17,8 +17,11 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Autocomplete,
+  Chip,
 } from '@mui/material';
 import { supabase } from '../supabaseClient';
+import { useAuth } from '../hooks/useAuth'; // useAuth 임포트
 import { useNotification } from '../hooks/useNotification';
 
 const EventManagementPage = () => {
@@ -26,18 +29,23 @@ const EventManagementPage = () => {
   const [open, setOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentEvent, setCurrentEvent] = useState(null);
+  const [availableTags, setAvailableTags] = useState([]); // State to store all unique tags
+  const { user, hasPermission } = useAuth(); // user와 hasPermission 가져오기
   const { addNotification } = useNotification();
 
   const fetchEvents = useCallback(async () => {
     const { data, error } = await supabase
       .from('events')
-      .select('id, name, discount_rate, order_url_slug, start_date, end_date')
+      .select('id, name, discount_rate, order_url_slug, start_date, end_date, tags')
       .order('name', { ascending: true });
     if (error) {
       console.error('Error fetching events:', error);
       addNotification('학회 정보를 불러오는 데 실패했습니다.', 'error');
     } else {
       setEvents(data);
+      // Extract all unique tags from fetched events
+      const allTags = data.flatMap(event => event.tags || []);
+      setAvailableTags(Array.from(new Set(allTags)));
     }
   }, [addNotification]);
 
@@ -62,7 +70,7 @@ const EventManagementPage = () => {
 
   const handleOpen = (event = null) => {
     setIsEditing(!!event);
-    setCurrentEvent(event || { name: '', discount_rate: 0, order_url_slug: '', start_date: '', end_date: '' });
+    setCurrentEvent(event || { name: '', discount_rate: 0, order_url_slug: '', start_date: '', end_date: '', tags: [] });
     setOpen(true);
   };
 
@@ -83,7 +91,15 @@ const EventManagementPage = () => {
     }
   };
 
+  const handleTagsChange = (event, newTags) => {
+    setCurrentEvent(prev => ({ ...prev, tags: newTags }));
+  };
+
   const handleSave = async () => {
+    if (!hasPermission('events:edit')) {
+      addNotification('학회 정보를 편집할 권한이 없습니다.', 'error');
+      return;
+    }
     if (!currentEvent) return;
 
     if (!currentEvent.name || !currentEvent.order_url_slug) {
@@ -136,12 +152,15 @@ const EventManagementPage = () => {
     }
   };
 
+  if (!user || !hasPermission('events:view')) {
+    return <Box sx={{ p: 3 }}><Typography>학회 관리 페이지 접근 권한이 없습니다.</Typography></Box>;
+  }
 
   return (
     <Paper sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h4">학회 관리</Typography>
-        <Button variant="contained" onClick={() => handleOpen()}>새 학회 추가</Button>
+        {hasPermission('events:edit') && <Button variant="contained" onClick={() => handleOpen()}>새 학회 추가</Button>}
       </Box>
       <TableContainer sx={{ mt: 3 }}>
         <Table size="small">
@@ -153,7 +172,8 @@ const EventManagementPage = () => {
               <TableCell sx={{ fontWeight: 'bold' }}>할인율</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>시작일</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>종료일</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>작업</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>태그</TableCell>
+              {hasPermission('events:edit') && <TableCell sx={{ fontWeight: 'bold' }}>작업</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -169,11 +189,14 @@ const EventManagementPage = () => {
                 </TableCell>
                 <TableCell>{event.start_date}</TableCell>
                 <TableCell>{event.end_date}</TableCell>
-                <TableCell>
-                  <Button variant="outlined" size="small" onClick={() => handleOpen(event)}>
-                    수정
-                  </Button>
-                </TableCell>
+                <TableCell>{event.tags?.join(', ')}</TableCell>
+                {hasPermission('events:edit') && (
+                  <TableCell>
+                    <Button variant="outlined" size="small" onClick={() => handleOpen(event)}>
+                      수정
+                    </Button>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>
@@ -192,6 +215,7 @@ const EventManagementPage = () => {
             fullWidth
             value={currentEvent?.name || ''}
             onChange={(e) => handleChange(e.target.name, e.target.value)}
+            disabled={!hasPermission('events:edit')}
           />
           <TextField
             margin="dense"
@@ -202,6 +226,7 @@ const EventManagementPage = () => {
             value={currentEvent?.order_url_slug || ''}
             onChange={(e) => handleChange(e.target.name, e.target.value)}
             helperText="주문 페이지 주소로 사용됩니다. 예: spring-2024 (영문, 숫자, 하이픈만 가능)"
+            disabled={!hasPermission('events:edit')}
           />
           <TextField
             margin="dense"
@@ -212,6 +237,7 @@ const EventManagementPage = () => {
             value={currentEvent?.discount_rate || 0}
             onChange={(e) => handleChange(e.target.name, e.target.value)}
             inputProps={{ step: "0.01", min: "0", max: "1" }}
+            disabled={!hasPermission('events:edit')}
           />
           <TextField
             margin="dense"
@@ -224,6 +250,7 @@ const EventManagementPage = () => {
             InputLabelProps={{
               shrink: true,
             }}
+            disabled={!hasPermission('events:edit')}
           />
           <TextField
             margin="dense"
@@ -236,11 +263,35 @@ const EventManagementPage = () => {
             InputLabelProps={{
               shrink: true,
             }}
+            disabled={!hasPermission('events:edit')}
+          />
+          <Autocomplete
+            multiple
+            freeSolo
+            options={availableTags}
+            value={currentEvent?.tags || []}
+            onChange={handleTagsChange}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip variant="outlined" label={option} {...getTagProps({ index })} />
+              ))
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                margin="dense"
+                label="태그"
+                placeholder="태그 추가"
+                fullWidth
+              />
+            )}
+            sx={{ mt: 2 }}
+            disabled={!hasPermission('events:edit')}
           />
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={handleClose}>취소</Button>
-          <Button onClick={handleSave}>저장</Button>
+          {hasPermission('events:edit') && <Button onClick={handleSave}>저장</Button>}
         </DialogActions>
       </Dialog>
     </Paper>

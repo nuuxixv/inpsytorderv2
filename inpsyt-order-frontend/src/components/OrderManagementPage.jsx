@@ -37,15 +37,15 @@ import { Close as CloseIcon } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import OrderDetailModal from './OrderDetailModal';
 import { getEvents } from '../api/events';
-import { getProducts } from '../api/products';
+import { fetchAllProducts } from '../api/products';
 import { getOrders } from '../api/orders';
 
 const statusToKorean = {
   pending: '결제대기',
   paid: '결제완료',
-  completed: '처리완료',
   cancelled: '주문취소',
   refunded: '결제취소',
+  completed: '처리완료',
 };
 
 const initialState = {
@@ -80,14 +80,22 @@ const initialState = {
     shippingCost: 0,
     finalPayment: 0,
   },
+  selectedOrders: [],
 };
 
 function reducer(state, action) {
   switch (action.type) {
     case 'SET_STATE':
       return { ...state, ...action.payload };
+    case 'SET_SELECTED_ORDERS':
+        return { ...state, selectedOrders: action.payload };
+    case 'TOGGLE_SELECT_ALL':
+        if (action.payload.length === state.orders.length) {
+            return { ...state, selectedOrders: [] };
+        }
+        return { ...state, selectedOrders: action.payload };
     case 'SET_FILTER':
-      return { ...state, currentPage: 1, [action.payload.key]: action.payload.value };
+      return { ...state, currentPage: 1, selectedOrders: [], [action.payload.key]: action.payload.value };
     case 'CLEAR_FILTERS':
       return {
         ...state,
@@ -96,6 +104,7 @@ function reducer(state, action) {
         selectedEvent: '',
         startDate: subDays(new Date(), 30),
         endDate: new Date(),
+        selectedOrders: [],
       };
     case 'OPEN_ORDER_DETAIL':
       return { ...state, selectedOrder: action.payload, openOrderDetailModal: true };
@@ -138,18 +147,48 @@ function reducer(state, action) {
 }
 
 const OrderManagementPage = () => {
-  const { user } = useAuth();
+  const { user, hasPermission, logout } = useAuth();
   const { addNotification } = useNotification();
   const [state, dispatch] = useReducer(reducer, initialState);
+  const [bulkStatus, setBulkStatus] = React.useState('');
+
+  const handleSelectAllClick = () => {
+    if (state.selectedOrders.length === state.orders.length && state.orders.length > 0) {
+      dispatch({ type: 'SET_SELECTED_ORDERS', payload: [] });
+    } else {
+      dispatch({ type: 'SET_SELECTED_ORDERS', payload: state.orders.map(o => o.id) });
+    }
+  };
+
+  const handleSelectOneClick = (event, id) => {
+    event.stopPropagation();
+    const selectedIndex = state.selectedOrders.indexOf(id);
+    let newSelected = [];
+
+    if (selectedIndex === -1) {
+      newSelected = newSelected.concat(state.selectedOrders, id);
+    } else if (selectedIndex === 0) {
+      newSelected = newSelected.concat(state.selectedOrders.slice(1));
+    } else if (selectedIndex === state.selectedOrders.length - 1) {
+      newSelected = newSelected.concat(state.selectedOrders.slice(0, -1));
+    } else if (selectedIndex > 0) {
+      newSelected = newSelected.concat(
+        state.selectedOrders.slice(0, selectedIndex),
+        state.selectedOrders.slice(selectedIndex + 1),
+      );
+    }
+    dispatch({ type: 'SET_SELECTED_ORDERS', payload: newSelected });
+  };
+
 
   const ordersPerPage = 10;
 
   const fetchProducts = useCallback(async () => {
     dispatch({ type: 'SET_STATE', payload: { productsLoading: true } });
     try {
-      const productsData = await getProducts();
+      const productsData = await fetchAllProducts();
       const newProductsMap = {};
-      productsData.forEach(p => { newProductsMap[p.id] = { id: p.id, name: p.name, list_price: p.list_price }; });
+      productsData.forEach(p => { newProductsMap[p.id] = { id: p.id, name: p.name, list_price: p.list_price, is_popular: p.is_popular }; });
       dispatch({ type: 'SET_STATE', payload: { products: productsData, productsMap: newProductsMap } });
     } catch {
       addNotification('상품 정보를 불러오는 데 실패했습니다.', 'error');
@@ -253,6 +292,33 @@ const OrderManagementPage = () => {
     }
   };
 
+  const handleBulkStatusUpdate = async () => {
+    if (!bulkStatus || state.selectedOrders.length === 0) {
+      addNotification('변경할 상태를 선택하고, 하나 이상의 주문을 선택해주세요.', 'warning');
+      return;
+    }
+
+    dispatch({ type: 'SET_STATE', payload: { loading: true } });
+    try {
+      // This RPC function needs to be created in Supabase
+      const { error } = await supabase.rpc('bulk_update_order_status', {
+        order_ids: state.selectedOrders,
+        new_status: bulkStatus
+      });
+
+      if (error) throw error;
+
+      addNotification(`${state.selectedOrders.length}개 주문의 상태가 '${statusToKorean[bulkStatus]}'으로 업데이트되었습니다.`, 'success');
+      dispatch({ type: 'SET_SELECTED_ORDERS', payload: [] });
+      setBulkStatus('');
+      fetchOrders(); // Refresh the orders list
+    } catch (err) {
+      addNotification(`일괄 상태 업데이트 실패: ${err.message}`, 'error');
+    } finally {
+        dispatch({ type: 'SET_STATE', payload: { loading: false } });
+    }
+  };
+
   const handleExcelDownload = async () => {
     dispatch({ type: 'SET_STATE', payload: { loading: true } });
     try {
@@ -300,8 +366,8 @@ const OrderManagementPage = () => {
     }
   }, [fetchOrders, addNotification]);
 
-  if (!user) {
-    return <Box sx={{ p: 3 }}><Typography>로그인이 필요합니다.</Typography></Box>;
+  if (!user || (!hasPermission('orders:view') && !hasPermission('master'))) {
+    return <Box sx={{ p: 3 }}><Typography>주문 관리 페이지 접근 권한이 없습니다.</Typography></Box>;
   }
 
   return (
@@ -367,14 +433,48 @@ const OrderManagementPage = () => {
       </Paper>
 
       <Paper sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-          <Button variant="contained" color="primary" onClick={() => dispatch({ type: 'OPEN_NEW_ORDER' })}>신규 주문 추가</Button>
-          <Button variant="outlined" onClick={handleExcelDownload}>엑셀 다운로드</Button>
+        <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+          <Box flexGrow={1}>
+            {hasPermission('orders:edit') && state.selectedOrders.length > 0 && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, backgroundColor: 'grey.100', borderRadius: 1 }}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                        {state.selectedOrders.length}개 선택됨
+                    </Typography>
+                    <FormControl size="small" sx={{ minWidth: 150, backgroundColor: 'white' }}>
+                        <InputLabel>상태 일괄 변경</InputLabel>
+                        <Select
+                            value={bulkStatus}
+                            label="상태 일괄 변경"
+                            onChange={(e) => setBulkStatus(e.target.value)}
+                        >
+                            {Object.entries(statusToKorean).map(([key, value]) => <MenuItem key={key} value={key}>{value}</MenuItem>)}
+                        </Select>
+                    </FormControl>
+                    <Button variant="contained" onClick={handleBulkStatusUpdate} disabled={!bulkStatus}>
+                        적용
+                    </Button>
+                </Box>
+            )}
+          </Box>
+          <Box display="flex" gap={2}>
+            {hasPermission('orders:edit') && <Button variant="contained" color="primary" onClick={() => dispatch({ type: 'OPEN_NEW_ORDER' })}>신규 주문 추가</Button>}
+            <Button variant="outlined" onClick={handleExcelDownload}>엑셀 다운로드</Button>
+          </Box>
         </Box>
         <TableContainer sx={{ flexGrow: 1 }}>
           <Table stickyHeader>
             <TableHead>
               <TableRow sx={{ '& .MuiTableCell-root': { bgcolor: 'grey.200', fontWeight: 'bold' } }}>
+                {hasPermission('orders:edit') && (
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      indeterminate={state.selectedOrders.length > 0 && state.selectedOrders.length < state.orders.length}
+                      checked={state.orders.length > 0 && state.selectedOrders.length === state.orders.length}
+                      onChange={handleSelectAllClick}
+                      inputProps={{ 'aria-label': 'select all orders' }}
+                    />
+                  </TableCell>
+                )}
                 <TableCell>주문번호</TableCell>
                 <TableCell>고객명</TableCell>
                 <TableCell>이메일</TableCell>
@@ -387,28 +487,47 @@ const OrderManagementPage = () => {
             <TableBody>
               {state.loading ? (
                 Array.from(new Array(ordersPerPage)).map((_, index) => (
-                  <TableRow key={index}><TableCell colSpan={7}><Skeleton animation="wave" /></TableCell></TableRow>
+                  <TableRow key={index}><TableCell colSpan={hasPermission('orders:edit') ? 8 : 7}><Skeleton animation="wave" /></TableCell></TableRow>
                 ))
               ) : state.orders.length === 0 ? (
-                <TableRow><TableCell colSpan={7} align="center">조회된 주문이 없습니다.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={hasPermission('orders:edit') ? 8 : 7} align="center">조회된 주문이 없습니다.</TableCell></TableRow>
               ) : (
-                state.orders.map((order) => (
-                  <TableRow key={order.id} hover onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })} sx={{ cursor: 'pointer' }}>
-                    <TableCell>{order.id}</TableCell>
-                    <TableCell>{order.customer_name}</TableCell>
-                    <TableCell>{order.email}</TableCell>
-                    <TableCell>{state.events.find(e => e.id === order.event_id)?.name || 'N/A'}</TableCell>
-                    <TableCell>{(order.final_payment || 0).toLocaleString()}원</TableCell>
-                    <TableCell>{format(new Date(order.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
-                    <TableCell>
-                      <FormControl size="small" variant="outlined" sx={{ minWidth: 100 }} onClick={(e) => e.stopPropagation()}>
-                        <Select value={order.status} onChange={(e) => handleStatusChange(order.id, e.target.value)}>
-                          {Object.entries(statusToKorean).map(([key, value]) => <MenuItem key={key} value={key}>{value}</MenuItem>)}
-                        </Select>
-                      </FormControl>
-                    </TableCell>
-                  </TableRow>
-                ))
+                state.orders.map((order) => {
+                  const isSelected = state.selectedOrders.indexOf(order.id) !== -1;
+                  return (
+                    <TableRow 
+                      key={order.id} 
+                      hover 
+                      role="checkbox" 
+                      aria-checked={isSelected} 
+                      tabIndex={-1} 
+                      selected={isSelected}
+                      sx={{ cursor: 'pointer' }}
+                    >
+                      {hasPermission('orders:edit') && (
+                        <TableCell padding="checkbox" onClick={(event) => handleSelectOneClick(event, order.id)}>
+                          <Checkbox
+                            checked={isSelected}
+                            inputProps={{ 'aria-labelledby': `order-checkbox-${order.id}` }}
+                          />
+                        </TableCell>
+                      )}
+                      <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{order.id}</TableCell>
+                      <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{order.customer_name}</TableCell>
+                      <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{order.email}</TableCell>
+                      <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{state.events.find(e => e.id === order.event_id)?.name || 'N/A'}</TableCell>
+                      <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{(order.final_payment || 0).toLocaleString()}원</TableCell>
+                      <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{format(new Date(order.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
+                      <TableCell>
+                        <FormControl size="small" variant="outlined" sx={{ minWidth: 100 }} onClick={(e) => e.stopPropagation()}>
+                          <Select value={order.status} onChange={(e) => handleStatusChange(order.id, e.target.value)} disabled={!hasPermission('orders:edit')}>
+                            {Object.entries(statusToKorean).map(([key, value]) => <MenuItem key={key} value={key}>{value}</MenuItem>)}
+                          </Select>
+                        </FormControl>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>
@@ -429,6 +548,7 @@ const OrderManagementPage = () => {
           events={state.events}
           addNotification={addNotification}
           onUpdate={fetchOrders}
+          role={role}
         />
       )}
 

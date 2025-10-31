@@ -1,0 +1,1 @@
+ALTER TABLE public.products ADD COLUMN is_popular BOOLEAN DEFAULT FALSE;

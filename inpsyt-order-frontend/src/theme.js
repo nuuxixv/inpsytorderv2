@@ -7,7 +7,7 @@ const theme = createTheme({
       main: '#2B398F', // 회사 대표 색상
     },
     secondary: {
-      main: '#ffffff', // 연한 회색 배경
+      main: '#f9f9f9', // 배경색
     },
     background: {
       default: '#ffffff', // 기본 배경색
@@ -49,6 +49,16 @@ const theme = createTheme({
         root: {
           textTransform: 'none', // 버튼 텍스트 대문자 변환 비활성화
           boxShadow: 'none',
+        },
+      },
+    },
+    // 원인 불명의 컨테이너 너비 제한을 강제로 해제
+    MuiContainer: {
+      styleOverrides: {
+        maxWidthSm: {
+          '&.MuiContainer-maxWidthSm': { // 클래스 이름을 명시하여 우선순위 확보
+            maxWidth: 'none', 
+          },
         },
       },
     },
