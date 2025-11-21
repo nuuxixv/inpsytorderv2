@@ -15,8 +15,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Snackbar,
-  Alert,
   FormControlLabel,
   Checkbox,
   FormControl,
@@ -26,48 +24,72 @@ import {
   Autocomplete,
   Chip,
   Pagination,
+  IconButton,
+  Card,
+  CardContent,
+  alpha,
+  useTheme,
+  Tooltip,
+  Badge,
 } from '@mui/material';
+import {
+  Add as AddIcon,
+  FileDownload as DownloadIcon,
+  FileUpload as UploadIcon,
+  Edit as EditIcon,
+  Search as SearchIcon,
+  Inventory as InventoryIcon,
+  LocalOffer as TagIcon,
+  TrendingUp as TrendingUpIcon,
+} from '@mui/icons-material';
 import { fetchProducts as fetchProductsApi, fetchAllProducts } from '../api/products';
 import { useNotification } from '../hooks/useNotification';
 import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
-import { useAuth } from '../hooks/useAuth'; // useAuth 임포트
+import { useAuth } from '../hooks/useAuth';
+import EmptyState from './EmptyState';
 
 const ProductManagementPage = () => {
+  const theme = useTheme();
   const [products, setProducts] = useState([]);
   const [open, setOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(null);
-  const { user, hasPermission } = useAuth(); // user와 hasPermission 가져오기
+  const { user, hasPermission } = useAuth();
   const { addNotification } = useNotification();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [availableTags, setAvailableTags] = useState([]);
 
-  // Pagination states
   const [currentPage, setCurrentPage] = useState(1); 
   const [productsPerPage, setProductsPerPage] = useState(50);
   const [totalProducts, setTotalProducts] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   const fileInputRef = useRef(null);
 
   const categories = ['도서', '검사', '도구'];
 
   const fetchProducts = useCallback(async () => {
-    const { data, count, error } = await fetchProductsApi({ 
-      searchTerm,
-      category: selectedCategory,
-      currentPage,
-      productsPerPage,
-    });
+    setLoading(true);
+    try {
+      const { data, count, error } = await fetchProductsApi({ 
+        searchTerm,
+        category: selectedCategory,
+        currentPage,
+        productsPerPage,
+      });
 
-    if (error) {
-      addNotification(`상품 목록을 불러오는 데 실패했습니다: ${error.message}`, 'error');
-    } else {
-      setProducts(data);
-      setTotalProducts(count);
-      const allTags = data.flatMap(product => product.tags || []);
-      setAvailableTags(Array.from(new Set(allTags)));
+      if (error) {
+        addNotification(`상품 목록을 불러오는 데 실패했습니다: ${error.message}`, 'error');
+      } else {
+        setProducts(data);
+        setTotalProducts(count);
+        const allTags = data.flatMap(product => product.tags || []);
+        setAvailableTags(Array.from(new Set(allTags)));
+      }
+    } finally {
+      setLoading(false);
     }
   }, [addNotification, searchTerm, selectedCategory, currentPage, productsPerPage]);
 
@@ -98,7 +120,6 @@ const ProductManagementPage = () => {
     if (!currentProduct) return;
 
     const { id, ...upsertData } = currentProduct;
-    console.log('handleSave - upsertData:', upsertData); // Debug log
 
     let query;
     if (isEditing) {
@@ -120,15 +141,10 @@ const ProductManagementPage = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    console.log('handleChange - name:', name, 'value:', value, 'type:', type, 'checked:', checked); // Debug log
-    setCurrentProduct(prev => {
-      const newState = {
-        ...prev,
-        [name]: type === 'checkbox' ? checked : value
-      };
-      console.log('handleChange - new currentProduct state:', newState); // Debug log
-      return newState;
-    });
+    setCurrentProduct(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
   };
 
   const handleTagsChange = (event, newTags) => {
@@ -152,7 +168,6 @@ const ProductManagementPage = () => {
         const worksheet = workbook.Sheets[sheetName];
         const json = XLSX.utils.sheet_to_json(worksheet);
 
-        // Map JSON data to match Supabase table columns
         const productsToUpload = json.map(row => ({
           name: row['상품명'],
           product_code: row['상품코드'],
@@ -173,12 +188,12 @@ const ProductManagementPage = () => {
         if (invokeData.error) throw new Error(invokeData.error);
 
         addNotification(`엑셀 업로드 성공: ${invokeData.message}`, 'success');
-        fetchProducts(); // Refresh product list
+        fetchProducts();
       } catch (error) {
         addNotification(`엑셀 업로드 실패: ${error.message}`, 'error');
       } finally {
         if (fileInputRef.current) {
-          fileInputRef.current.value = ''; // Clear file input
+          fileInputRef.current.value = '';
         }
       }
     };
@@ -221,177 +236,476 @@ const ProductManagementPage = () => {
     }
   };
 
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setSelectedCategory('');
+    setCurrentPage(1);
+  };
+
   if (!user || !hasPermission('products:view')) {
     return <Box sx={{ p: 3 }}><Typography>상품 관리 페이지 접근 권한이 없습니다.</Typography></Box>;
   }
 
+  const totalDiscountable = products.filter(p => p.is_discountable).length;
+  const totalPopular = products.filter(p => p.is_popular).length;
+  const hasFilters = searchTerm || selectedCategory;
+
   return (
-    <Paper sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h4">상품 관리</Typography>
-        <Box>
-          {hasPermission('products:edit') && <Button variant="contained" onClick={() => handleOpen()} sx={{ mr: 1 }}>새 상품 추가</Button>}
-          <Button variant="outlined" onClick={handleDownloadTemplate} sx={{ mr: 1 }}>양식 다운로드</Button>
-          <Button variant="outlined" onClick={handleDownloadExcel} sx={{ mr: 1 }}>엑셀 다운로드</Button>
-          {hasPermission('products:edit') && (
-            <Button variant="outlined" component="label">
-              엑셀 업로드
-              <input type="file" accept=".xlsx, .xls" hidden onChange={handleFileUpload} ref={fileInputRef} />
-            </Button>
-          )}
+    <Box>
+      {/* Header with Stats */}
+      <Box sx={{ mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+            📦 상품 관리
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Tooltip title="양식 다운로드">
+              <IconButton 
+                onClick={handleDownloadTemplate}
+                sx={{ 
+                  bgcolor: alpha(theme.palette.info.main, 0.1),
+                  '&:hover': { bgcolor: alpha(theme.palette.info.main, 0.2) }
+                }}
+              >
+                <DownloadIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="엑셀 다운로드">
+              <IconButton 
+                onClick={handleDownloadExcel}
+                sx={{ 
+                  bgcolor: alpha(theme.palette.success.main, 0.1),
+                  '&:hover': { bgcolor: alpha(theme.palette.success.main, 0.2) }
+                }}
+              >
+                <DownloadIcon />
+              </IconButton>
+            </Tooltip>
+            {hasPermission('products:edit') && (
+              <>
+                <Tooltip title="엑셀 업로드">
+                  <IconButton 
+                    component="label"
+                    sx={{ 
+                      bgcolor: alpha(theme.palette.warning.main, 0.1),
+                      '&:hover': { bgcolor: alpha(theme.palette.warning.main, 0.2) }
+                    }}
+                  >
+                    <UploadIcon />
+                    <input type="file" accept=".xlsx, .xls" hidden onChange={handleFileUpload} ref={fileInputRef} />
+                  </IconButton>
+                </Tooltip>
+                <Button 
+                  variant="contained" 
+                  startIcon={<AddIcon />}
+                  onClick={() => handleOpen()}
+                  sx={{ ml: 1 }}
+                >
+                  새 상품 추가
+                </Button>
+              </>
+            )}
+          </Box>
         </Box>
-      </Box>
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <TextField
-          label="상품명 검색"
-          variant="outlined"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          sx={{ flexGrow: 1 }}
-        />
-        <FormControl variant="outlined" sx={{ minWidth: 200 }}>
-          <InputLabel>카테고리</InputLabel>
-          <Select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            label="카테고리"
-          >
-            <MenuItem value="">
-              <em>전체</em>
-            </MenuItem>
-            {categories.map((cat) => (
-              <MenuItem key={cat} value={cat}>{cat}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Box>
-      <TableContainer sx={{ mt: 3 }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 'bold' }}>상품명</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>카테고리</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>하위 카테고리</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>상품 코드</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }} align="right">정가</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>비고</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>할인 가능</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>인기 상품</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>태그</TableCell>
-              {hasPermission('products:edit') && <TableCell sx={{ fontWeight: 'bold' }} align="center">작업</TableCell>}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {products.map((product) => (
-              <TableRow key={product.id}>
-                <TableCell>{product.name}</TableCell>
-                <TableCell>{product.category}</TableCell>
-                <TableCell>{product.sub_category}</TableCell>
-                <TableCell>{product.product_code}</TableCell>
-                <TableCell align="right">{product.list_price.toLocaleString()}원</TableCell>
-                <TableCell>{product.notes}</TableCell>
-                <TableCell>{product.is_discountable ? '예' : '아니오'}</TableCell>
-                <TableCell>{product.is_popular ? '예' : '아니오'}</TableCell>
-                <TableCell>{product.tags?.join(', ')}</TableCell>
-                {hasPermission('products:edit') && (
-                  <TableCell align="center">
-                    <Button variant="outlined" size="small" onClick={() => handleOpen(product)}>수정</Button>
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 3 }}>
-        <FormControl variant="outlined" size="small">
-          <InputLabel>페이지당 항목 수</InputLabel>
-          <Select
-            value={productsPerPage}
-            onChange={(e) => {
-              setProductsPerPage(parseInt(e.target.value, 10));
-              setCurrentPage(1); // Reset to first page when items per page changes
-            }}
-            label="페이지당 항목 수"
-          >
-            <MenuItem value={10}>10</MenuItem>
-            <MenuItem value={25}>25</MenuItem>
-            <MenuItem value={50}>50</MenuItem>
-            <MenuItem value={100}>100</MenuItem>
-          </Select>
-        </FormControl>
-        <Pagination
-          count={Math.ceil(totalProducts / productsPerPage)}
-          page={currentPage}
-          onChange={(event, value) => setCurrentPage(value)}
-          color="primary"
-        />
+
+        {/* Stats Cards */}
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ 
+              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      전체 상품
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                      {totalProducts}
+                    </Typography>
+                  </Box>
+                  <InventoryIcon sx={{ fontSize: 40, color: alpha(theme.palette.primary.main, 0.5) }} />
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ 
+              background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.main, 0.05)} 100%)`,
+              border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+            }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      할인 가능
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.main' }}>
+                      {totalDiscountable}
+                    </Typography>
+                  </Box>
+                  <TagIcon sx={{ fontSize: 40, color: alpha(theme.palette.success.main, 0.5) }} />
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ 
+              background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)} 0%, ${alpha(theme.palette.warning.main, 0.05)} 100%)`,
+              border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+            }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      인기 상품
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'warning.main' }}>
+                      {totalPopular}
+                    </Typography>
+                  </Box>
+                  <TrendingUpIcon sx={{ fontSize: 40, color: alpha(theme.palette.warning.main, 0.5) }} />
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ 
+              background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.info.main, 0.05)} 100%)`,
+              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+            }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      카테고리
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'info.main' }}>
+                      {categories.length}
+                    </Typography>
+                  </Box>
+                  <SearchIcon sx={{ fontSize: 40, color: alpha(theme.palette.info.main, 0.5) }} />
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
       </Box>
 
-      <Dialog open={open} onClose={handleClose}>
-        <DialogTitle>{isEditing ? '상품 수정' : '새 상품 추가'}</DialogTitle>
-        <DialogContent sx={{ p: 3 }}>
-          <TextField autoFocus margin="dense" name="name" label="상품명" type="text" fullWidth value={currentProduct?.name || ''} onChange={handleChange} disabled={!hasPermission('products:edit')} />
-          <TextField margin="dense" name="product_code" label="상품 코드" type="text" fullWidth value={currentProduct?.product_code || ''} onChange={handleChange} disabled={!hasPermission('products:edit')} />
-          <TextField margin="dense" name="category" label="카테고리" type="text" fullWidth value={currentProduct?.category || ''} onChange={handleChange} disabled={!hasPermission('products:edit')} />
-          <TextField margin="dense" name="sub_category" label="하위 카테고리" type="text" fullWidth value={currentProduct?.sub_category || ''} onChange={handleChange} disabled={!hasPermission('products:edit')} />
-          <TextField margin="dense" name="list_price" label="정가" type="number" fullWidth value={currentProduct?.list_price || 0} onChange={handleChange} disabled={!hasPermission('products:edit')} />
-          <TextField margin="dense" name="notes" label="비고" type="text" fullWidth multiline rows={2} value={currentProduct?.notes || ''} onChange={handleChange} disabled={!hasPermission('products:edit')} />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={currentProduct?.is_discountable || false}
-                onChange={(e) => setCurrentProduct(prev => ({ ...prev, is_discountable: e.target.checked }))}
-                name="is_discountable"
-                color="primary"
-                disabled={!hasPermission('products:edit')}
-              />
-            }
-            label="할인 가능"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={currentProduct?.is_popular || false}
-                onChange={(e) => setCurrentProduct(prev => ({ ...prev, is_popular: e.target.checked }))}
-                name="is_popular"
-                color="primary"
-                disabled={!hasPermission('products:edit')}
-              />
-            }
-            label="인기 상품"
-          />
-          <Autocomplete
-            multiple
-            freeSolo
-            options={availableTags}
-            value={currentProduct?.tags || []}
-            onChange={handleTagsChange}
-            renderTags={(value, getTagProps) =>
-              value.map((option, index) => (
-                <Chip variant="outlined" label={option} {...getTagProps({ index })} />
-              ))
-            }
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                margin="dense"
-                label="태그"
-                placeholder="태그 추가"
-                fullWidth
-              />
+      {/* Filters */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <TextField
+              label="상품명 검색"
+              variant="outlined"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ flexGrow: 1, minWidth: 200 }}
+              size="small"
+              InputProps={{
+                startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
+              }}
+            />
+            <FormControl variant="outlined" sx={{ minWidth: 200 }} size="small">
+              <InputLabel>카테고리</InputLabel>
+              <Select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                label="카테고리"
+              >
+                <MenuItem value="">
+                  <em>전체</em>
+                </MenuItem>
+                {categories.map((cat) => (
+                  <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {hasFilters && (
+              <Button 
+                variant="outlined" 
+                onClick={handleResetFilters}
+                size="small"
+              >
+                필터 초기화
+              </Button>
             )}
-            sx={{ mt: 2 }}
-            disabled={!hasPermission('products:edit')}
-          />
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Products Table */}
+      <Card>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
+                <TableCell sx={{ fontWeight: 'bold' }}>상품명</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>카테고리</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>하위 카테고리</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>상품 코드</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }} align="right">정가</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>비고</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }} align="center">할인 가능</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }} align="center">인기 상품</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>태그</TableCell>
+                {hasPermission('products:edit') && <TableCell sx={{ fontWeight: 'bold' }} align="center">작업</TableCell>}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={10} align="center" sx={{ py: 8 }}>
+                    <Typography color="text.secondary">로딩 중...</Typography>
+                  </TableCell>
+                </TableRow>
+              ) : products.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={10} sx={{ border: 0, py: 4 }}>
+                    <EmptyState
+                      message={hasFilters ? "검색 결과가 없습니다" : "등록된 상품이 없습니다"}
+                      subMessage={hasFilters ? "다른 검색어나 필터를 시도해보세요" : "새 상품을 추가하여 시작하세요"}
+                      icon={<InventoryIcon sx={{ fontSize: 64, color: 'text.disabled' }} />}
+                      action={hasFilters ? {
+                        label: "필터 초기화",
+                        onClick: handleResetFilters
+                      } : hasPermission('products:edit') ? {
+                        label: "상품 추가",
+                        onClick: () => handleOpen()
+                      } : null}
+                    />
+                  </TableCell>
+                </TableRow>
+              ) : (
+                products.map((product) => (
+                  <TableRow 
+                    key={product.id}
+                    sx={{ 
+                      '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.02) },
+                      transition: 'background-color 0.2s'
+                    }}
+                  >
+                    <TableCell sx={{ fontWeight: 500 }}>{product.name}</TableCell>
+                    <TableCell>
+                      <Chip label={product.category} size="small" color="primary" variant="outlined" />
+                    </TableCell>
+                    <TableCell>{product.sub_category || '-'}</TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
+                        {product.product_code}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                      {product.list_price.toLocaleString()}원
+                    </TableCell>
+                    <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {product.notes || '-'}
+                    </TableCell>
+                    <TableCell align="center">
+                      {product.is_discountable ? (
+                        <Chip label="예" size="small" color="success" />
+                      ) : (
+                        <Chip label="아니오" size="small" variant="outlined" />
+                      )}
+                    </TableCell>
+                    <TableCell align="center">
+                      {product.is_popular ? (
+                        <Chip label="⭐ 인기" size="small" color="warning" />
+                      ) : (
+                        <Chip label="일반" size="small" variant="outlined" />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                        {product.tags?.slice(0, 2).map((tag, idx) => (
+                          <Chip key={idx} label={tag} size="small" variant="outlined" />
+                        ))}
+                        {product.tags?.length > 2 && (
+                          <Chip label={`+${product.tags.length - 2}`} size="small" />
+                        )}
+                      </Box>
+                    </TableCell>
+                    {hasPermission('products:edit') && (
+                      <TableCell align="center">
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleOpen(product)}
+                          sx={{ 
+                            color: 'primary.main',
+                            '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
+                          }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        {/* Pagination */}
+        {products.length > 0 && (
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderTop: 1, borderColor: 'divider' }}>
+            <FormControl variant="outlined" size="small">
+              <InputLabel>페이지당 항목 수</InputLabel>
+              <Select
+                value={productsPerPage}
+                onChange={(e) => {
+                  setProductsPerPage(parseInt(e.target.value, 10));
+                  setCurrentPage(1);
+                }}
+                label="페이지당 항목 수"
+              >
+                <MenuItem value={10}>10</MenuItem>
+                <MenuItem value={25}>25</MenuItem>
+                <MenuItem value={50}>50</MenuItem>
+                <MenuItem value={100}>100</MenuItem>
+              </Select>
+            </FormControl>
+            <Pagination
+              count={Math.ceil(totalProducts / productsPerPage)}
+              page={currentPage}
+              onChange={(event, value) => setCurrentPage(value)}
+              color="primary"
+            />
+          </Box>
+        )}
+      </Card>
+
+      {/* Edit/Add Dialog */}
+      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 'bold' }}>
+          {isEditing ? '상품 수정' : '새 상품 추가'}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField 
+              autoFocus 
+              name="name" 
+              label="상품명" 
+              type="text" 
+              fullWidth 
+              value={currentProduct?.name || ''} 
+              onChange={handleChange} 
+              disabled={!hasPermission('products:edit')} 
+            />
+            <TextField 
+              name="product_code" 
+              label="상품 코드" 
+              type="text" 
+              fullWidth 
+              value={currentProduct?.product_code || ''} 
+              onChange={handleChange} 
+              disabled={!hasPermission('products:edit')} 
+            />
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField 
+                name="category" 
+                label="카테고리" 
+                type="text" 
+                fullWidth 
+                value={currentProduct?.category || ''} 
+                onChange={handleChange} 
+                disabled={!hasPermission('products:edit')} 
+              />
+              <TextField 
+                name="sub_category" 
+                label="하위 카테고리" 
+                type="text" 
+                fullWidth 
+                value={currentProduct?.sub_category || ''} 
+                onChange={handleChange} 
+                disabled={!hasPermission('products:edit')} 
+              />
+            </Box>
+            <TextField 
+              name="list_price" 
+              label="정가" 
+              type="number" 
+              fullWidth 
+              value={currentProduct?.list_price || 0} 
+              onChange={handleChange} 
+              disabled={!hasPermission('products:edit')} 
+            />
+            <TextField 
+              name="notes" 
+              label="비고" 
+              type="text" 
+              fullWidth 
+              multiline 
+              rows={3} 
+              value={currentProduct?.notes || ''} 
+              onChange={handleChange} 
+              disabled={!hasPermission('products:edit')} 
+            />
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={currentProduct?.is_discountable || false}
+                    onChange={(e) => setCurrentProduct(prev => ({ ...prev, is_discountable: e.target.checked }))}
+                    name="is_discountable"
+                    color="primary"
+                    disabled={!hasPermission('products:edit')}
+                  />
+                }
+                label="할인 가능"
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={currentProduct?.is_popular || false}
+                    onChange={(e) => setCurrentProduct(prev => ({ ...prev, is_popular: e.target.checked }))}
+                    name="is_popular"
+                    color="primary"
+                    disabled={!hasPermission('products:edit')}
+                  />
+                }
+                label="인기 상품"
+              />
+            </Box>
+            <Autocomplete
+              multiple
+              freeSolo
+              options={availableTags}
+              value={currentProduct?.tags || []}
+              onChange={handleTagsChange}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                  <Chip variant="outlined" label={option} {...getTagProps({ index })} key={index} />
+                ))
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="태그"
+                  placeholder="태그 추가"
+                  fullWidth
+                />
+              )}
+              disabled={!hasPermission('products:edit')}
+            />
+          </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={handleClose}>취소</Button>
-          {hasPermission('products:edit') && <Button onClick={handleSave}>저장</Button>}
+          {hasPermission('products:edit') && (
+            <Button onClick={handleSave} variant="contained">
+              저장
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
-    </Paper>
+    </Box>
   );
 };
+
+// Missing Grid import fix
+import { Grid } from '@mui/material';
 
 export default ProductManagementPage;

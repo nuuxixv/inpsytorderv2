@@ -119,8 +119,8 @@
 ### **2. 세분화된 역할 기반 접근 제어 (Granular RBAC) 구현**
 *   **AuthContext 리팩토링**: `AuthContext.jsx`에서 사용자 역할을 단일 문자열(`role`) 대신 세분화된 `permissions` 배열로 관리하도록 변경하고, `hasPermission` 헬퍼 함수를 추가했습니다. `master` 역할은 암묵적으로 모든 권한을 가지며, 권한이 명시되지 않은 경우 기본 `operator` 권한이 부여됩니다.
 *   **프론트엔드 UI 업데이트**:
-    *   `AdminSidebar.jsx` 및 `AdminLayout.jsx`: 메뉴 표시 및 라우트 접근을 `hasPermission` 기반으로 제어하도록 수정했습니다.
-    *   `OrderManagementPage.jsx`, `OrderDetailModal.jsx`, `EventManagementPage.jsx`, `ProductManagementPage.jsx`: 각 페이지의 UI 요소(버튼, 입력 필드 등)를 해당 페이지의 `edit` 권한에 따라 활성화/비활성화하도록 변경했습니다.
+    *   `AdminSidebar.jsx` 및 `AdminLayout.jsx`: 메뉴 표시 및 라우트 접근을 `hasPermission` 기반으로 제어하도록 수정했습니다。
+    *   `OrderManagementPage.jsx`, `OrderDetailModal.jsx`, `EventManagementPage.jsx`, `ProductManagementPage.jsx`: 각 페이지의 UI 요소(버튼, 입력 필드 등)를 해당 페이지의 `edit` 권한에 따라 활성화/비활성화하도록 변경했습니다。
     *   `UserManagementPage.jsx`: 사용자 목록 표시, 권한 관리 모달(체크박스), 메모 수정, 초대, 삭제 기능을 구현했습니다.
 *   **백엔드 Edge Functions**:
     *   `list-users`: 사용자 권한 정보를 포함하여 반환하도록 업데이트했습니다.
@@ -129,4 +129,66 @@
     *   `delete-user`, `update-user-memo`: `master` 권한 확인 로직을 추가했습니다.
 *   **백엔드 RLS 정책**:
     *   `get_current_user_permissions()` 함수를 추가하여 JWT에서 세분화된 권한을 추출하도록 했습니다.
-    *   `orders`, `order_items`, `products`, `events` 테이블에 세분화된 `view` 및 `edit` 권한 RLS 정책을 적용했습니다.
+    *   `orders`, `order_items`, `products`, `events` 테이블에 세분화된 `view` 및 `edit` 권한 RLS 정책을 적용했습니다。
+
+---
+
+## **추가 작업 요약 (2025-10-31)**
+
+### **1. Vercel 배포 문제 해결**
+*   **문제**: Vercel 배포 시 `404: NOT_FOUND` 오류 발생 및 빌드 로그 중단.
+*   **원인**: Vercel 프로젝트 설정의 "Build Command"가 `npm test && vite build`로 되어 있어, `npm test`가 실패하거나 중단될 경우 `vite build`가 실행되지 않아 배포 결과물이 생성되지 않았습니다. 또한, Vercel의 "Root Directory" 설정이 `inpsyt-order-frontend`로 되어 있지 않아 빌드 결과물을 찾지 못하는 문제도 있었습니다.
+*   **해결**: 
+    *   Vercel 프로젝트 설정에서 "Root Directory"를 `inpsyt-order-frontend`로 변경했습니다.
+    *   "Build Command"를 `npm test && vite build`에서 **`vite build`** 로 변경하여 테스트와 빌드 프로세스를 분리했습니다.
+*   **결과**: 애플리케이션이 Vercel에 성공적으로 배포되어 정상 작동 확인.
+
+## **추가 작업 요약 (2025-11-06)**
+
+### **1. 대시보드 리팩토링 및 UX 개선**
+
+*   **배경:** 기존 대시보드 (`DashboardPage.jsx`)의 오류 해결 및 사용성 개선 요청.
+*   **주요 기능 구현:**
+    *   **이벤트 선택 드롭다운:** '전체' 또는 특정 학회를 선택하여 대시보드 데이터를 동적으로 볼 수 있는 기능 추가.
+    *   **'전체' 보기:** 연간 실적 분석 도넛 차트 및 전체 최근 주문 목록 구현.
+    *   **'특정 학회' 보기:**
+        *   금년 학기의 총 매출/주문 건수 표시.
+        *   오늘의 매출/주문 건수 및 상태(결제대기, 결제완료, 주문취소, 결제취소)별 수량 표시.
+        *   작년 동일 학회의 총 매출/주문 건수 비교 (데이터 없을 시 "작년 데이터 없음" 표시).
+        *   해당 학회의 최근 주문 목록 표시.
+*   **UX/UI 개선:**
+    *   대시보드 레이아웃을 고정된 2단 그리드 형태로 변경하여, 정보의 위계(오늘의 현황 > 총 성과 > 작년 성과)를 명확히 하고 시각적 안정성을 확보.
+    *   금액 표시 형식 통일 (쉼표와 '원' 사용, '₩' 기호 미사용).
+
+### **2. `OrderDetailModal` 관련 오류 수정 및 UX 개선**
+
+*   **문제 1: `TypeError: Cannot read properties of undefined (reading 'find')` (`OrderDetailModal.jsx:213`)**
+    *   **원인:** `DashboardPage`에서 모달에 `events` prop을 누락하여 발생.
+    *   **해결:** `DashboardPage`에서 `events` prop을 `OrderDetailModal`에 전달하도록 수정.
+*   **문제 2: `TypeError: hasPermission is not a function` (`OrderDetailModal.jsx:229`)**
+    *   **원인:** `DashboardPage`에서 모달에 `hasPermission` prop을 누락하여 발생.
+    *   **해결:** `DashboardPage`에서 `hasPermission` prop을 `OrderDetailModal`에 전달하도록 수정.
+*   **문제 3: `TypeError: Cannot convert undefined or null to object` (`OrderDetailModal.jsx:295`)**
+    *   **원인:** `DashboardPage`에서 최근 주문 목록을 조회할 때 `order_items` 및 `products` 상세 정보를 누락하여 발생. (`fetchOverallData` 및 `fetchEventSpecificData` 쿼리 수정)
+    *   **해결:** `DashboardPage`의 `fetchOverallData` 및 `fetchEventSpecificData` 쿼리에서 `order_items(*, products(*))`를 포함하여 완전한 `order` 객체를 전달하도록 수정.
+*   **문제 4: 대시보드 `recentOrders` 테이블 상태(status) 영문 표시**
+    *   **원인:** `statusToKorean` 맵을 적용하지 않아 발생.
+    *   **해결:** `DashboardPage`의 `renderOverallView` 및 `renderEventSpecificView`에서 `statusToKorean` 맵을 사용하여 상태를 한글로 변환하여 표시하도록 수정.
+*   **문제 5: 모달 내 금액 불일치**
+    *   **원인:** 모달이 주문 당시의 저장된 금액 대신, 현재 기준으로 금액을 재계산하여 발생.
+    *   **해결:** `OrderDetailModal` 로직을 수정하여 '편집' 모드가 아닐 때에는 데이터베이스에 저장된 금액을, '편집' 모드일 때만 재계산 로직을 사용하도록 수정.
+*   **문제 6: '알 수 없는 상품' 표시**
+    *   **원인:** `supabase.from('products').select('*')` 쿼리의 기본 조회 제한(1000개)으로 인해 모든 상품을 가져오지 못해 발생.
+    *   **해결:** `DashboardPage`의 `fetchInitialData`에 `fetchAllProducts` 함수를 구현하여, 상품 목록을 페이지네이션 방식으로 **모두 가져오도록** 수정.
+*   **문제 7: `OrderDetailModal` 상품 목록 헤더 줄바꿈**
+    *   **원인:** 테이블 헤더(`TableCell`)의 너비 부족으로 인해 텍스트가 줄바꿈되어 시각적으로 저해됨.
+    *   **해결:** `OrderDetailModal`의 상품 목록 테이블 헤더(`TableCell`)에 `minWidth` 및 `white-space: 'nowrap'` 스타일을 적용하여 텍스트가 한 줄로 표시되도록 수정.
+
+### **3. `OrderManagementPage` 오류 수정**
+
+*   **문제 1: `Uncaught ReferenceError: user is not defined` (`OrderManagementPage.jsx:369`)**
+    *   **원인:** `DashboardPage` 문제를 해결하는 과정에서, `OrderManagementPage`의 `useAuth()` 훅에서 `user` 변수를 제거하여 발생.
+    *   **해결:** `OrderManagementPage`의 `useAuth()` 훅에서 `user` 변수를 다시 포함하도록 수정.
+*   **문제 2: `Uncaught ReferenceError: role is not defined` (`OrderManagementPage.jsx:551`)**
+    *   **원인:** `OrderManagementPage`에서 `OrderDetailModal` 호출 시 사용하던 `role` prop이 더 이상 유효하지 않아 발생.
+    *   **해결:** `OrdersManagementPage`의 `useAuth()` 훅을 통해 `hasPermission`을 가져오고, `OrderDetailModal`에 이를 prop으로 전달하도록 수정.

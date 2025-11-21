@@ -1,38 +1,62 @@
+# 🚩 프로젝트 마일스톤 및 로드맵
 
-## 현재 진행 상황 및 다음 단계 (2025년 7월 24일)
+이 문서는 인싸이트 오더 v2 프로젝트의 진행 상황과 향후 계획을 관리합니다.
 
-#### **1. 주문 상세 모달 개선 현황**
+## ✅ 완료된 주요 작업 (Achievements)
 
-*   **상품명 및 금액 표시:** `OrderDetailModal`에서 상품명, 정가, 할인가, 수량, 합계, 총 결제 금액 등이 정확히 계산되고 표시되도록 프론트엔드 코드(`OrderDetailModal.jsx`)를 수정했습니다.
-*   **"알 수 없는 상품" 문제:** `productsMap`을 `product_code` 기준으로 사용하도록 수정하여 이 문제는 해결되었을 것으로 예상됩니다.
-*   **학회명 미수정 문제:** 모달에서 학회명을 변경해도 실제 데이터베이스에 반영되지 않는 문제가 남아있습니다.
+### 1. 핵심 기능 구현
 
-#### **2. `update-order` Edge Function 디버깅 현황**
+- [x] **주문 접수 시스템**: 이벤트별 고유 URL을 통한 주문 접수 기능.
+- [x] **관리자 대시보드**: 전체 및 학회별 매출, 주문 현황 시각화 (Chart.js).
+- [x] **주문 관리**: 주문 목록 조회, 상태 변경(일괄 변경 포함), 상세 정보 수정.
+- [x] **상품 및 이벤트 관리**: 상품/이벤트 CRUD, 검색 및 필터링 기능.
 
-*   **문제:** `update-order` Edge Function이 호출되지만, 데이터베이스에 `event_id`가 업데이트되지 않고, `supabase logs --function update-order` 명령어로 로그를 확인할 수 없습니다.
-*   **시도:**
-    *   `supabase CLI`가 `logs` 명령어를 인식하지 못하는 문제로 인해 `npm`을 통해 `supabase CLI`를 재설치했습니다. (`npx supabase --version` 결과 `2.31.8`)
-    *   `supabase stop` 및 `supabase start` 명령어를 통해 로컬 Supabase 환경을 재시작했습니다.
-    *   `update-order` Edge Function 내부에 상세한 `console.log` 구문을 추가했습니다.
-*   **현재 봉착한 문제:** `npx supabase logs --function update-order` 명령어가 여전히 `unknown command` 오류를 반환하여 Edge Function의 로그를 확인할 수 없습니다. 이는 `2.31.8` 버전의 CLI에서 `logs` 명령어가 제대로 작동하지 않거나, `npx` 환경에서 특정 문제가 발생하고 있음을 시사합니다.
+### 2. 아키텍처 및 보안
 
-#### **3. 다음 단계 (사용자 요청 사항)**
+- [x] **API 계층 분리**: `src/api` 폴더로 비즈니스 로직 분리 및 중앙화.
+- [x] **RBAC (역할 기반 접근 제어)**: 세분화된 권한(`view`, `edit`, `master`)
+      시스템 및 미들웨어 구현.
+- [x] **RLS (Row Level Security)**: 테이블별 보안 정책 적용 완료.
 
-`update-order` Edge Function의 정확한 오류 원인을 파악하기 위해, **Edge Function을 로컬에서 직접 실행하여 로그를 확인하는 방법**을 시도해야 합니다.
+### 3. 개발 환경 및 품질
 
-**수행할 작업:**
+- [x] **린트(Linting)**: ESLint 오류 및 경고 전수 해결.
+- [x] **테스트 환경**: Vitest 기반 테스트 환경 구축 및 핵심 컴포넌트 테스트
+      작성.
 
-1.  **새로운 터미널을 엽니다.**
-2.  **프로젝트 내 Edge Function 디렉토리로 이동합니다:**
-    ```bash
-    cd C:\Users\김건우\Desktop\VS\inpsytorderv2\clone\supabase\functions\update-order
-    ```
-3.  **다음 명령어를 실행하여 Edge Function을 로컬에서 직접 실행합니다:**
-    ```bash
-    deno run --allow-net --allow-env --allow-read --allow-write --allow-run index.ts
-    ```
-    *   **참고:** 이 명령어를 실행하려면 [Deno](https://deno.land/#installation)가 설치되어 있어야 합니다. (만약 Deno가 설치되어 있지 않다면, 먼저 Deno를 설치해야 합니다.)
-4.  **다른 터미널에서 애플리케이션을 실행하고, 주문 상세 모달에서 학회 정보를 변경한 후 '저장' 버튼을 클릭합니다.**
-5.  `deno run` 명령어를 실행한 터미널에 출력되는 **모든 로그 내용**을 저에게 공유해주세요.
+---
 
-이 로그를 통해 `event_id` 업데이트 실패의 근본적인 원인을 파악할 수 있을 것입니다.
+## 🚀 현재 진행 중: 고도화 및 마무리 (Refinement & Finalization)
+
+프로젝트 완성도를 85%에서 100%로 끌어올리기 위한 마무리 작업 단계입니다.
+
+### 1단계: 문서 및 코드 정리 (Completed ✅)
+
+- [x] **레거시 청산**: 사용하지 않는 `update-order` Edge Function 삭제.
+- [x] **문서 현행화**: `GEMINI.md`, `MILESTONES.md` 등 프로젝트 문서를 최신
+      아키텍처에 맞춰 업데이트.
+- [x] **코드 다이어트**: 미사용 컴포넌트 및 주석 정리.
+
+### 2단계: 안정성 강화 (In Progress)
+
+- [x] **RLS 보안 감사**: 모든 테이블의 권한 정책 적용 완료 (원격 Supabase).
+- [ ] **에러 핸들링 표준화**: API 실패 시 사용자 피드백(Toast 등) 일관성 점검
+      (✅ 확인 완료, 양호).
+- [ ] **엣지 케이스 테스트**: 네트워크 오류, 데이터 누락 등 예외 상황 테스트.
+
+### 3단계: UI/UX 폴리싱 (In Progress)
+
+- [x] **Empty State 처리**: EmptyState 컴포넌트 생성 및 OrderManagementPage
+      적용.
+- [x] **모바일 최적화**: ProductSelector 모바일 카드 뷰 구현.
+- [ ] **다른 페이지 Empty State 적용**: ProductManagementPage,
+      EventManagementPage.
+- [ ] **로딩 경험 개선**: 스켈레톤 UI 적용 범위 확대 및 자연스러운 전환.
+- [ ] **모바일 대응 점검**: 관리자 페이지의 태블릿 가독성 및 조작 편의성 확인.
+
+---
+
+## 📅 향후 계획 (Future Vision)
+
+- **운영 자동화**: 반복적인 관리자 작업(예: 엑셀 대량 등록 등) 자동화 도구 추가.
+- **알림 시스템 고도화**: 주문 상태 변경 시 이메일/알림톡 발송 기능 강화.

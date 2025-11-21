@@ -36,6 +36,8 @@ import { useNotification } from '../hooks/useNotification';
 import { Close as CloseIcon } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import OrderDetailModal from './OrderDetailModal';
+import EmptyState from './EmptyState';
+import { SearchOff as SearchOffIcon } from '@mui/icons-material';
 import { getEvents } from '../api/events';
 import { fetchAllProducts } from '../api/products';
 import { getOrders } from '../api/orders';
@@ -147,7 +149,7 @@ function reducer(state, action) {
 }
 
 const OrderManagementPage = () => {
-  const { user, hasPermission, logout } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { addNotification } = useNotification();
   const [state, dispatch] = useReducer(reducer, initialState);
   const [bulkStatus, setBulkStatus] = React.useState('');
@@ -490,7 +492,25 @@ const OrderManagementPage = () => {
                   <TableRow key={index}><TableCell colSpan={hasPermission('orders:edit') ? 8 : 7}><Skeleton animation="wave" /></TableCell></TableRow>
                 ))
               ) : state.orders.length === 0 ? (
-                <TableRow><TableCell colSpan={hasPermission('orders:edit') ? 8 : 7} align="center">조회된 주문이 없습니다.</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={hasPermission('orders:edit') ? 8 : 7}>
+                    <Box sx={{ py: 4 }}>
+                      {state.searchTerm || state.selectedStatus || state.selectedEvent ? (
+                        <EmptyState 
+                          message="조건에 맞는 주문이 없습니다." 
+                          subMessage="검색 조건이나 필터를 변경해보세요."
+                          icon={<SearchOffIcon sx={{ fontSize: 64 }} />}
+                          action={{ label: "필터 초기화", onClick: () => dispatch({ type: 'CLEAR_FILTERS' }) }}
+                        />
+                      ) : (
+                        <EmptyState 
+                          message="아직 접수된 주문이 없습니다." 
+                          subMessage="새로운 주문이 들어오면 여기에 표시됩니다."
+                        />
+                      )}
+                    </Box>
+                  </TableCell>
+                </TableRow>
               ) : (
                 state.orders.map((order) => {
                   const isSelected = state.selectedOrders.indexOf(order.id) !== -1;
@@ -548,7 +568,7 @@ const OrderManagementPage = () => {
           events={state.events}
           addNotification={addNotification}
           onUpdate={fetchOrders}
-          role={role}
+          hasPermission={hasPermission}
         />
       )}
 
