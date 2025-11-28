@@ -117,7 +117,7 @@ const ProductSelector = ({ selectedProducts, onProductChange, discountRate, even
                   size="small" 
                   sx={{ 
                     mt: -0.5, 
-                    color: 'text.secondary',
+                    color: 'text.primary',
                     '&:hover': { color: 'error.main', bgcolor: 'error.lighter' }
                   }}
                 >
@@ -142,7 +142,7 @@ const ProductSelector = ({ selectedProducts, onProductChange, discountRate, even
                     onClick={() => decrementQuantity(product.id)} 
                     size="small"
                     disabled={product.quantity <= 1}
-                    sx={{ bgcolor: 'white', boxShadow: 1, width: 32, height: 32 }}
+                    sx={{ bgcolor: 'white', boxShadow: 1, width: 32, height: 32, color: 'text.primary' }}
                   >
                     <RemoveIcon fontSize="small" />
                   </IconButton>
@@ -159,13 +159,13 @@ const ProductSelector = ({ selectedProducts, onProductChange, discountRate, even
                   <IconButton 
                     onClick={() => incrementQuantity(product.id)} 
                     size="small"
-                    sx={{ bgcolor: 'white', boxShadow: 1, width: 32, height: 32 }}
+                    sx={{ bgcolor: 'white', boxShadow: 1, width: 32, height: 32, color: 'text.primary' }}
                   >
                     <AddIcon fontSize="small" />
                   </IconButton>
                 </Box>
                 
-                <Typography variant="h6" color="primary" sx={{ fontWeight: 800 }}>
+                <Typography variant="h6" color="primary" sx={{ fontWeight: 800, whiteSpace: 'nowrap' }}>
                   {itemTotal.toLocaleString()}원
                 </Typography>
               </Box>
@@ -179,14 +179,21 @@ const ProductSelector = ({ selectedProducts, onProductChange, discountRate, even
   // Desktop Table View
   const renderDesktopView = () => (
     <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
-      <Table size="medium">
+      <Table size="medium" sx={{ tableLayout: 'fixed' }}>
+        <colgroup>
+          <col style={{ width: '40%' }} />
+          <col style={{ width: '15%' }} />
+          <col style={{ width: '15%' }} />
+          <col style={{ width: '20%' }} />
+          <col style={{ width: '10%' }} />
+        </colgroup>
         <TableHead>
           <TableRow sx={{ bgcolor: 'background.default' }}>
             <TableCell sx={{ py: 2 }}>상품명</TableCell>
             <TableCell align="right">정가</TableCell>
-            <TableCell align="center" sx={{ width: '140px' }}>수량</TableCell>
+            <TableCell align="center">수량</TableCell>
             <TableCell align="right">합계</TableCell>
-            <TableCell align="center" sx={{ width: '80px' }}>삭제</TableCell>
+            <TableCell align="center">삭제</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -204,31 +211,31 @@ const ProductSelector = ({ selectedProducts, onProductChange, discountRate, even
               
               return (
                 <TableRow key={product.id} hover>
-                  <TableCell sx={{ fontWeight: 500 }}>
+                  <TableCell sx={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {product.name}
                     {product.is_discountable && discountRate > 0 && (
-                       <Box component="span" sx={{ ml: 1, bgcolor: 'error.light', color: 'white', px: 0.8, py: 0.2, borderRadius: 0.5, fontSize: '0.7rem' }}>
+                       <Box component="span" sx={{ ml: 1, bgcolor: 'error.light', color: 'white', px: 0.8, py: 0.2, borderRadius: 0.5, fontSize: '0.7rem', verticalAlign: 'middle' }}>
                          {(discountRate * 100).toFixed(0)}%
                        </Box>
                     )}
                   </TableCell>
-                  <TableCell align="right" sx={{ color: 'text.secondary' }}>{product.list_price.toLocaleString()}원</TableCell>
+                  <TableCell align="right" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>{product.list_price.toLocaleString()}원</TableCell>
                   <TableCell align="center">
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                      <IconButton size="small" onClick={() => decrementQuantity(product.id)} disabled={product.quantity <= 1}>
+                      <IconButton size="small" onClick={() => decrementQuantity(product.id)} disabled={product.quantity <= 1} sx={{ color: 'text.primary' }}>
                         <RemoveIcon fontSize="small" />
                       </IconButton>
                       <Typography sx={{ fontWeight: 'bold', minWidth: 20, textAlign: 'center' }}>{product.quantity}</Typography>
-                      <IconButton size="small" onClick={() => incrementQuantity(product.id)}>
+                      <IconButton size="small" onClick={() => incrementQuantity(product.id)} sx={{ color: 'text.primary' }}>
                         <AddIcon fontSize="small" />
                       </IconButton>
                     </Box>
                   </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1rem' }}>
+                  <TableCell align="right" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1rem', whiteSpace: 'nowrap' }}>
                     {itemTotal.toLocaleString()}원
                   </TableCell>
                   <TableCell align="center">
-                    <IconButton onClick={() => handleRemoveProduct(product.id)} size="small" color="default" sx={{ '&:hover': { color: 'error.main' } }}>
+                    <IconButton onClick={() => handleRemoveProduct(product.id)} size="small" sx={{ color: 'text.primary', '&:hover': { color: 'error.main' } }}>
                       <DeleteIcon />
                     </IconButton>
                   </TableCell>
@@ -246,6 +253,7 @@ const ProductSelector = ({ selectedProducts, onProductChange, discountRate, even
       <Typography variant="h5" gutterBottom sx={{ fontWeight: 700, mb: 3 }}>상품 추가</Typography>
       <Autocomplete
         id="product-search-autocomplete"
+        fullWidth
         open={open}
         onOpen={() => {
           setOpen(true);
@@ -262,7 +270,11 @@ const ProductSelector = ({ selectedProducts, onProductChange, discountRate, even
         onChange={(event, newValue) => {
           handleAddProduct(newValue);
         }}
-        onInputChange={(event, newInputValue) => {
+        onInputChange={(event, newInputValue, reason) => {
+          if (reason === 'reset') {
+            setSearchTerm('');
+            return;
+          }
           setSearchTerm(newInputValue);
         }}
         renderInput={(params) => (

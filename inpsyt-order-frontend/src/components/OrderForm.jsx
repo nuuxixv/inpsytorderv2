@@ -6,9 +6,9 @@ import {
   Modal,
   Box,
   Card,
-  Grid,
   InputAdornment,
-  IconButton
+  IconButton,
+  Stack
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -78,156 +78,146 @@ const OrderForm = ({ customerInfo, setCustomerInfo }) => {
       <Typography variant="h5" gutterBottom sx={{ fontWeight: 700, mb: 3 }}>
         주문자 정보
       </Typography>
-      <Grid container spacing={3}>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            required
-            fullWidth
-            id="name"
-            name="name"
-            label="성함"
-            value={customerInfo.name}
-            onChange={handleChange}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <PersonIcon color="action" />
-                </InputAdornment>
-              ),
-            }}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            required
-            fullWidth
-            id="phone"
-            name="phone"
-            label="연락처"
-            value={customerInfo.phone}
-            onChange={handlePhoneChange}
-            inputProps={{ maxLength: 13 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <PhoneIcon color="action" />
-                </InputAdornment>
-              ),
-            }}
-          />
-        </Grid>
-        <Grid item xs={12}>
-          <TextField
-            required
-            fullWidth
-            id="email"
-            name="email"
-            label="이메일"
-            type="email"
-            value={customerInfo.email}
-            onChange={handleChange}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <EmailIcon color="action" />
-                </InputAdornment>
-              ),
-            }}
-          />
-        </Grid>
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            id="address"
-            name="address"
-            label="주소 검색"
-            value={customerInfo.address}
-            onClick={handleOpenPostcode}
-            InputProps={{
-              readOnly: true,
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon color="primary" />
-                </InputAdornment>
-              ),
-              endAdornment: (
-                <InputAdornment position="end">
-                  <Typography variant="caption" color="primary" sx={{ fontWeight: 'bold', cursor: 'pointer' }}>
-                    검색하기
-                  </Typography>
-                </InputAdornment>
-              )
-            }}
-            sx={{ cursor: 'pointer', '& .MuiInputBase-root': { cursor: 'pointer' } }}
-          />
-        </Grid>
-        <Grid item xs={12} sm={8}>
-          <TextField
-            fullWidth
-            id="detailAddress"
-            name="detailAddress"
-            label="상세주소"
-            value={customerInfo.detailAddress}
-            onChange={handleChange}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <HomeIcon color="action" />
-                </InputAdornment>
-              ),
-            }}
-          />
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <TextField
-            fullWidth
-            id="postcode"
-            name="postcode"
-            label="우편번호"
-            value={customerInfo.postcode}
-            InputProps={{
-              readOnly: true,
-            }}
-          />
-        </Grid>
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            id="inpsytId"
-            name="inpsytId"
-            label="인싸이트 ID (온라인코드 구매 시 필수)"
-            value={customerInfo.inpsytId}
-            onChange={handleChange}
-            placeholder="인싸이트 홈페이지 ID를 입력해주세요"
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <BadgeIcon color="action" />
-                </InputAdornment>
-              ),
-            }}
-          />
-        </Grid>
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            id="request"
-            name="request"
-            label="요청사항"
-            value={customerInfo.request}
-            onChange={handleChange}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
-                  <NoteIcon color="action" />
-                </InputAdornment>
-              ),
-            }}
-          />
-        </Grid>
-      </Grid>
+      <Stack spacing={3}>
+        <TextField
+          required
+          fullWidth
+          id="name"
+          name="name"
+          label="성함"
+          value={customerInfo.name}
+          onChange={handleChange}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <PersonIcon color="action" />
+              </InputAdornment>
+            ),
+          }}
+        />
+        <TextField
+          required
+          fullWidth
+          id="phone"
+          name="phone"
+          label="연락처"
+          value={customerInfo.phone}
+          onChange={handlePhoneChange}
+          inputProps={{ maxLength: 13 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <PhoneIcon color="action" />
+              </InputAdornment>
+            ),
+          }}
+        />
+        
+        <TextField
+          required
+          fullWidth
+          id="email"
+          name="email"
+          label="이메일"
+          type="email"
+          value={customerInfo.email}
+          onChange={handleChange}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <EmailIcon color="action" />
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        <TextField
+          fullWidth
+          id="address"
+          name="address"
+          label="주소 검색"
+          value={customerInfo.address}
+          onClick={handleOpenPostcode}
+          InputProps={{
+            readOnly: true,
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon color="primary" />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <Typography variant="caption" color="primary" sx={{ fontWeight: 'bold', cursor: 'pointer' }}>
+                  검색하기
+                </Typography>
+              </InputAdornment>
+            )
+          }}
+          sx={{ cursor: 'pointer', '& .MuiInputBase-root': { cursor: 'pointer' } }}
+        />
+
+        <TextField
+          fullWidth
+          id="detailAddress"
+          name="detailAddress"
+          label="상세주소"
+          value={customerInfo.detailAddress}
+          onChange={handleChange}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <HomeIcon color="action" />
+              </InputAdornment>
+            ),
+          }}
+        />
+        
+        <TextField
+          fullWidth
+          id="postcode"
+          name="postcode"
+          label="우편번호"
+          value={customerInfo.postcode}
+          InputProps={{
+            readOnly: true,
+          }}
+        />
+
+        <TextField
+          fullWidth
+          id="inpsytId"
+          name="inpsytId"
+          label="인싸이트 ID (온라인코드 구매 시 필수)"
+          value={customerInfo.inpsytId}
+          onChange={handleChange}
+          placeholder="인싸이트 홈페이지 ID를 입력해주세요"
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <BadgeIcon color="action" />
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        <TextField
+          fullWidth
+          multiline
+          rows={3}
+          id="request"
+          name="request"
+          label="요청사항"
+          value={customerInfo.request}
+          onChange={handleChange}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
+                <NoteIcon color="action" />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Stack>
 
       <Modal open={isPostcodeModalOpen} onClose={handleClosePostcode}>
         <Box sx={modalStyle}>

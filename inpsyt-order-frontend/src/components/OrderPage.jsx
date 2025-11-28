@@ -233,7 +233,7 @@ const OrderPage = () => {
               },
               '&:disabled': {
                 bgcolor: 'action.disabledBackground',
-                color: 'action.disabled',
+                color: '#666666', // High contrast grey
                 boxShadow: 'none'
               }
             }}
