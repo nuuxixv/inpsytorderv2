@@ -31,6 +31,7 @@ import {
   useTheme,
   Tooltip,
   Badge,
+  Grid,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -48,6 +49,7 @@ import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../hooks/useAuth';
 import EmptyState from './EmptyState';
+import TableSkeleton from './TableSkeleton';
 
 const ProductManagementPage = () => {
   const theme = useTheme();
@@ -456,11 +458,7 @@ const ProductManagementPage = () => {
             </TableHead>
             <TableBody>
               {loading ? (
-                <TableRow>
-                  <TableCell colSpan={10} align="center" sx={{ py: 8 }}>
-                    <Typography color="text.secondary">로딩 중...</Typography>
-                  </TableCell>
-                </TableRow>
+                <TableSkeleton rows={10} columns={10} />
               ) : products.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={10} sx={{ border: 0, py: 4 }}>
@@ -704,8 +702,5 @@ const ProductManagementPage = () => {
     </Box>
   );
 };
-
-// Missing Grid import fix
-import { Grid } from '@mui/material';
 
 export default ProductManagementPage;

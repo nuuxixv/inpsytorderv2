@@ -39,6 +39,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import EmptyState from './EmptyState';
 import { format, parseISO, isAfter, isBefore } from 'date-fns';
+import TableSkeleton from './TableSkeleton';
 
 const EventManagementPage = () => {
   const theme = useTheme();
@@ -310,11 +311,7 @@ const EventManagementPage = () => {
             </TableHead>
             <TableBody>
               {loading ? (
-                <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
-                    <Typography color="text.secondary">로딩 중...</Typography>
-                  </TableCell>
-                </TableRow>
+                <TableSkeleton rows={5} columns={7} />
               ) : events.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} sx={{ border: 0, py: 4 }}>

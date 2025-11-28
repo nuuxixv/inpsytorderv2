@@ -40,7 +40,7 @@
 ### 2단계: 안정성 강화 (In Progress)
 
 - [x] **RLS 보안 감사**: 모든 테이블의 권한 정책 적용 완료 (원격 Supabase).
-- [ ] **에러 핸들링 표준화**: API 실패 시 사용자 피드백(Toast 등) 일관성 점검
+- [x] **에러 핸들링 표준화**: API 실패 시 사용자 피드백(Toast 등) 일관성 점검
       (✅ 확인 완료, 양호).
 - [ ] **엣지 케이스 테스트**: 네트워크 오류, 데이터 누락 등 예외 상황 테스트.
 
@@ -49,9 +49,9 @@
 - [x] **Empty State 처리**: EmptyState 컴포넌트 생성 및 OrderManagementPage
       적용.
 - [x] **모바일 최적화**: ProductSelector 모바일 카드 뷰 구현.
-- [ ] **다른 페이지 Empty State 적용**: ProductManagementPage,
+- [x] **다른 페이지 Empty State 적용**: ProductManagementPage,
       EventManagementPage.
-- [ ] **로딩 경험 개선**: 스켈레톤 UI 적용 범위 확대 및 자연스러운 전환.
+- [x] **로딩 경험 개선**: 스켈레톤 UI 적용 범위 확대 및 자연스러운 전환.
 - [ ] **모바일 대응 점검**: 관리자 페이지의 태블릿 가독성 및 조작 편의성 확인.
 
 ---

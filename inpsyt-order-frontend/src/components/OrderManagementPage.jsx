@@ -37,6 +37,7 @@ import { Close as CloseIcon } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import OrderDetailModal from './OrderDetailModal';
 import EmptyState from './EmptyState';
+import TableSkeleton from './TableSkeleton';
 import { SearchOff as SearchOffIcon } from '@mui/icons-material';
 import { getEvents } from '../api/events';
 import { fetchAllProducts } from '../api/products';
@@ -488,9 +489,7 @@ const OrderManagementPage = () => {
             </TableHead>
             <TableBody>
               {state.loading ? (
-                Array.from(new Array(ordersPerPage)).map((_, index) => (
-                  <TableRow key={index}><TableCell colSpan={hasPermission('orders:edit') ? 8 : 7}><Skeleton animation="wave" /></TableCell></TableRow>
-                ))
+                <TableSkeleton rows={ordersPerPage} columns={hasPermission('orders:edit') ? 8 : 7} />
               ) : state.orders.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={hasPermission('orders:edit') ? 8 : 7}>
@@ -655,7 +654,7 @@ const OrderManagementPage = () => {
                 <Grid item xs={6}><Typography variant="h6" component="div">최종 결제 금액:</Typography></Grid>
                 <Grid item xs={6} textAlign="right"><Typography variant="h6" component="div">{state.newOrderCalculations.finalPayment.toLocaleString()}원</Typography></Grid>
             </Grid>
-        </Paper>
+          </Paper>
 
         </DialogContent>
         <DialogActions>
