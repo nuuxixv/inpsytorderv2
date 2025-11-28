@@ -17,7 +17,6 @@ import {
   Stack,
   useMediaQuery,
   useTheme,
-  Button,
 } from '@mui/material';
 import { Delete as DeleteIcon, Add as AddIcon, Remove as RemoveIcon } from '@mui/icons-material';
 import { fetchProducts } from '../api/products';
@@ -98,8 +97,8 @@ const ProductSelector = ({ selectedProducts, onProductChange, discountRate, even
   const renderMobileView = () => (
     <Stack spacing={2}>
       {selectedProducts.length === 0 ? (
-        <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
-          <Typography variant="body2">추가된 상품이 없습니다.</Typography>
+        <Box sx={{ textAlign: 'center', py: 6, color: 'text.secondary', bgcolor: 'background.default', borderRadius: 2 }}>
+          <Typography variant="body1">추가된 상품이 없습니다.</Typography>
         </Box>
       ) : (
         selectedProducts.map((product) => {
@@ -108,47 +107,49 @@ const ProductSelector = ({ selectedProducts, onProductChange, discountRate, even
             : product.list_price * product.quantity;
           
           return (
-            <Card key={product.id} variant="outlined" sx={{ p: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', flex: 1, pr: 1 }}>
+            <Card key={product.id} elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, flex: 1, pr: 1, lineHeight: 1.4 }}>
                   {product.name}
                 </Typography>
                 <IconButton 
                   onClick={() => handleRemoveProduct(product.id)} 
                   size="small" 
-                  color="error"
-                  sx={{ mt: -0.5 }}
+                  sx={{ 
+                    mt: -0.5, 
+                    color: 'text.secondary',
+                    '&:hover': { color: 'error.main', bgcolor: 'error.lighter' }
+                  }}
                 >
                   <DeleteIcon fontSize="small" />
                 </IconButton>
               </Box>
               
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="body2" color="text.secondary">
                   정가: {product.list_price.toLocaleString()}원
                 </Typography>
+                {product.is_discountable && discountRate > 0 && (
+                  <Typography variant="caption" sx={{ bgcolor: 'error.light', color: 'white', px: 1, py: 0.5, borderRadius: 1, fontWeight: 'bold' }}>
+                    {(discountRate * 100).toFixed(0)}% 할인
+                  </Typography>
+                )}
               </Box>
 
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.default', p: 1.5, borderRadius: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <IconButton 
                     onClick={() => decrementQuantity(product.id)} 
                     size="small"
                     disabled={product.quantity <= 1}
-                    sx={{ 
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 1,
-                      width: 32,
-                      height: 32
-                    }}
+                    sx={{ bgcolor: 'white', boxShadow: 1, width: 32, height: 32 }}
                   >
                     <RemoveIcon fontSize="small" />
                   </IconButton>
                   <Typography 
                     variant="body1" 
                     sx={{ 
-                      minWidth: 40, 
+                      minWidth: 30, 
                       textAlign: 'center',
                       fontWeight: 'bold'
                     }}
@@ -158,19 +159,13 @@ const ProductSelector = ({ selectedProducts, onProductChange, discountRate, even
                   <IconButton 
                     onClick={() => incrementQuantity(product.id)} 
                     size="small"
-                    sx={{ 
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 1,
-                      width: 32,
-                      height: 32
-                    }}
+                    sx={{ bgcolor: 'white', boxShadow: 1, width: 32, height: 32 }}
                   >
                     <AddIcon fontSize="small" />
                   </IconButton>
                 </Box>
                 
-                <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold' }}>
+                <Typography variant="h6" color="primary" sx={{ fontWeight: 800 }}>
                   {itemTotal.toLocaleString()}원
                 </Typography>
               </Box>
@@ -183,21 +178,23 @@ const ProductSelector = ({ selectedProducts, onProductChange, discountRate, even
 
   // Desktop Table View
   const renderDesktopView = () => (
-    <TableContainer component={Paper} variant="outlined">
-      <Table size="small">
+    <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+      <Table size="medium">
         <TableHead>
-          <TableRow>
-            <TableCell>상품명</TableCell>
+          <TableRow sx={{ bgcolor: 'background.default' }}>
+            <TableCell sx={{ py: 2 }}>상품명</TableCell>
             <TableCell align="right">정가</TableCell>
-            <TableCell align="center" sx={{ width: '100px' }}>수량</TableCell>
+            <TableCell align="center" sx={{ width: '140px' }}>수량</TableCell>
             <TableCell align="right">합계</TableCell>
-            <TableCell align="center">삭제</TableCell>
+            <TableCell align="center" sx={{ width: '80px' }}>삭제</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {selectedProducts.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} align="center">추가된 상품이 없습니다.</TableCell>
+              <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                추가된 상품이 없습니다.
+              </TableCell>
             </TableRow>
           ) : (
             selectedProducts.map((product) => {
@@ -206,24 +203,32 @@ const ProductSelector = ({ selectedProducts, onProductChange, discountRate, even
                 : product.list_price * product.quantity;
               
               return (
-                <TableRow key={product.id}>
-                  <TableCell>{product.name}</TableCell>
-                  <TableCell align="right">{product.list_price.toLocaleString()}원</TableCell>
-                  <TableCell align="center">
-                    <TextField
-                      type="number"
-                      value={product.quantity}
-                      onChange={(e) => handleQuantityChange(product.id, parseInt(e.target.value, 10))}
-                      inputProps={{ min: 1, style: { textAlign: 'center' } }}
-                      size="small"
-                      sx={{ width: 80 }}
-                    />
+                <TableRow key={product.id} hover>
+                  <TableCell sx={{ fontWeight: 500 }}>
+                    {product.name}
+                    {product.is_discountable && discountRate > 0 && (
+                       <Box component="span" sx={{ ml: 1, bgcolor: 'error.light', color: 'white', px: 0.8, py: 0.2, borderRadius: 0.5, fontSize: '0.7rem' }}>
+                         {(discountRate * 100).toFixed(0)}%
+                       </Box>
+                    )}
                   </TableCell>
-                  <TableCell align="right">
+                  <TableCell align="right" sx={{ color: 'text.secondary' }}>{product.list_price.toLocaleString()}원</TableCell>
+                  <TableCell align="center">
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                      <IconButton size="small" onClick={() => decrementQuantity(product.id)} disabled={product.quantity <= 1}>
+                        <RemoveIcon fontSize="small" />
+                      </IconButton>
+                      <Typography sx={{ fontWeight: 'bold', minWidth: 20, textAlign: 'center' }}>{product.quantity}</Typography>
+                      <IconButton size="small" onClick={() => incrementQuantity(product.id)}>
+                        <AddIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1rem' }}>
                     {itemTotal.toLocaleString()}원
                   </TableCell>
                   <TableCell align="center">
-                    <IconButton onClick={() => handleRemoveProduct(product.id)} size="small">
+                    <IconButton onClick={() => handleRemoveProduct(product.id)} size="small" color="default" sx={{ '&:hover': { color: 'error.main' } }}>
                       <DeleteIcon />
                     </IconButton>
                   </TableCell>
@@ -237,8 +242,8 @@ const ProductSelector = ({ selectedProducts, onProductChange, discountRate, even
   );
 
   return (
-    <Paper sx={{ p: { xs: 2, sm: 3 } }}>
-      <Typography variant="h5" gutterBottom>상품 추가</Typography>
+    <Card sx={{ p: { xs: 3, sm: 4 }, borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+      <Typography variant="h5" gutterBottom sx={{ fontWeight: 700, mb: 3 }}>상품 추가</Typography>
       <Autocomplete
         id="product-search-autocomplete"
         open={open}
@@ -273,18 +278,30 @@ const ProductSelector = ({ selectedProducts, onProductChange, discountRate, even
                 </>
               ),
             }}
+            sx={{ 
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2,
+                bgcolor: 'background.default',
+                '& fieldset': { borderColor: 'transparent' },
+                '&:hover fieldset': { borderColor: 'primary.light' },
+                '&.Mui-focused fieldset': { borderColor: 'primary.main' }
+              }
+            }}
           />
         )}
         renderOption={(props, option) => (
-          <Box component="li" {...props} key={option.id}>
-            {option.name} ({option.list_price.toLocaleString()}원)
+          <Box component="li" {...props} key={option.id} sx={{ py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Box>
+              <Typography variant="body1" sx={{ fontWeight: 500 }}>{option.name}</Typography>
+              <Typography variant="caption" color="text.secondary">{option.list_price.toLocaleString()}원</Typography>
+            </Box>
           </Box>
         )}
       />
 
-      <Typography variant="h6" sx={{ mt: 4, mb: 2 }}>주문 상품 목록</Typography>
+      <Typography variant="h6" sx={{ mt: 4, mb: 2, fontWeight: 600, color: 'text.secondary' }}>주문 상품 목록</Typography>
       {isMobile ? renderMobileView() : renderDesktopView()}
-    </Paper>
+    </Card>
   );
 };
 

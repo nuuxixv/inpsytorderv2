@@ -147,26 +147,70 @@ const OrderPage = () => {
 
   return (
     <Container maxWidth="md">
-      <Box sx={{ textAlign: 'center', my: 3 }}>
-        <img src="https://raw.githubusercontent.com/nuuxixv/inpsytmm/7a7cdd43a42a0e309f1337a1860c351192f1e06d/%EC%A3%BC%EB%AC%B8%EC%84%9C%20%EB%B0%B0%EB%84%88_%EA%B3%B5%ED%86%B5.jpg" alt="배너 이미지" style={{ maxWidth: '100%', borderRadius: '8px' }} />
-        <Typography variant="h4" component="h1" sx={{ mt: 2 }}>
-          도서 및 검사 주문서
-        </Typography>
-        {eventInfo && (
-          <Typography variant="h6" component="h2" color="primary" sx={{ mt: 1 }}>
-            [{eventInfo.name}] 학회 전용 주문서
-          </Typography>
-        )}
+      <Box sx={{ textAlign: 'center', mb: 5 }}>
+        <Box 
+          sx={{ 
+            position: 'relative',
+            borderRadius: 4,
+            overflow: 'hidden',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+            mb: 4
+          }}
+        >
+          <img 
+            src="https://raw.githubusercontent.com/nuuxixv/inpsytmm/7a7cdd43a42a0e309f1337a1860c351192f1e06d/%EC%A3%BC%EB%AC%B8%EC%84%9C%20%EB%B0%B0%EB%84%88_%EA%B3%B5%ED%86%B5.jpg" 
+            alt="배너 이미지" 
+            style={{ width: '100%', display: 'block' }} 
+          />
+          <Box 
+            sx={{ 
+              position: 'absolute', 
+              bottom: 0, 
+              left: 0, 
+              right: 0, 
+              background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
+              p: 4,
+              pt: 8,
+              textAlign: 'left'
+            }}
+          >
+            <Typography variant="h4" component="h1" sx={{ color: 'white', fontWeight: 800, textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+              도서 및 검사 주문서
+            </Typography>
+            {eventInfo && (
+              <Typography variant="h6" component="h2" sx={{ color: 'rgba(255,255,255,0.9)', mt: 1, fontWeight: 500 }}>
+                {eventInfo.name}
+              </Typography>
+            )}
+          </Box>
+        </Box>
       </Box>
 
-      {loading && <Box sx={{display: 'flex', justifyContent: 'center'}}><CircularProgress /></Box>}
-      {error && <Alert severity="error" sx={{mb: 2}}>{error}</Alert>}
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+          <CircularProgress size={40} thickness={4} />
+        </Box>
+      )}
+      
+      {error && (
+        <Alert 
+          severity="error" 
+          sx={{ 
+            mb: 3, 
+            borderRadius: 2,
+            boxShadow: '0 4px 12px rgba(255, 118, 117, 0.2)' 
+          }}
+        >
+          {error}
+        </Alert>
+      )}
 
       {!loading && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2, sm: 3 } }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <OrderForm customerInfo={customerInfo} setCustomerInfo={setCustomerInfo} />
           <ProductSelector selectedProducts={cart} onProductChange={setCart} discountRate={eventInfo ? eventInfo.discount_rate : 0} eventTags={eventInfo ? eventInfo.tags : []} />
           <CostSummary cart={cart} discountRate={eventInfo ? eventInfo.discount_rate : 0} />
+          
           <Button 
             variant="contained" 
             color="primary" 
@@ -174,9 +218,27 @@ const OrderPage = () => {
             fullWidth
             onClick={handleSubmitOrder}
             disabled={!isSubmittable || isSubmitting}
-            sx={{ mt: 2, mb: 4, py: 1.5, fontSize: '1.2rem' }}
+            sx={{ 
+              mt: 2, 
+              mb: 8, 
+              py: 2, 
+              fontSize: '1.2rem',
+              fontWeight: 700,
+              borderRadius: 3,
+              boxShadow: '0 8px 24px rgba(43, 57, 143, 0.3)',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: '0 12px 32px rgba(43, 57, 143, 0.4)',
+              },
+              '&:disabled': {
+                bgcolor: 'action.disabledBackground',
+                color: 'action.disabled',
+                boxShadow: 'none'
+              }
+            }}
           >
-            {isSubmitting ? <CircularProgress size={28} color="inherit" /> : (isSubmittable ? '주문 제출하기' : '주문자 정보와 상품을 입력해주세요')}
+            {isSubmitting ? <CircularProgress size={28} color="inherit" /> : (isSubmittable ? '주문 제출하기' : '주문 정보를 입력해주세요')}
           </Button>
         </Box>
       )}

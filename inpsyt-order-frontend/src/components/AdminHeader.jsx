@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, IconButton, Popover, List, ListItem, ListItemText, Divider, Avatar, Menu, MenuItem } from '@mui/material';
+import { Box, Typography, IconButton, Popover, List, ListItem, ListItemText, Divider, Avatar, Menu, MenuItem, alpha } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -30,7 +30,6 @@ const AdminHeader = () => {
   const openNotification = Boolean(notificationAnchorEl);
   const openUserMenu = Boolean(userAnchorEl);
 
-
   return (
     <Box
       sx={(theme) => ({
@@ -39,16 +38,32 @@ const AdminHeader = () => {
         alignItems: 'center',
         width: '100%',
         height: 64,
-        p: 2,
+        px: 3,
         mb: 3,
-        backgroundColor: theme.palette.background.paper,
-        borderRadius: theme.shape.borderRadius,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.05)', // 테마와 일치하는 그림자
+        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        backdropFilter: 'blur(12px)',
+        borderRadius: '16px',
+        border: '1px solid rgba(255, 255, 255, 0.3)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
+        position: 'sticky',
+        top: 24,
+        zIndex: 100,
+        transition: 'all 0.3s ease',
+        '&:hover': {
+          boxShadow: '0 8px 30px rgba(0,0,0,0.04)',
+        }
       })}
     >
       {/* 우측: 알림 및 사용자 메뉴 */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-        <IconButton onClick={handleNotificationClick} color="inherit" size="small">
+        <IconButton 
+          onClick={handleNotificationClick} 
+          size="small"
+          sx={{ 
+            color: 'text.secondary',
+            '&:hover': { color: 'primary.main', bgcolor: 'primary.light', opacity: 0.1 }
+          }}
+        >
           <NotificationsIcon />
         </IconButton>
         <Popover
@@ -57,6 +72,14 @@ const AdminHeader = () => {
           onClose={handleNotificationClose}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          PaperProps={{
+            sx: {
+              mt: 1.5,
+              borderRadius: '16px',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+              border: '1px solid rgba(0,0,0,0.05)',
+            }
+          }}
         >
           <List sx={{ width: 320, maxHeight: 400, overflow: 'auto' }}>
             <ListItem>
@@ -65,14 +88,16 @@ const AdminHeader = () => {
             <Divider />
             {notifications.length === 0 ? (
               <ListItem>
-                <ListItemText secondary="새로운 알림이 없습니다." />
+                <ListItemText secondary="새로운 알림이 없습니다." secondaryTypographyProps={{ textAlign: 'center', py: 2 }} />
               </ListItem>
             ) : (
               notifications.map((notification) => (
-                <ListItem key={notification.id}>
+                <ListItem key={notification.id} button>
                   <ListItemText
                     primary={notification.message}
                     secondary={format(notification.timestamp, 'yyyy-MM-dd HH:mm', { locale: ko })}
+                    primaryTypographyProps={{ fontSize: '0.9rem' }}
+                    secondaryTypographyProps={{ fontSize: '0.75rem' }}
                   />
                 </ListItem>
               ))
@@ -80,8 +105,8 @@ const AdminHeader = () => {
           </List>
         </Popover>
 
-        <IconButton onClick={handleUserMenuClick} size="small">
-          <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+        <IconButton onClick={handleUserMenuClick} size="small" sx={{ p: 0.5, border: '1px solid transparent', '&:hover': { borderColor: 'primary.light' } }}>
+          <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.9rem', fontWeight: 'bold' }}>
             {user?.email?.[0].toUpperCase()}
           </Avatar>
         </IconButton>
@@ -91,13 +116,22 @@ const AdminHeader = () => {
           onClose={handleUserMenuClose}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          PaperProps={{
+            sx: {
+              mt: 1.5,
+              borderRadius: '16px',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+              border: '1px solid rgba(0,0,0,0.05)',
+              minWidth: 200,
+            }
+          }}
         >
-          <Box sx={{ px: 2, py: 1 }}>
-            <Typography variant="body1" sx={{ fontWeight: 'bold' }}>{user?.email}</Typography>
-            <Typography variant="body2" color="text.secondary">관리자</Typography>
+          <Box sx={{ px: 2.5, py: 1.5 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>{user?.email}</Typography>
+            <Typography variant="caption" color="text.secondary">관리자</Typography>
           </Box>
-          <Divider />
-          <MenuItem onClick={handleLogout}>로그아웃</MenuItem>
+          <Divider sx={{ my: 0.5 }} />
+          <MenuItem onClick={handleLogout} sx={{ mx: 1, borderRadius: 1, fontSize: '0.9rem', color: 'error.main' }}>로그아웃</MenuItem>
         </Menu>
       </Box>
     </Box>

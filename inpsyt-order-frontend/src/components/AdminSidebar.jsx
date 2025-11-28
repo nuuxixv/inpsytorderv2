@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Box, Typography } from '@mui/material';
+import { Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Box, Typography, alpha } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import EventIcon from '@mui/icons-material/Event';
@@ -50,42 +50,51 @@ const AdminSidebar = () => {
         '& .MuiDrawer-paper': {
           width: drawerWidth,
           boxSizing: 'border-box',
-          backgroundColor: theme.palette.background.paper,
+          backgroundColor: '#ffffff',
           color: theme.palette.text.primary,
-          borderRight: `1px solid ${theme.palette.divider}`,
+          borderRight: 'none',
+          boxShadow: '4px 0 24px rgba(0,0,0,0.02)',
         },
       })}
     >
-      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', height: 64 }}>
+      <Box sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 1.5, height: 80 }}>
         <img src="/LOGO.svg" alt="logo" style={{ height: 32 }} />
-        <Typography variant="h6" sx={{ ml: 1.5, fontWeight: 'bold', color: 'text.primary' }}>
+        <Typography variant="h6" sx={{ fontWeight: 800, color: 'primary.main', letterSpacing: '-0.02em' }}>
           인싸이트 오더
         </Typography>
       </Box>
-      <List sx={{ p: 1 }}>
+      <List sx={{ px: 2 }}>
         {filteredMenuItems.map((item) => (
           <ListItem key={item.text} disablePadding sx={{ my: 0.5 }}>
             <NavLink to={item.path} style={navLinkStyles}>
               {({ isActive }) => (
                 <ListItemButton
                   sx={(theme) => ({
-                    borderRadius: theme.shape.borderRadius,
-                    backgroundColor: isActive ? theme.palette.secondary.main : 'transparent',
-                    color: isActive ? theme.palette.primary.main : 'inherit',
+                    borderRadius: '12px',
+                    mb: 0.5,
+                    py: 1.5,
+                    px: 2,
+                    backgroundColor: isActive ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                    color: isActive ? theme.palette.primary.main : theme.palette.text.secondary,
                     '&:hover': {
-                      backgroundColor: theme.palette.secondary.main,
+                      backgroundColor: isActive ? alpha(theme.palette.primary.main, 0.12) : alpha(theme.palette.text.primary, 0.04),
                     },
+                    transition: 'all 0.2s ease-in-out',
                   })}
                 >
                   <ListItemIcon sx={{ 
                     minWidth: 40,
-                    color: 'inherit' 
+                    color: 'inherit',
+                    '& svg': { fontSize: 22 }
                   }}>
                     {item.icon}
                   </ListItemIcon>
                   <ListItemText 
                     primary={item.text} 
-                    primaryTypographyProps={{ fontWeight: isActive ? 'bold' : '500' }} 
+                    primaryTypographyProps={{ 
+                      fontWeight: isActive ? 700 : 500,
+                      fontSize: '0.95rem',
+                    }} 
                   />
                 </ListItemButton>
               )}
