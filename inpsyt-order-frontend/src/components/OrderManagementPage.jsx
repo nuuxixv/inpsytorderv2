@@ -28,6 +28,13 @@ import {
   Autocomplete,
   Divider,
   Grid,
+  Card,
+  CardContent,
+  Stack,
+  Chip,
+  SwipeableDrawer,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import { format, subDays } from 'date-fns';
 import { supabase } from '../supabaseClient';
@@ -38,7 +45,7 @@ import * as XLSX from 'xlsx';
 import OrderDetailModal from './OrderDetailModal';
 import EmptyState from './EmptyState';
 import TableSkeleton from './TableSkeleton';
-import { SearchOff as SearchOffIcon } from '@mui/icons-material';
+import { SearchOff as SearchOffIcon, FilterList as FilterListIcon } from '@mui/icons-material';
 import { getEvents } from '../api/events';
 import { fetchAllProducts } from '../api/products';
 import { getOrders } from '../api/orders';
@@ -152,6 +159,9 @@ function reducer(state, action) {
 const OrderManagementPage = () => {
   const { user, hasPermission } = useAuth();
   const { addNotification } = useNotification();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [filterDrawerOpen, setFilterDrawerOpen] = React.useState(false);
   const [state, dispatch] = useReducer(reducer, initialState);
   const [bulkStatus, setBulkStatus] = React.useState('');
 
@@ -369,71 +379,110 @@ const OrderManagementPage = () => {
     }
   }, [fetchOrders, addNotification]);
 
+  const filterControls = (
+    <Grid container spacing={2} alignItems="center">
+      <Grid item xs={12} sm={6} md="auto">
+        <FormControl size="small" fullWidth sx={{ minWidth: { md: 180 } }}>
+          <InputLabel>학회 선택</InputLabel>
+          <Select
+            value={state.selectedEvent}
+            label="학회 선택"
+            onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'selectedEvent', value: e.target.value } })}
+          >
+            <MenuItem value=""><em>전체</em></MenuItem>
+            {state.events.map((event) => <MenuItem key={event.id} value={event.id}>{event.name}</MenuItem>)}
+          </Select>
+        </FormControl>
+      </Grid>
+      <Grid item xs={12} sm={6} md="auto">
+        <FormControl size="small" fullWidth sx={{ minWidth: { md: 160 } }}>
+          <InputLabel>주문 상태</InputLabel>
+          <Select
+            value={state.selectedStatus}
+            label="주문 상태"
+            onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'selectedStatus', value: e.target.value } })}
+          >
+            <MenuItem value=""><em>전체</em></MenuItem>
+            {Object.entries(statusToKorean).map(([key, value]) => <MenuItem key={key} value={key}>{value}</MenuItem>)}
+          </Select>
+        </FormControl>
+      </Grid>
+      <Grid item xs={12} md>
+        <TextField
+          label="고객 이름/이메일 검색"
+          variant="outlined"
+          size="small"
+          fullWidth
+          value={state.searchTerm}
+          onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'searchTerm', value: e.target.value } })}
+        />
+      </Grid>
+      <Grid item xs={6} sm={6} md="auto">
+        <TextField
+          label="시작일"
+          type="date"
+          variant="outlined"
+          size="small"
+          fullWidth
+          value={state.startDate ? format(state.startDate, 'yyyy-MM-dd') : ''}
+          onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'startDate', value: e.target.value ? new Date(e.target.value) : null } })}
+          InputLabelProps={{ shrink: true }}
+          sx={{ minWidth: { md: 150 } }}
+        />
+      </Grid>
+      <Grid item xs={6} sm={6} md="auto">
+        <TextField
+          label="종료일"
+          type="date"
+          variant="outlined"
+          size="small"
+          fullWidth
+          value={state.endDate ? format(state.endDate, 'yyyy-MM-dd') : ''}
+          onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'endDate', value: e.target.value ? new Date(e.target.value) : null } })}
+          InputLabelProps={{ shrink: true }}
+          sx={{ minWidth: { md: 150 } }}
+        />
+      </Grid>
+      <Grid item xs={12} sm="auto">
+        <Button variant="outlined" onClick={() => { dispatch({ type: 'CLEAR_FILTERS' }); if (isMobile) setFilterDrawerOpen(false); }} fullWidth>
+          필터 초기화
+        </Button>
+      </Grid>
+    </Grid>
+  );
+
   if (!user || (!hasPermission('orders:view') && !hasPermission('master'))) {
     return <Box sx={{ p: 3 }}><Typography>주문 관리 페이지 접근 권한이 없습니다.</Typography></Box>;
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', p: 2 }}>
-      <Typography variant="h4" gutterBottom sx={{ color: '#333', fontWeight: 'bold' }}>주문 관리</Typography>
-      
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
-          <FormControl size="small" sx={{ minWidth: 180, flexGrow: 1 }}>
-            <InputLabel>학회 선택</InputLabel>
-            <Select
-              value={state.selectedEvent}
-              label="학회 선택"
-              onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'selectedEvent', value: e.target.value } })}
-            >
-              <MenuItem value=""><em>전체</em></MenuItem>
-              {state.events.map((event) => <MenuItem key={event.id} value={event.id}>{event.name}</MenuItem>)}
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 180, flexGrow: 1 }}>
-            <InputLabel>주문 상태</InputLabel>
-            <Select
-              value={state.selectedStatus}
-              label="주문 상태"
-              onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'selectedStatus', value: e.target.value } })}
-            >
-              <MenuItem value=""><em>전체</em></MenuItem>
-              {Object.entries(statusToKorean).map(([key, value]) => <MenuItem key={key} value={key}>{value}</MenuItem>)}
-            </Select>
-          </FormControl>
-          <TextField
-            label="고객 이름/이메일 검색"
-            variant="outlined"
-            size="small"
-            value={state.searchTerm}
-            onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'searchTerm', value: e.target.value } })}
-            sx={{ minWidth: 240, flexGrow: 2 }}
-          />
-          <TextField
-            label="시작일"
-            type="date"
-            variant="outlined"
-            size="small"
-            value={state.startDate ? format(state.startDate, 'yyyy-MM-dd') : ''}
-            onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'startDate', value: e.target.value ? new Date(e.target.value) : null } })}
-            InputLabelProps={{ shrink: true }}
-            sx={{ minWidth: 150, flexGrow: 1 }}
-          />
-          <TextField
-            label="종료일"
-            type="date"
-            variant="outlined"
-            size="small"
-            value={state.endDate ? format(state.endDate, 'yyyy-MM-dd') : ''}
-            onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'endDate', value: e.target.value ? new Date(e.target.value) : null } })}
-            InputLabelProps={{ shrink: true }}
-            sx={{ minWidth: 150, flexGrow: 1 }}
-          />
-          <Button variant="outlined" onClick={() => dispatch({ type: 'CLEAR_FILTERS' })} sx={{ flexShrink: 0 }}>
-            필터 초기화
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', p: { xs: 1, md: 2 } }}>
+      <Typography variant="h4" gutterBottom sx={{ color: '#333', fontWeight: 'bold', mb: 2, px: { xs: 1, md: 0 } }}>주문 관리</Typography>
+
+      {isMobile ? (
+        <Box sx={{ px: 1, mb: 2, display: 'flex', justifyContent: 'flex-start' }}>
+          <Button startIcon={<FilterListIcon />} variant="outlined" onClick={() => setFilterDrawerOpen(true)} sx={{ borderRadius: '8px' }}>
+            필터
           </Button>
+          <SwipeableDrawer 
+            anchor="bottom" 
+            open={filterDrawerOpen} 
+            onClose={() => setFilterDrawerOpen(false)} 
+            onOpen={() => setFilterDrawerOpen(true)}
+            PaperProps={{ sx: { borderRadius: '16px 16px 0 0', p: 3, pb: 6, maxHeight: '80vh' } }}
+          >
+            <Typography variant="h6" fontWeight="bold" mb={2}>주문 필터</Typography>
+            {filterControls}
+            <Button variant="contained" fullWidth sx={{ mt: 3, borderRadius: '8px', minHeight: 48 }} onClick={() => setFilterDrawerOpen(false)}>
+              확인
+            </Button>
+          </SwipeableDrawer>
         </Box>
-      </Paper>
+      ) : (
+        <Paper sx={{ p: 2, mb: 2 }}>
+          {filterControls}
+        </Paper>
+      )}
 
       <Paper sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
@@ -464,93 +513,152 @@ const OrderManagementPage = () => {
             <Button variant="outlined" onClick={handleExcelDownload}>엑셀 다운로드</Button>
           </Box>
         </Box>
-        <TableContainer sx={{ flexGrow: 1 }}>
-          <Table stickyHeader>
-            <TableHead>
-              <TableRow sx={{ '& .MuiTableCell-root': { bgcolor: 'grey.200', fontWeight: 'bold' } }}>
-                {hasPermission('orders:edit') && (
-                  <TableCell padding="checkbox">
-                    <Checkbox
-                      indeterminate={state.selectedOrders.length > 0 && state.selectedOrders.length < state.orders.length}
-                      checked={state.orders.length > 0 && state.selectedOrders.length === state.orders.length}
-                      onChange={handleSelectAllClick}
-                      inputProps={{ 'aria-label': 'select all orders' }}
-                    />
-                  </TableCell>
-                )}
-                <TableCell>주문번호</TableCell>
-                <TableCell>고객명</TableCell>
-                <TableCell>이메일</TableCell>
-                <TableCell>학회명</TableCell>
-                <TableCell>총 금액</TableCell>
-                <TableCell>주문일시</TableCell>
-                <TableCell>상태</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {state.loading ? (
-                <TableSkeleton rows={ordersPerPage} columns={hasPermission('orders:edit') ? 8 : 7} />
-              ) : state.orders.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={hasPermission('orders:edit') ? 8 : 7}>
-                    <Box sx={{ py: 4 }}>
-                      {state.searchTerm || state.selectedStatus || state.selectedEvent ? (
-                        <EmptyState 
-                          message="조건에 맞는 주문이 없습니다." 
-                          subMessage="검색 조건이나 필터를 변경해보세요."
-                          icon={<SearchOffIcon sx={{ fontSize: 64 }} />}
-                          action={{ label: "필터 초기화", onClick: () => dispatch({ type: 'CLEAR_FILTERS' }) }}
-                        />
-                      ) : (
-                        <EmptyState 
-                          message="아직 접수된 주문이 없습니다." 
-                          subMessage="새로운 주문이 들어오면 여기에 표시됩니다."
-                        />
-                      )}
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                state.orders.map((order) => {
+        {isMobile ? (
+          <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 1 }}>
+            {state.loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
+            ) : state.orders.length === 0 ? (
+              <Box sx={{ py: 4 }}>
+                <EmptyState 
+                  message={state.searchTerm || state.selectedStatus || state.selectedEvent ? "조건에 맞는 주문이 없습니다." : "아직 접수된 주문이 없습니다."}
+                  subMessage={state.searchTerm || state.selectedStatus || state.selectedEvent ? "검색 조건이나 필터를 변경해보세요." : "새로운 주문이 들어오면 여기에 표시됩니다."}
+                />
+              </Box>
+            ) : (
+              <Stack spacing={2} sx={{ pb: 2 }}>
+                {state.orders.map((order) => {
                   const isSelected = state.selectedOrders.indexOf(order.id) !== -1;
                   return (
-                    <TableRow 
+                    <Card 
                       key={order.id} 
-                      hover 
-                      role="checkbox" 
-                      aria-checked={isSelected} 
-                      tabIndex={-1} 
-                      selected={isSelected}
-                      sx={{ cursor: 'pointer' }}
+                      variant="outlined" 
+                      onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}
+                      sx={{ borderRadius: '12px', borderColor: isSelected ? 'primary.main' : 'divider', borderWidth: isSelected ? 2 : 1 }}
                     >
-                      {hasPermission('orders:edit') && (
-                        <TableCell padding="checkbox" onClick={(event) => handleSelectOneClick(event, order.id)}>
-                          <Checkbox
-                            checked={isSelected}
-                            inputProps={{ 'aria-labelledby': `order-checkbox-${order.id}` }}
+                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                          <Box display="flex" alignItems="center" gap={1}>
+                            {hasPermission('orders:edit') && (
+                              <Checkbox
+                                checked={isSelected}
+                                onClick={(event) => handleSelectOneClick(event, order.id)}
+                                sx={{ p: 0 }}
+                              />
+                            )}
+                            <Typography variant="subtitle2" color="text.secondary">
+                              {format(new Date(order.created_at), 'yyyy-MM-dd')}
+                            </Typography>
+                          </Box>
+                          <Chip 
+                            label={statusToKorean[order.status]} 
+                            size="small" 
+                            color={order.status === 'completed' ? 'success' : order.status === 'pending' ? 'warning' : 'default'} 
+                            sx={{ fontWeight: 'bold' }} 
                           />
+                        </Box>
+                        <Box display="flex" justifyContent="space-between" alignItems="flex-end">
+                          <Box>
+                            <Typography fontWeight="bold" fontSize="1.1rem">{order.customer_name}</Typography>
+                            <Typography variant="body2" color="text.secondary">{state.events.find(e => e.id === order.event_id)?.name || 'N/A'}</Typography>
+                          </Box>
+                          <Typography fontWeight="bold" color="primary.main">{(order.final_payment || 0).toLocaleString()}원</Typography>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </Stack>
+            )}
+          </Box>
+        ) : (
+          <TableContainer sx={{ flexGrow: 1 }}>
+            <Table stickyHeader>
+              <TableHead>
+                <TableRow sx={{ '& .MuiTableCell-root': { bgcolor: 'grey.200', fontWeight: 'bold' } }}>
+                  {hasPermission('orders:edit') && (
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        indeterminate={state.selectedOrders.length > 0 && state.selectedOrders.length < state.orders.length}
+                        checked={state.orders.length > 0 && state.selectedOrders.length === state.orders.length}
+                        onChange={handleSelectAllClick}
+                        inputProps={{ 'aria-label': 'select all orders' }}
+                      />
+                    </TableCell>
+                  )}
+                  <TableCell>주문번호</TableCell>
+                  <TableCell>고객명</TableCell>
+                  <TableCell>이메일</TableCell>
+                  <TableCell>학회명</TableCell>
+                  <TableCell>총 금액</TableCell>
+                  <TableCell>주문일시</TableCell>
+                  <TableCell>상태</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {state.loading ? (
+                  <TableSkeleton rows={ordersPerPage} columns={hasPermission('orders:edit') ? 8 : 7} />
+                ) : state.orders.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={hasPermission('orders:edit') ? 8 : 7}>
+                      <Box sx={{ py: 4 }}>
+                        {state.searchTerm || state.selectedStatus || state.selectedEvent ? (
+                          <EmptyState 
+                            message="조건에 맞는 주문이 없습니다." 
+                            subMessage="검색 조건이나 필터를 변경해보세요."
+                            icon={<SearchOffIcon sx={{ fontSize: 64 }} />}
+                            action={{ label: "필터 초기화", onClick: () => dispatch({ type: 'CLEAR_FILTERS' }) }}
+                          />
+                        ) : (
+                          <EmptyState 
+                            message="아직 접수된 주문이 없습니다." 
+                            subMessage="새로운 주문이 들어오면 여기에 표시됩니다."
+                          />
+                        )}
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  state.orders.map((order) => {
+                    const isSelected = state.selectedOrders.indexOf(order.id) !== -1;
+                    return (
+                      <TableRow 
+                        key={order.id} 
+                        hover 
+                        role="checkbox" 
+                        aria-checked={isSelected} 
+                        tabIndex={-1} 
+                        selected={isSelected}
+                        sx={{ cursor: 'pointer' }}
+                      >
+                        {hasPermission('orders:edit') && (
+                          <TableCell padding="checkbox" onClick={(event) => handleSelectOneClick(event, order.id)}>
+                            <Checkbox
+                              checked={isSelected}
+                              inputProps={{ 'aria-labelledby': `order-checkbox-${order.id}` }}
+                            />
+                          </TableCell>
+                        )}
+                        <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{order.id}</TableCell>
+                        <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{order.customer_name}</TableCell>
+                        <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{order.email}</TableCell>
+                        <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{state.events.find(e => e.id === order.event_id)?.name || 'N/A'}</TableCell>
+                        <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{(order.final_payment || 0).toLocaleString()}원</TableCell>
+                        <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{format(new Date(order.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
+                        <TableCell>
+                          <FormControl size="small" variant="outlined" sx={{ minWidth: 100 }} onClick={(e) => e.stopPropagation()}>
+                            <Select value={order.status} onChange={(e) => handleStatusChange(order.id, e.target.value)} disabled={!hasPermission('orders:edit')}>
+                              {Object.entries(statusToKorean).map(([key, value]) => <MenuItem key={key} value={key}>{value}</MenuItem>)}
+                            </Select>
+                          </FormControl>
                         </TableCell>
-                      )}
-                      <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{order.id}</TableCell>
-                      <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{order.customer_name}</TableCell>
-                      <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{order.email}</TableCell>
-                      <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{state.events.find(e => e.id === order.event_id)?.name || 'N/A'}</TableCell>
-                      <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{(order.final_payment || 0).toLocaleString()}원</TableCell>
-                      <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{format(new Date(order.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
-                      <TableCell>
-                        <FormControl size="small" variant="outlined" sx={{ minWidth: 100 }} onClick={(e) => e.stopPropagation()}>
-                          <Select value={order.status} onChange={(e) => handleStatusChange(order.id, e.target.value)} disabled={!hasPermission('orders:edit')}>
-                            {Object.entries(statusToKorean).map(([key, value]) => <MenuItem key={key} value={key}>{value}</MenuItem>)}
-                          </Select>
-                        </FormControl>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                      </TableRow>
+                    )
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
           <Pagination count={Math.ceil(state.totalOrders / ordersPerPage)} page={state.currentPage} onChange={(_, value) => dispatch({ type: 'SET_FILTER', payload: { key: 'currentPage', value } })} color="primary" />
         </Box>

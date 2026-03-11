@@ -112,13 +112,14 @@ const ProductSelector = ({ selectedProducts, onProductChange, discountRate, even
                 <Typography variant="subtitle1" sx={{ fontWeight: 700, flex: 1, pr: 1, lineHeight: 1.4 }}>
                   {product.name}
                 </Typography>
-                <IconButton 
-                  onClick={() => handleRemoveProduct(product.id)} 
-                  size="small" 
-                  sx={{ 
-                    mt: -0.5, 
+                <IconButton
+                  onClick={() => handleRemoveProduct(product.id)}
+                  sx={{
+                    mt: -0.5,
+                    width: 40,
+                    height: 40,
                     color: 'text.primary',
-                    '&:hover': { color: 'error.main', bgcolor: 'error.lighter' }
+                    '&:hover': { color: 'error.main', bgcolor: 'error.lighter' },
                   }}
                 >
                   <DeleteIcon fontSize="small" />
@@ -138,28 +139,22 @@ const ProductSelector = ({ selectedProducts, onProductChange, discountRate, even
 
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.default', p: 1.5, borderRadius: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <IconButton 
-                    onClick={() => decrementQuantity(product.id)} 
-                    size="small"
+                  <IconButton
+                    onClick={() => decrementQuantity(product.id)}
                     disabled={product.quantity <= 1}
-                    sx={{ bgcolor: 'white', boxShadow: 1, width: 32, height: 32, color: 'text.primary' }}
+                    sx={{ bgcolor: 'white', boxShadow: 1, width: 40, height: 40, color: 'text.primary' }}
                   >
                     <RemoveIcon fontSize="small" />
                   </IconButton>
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      minWidth: 30, 
-                      textAlign: 'center',
-                      fontWeight: 'bold'
-                    }}
+                  <Typography
+                    variant="body1"
+                    sx={{ minWidth: 30, textAlign: 'center', fontWeight: 'bold' }}
                   >
                     {product.quantity}
                   </Typography>
-                  <IconButton 
-                    onClick={() => incrementQuantity(product.id)} 
-                    size="small"
-                    sx={{ bgcolor: 'white', boxShadow: 1, width: 32, height: 32, color: 'text.primary' }}
+                  <IconButton
+                    onClick={() => incrementQuantity(product.id)}
+                    sx={{ bgcolor: 'white', boxShadow: 1, width: 40, height: 40, color: 'text.primary' }}
                   >
                     <AddIcon fontSize="small" />
                   </IconButton>
@@ -222,11 +217,11 @@ const ProductSelector = ({ selectedProducts, onProductChange, discountRate, even
                   <TableCell align="right" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>{product.list_price.toLocaleString()}원</TableCell>
                   <TableCell align="center">
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                      <IconButton size="small" onClick={() => decrementQuantity(product.id)} disabled={product.quantity <= 1} sx={{ color: 'text.primary' }}>
+                      <IconButton onClick={() => decrementQuantity(product.id)} disabled={product.quantity <= 1} sx={{ color: 'text.primary', width: 40, height: 40 }}>
                         <RemoveIcon fontSize="small" />
                       </IconButton>
                       <Typography sx={{ fontWeight: 'bold', minWidth: 20, textAlign: 'center' }}>{product.quantity}</Typography>
-                      <IconButton size="small" onClick={() => incrementQuantity(product.id)} sx={{ color: 'text.primary' }}>
+                      <IconButton onClick={() => incrementQuantity(product.id)} sx={{ color: 'text.primary', width: 40, height: 40 }}>
                         <AddIcon fontSize="small" />
                       </IconButton>
                     </Box>

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(xargs head -50)",
+      "WebFetch(domain:ditoday.com)",
+      "WebFetch(domain:blog.toss.im)",
+      "WebFetch(domain:toss.tech)",
+      "WebFetch(domain:toss.im)",
+      "WebFetch(domain:toss.oopy.io)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(where npm)"
+    ]
+  }
+}

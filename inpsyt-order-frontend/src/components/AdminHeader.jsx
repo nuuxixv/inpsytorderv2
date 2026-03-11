@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, IconButton, Popover, List, ListItem, ListItemText, Divider, Avatar, Menu, MenuItem, alpha } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import MenuIcon from '@mui/icons-material/Menu';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useNotification } from '../hooks/useNotification';
 import { useAuth } from '../hooks/useAuth';
 
-const AdminHeader = () => {
+const AdminHeader = ({ onMenuToggle }) => {
   const { user, logout } = useAuth();
   const { notifications } = useNotification();
   const navigate = useNavigate();
@@ -34,11 +35,11 @@ const AdminHeader = () => {
     <Box
       sx={(theme) => ({
         display: 'flex',
-        justifyContent: 'flex-end',
+        justifyContent: 'space-between',
         alignItems: 'center',
         width: '100%',
         height: 64,
-        px: 3,
+        px: { xs: 2, md: 3 },
         mb: 3,
         backgroundColor: 'rgba(255, 255, 255, 0.8)',
         backdropFilter: 'blur(12px)',
@@ -46,7 +47,7 @@ const AdminHeader = () => {
         border: '1px solid rgba(255, 255, 255, 0.3)',
         boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
         position: 'sticky',
-        top: 24,
+        top: { xs: 8, md: 24 },
         zIndex: 100,
         transition: 'all 0.3s ease',
         '&:hover': {
@@ -54,8 +55,18 @@ const AdminHeader = () => {
         }
       })}
     >
+      {/* 좌측: 모바일 햄버거 메뉴 */}
+      <IconButton
+        onClick={onMenuToggle}
+        size="medium"
+        sx={{ display: { md: 'none' }, color: 'text.secondary' }}
+        aria-label="메뉴 열기"
+      >
+        <MenuIcon />
+      </IconButton>
+
       {/* 우측: 알림 및 사용자 메뉴 */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: 'auto' }}>
         <IconButton 
           onClick={handleNotificationClick} 
           size="small"

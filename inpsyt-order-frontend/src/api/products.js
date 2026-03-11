@@ -13,14 +13,13 @@ export const fetchProducts = async ({ searchTerm, category, tags, isPopularOnly 
 
   if (searchTerm) {
     query = query.ilike('name', `%${searchTerm}%`);
+  } else if (tags && tags.length > 0) {
+    // 상품 검색 시에는 학회 태그 필터를 무시하여 모든 상품을 검색할 수 있도록 함
+    query = query.overlaps('tags', tags);
   }
 
   if (category) {
     query = query.eq('category', category);
-  }
-
-  if (tags && tags.length > 0) {
-    query = query.overlaps('tags', tags);
   }
 
   if (isPopularOnly) {
