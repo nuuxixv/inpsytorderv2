@@ -9,7 +9,8 @@
       "WebFetch(domain:toss.im)",
       "WebFetch(domain:toss.oopy.io)",
       "mcp__Claude_Preview__preview_start",
-      "Bash(where npm)"
+      "Bash(where npm)",
+      "Bash(npm run:*)"
     ]
   }
 }

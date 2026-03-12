@@ -3,9 +3,10 @@
   "configurations": [
     {
       "name": "vite-dev",
-      "runtimeExecutable": "npm.cmd",
-      "runtimeArgs": ["run", "dev"],
-      "port": 5173
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--port", "5173"],
+      "port": 5173,
+      "cwd": "inpsyt-order-frontend"
     }
   ]
 }
