@@ -1,14 +1,10 @@
     import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.43.0'
-    
+    import { corsHeaders } from '../_shared/cors.ts'
+
     console.log('Hello from Functions!')
-     
+
      serve(async (req) => {
-       // CORS 헤더 정의
-       const corsHeaders = {
-         'Access-Control-Allow-Origin': 'http://localhost:5173', // 프론트엔드 오리진
-         'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-       }
      
        // OPTIONS 요청 처리 (가장 먼저 실행)
        if (req.method === 'OPTIONS') {

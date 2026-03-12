@@ -239,8 +239,10 @@ const OrderPage = () => {
           tapTimerRef.current = setTimeout(() => { tapCountRef.current = 0; }, 600);
           if (tapCountRef.current >= 3) {
             tapCountRef.current = 0;
-            setIsOnsitePurchase(prev => !prev);
-            setOnsiteSnackbar(true);
+            if (activeStep < 2) {
+              setIsOnsitePurchase(prev => !prev);
+              setOnsiteSnackbar(true);
+            }
           }
         }}
         sx={{ pt: 3, pb: 1, px: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', userSelect: 'none' }}
