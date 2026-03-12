@@ -1,14 +1,7 @@
 {
-  "builds": [
-    {
-      "src": "inpsyt-order-frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    }
-  ],
-  "routes": [
-    { "src": "/(.*)", "dest": "/$1" }
+  "buildCommand": "cd inpsyt-order-frontend && npm install && npm run build",
+  "outputDirectory": "inpsyt-order-frontend/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

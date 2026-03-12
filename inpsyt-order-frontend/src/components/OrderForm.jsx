@@ -8,7 +8,8 @@ import {
   Card,
   InputAdornment,
   IconButton,
-  Stack
+  Stack,
+  Button,
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -147,9 +148,14 @@ const OrderForm = ({ customerInfo, setCustomerInfo }) => {
             ),
             endAdornment: (
               <InputAdornment position="end">
-                <Typography variant="caption" color="primary" sx={{ fontWeight: 'bold', cursor: 'pointer' }}>
-                  검색하기
-                </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={handleOpenPostcode}
+                  sx={{ minWidth: 'auto', px: 1.5, py: 0.5, fontSize: '0.75rem', borderRadius: 1.5 }}
+                >
+                  검색
+                </Button>
               </InputAdornment>
             )
           }}
@@ -221,7 +227,7 @@ const OrderForm = ({ customerInfo, setCustomerInfo }) => {
 
       <Modal open={isPostcodeModalOpen} onClose={handleClosePostcode}>
         <Box sx={modalStyle}>
-          <DaumPostcode onComplete={handleCompletePostcode} style={{ height: '50vh' }} />
+          <DaumPostcode onComplete={handleCompletePostcode} style={{ height: '60vh' }} />
         </Box>
       </Modal>
     </Card>

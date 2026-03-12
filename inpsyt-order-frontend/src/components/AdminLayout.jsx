@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Box } from '@mui/material'; // Container 제거
 import AdminHeader from './AdminHeader';
@@ -17,6 +17,7 @@ import { supabase } from '../supabaseClient';
 const AdminLayout = () => {
   const { hasPermission, permissions } = useAuth();
   const { addNotification } = useNotification();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     const channel = supabase
@@ -38,18 +39,19 @@ const AdminLayout = () => {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AdminSidebar />
-      <Box 
-        component="main" 
+      <AdminSidebar open={mobileOpen} onClose={() => setMobileOpen(false)} />
+      <Box
+        component="main"
         sx={{
-          flexGrow: 1, 
-          p: 3, // 전체 콘텐츠 영역의 패딩
+          flexGrow: 1,
+          p: { xs: 2, md: 3 },
           display: 'flex',
           flexDirection: 'column',
-          width: '100%', // 메인 콘텐츠 박스가 사용 가능한 너비를 모두 차지하도록
+          width: '100%',
+          minWidth: 0,
         }}
       >
-        <AdminHeader /> {/* 헤더를 Container 밖으로 이동 */}
+        <AdminHeader onMenuToggle={() => setMobileOpen(prev => !prev)} />
         <Box sx={{ flexGrow: 1, width: '100%' }}> {/* Routes를 감싸는 Box 추가 */}
           <Routes>
             <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />

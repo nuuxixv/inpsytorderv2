@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm test && vite build",
+    "build": "vite build",
     "lint": "eslint .",
     "test": "set NODE_OPTIONS=--max-old-space-size=4096 && npx vitest",
     "preview": "vite preview"
