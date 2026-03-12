@@ -18,6 +18,17 @@ const AdminLayout = () => {
   const { hasPermission, permissions } = useAuth();
   const { addNotification } = useNotification();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('admin-sidebar-collapsed') === 'true'; } catch { return false; }
+  });
+
+  const handleToggleCollapse = () => {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem('admin-sidebar-collapsed', String(next)); } catch {}
+      return next;
+    });
+  };
 
   useEffect(() => {
     const channel = supabase
@@ -39,7 +50,12 @@ const AdminLayout = () => {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AdminSidebar open={mobileOpen} onClose={() => setMobileOpen(false)} />
+      <AdminSidebar
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={handleToggleCollapse}
+      />
       <Box
         component="main"
         sx={{
