@@ -39,7 +39,7 @@ const allMenuItems = [
 const AdminSidebar = ({ open, onClose, collapsed = false, onToggleCollapse }) => {
   const { hasPermission, permissions } = useAuth();
   const theme = useTheme();
-  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+  const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
 
   const filteredMenuItems = allMenuItems.filter(item => {
     if (permissions.includes('master')) return true;

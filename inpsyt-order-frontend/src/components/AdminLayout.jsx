@@ -60,7 +60,6 @@ const AdminLayout = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: { xs: 2, md: 3 },
           display: 'flex',
           flexDirection: 'column',
           width: '100%',
@@ -68,7 +67,7 @@ const AdminLayout = () => {
         }}
       >
         <AdminHeader onMenuToggle={() => setMobileOpen(prev => !prev)} />
-        <Box sx={{ flexGrow: 1, width: '100%' }}> {/* Routes를 감싸는 Box 추가 */}
+        <Box sx={{ flexGrow: 1, width: '100%', p: { xs: 2, md: 3 } }}>
           <Routes>
             <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/dashboard" element={hasPermission('dashboard:view') ? <DashboardPage /> : <Navigate to="/admin" replace />} />

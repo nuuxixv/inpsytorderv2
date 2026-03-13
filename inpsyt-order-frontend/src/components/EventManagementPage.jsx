@@ -24,6 +24,11 @@ import {
   useTheme,
   Tooltip,
   Grid,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Divider,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -33,6 +38,7 @@ import {
   Link as LinkIcon,
   CalendarMonth as CalendarIcon,
   ContentCopy as CopyIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
@@ -40,14 +46,17 @@ import { useNotification } from '../hooks/useNotification';
 import EmptyState from './EmptyState';
 import { format, parseISO, isAfter, isBefore } from 'date-fns';
 import TableSkeleton from './TableSkeleton';
+import SocietyManagementDialog from './SocietyManagementDialog';
 
 const EventManagementPage = () => {
   const theme = useTheme();
   const [events, setEvents] = useState([]);
   const [open, setOpen] = useState(false);
+  const [societyModalOpen, setSocietyModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentEvent, setCurrentEvent] = useState(null);
   const [availableTags, setAvailableTags] = useState([]);
+  const [availableSocieties, setAvailableSocieties] = useState([]);
   const { user, hasPermission } = useAuth();
   const { addNotification } = useNotification();
   const [loading, setLoading] = useState(false);
@@ -55,18 +64,26 @@ const EventManagementPage = () => {
   const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('events')
-        .select('id, name, discount_rate, order_url_slug, start_date, end_date, tags')
-        .order('start_date', { ascending: false });
+      // Fetch events and societies in parallel
+      const [eventsRes, societiesRes] = await Promise.all([
+        supabase
+          .from('events')
+          .select('id, name, discount_rate, order_url_slug, start_date, end_date, tags, event_year, host_society, event_season, status')
+          .order('start_date', { ascending: false }),
+        supabase.from('societies').select('id, name, slug_prefix').order('name', { ascending: true })
+      ]);
       
-      if (error) {
-        console.error('Error fetching events:', error);
+      if (eventsRes.error) {
+        console.error('Error fetching events:', eventsRes.error);
         addNotification('학회 정보를 불러오는 데 실패했습니다.', 'error');
       } else {
-        setEvents(data);
-        const allTags = data.flatMap(event => event.tags || []);
+        setEvents(eventsRes.data);
+        const allTags = eventsRes.data.flatMap(event => event.tags || []);
         setAvailableTags(Array.from(new Set(allTags)));
+      }
+
+      if (!societiesRes.error && societiesRes.data) {
+        setAvailableSocieties(societiesRes.data);
       }
     } finally {
       setLoading(false);
@@ -94,7 +111,10 @@ const EventManagementPage = () => {
 
   const handleOpen = (event = null) => {
     setIsEditing(!!event);
-    setCurrentEvent(event || { name: '', discount_rate: 0, order_url_slug: '', start_date: '', end_date: '', tags: [] });
+    setCurrentEvent(event || { 
+      name: '', discount_rate: 0, order_url_slug: '', start_date: '', end_date: '', tags: [],
+      event_year: new Date().getFullYear(), host_society: '', event_season: ''
+    });
     setOpen(true);
   };
 
@@ -104,15 +124,49 @@ const EventManagementPage = () => {
   };
 
   const handleChange = (name, value) => {
-    if (name === 'name') {
-      const slug = value
-        .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9-]/g, '');
-      setCurrentEvent(prev => ({ ...prev, name: value, order_url_slug: slug }));
-    } else {
-      setCurrentEvent(prev => ({ ...prev, [name]: value }));
-    }
+    setCurrentEvent(prev => {
+      let newState = { ...prev, [name]: value };
+
+      // Auto-update order_url_slug when name changes manually
+      if (name === 'name' && !isEditing && !newState.order_url_slug) {
+        newState.order_url_slug = value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      }
+
+      // Auto-suggest name and URL if year, society, and season change
+      if (['event_year', 'host_society', 'event_season'].includes(name) && !isEditing) {
+        const newYear = name === 'event_year' ? value : prev.event_year;
+        const newSociety = name === 'host_society' ? value : prev.host_society;
+        const newSeason = name === 'event_season' ? value : prev.event_season;
+        
+        if (newYear && newSociety && newSeason) {
+          // Auto-suggest Name
+          newState.name = `${newYear} ${newSociety} ${newSeason}`;
+          
+          // Auto-suggest URL Slug with random suffix to prevent guessing
+          const societyObj = availableSocieties.find(s => s.name === newSociety);
+          if (societyObj) {
+            const seasonMap = {
+              '춘계학술대회': 'spring', '추계학술대회': 'fall', '연수강좌': 'training',
+              '보수교육': 'edu', '세미나': 'seminar', '기타': 'etc'
+            };
+            const sPrefix = societyObj.slug_prefix || 'event';
+            const seasonEng = seasonMap[newSeason] || 'etc';
+            const randomToken = Math.random().toString(36).slice(2, 6); // 4자리 랜덤 토큰
+            newState.order_url_slug = `${sPrefix}-${newYear}-${seasonEng}-${randomToken}`;
+          }
+        }
+        
+        // Auto-add Host Society to Tags if missing
+        if (name === 'host_society' && value && typeof value === 'string') {
+          const currentTags = newState.tags || [];
+          if (!currentTags.includes(value)) {
+            newState.tags = [...currentTags, value];
+          }
+        }
+      }
+
+      return newState;
+    });
   };
 
   const handleTagsChange = (event, newTags) => {
@@ -218,15 +272,26 @@ const EventManagementPage = () => {
           <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
             🎯 학회 관리
           </Typography>
-          {hasPermission('events:edit') && (
-            <Button 
-              variant="contained" 
-              startIcon={<AddIcon />}
-              onClick={() => handleOpen()}
-            >
-              새 학회 추가
-            </Button>
-          )}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {hasPermission('events:edit') && (
+              <Button 
+                variant="outlined" 
+                startIcon={<SettingsIcon />}
+                onClick={() => setSocietyModalOpen(true)}
+              >
+                주최 학회 관리
+              </Button>
+            )}
+            {hasPermission('events:edit') && (
+              <Button 
+                variant="contained" 
+                startIcon={<AddIcon />}
+                onClick={() => handleOpen()}
+              >
+                새 학회 추가
+              </Button>
+            )}
+          </Box>
         </Box>
 
         {/* Stats Cards */}
@@ -416,22 +481,86 @@ const EventManagementPage = () => {
       </Card>
 
       {/* Edit/Add Dialog */}
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 'bold' }}>
+      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800, p: 3, pb: 0, fontSize: '1.5rem' }}>
           {isEditing ? '학회 수정' : '새 학회 추가'}
         </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              autoFocus
-              name="name"
-              label="학회명"
-              type="text"
-              fullWidth
-              value={currentEvent?.name || ''}
-              onChange={(e) => handleChange(e.target.name, e.target.value)}
-              disabled={!hasPermission('events:edit')}
-            />
+        <DialogContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5, mt: 2 }}>
+            {/* Step 1: Structured Information */}
+            <Box sx={{ p: 2.5, bgcolor: alpha(theme.palette.primary.main, 0.03), borderRadius: 2, border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`, display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Typography variant="caption" sx={{ fontWeight: 800, color: 'primary.main', textTransform: 'uppercase', letterSpacing: 1 }}>행사 구조 정보 (마법사)</Typography>
+              
+              <TextField
+                select
+                fullWidth
+                label="연도"
+                name="event_year"
+                value={currentEvent?.event_year || ''}
+                onChange={(e) => handleChange(e.target.name, e.target.value)}
+                disabled={!hasPermission('events:edit')}
+                InputLabelProps={{ shrink: true }}
+              >
+                <MenuItem value=""><em>연도 선택</em></MenuItem>
+                {[...Array(5)].map((_, i) => {
+                  const year = new Date().getFullYear() - 1 + i;
+                  return <MenuItem key={year} value={year}>{year}년</MenuItem>;
+                })}
+              </TextField>
+
+              <TextField
+                select
+                fullWidth
+                label="행사 구분"
+                name="event_season"
+                value={currentEvent?.event_season || ''}
+                onChange={(e) => handleChange(e.target.name, e.target.value)}
+                disabled={!hasPermission('events:edit')}
+                InputLabelProps={{ shrink: true }}
+              >
+                <MenuItem value=""><em>시즌 선택</em></MenuItem>
+                <MenuItem value="춘계학술대회">춘계학술대회</MenuItem>
+                <MenuItem value="추계학술대회">추계학술대회</MenuItem>
+                <MenuItem value="연수강좌">연수강좌</MenuItem>
+                <MenuItem value="보수교육">보수교육</MenuItem>
+                <MenuItem value="세미나">세미나</MenuItem>
+                <MenuItem value="기타">기타</MenuItem>
+              </TextField>
+
+              <Autocomplete
+                freeSolo
+                options={availableSocieties.map(s => s.name)}
+                value={currentEvent?.host_society || ''}
+                onChange={(e, newValue) => handleChange('host_society', newValue)}
+                onInputChange={(e, newInputValue) => {
+                   if (e && e.type === 'change') handleChange('host_society', newInputValue);
+                }}
+                disabled={!hasPermission('events:edit')}
+                renderInput={(params) => (
+                  <TextField 
+                    {...params} 
+                    label="주최 학회" 
+                    placeholder="목록에서 선택하거나 직접 입력" 
+                    InputLabelProps={{ shrink: true }}
+                  />
+                )}
+              />
+            </Box>
+
+            <Divider />
+
+            {/* Step 2: Generated & Extra Info */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <TextField
+                name="name"
+                label="행사명 통합 (자동 완성)"
+                fullWidth
+                value={currentEvent?.name || ''}
+                onChange={(e) => handleChange(e.target.name, e.target.value)}
+                disabled={!hasPermission('events:edit')}
+                InputLabelProps={{ shrink: true }}
+                helperText="위에서 입력한 정보로 자동 생성됩니다."
+              />
             <TextField
               name="order_url_slug"
               label="고유 주소 (Slug)"
@@ -439,67 +568,72 @@ const EventManagementPage = () => {
               fullWidth
               value={currentEvent?.order_url_slug || ''}
               onChange={(e) => handleChange(e.target.name, e.target.value)}
-              helperText="주문 페이지 주소로 사용됩니다. 예: spring-2024 (영문, 숫자, 하이픈만 가능)"
-              disabled={!hasPermission('events:edit')}
-            />
-            <TextField
-              name="discount_rate"
-              label="할인율 (0~1)"
-              type="number"
-              fullWidth
-              value={currentEvent?.discount_rate || 0}
-              onChange={(e) => handleChange(e.target.name, e.target.value)}
-              inputProps={{ step: "0.01", min: "0", max: "1" }}
-              helperText="예: 0.1 = 10% 할인"
-              disabled={!hasPermission('events:edit')}
-            />
-            <Box sx={{ display: 'flex', gap: 2 }}>
+                InputLabelProps={{ shrink: true }}
+                helperText="주문 페이지 주소로 사용됩니다. 영문, 숫자, 하이픈만 가능"
+              />
+              
               <TextField
-                name="start_date"
-                label="시작일"
-                type="date"
+                name="discount_rate"
+                label="할인율 (%)"
+                type="number"
                 fullWidth
-                value={currentEvent?.start_date || ''}
-                onChange={(e) => handleChange(e.target.name, e.target.value)}
-                InputLabelProps={{
-                  shrink: true,
+                value={currentEvent?.discount_rate ? Math.round(currentEvent.discount_rate * 100) : 0}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value) || 0;
+                  handleChange('discount_rate', val / 100);
                 }}
+                inputProps={{ step: "1", min: "0", max: "100" }}
+                InputLabelProps={{ shrink: true }}
+                helperText="예: 15 = 15% 할인"
                 disabled={!hasPermission('events:edit')}
               />
-              <TextField
-                name="end_date"
-                label="종료일"
-                type="date"
-                fullWidth
-                value={currentEvent?.end_date || ''}
-                onChange={(e) => handleChange(e.target.name, e.target.value)}
-                InputLabelProps={{
-                  shrink: true,
-                }}
+
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField
+                  name="start_date"
+                  label="시작일"
+                  type="date"
+                  fullWidth
+                  value={currentEvent?.start_date || ''}
+                  onChange={(e) => handleChange(e.target.name, e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  disabled={!hasPermission('events:edit')}
+                />
+                <TextField
+                  name="end_date"
+                  label="종료일"
+                  type="date"
+                  fullWidth
+                  value={currentEvent?.end_date || ''}
+                  onChange={(e) => handleChange(e.target.name, e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  disabled={!hasPermission('events:edit')}
+                />
+              </Box>
+
+              <Autocomplete
+                multiple
+                freeSolo
+                options={availableTags}
+                value={currentEvent?.tags || []}
+                onChange={handleTagsChange}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip variant="outlined" label={option} {...getTagProps({ index })} key={index} />
+                  ))
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="태그"
+                    placeholder="태그 추가"
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                  />
+                )}
                 disabled={!hasPermission('events:edit')}
               />
             </Box>
-            <Autocomplete
-              multiple
-              freeSolo
-              options={availableTags}
-              value={currentEvent?.tags || []}
-              onChange={handleTagsChange}
-              renderTags={(value, getTagProps) =>
-                value.map((option, index) => (
-                  <Chip variant="outlined" label={option} {...getTagProps({ index })} key={index} />
-                ))
-              }
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="태그"
-                  placeholder="태그 추가"
-                  fullWidth
-                />
-              )}
-              disabled={!hasPermission('events:edit')}
-            />
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
@@ -511,6 +645,12 @@ const EventManagementPage = () => {
           )}
         </DialogActions>
       </Dialog>
+
+      <SocietyManagementDialog 
+        open={societyModalOpen} 
+        onClose={() => setSocietyModalOpen(false)} 
+        onUpdated={fetchEvents} 
+      />
     </Box>
   );
 };

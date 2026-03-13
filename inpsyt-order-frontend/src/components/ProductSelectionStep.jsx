@@ -7,7 +7,7 @@ import {
   CircularProgress,
   InputAdornment,
 } from '@mui/material';
-import { Search as SearchIcon, Star as StarIcon } from '@mui/icons-material';
+import { Search as SearchIcon, Star as StarIcon, FiberNew as NewIcon } from '@mui/icons-material';
 import { fetchProducts } from '../api/products';
 import { useNotification } from '../hooks/useNotification';
 import ProductCard from './ProductCard';
@@ -25,9 +25,9 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
     try {
       const params = {
         searchTerm: search,
-        // '인기' 모드일 때만 학회 태그 필터 적용, '전체' 모드에서는 모든 상품 노출
-        tags: (mode === 'popular' && eventTags?.length > 0) ? eventTags : undefined,
-        isPopularOnly: mode === 'popular',
+        // '전체' 모드가 아닐 때만 학회 태그 필터 적용
+        tags: (mode !== 'all' && eventTags?.length > 0) ? eventTags : undefined,
+        isNewOnly: mode === 'new',
         category: category !== 'all' ? category : undefined,
         productsPerPage: 100,
       };
@@ -91,6 +91,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
   const viewModes = [
     { key: 'all', label: '전체' },
     { key: 'popular', label: '인기', icon: <StarIcon sx={{ fontSize: 14 }} /> },
+    { key: 'new', label: '신규출시', icon: <NewIcon sx={{ fontSize: 14 }} /> },
   ];
 
   const categoryFilters = [

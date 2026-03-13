@@ -35,12 +35,13 @@ import {
   SwipeableDrawer,
   useMediaQuery,
   useTheme,
+  Menu,
 } from '@mui/material';
 import { format, subDays } from 'date-fns';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
-import { Close as CloseIcon } from '@mui/icons-material';
+import { Close as CloseIcon, KeyboardArrowDown as KeyboardArrowDownIcon } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import OrderDetailModal from './OrderDetailModal';
 import EmptyState from './EmptyState';
@@ -164,6 +165,7 @@ const OrderManagementPage = () => {
   const [filterDrawerOpen, setFilterDrawerOpen] = React.useState(false);
   const [state, dispatch] = useReducer(reducer, initialState);
   const [bulkStatus, setBulkStatus] = React.useState('');
+  const [excelMenuAnchor, setExcelMenuAnchor] = React.useState(null);
 
   const handleSelectAllClick = () => {
     if (state.selectedOrders.length === state.orders.length && state.orders.length > 0) {
@@ -201,7 +203,7 @@ const OrderManagementPage = () => {
     try {
       const productsData = await fetchAllProducts();
       const newProductsMap = {};
-      productsData.forEach(p => { newProductsMap[p.id] = { id: p.id, name: p.name, list_price: p.list_price, is_popular: p.is_popular }; });
+      productsData.forEach(p => { newProductsMap[p.id] = { id: p.id, name: p.name, list_price: p.list_price, is_popular: p.is_popular, category: p.category }; });
       dispatch({ type: 'SET_STATE', payload: { products: productsData, productsMap: newProductsMap } });
     } catch {
       addNotification('상품 정보를 불러오는 데 실패했습니다.', 'error');
@@ -332,35 +334,74 @@ const OrderManagementPage = () => {
     }
   };
 
-  const handleExcelDownload = async () => {
+  const handleExcelDownload = async (type) => {
+    setExcelMenuAnchor(null);
     dispatch({ type: 'SET_STATE', payload: { loading: true } });
     try {
       const { data: allOrders, error } = await getOrders({ ...state, currentPage: 1, ordersPerPage: state.totalOrders });
       if (error) throw error;
 
-      const dataForExcel = allOrders.map(order => ({
-        '주문번호': order.id,
-        '주문일시': format(new Date(order.created_at), 'yyyy-MM-dd HH:mm'),
-        '학회명': state.events.find(e => e.id === order.event_id)?.name || 'N/A',
-        '고객명': order.customer_name,
-        '이메일': order.email,
-        '연락처': order.phone_number,
-        '주소': `${order.shipping_address?.postcode || ''} ${order.shipping_address?.address || ''} ${order.shipping_address?.detail || ''}`.trim(),
-        '고객 요청사항': order.customer_request,
-        '관리자 메모': order.admin_memo,
-        '주문 상품': order.order_items.map(item => `${state.productsMap[item.product_id]?.name || 'N/A'} x ${item.quantity}`).join('\n'),
-        '총 상품금액': order.total_cost,
-        '할인금액': order.discount_amount,
-        '배송비': order.delivery_fee,
-        '최종 결제금액': order.final_payment,
-        '상태': statusToKorean[order.status] || order.status,
-      }));
+      const dataForExcel = [];
+      const isFilteredByEvent = Boolean(state.selectedEvent);
+      
+      allOrders.forEach(order => {
+        const orderEvent = state.events.find(e => e.id === order.event_id)?.name || 'N/A';
+        
+        const itemsToExport = order.order_items.filter(item => {
+           const product = state.productsMap[item.product_id];
+           if (!product) return false;
+           
+           if (type === 'book') return product.category === '도서';
+           if (type === 'test') return product.category?.includes('검사') || product.category === '온라인검사';
+           return true;
+        });
+
+        if (itemsToExport.length === 0) return;
+
+        itemsToExport.forEach(item => {
+           const product = state.productsMap[item.product_id];
+           const row = {
+             '주문일시': format(new Date(order.created_at), 'yyyy-MM-dd HH:mm'),
+             '주문번호': order.id,
+             '고객명': order.customer_name,
+             '이메일': order.email,
+             '연락처': order.phone_number,
+             '배송 주소': `${order.shipping_address?.postcode || ''} ${order.shipping_address?.address || ''} ${order.shipping_address?.detail || ''}`.trim(),
+             '고객 요청사항': order.customer_request || '-',
+             '관리자 메모': order.admin_memo || '-',
+           };
+           
+           if (!isFilteredByEvent) {
+             row['학회명'] = orderEvent;
+           }
+
+           row['카테고리'] = product?.category || 'N/A';
+           row['상품명'] = product?.name || 'N/A';
+           row['주문 수량'] = item.quantity;
+           row['실결제금액(참고)'] = order.final_payment;
+           row['상태'] = statusToKorean[order.status] || order.status;
+           
+           dataForExcel.push(row);
+        });
+      });
+
+      if (dataForExcel.length === 0) {
+        addNotification(`해당 조건에 맞는 주문 내역이 없습니다. (출고 데이터 없음)`, 'warning');
+        return;
+      }
 
       const worksheet = XLSX.utils.json_to_sheet(dataForExcel);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, '주문 목록');
-      XLSX.writeFile(workbook, '주문목록.xlsx');
-      addNotification('엑셀 파일이 성공적으로 다운로드되었습니다.', 'success');
+      XLSX.utils.book_append_sheet(workbook, worksheet, '출고목록');
+      
+      const dateStr = format(new Date(), 'yyyyMMdd');
+      const eventPrefix = isFilteredByEvent 
+        ? `[${state.events.find(e => e.id === state.selectedEvent)?.name}]_` 
+        : '';
+      const typeStr = type === 'book' ? '도서출고목록' : type === 'test' ? '검사출고목록' : '통합주문목록';
+      
+      XLSX.writeFile(workbook, `${eventPrefix}${typeStr}_${dateStr}.xlsx`);
+      addNotification('엑셀 파일이 성공적으로 생성되었습니다.', 'success');
     } catch (err) {
       addNotification(`엑셀 다운로드 실패: ${err.message}`, 'error');
     } finally {
@@ -510,7 +551,23 @@ const OrderManagementPage = () => {
           </Box>
           <Box display="flex" gap={2}>
             {hasPermission('orders:edit') && <Button variant="contained" color="primary" onClick={() => dispatch({ type: 'OPEN_NEW_ORDER' })}>신규 주문 추가</Button>}
-            <Button variant="outlined" onClick={handleExcelDownload}>엑셀 다운로드</Button>
+            <Button 
+              variant="outlined" 
+              onClick={(e) => setExcelMenuAnchor(e.currentTarget)}
+              endIcon={<KeyboardArrowDownIcon />}
+            >
+              엑셀 다운로드
+            </Button>
+            <Menu
+              anchorEl={excelMenuAnchor}
+              open={Boolean(excelMenuAnchor)}
+              onClose={() => setExcelMenuAnchor(null)}
+            >
+              <MenuItem onClick={() => handleExcelDownload('book')}>📘 도서 출고 전용 엑셀</MenuItem>
+              <MenuItem onClick={() => handleExcelDownload('test')}>📄 검사 출고 전용 엑셀</MenuItem>
+              <Divider />
+              <MenuItem onClick={() => handleExcelDownload('all')}>전체 통합 엑셀 (백업용)</MenuItem>
+            </Menu>
           </Box>
         </Box>
         {isMobile ? (

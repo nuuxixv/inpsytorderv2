@@ -63,7 +63,7 @@ const ProductManagementPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [availableTags, setAvailableTags] = useState([]);
 
-  const [currentPage, setCurrentPage] = useState(1); 
+  const [currentPage, setCurrentPage] = useState(1);
   const [productsPerPage, setProductsPerPage] = useState(50);
   const [totalProducts, setTotalProducts] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -75,7 +75,7 @@ const ProductManagementPage = () => {
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, count, error } = await fetchProductsApi({ 
+      const { data, count, error } = await fetchProductsApi({
         searchTerm,
         category: selectedCategory,
         currentPage,
@@ -105,7 +105,7 @@ const ProductManagementPage = () => {
 
   const handleOpen = (product = null) => {
     setIsEditing(!!product);
-    setCurrentProduct(product || { name: '', product_code: '', category: '', sub_category: '', list_price: 0, notes: '', is_discountable: false, is_popular: false, tags: [] });
+    setCurrentProduct(product || { name: '', product_code: '', category: '', sub_category: '', list_price: 0, notes: '', is_discountable: false, is_popular: false, is_new: false, is_recommend: false, tags: [] });
     setOpen(true);
   };
 
@@ -179,6 +179,7 @@ const ProductManagementPage = () => {
           notes: row['비고'] || null,
           is_discountable: row['할인여부'] === 'TRUE' || row['할인여부'] === 'Y',
           is_popular: row['인기상품'] === 'TRUE' || row['인기상품'] === 'Y',
+          is_new: row['신상여부'] === 'TRUE' || row['신상여부'] === 'Y',
           tags: row['태그'] ? row['태그'].split(',').map(tag => tag.trim()) : [],
         }));
 
@@ -204,7 +205,7 @@ const ProductManagementPage = () => {
 
   const handleDownloadTemplate = () => {
     const templateData = [
-      { '상품명': '예시 상품명', '상품코드': 'PROD001', '카테고리': '도서', '하위카테고리': '심리학', '정가': 15000, '비고': '상품 설명', '할인여부': 'TRUE', '인기상품': 'FALSE', '태그': '신경정신,치매' },
+      { '상품명': '예시 상품명', '상품코드': 'PROD001', '카테고리': '도서', '하위카테고리': '심리학', '정가': 15000, '비고': '상품 설명', '할인여부': 'TRUE', '인기상품': 'FALSE', '신상여부': 'TRUE', '태그': '신경정신,치매' },
     ];
     const worksheet = XLSX.utils.json_to_sheet(templateData);
     const workbook = XLSX.utils.book_new();
@@ -225,6 +226,7 @@ const ProductManagementPage = () => {
         '비고': product.notes || '',
         '할인여부': product.is_discountable ? 'TRUE' : 'FALSE',
         '인기상품': product.is_popular ? 'TRUE' : 'FALSE',
+        '신상여부': product.is_new ? 'TRUE' : 'FALSE',
         '태그': product.tags?.join(',') || '',
       }));
 
@@ -262,9 +264,9 @@ const ProductManagementPage = () => {
           </Typography>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Tooltip title="양식 다운로드">
-              <IconButton 
+              <IconButton
                 onClick={handleDownloadTemplate}
-                sx={{ 
+                sx={{
                   bgcolor: alpha(theme.palette.info.main, 0.1),
                   '&:hover': { bgcolor: alpha(theme.palette.info.main, 0.2) }
                 }}
@@ -273,9 +275,9 @@ const ProductManagementPage = () => {
               </IconButton>
             </Tooltip>
             <Tooltip title="엑셀 다운로드">
-              <IconButton 
+              <IconButton
                 onClick={handleDownloadExcel}
-                sx={{ 
+                sx={{
                   bgcolor: alpha(theme.palette.success.main, 0.1),
                   '&:hover': { bgcolor: alpha(theme.palette.success.main, 0.2) }
                 }}
@@ -286,9 +288,9 @@ const ProductManagementPage = () => {
             {hasPermission('products:edit') && (
               <>
                 <Tooltip title="엑셀 업로드">
-                  <IconButton 
+                  <IconButton
                     component="label"
-                    sx={{ 
+                    sx={{
                       bgcolor: alpha(theme.palette.warning.main, 0.1),
                       '&:hover': { bgcolor: alpha(theme.palette.warning.main, 0.2) }
                     }}
@@ -297,8 +299,8 @@ const ProductManagementPage = () => {
                     <input type="file" accept=".xlsx, .xls" hidden onChange={handleFileUpload} ref={fileInputRef} />
                   </IconButton>
                 </Tooltip>
-                <Button 
-                  variant="contained" 
+                <Button
+                  variant="contained"
                   startIcon={<AddIcon />}
                   onClick={() => handleOpen()}
                   sx={{ ml: 1 }}
@@ -313,7 +315,7 @@ const ProductManagementPage = () => {
         {/* Stats Cards */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ 
+            <Card sx={{
               background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
               border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
             }}>
@@ -333,7 +335,7 @@ const ProductManagementPage = () => {
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ 
+            <Card sx={{
               background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.main, 0.05)} 100%)`,
               border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
             }}>
@@ -353,7 +355,7 @@ const ProductManagementPage = () => {
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ 
+            <Card sx={{
               background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)} 0%, ${alpha(theme.palette.warning.main, 0.05)} 100%)`,
               border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
             }}>
@@ -373,7 +375,7 @@ const ProductManagementPage = () => {
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ 
+            <Card sx={{
               background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.info.main, 0.05)} 100%)`,
               border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
             }}>
@@ -426,8 +428,8 @@ const ProductManagementPage = () => {
               </Select>
             </FormControl>
             {hasFilters && (
-              <Button 
-                variant="outlined" 
+              <Button
+                variant="outlined"
                 onClick={handleResetFilters}
                 size="small"
               >
@@ -447,21 +449,19 @@ const ProductManagementPage = () => {
                 <TableCell sx={{ fontWeight: 'bold' }}>상품명</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>카테고리</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>하위 카테고리</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>상품 코드</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }} align="right">정가</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>비고</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }} align="center">할인 가능</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }} align="center">인기 상품</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }} align="center">상태 태그</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>태그</TableCell>
                 {hasPermission('products:edit') && <TableCell sx={{ fontWeight: 'bold' }} align="center">작업</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
-                <TableSkeleton rows={10} columns={10} />
+                <TableSkeleton rows={10} columns={11} />
               ) : products.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} sx={{ border: 0, py: 4 }}>
+                  <TableCell colSpan={11} sx={{ border: 0, py: 4 }}>
                     <EmptyState
                       message={hasFilters ? "검색 결과가 없습니다" : "등록된 상품이 없습니다"}
                       subMessage={hasFilters ? "다른 검색어나 필터를 시도해보세요" : "새 상품을 추가하여 시작하세요"}
@@ -478,9 +478,9 @@ const ProductManagementPage = () => {
                 </TableRow>
               ) : (
                 products.map((product) => (
-                  <TableRow 
+                  <TableRow
                     key={product.id}
-                    sx={{ 
+                    sx={{
                       '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.02) },
                       transition: 'background-color 0.2s'
                     }}
@@ -490,11 +490,6 @@ const ProductManagementPage = () => {
                       <Chip label={product.category} size="small" color="primary" variant="outlined" />
                     </TableCell>
                     <TableCell>{product.sub_category || '-'}</TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
-                        {product.product_code}
-                      </Typography>
-                    </TableCell>
                     <TableCell align="right" sx={{ fontWeight: 'bold' }}>
                       {product.list_price.toLocaleString()}원
                     </TableCell>
@@ -502,18 +497,12 @@ const ProductManagementPage = () => {
                       {product.notes || '-'}
                     </TableCell>
                     <TableCell align="center">
-                      {product.is_discountable ? (
-                        <Chip label="예" size="small" color="success" />
-                      ) : (
-                        <Chip label="아니오" size="small" variant="outlined" />
-                      )}
-                    </TableCell>
-                    <TableCell align="center">
-                      {product.is_popular ? (
-                        <Chip label="⭐ 인기" size="small" color="warning" />
-                      ) : (
-                        <Chip label="일반" size="small" variant="outlined" />
-                      )}
+                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', justifyContent: 'center', width: 100, mx: 'auto' }}>
+                        {product.is_popular && <Chip label="인기" size="small" color="warning" sx={{ height: 20, fontSize: '0.7rem' }} />}
+                        {product.is_new && <Chip label="신규출시" size="small" color="primary" sx={{ height: 20, fontSize: '0.7rem' }} />}
+                        {product.is_discountable && <Chip label="할인" size="small" color="success" sx={{ height: 20, fontSize: '0.7rem', bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main', border: 0 }} />}
+                        {!product.is_popular && !product.is_new && !product.is_discountable && <Typography variant="caption" color="text.secondary">-</Typography>}
+                      </Box>
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
@@ -527,10 +516,10 @@ const ProductManagementPage = () => {
                     </TableCell>
                     {hasPermission('products:edit') && (
                       <TableCell align="center">
-                        <IconButton 
-                          size="small" 
+                        <IconButton
+                          size="small"
                           onClick={() => handleOpen(product)}
-                          sx={{ 
+                          sx={{
                             color: 'primary.main',
                             '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
                           }}
@@ -582,66 +571,66 @@ const ProductManagementPage = () => {
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField 
-              autoFocus 
-              name="name" 
-              label="상품명" 
-              type="text" 
-              fullWidth 
-              value={currentProduct?.name || ''} 
-              onChange={handleChange} 
-              disabled={!hasPermission('products:edit')} 
+            <TextField
+              autoFocus
+              name="name"
+              label="상품명"
+              type="text"
+              fullWidth
+              value={currentProduct?.name || ''}
+              onChange={handleChange}
+              disabled={!hasPermission('products:edit')}
             />
-            <TextField 
-              name="product_code" 
-              label="상품 코드" 
-              type="text" 
-              fullWidth 
-              value={currentProduct?.product_code || ''} 
-              onChange={handleChange} 
-              disabled={!hasPermission('products:edit')} 
+            <TextField
+              name="product_code"
+              label="상품 코드"
+              type="text"
+              fullWidth
+              value={currentProduct?.product_code || ''}
+              onChange={handleChange}
+              disabled={!hasPermission('products:edit')}
             />
             <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField 
-                name="category" 
-                label="카테고리" 
-                type="text" 
-                fullWidth 
-                value={currentProduct?.category || ''} 
-                onChange={handleChange} 
-                disabled={!hasPermission('products:edit')} 
+              <TextField
+                name="category"
+                label="카테고리"
+                type="text"
+                fullWidth
+                value={currentProduct?.category || ''}
+                onChange={handleChange}
+                disabled={!hasPermission('products:edit')}
               />
-              <TextField 
-                name="sub_category" 
-                label="하위 카테고리" 
-                type="text" 
-                fullWidth 
-                value={currentProduct?.sub_category || ''} 
-                onChange={handleChange} 
-                disabled={!hasPermission('products:edit')} 
+              <TextField
+                name="sub_category"
+                label="하위 카테고리"
+                type="text"
+                fullWidth
+                value={currentProduct?.sub_category || ''}
+                onChange={handleChange}
+                disabled={!hasPermission('products:edit')}
               />
             </Box>
-            <TextField 
-              name="list_price" 
-              label="정가" 
-              type="number" 
-              fullWidth 
-              value={currentProduct?.list_price || 0} 
-              onChange={handleChange} 
-              disabled={!hasPermission('products:edit')} 
+            <TextField
+              name="list_price"
+              label="정가"
+              type="number"
+              fullWidth
+              value={currentProduct?.list_price || 0}
+              onChange={handleChange}
+              disabled={!hasPermission('products:edit')}
             />
-            <TextField 
-              name="notes" 
-              label="비고" 
-              type="text" 
-              fullWidth 
-              multiline 
-              rows={3} 
-              value={currentProduct?.notes || ''} 
-              onChange={handleChange} 
-              disabled={!hasPermission('products:edit')} 
+            <TextField
+              name="notes"
+              label="비고"
+              type="text"
+              fullWidth
+              multiline
+              rows={3}
+              value={currentProduct?.notes || ''}
+              onChange={handleChange}
+              disabled={!hasPermission('products:edit')}
             />
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -665,6 +654,18 @@ const ProductManagementPage = () => {
                   />
                 }
                 label="인기 상품"
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={currentProduct?.is_new || false}
+                    onChange={(e) => setCurrentProduct(prev => ({ ...prev, is_new: e.target.checked }))}
+                    name="is_new"
+                    color="primary"
+                    disabled={!hasPermission('products:edit')}
+                  />
+                }
+                label="신상품"
               />
             </Box>
             <Autocomplete

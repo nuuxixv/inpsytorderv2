@@ -12,10 +12,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  Select,
-  MenuItem,
-  InputLabel,
-  FormControl,
   Snackbar,
 } from '@mui/material';
 
@@ -53,9 +49,7 @@ const OrderPage = () => {
   const [cart, setCart] = useState([]);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [eventInfo, setEventInfo] = useState(null);
-  const [showEventSelectionDialog, setShowEventSelectionDialog] = useState(false);
-  const [allEvents, setAllEvents] = useState([]);
-  const [selectedEventIdFromDialog, setSelectedEventIdFromDialog] = useState('');
+  const [accessError, setAccessError] = useState(null); // 'no_slug' | 'expired' | 'not_found'
 
   // Computed values
   const discountRate = eventInfo ? eventInfo.discount_rate : 0;
@@ -80,36 +74,35 @@ const OrderPage = () => {
     const fetchEventData = async () => {
       try {
         setLoading(true);
-        const today = new Date().toISOString().split('T')[0];
-        const { data: allEventsData, error: allEventsError } = await supabase
-          .from('events')
-          .select('id, name, discount_rate, order_url_slug, tags')
-          .lte('start_date', today)
-          .gte('end_date', today)
-          .order('name', { ascending: true });
-        if (allEventsError) throw allEventsError;
-        setAllEvents(allEventsData);
+        setAccessError(null);
 
-        if (eventSlug) {
-          const { data: eventData, error: eventError } = await supabase
-            .from('events')
-            .select('id, name, discount_rate, tags')
-            .eq('order_url_slug', eventSlug)
-            .single();
-
-          if (eventError || !eventData) {
-            setError('유효하지 않은 학회 주소입니다. 학회를 선택해주세요.');
-            setShowEventSelectionDialog(true);
-            setEventInfo(null);
-          } else {
-            setEventInfo(eventData);
-          }
-        } else {
-          setShowEventSelectionDialog(true);
+        // 슬러그 없이 접근 → 즉시 차단
+        if (!eventSlug) {
+          setAccessError('no_slug');
           setEventInfo(null);
+          return;
         }
-      } catch (error) {
-        setError(error.message);
+
+        const today = new Date().toISOString().split('T')[0];
+
+        // 슬러그로 이벤트 조회 (날짜 유효성 포함)
+        const { data: eventData, error: eventError } = await supabase
+          .from('events')
+          .select('id, name, discount_rate, tags, start_date, end_date')
+          .eq('order_url_slug', eventSlug)
+          .single();
+
+        if (eventError || !eventData) {
+          setAccessError('not_found');
+          setEventInfo(null);
+        } else if (eventData.end_date < today || eventData.start_date > today) {
+          setAccessError('expired');
+          setEventInfo(null);
+        } else {
+          setEventInfo(eventData);
+        }
+      } catch (err) {
+        setError(err.message);
       } finally {
         setLoading(false);
       }
@@ -117,16 +110,7 @@ const OrderPage = () => {
     fetchEventData();
   }, [eventSlug]);
 
-  const handleEventSelectFromDialog = () => {
-    const selectedEvent = allEvents.find(event => event.id === selectedEventIdFromDialog);
-    if (selectedEvent) {
-      navigate(`/order?events=${selectedEvent.order_url_slug}`);
-      setShowEventSelectionDialog(false);
-      setError(null);
-    } else {
-      setError('학회를 선택해주세요.');
-    }
-  };
+
 
   const handleNext = () => {
     if (activeStep === 0) {
@@ -214,8 +198,39 @@ const OrderPage = () => {
   // Loading state
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <CircularProgress size={40} thickness={4} />
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100dvh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // 접근 차단 화면: 슬러그 없음 / 만료 / 존재하지 않음
+  if (accessError) {
+    const messages = {
+      no_slug: {
+        emoji: '🔗',
+        title: '직접 접속이 불가합니다',
+        desc: '현재 진행 중인 학회 링크로만 주문하실 수 있습니다.\n담당자에게 문의하여 올바른 링크로 접속해주세요.',
+      },
+      expired: {
+        emoji: '📅',
+        title: '종료된 학회입니다',
+        desc: '해당 학회의 주문 기간이 종료되었습니다.\n진행 중인 학회 링크를 담당자에게 문의해주세요.',
+      },
+      not_found: {
+        emoji: '❓',
+        title: '존재하지 않는 링크입니다',
+        desc: '올바르지 않은 학회 주소입니다.\n담당자에게 정확한 링크를 요청해주세요.',
+      },
+    };
+    const { emoji, title, desc } = messages[accessError] || messages.not_found;
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100dvh', p: 4, textAlign: 'center', gap: 2 }}>
+        <Typography sx={{ fontSize: '4rem' }}>{emoji}</Typography>
+        <Typography variant="h6" sx={{ fontWeight: 800 }}>{title}</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>
+          {desc}
+        </Typography>
       </Box>
     );
   }
@@ -353,48 +368,6 @@ const OrderPage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Event selection dialog */}
-      <Dialog
-        open={showEventSelectionDialog}
-        onClose={() => {}}
-        disableEscapeKeyDown
-        PaperProps={{ sx: { borderRadius: '16px', mx: 2, minWidth: 320 } }}
-      >
-        <DialogTitle sx={{ fontWeight: 700, pt: 3 }}>학회 선택</DialogTitle>
-        <DialogContent>
-          <DialogContentText sx={{ mb: 2, color: 'text.secondary' }}>
-            주문할 학회를 선택해주세요.
-          </DialogContentText>
-          <FormControl fullWidth>
-            <InputLabel id="event-select-label">학회</InputLabel>
-            <Select
-              labelId="event-select-label"
-              value={selectedEventIdFromDialog}
-              label="학회"
-              onChange={(e) => setSelectedEventIdFromDialog(e.target.value)}
-              MenuProps={{ disablePortal: true }}
-              sx={{ borderRadius: '12px' }}
-            >
-              {allEvents.map((event) => (
-                <MenuItem key={event.id} value={event.id}>
-                  {event.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={handleEventSelectFromDialog}
-            disabled={!selectedEventIdFromDialog}
-            sx={{ borderRadius: '12px', minHeight: 48 }}
-          >
-            선택
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       {/* On-site purchase snackbar */}
       <Snackbar

@@ -25,22 +25,38 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
     >
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
         {/* Category badge */}
-        {(product.category === '검사' || product.category === '도서') && (
-          <Chip
-            label={product.category}
-            size="small"
-            sx={{
-              height: 18,
-              fontSize: '0.625rem',
-              fontWeight: 700,
-              mb: 0.75,
-              borderRadius: '6px',
-              bgcolor: product.category === '검사' ? 'info.main' : 'grey.400',
-              color: '#fff',
-              '& .MuiChip-label': { px: 0.75 },
-            }}
-          />
-        )}
+        <Box sx={{ display: 'flex', gap: 0.5, mb: 0.75, alignItems: 'center' }}>
+          {(product.category === '검사' || product.category === '도서') && (
+            <Chip
+              label={product.category}
+              size="small"
+              sx={{
+                height: 18,
+                fontSize: '0.625rem',
+                fontWeight: 700,
+                borderRadius: '6px',
+                bgcolor: product.category === '검사' ? 'info.main' : 'grey.400',
+                color: '#fff',
+                '& .MuiChip-label': { px: 0.75 },
+              }}
+            />
+          )}
+          {product.is_new && (
+            <Chip
+              label="NEW"
+              size="small"
+              sx={{
+                height: 18,
+                fontSize: '0.625rem',
+                fontWeight: 800,
+                borderRadius: '6px',
+                bgcolor: 'error.main',
+                color: '#fff',
+                '& .MuiChip-label': { px: 0.75 },
+              }}
+            />
+          )}
+        </Box>
         {/* Product name */}
         <Typography
           variant="body2"

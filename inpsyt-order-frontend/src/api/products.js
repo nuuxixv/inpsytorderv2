@@ -8,7 +8,7 @@ import { supabase } from '../supabaseClient';
  * @returns {Promise<Array>} 상품 목록
  * @throws {Error} 데이터 조회 실패 시 에러 발생
  */
-export const fetchProducts = async ({ searchTerm, category, tags, isPopularOnly = false, currentPage = 1, productsPerPage = 10 }) => {
+export const fetchProducts = async ({ searchTerm, category, tags, isPopularOnly = false, isNewOnly = false, currentPage = 1, productsPerPage = 10 }) => {
   let query = supabase.from('products').select('*', { count: 'exact' }); // Request count
 
   if (searchTerm) {
@@ -25,6 +25,11 @@ export const fetchProducts = async ({ searchTerm, category, tags, isPopularOnly 
   if (isPopularOnly) {
     query = query.eq('is_popular', true);
   }
+  
+  if (isNewOnly) {
+    query = query.eq('is_new', true);
+  }
+  
 
   query = query.order('is_popular', { ascending: false }).order('name');
 

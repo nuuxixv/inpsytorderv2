@@ -43,6 +43,7 @@ import { format } from 'date-fns';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import EmptyState from './EmptyState';
+import { supabase } from '../supabaseClient';
 
 const UserManagementPage = () => {
   const theme = useTheme();
@@ -73,31 +74,15 @@ const UserManagementPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/list-users`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const { data, error: invokeError } = await supabase.functions.invoke('list-users');
 
-      if (!response.ok) {
-        let errorDetails = 'Failed to fetch users';
-        try {
-          const errorData = await response.json();
-          errorDetails = errorData.error || errorDetails;
-        } catch (jsonError) {
-          try {
-            const rawText = await response.text();
-            errorDetails = `Failed to parse error response: ${rawText}`;
-          } catch (textError) {
-            errorDetails = `Failed to get error response text: ${textError.message}`;
-          }
-        }
-        throw new Error(errorDetails);
+      if (invokeError) {
+        throw invokeError;
+      }
+      if (data?.error) {
+        throw new Error(data.error);
       }
 
-      const data = await response.json();
       setUsers(data);
     } catch (err) {
       console.error('Error fetching users:', err);
@@ -130,19 +115,12 @@ const UserManagementPage = () => {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/update-user-permissions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId, newPermissions }),
+      const { data, error: invokeError } = await supabase.functions.invoke('update-user-permissions', {
+        body: { userId, newPermissions },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update permissions');
-      }
+      if (invokeError) throw invokeError;
+      if (data?.error) throw new Error(data.error);
 
       addNotification('사용자 권한이 업데이트되었습니다.', 'success');
       fetchUsers();
@@ -163,19 +141,12 @@ const UserManagementPage = () => {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/invite-user`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: inviteEmail }),
+      const { data, error: invokeError } = await supabase.functions.invoke('invite-user', {
+        body: { email: inviteEmail },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to invite user');
-      }
+      if (invokeError) throw invokeError;
+      if (data?.error) throw new Error(data.error);
 
       addNotification('초대 이메일이 발송되었습니다.', 'success');
       setOpenInviteModal(false);
@@ -202,19 +173,12 @@ const UserManagementPage = () => {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/delete-user`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId }),
+      const { data, error: invokeError } = await supabase.functions.invoke('delete-user', {
+        body: { userId },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete user');
-      }
+      if (invokeError) throw invokeError;
+      if (data?.error) throw new Error(data.error);
 
       addNotification('사용자가 성공적으로 삭제되었습니다.', 'success');
       fetchUsers();
@@ -238,19 +202,12 @@ const UserManagementPage = () => {
     if (!currentEditingUser) return;
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/update-user-memo`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId: currentEditingUser.id, memo: editedMemo }),
+      const { data, error: invokeError } = await supabase.functions.invoke('update-user-memo', {
+        body: { userId: currentEditingUser.id, memo: editedMemo },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update memo');
-      }
+      if (invokeError) throw invokeError;
+      if (data?.error) throw new Error(data.error);
 
       addNotification('메모가 성공적으로 업데이트되었습니다.', 'success');
       setOpenMemoModal(false);

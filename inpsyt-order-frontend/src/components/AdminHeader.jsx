@@ -41,13 +41,11 @@ const AdminHeader = ({ onMenuToggle }) => {
         height: 64,
         px: { xs: 2, md: 3 },
         mb: 3,
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        backdropFilter: 'blur(12px)',
-        borderRadius: '16px',
-        border: '1px solid rgba(255, 255, 255, 0.3)',
+        backgroundColor: '#ffffff',
+        borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
         boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
         position: 'sticky',
-        top: { xs: 8, md: 24 },
+        top: 0,
         zIndex: 100,
         transition: 'all 0.3s ease',
         '&:hover': {
@@ -59,7 +57,7 @@ const AdminHeader = ({ onMenuToggle }) => {
       <IconButton
         onClick={onMenuToggle}
         size="medium"
-        sx={{ display: { md: 'none' }, color: 'text.secondary' }}
+        sx={{ display: { lg: 'none' }, color: 'text.secondary' }}
         aria-label="메뉴 열기"
       >
         <MenuIcon />
