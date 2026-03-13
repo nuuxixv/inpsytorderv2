@@ -318,3 +318,21 @@
   price.
 - **AdminSidebar.jsx**: Fixed a `ReferenceError` (missing `alpha` import) that
   occurred after the previous styling update.
+
+---
+
+## **추가 작업 요약 (2026-03-12: QA 및 분석 아카이브)**
+
+*과거 `inpsyt-order-frontend/ANALYSIS.md`에서 이관된 분석 및 QA 내역입니다.*
+
+### **1. 1 Thing / 1 Page 토스 스타일 UX/UI 고도화 분석**
+- 3단계 위자드 폼 전환 (상품 선택 → 주문자 정보 → 주문 확인).
+- Floating Bottom CTA 및 Bottom Sheet 장바구니 도입.
+
+### **2. 사용자 QA 결과 및 개선 방향성**
+- **즉시 개선 과제**: 카테고리 배지 (검사/도서/도구/온라인코드 구분표시)
+- **개선 제안**: 배송비 계산 기준 통일 (할인 전/후 관련)
+
+### **3. 주요 FAQ 및 컴포넌트 아키텍처**
+- 현장구매 모드 (배송지 생략/배송비 무료), 학회별 할인율 관리 방식 등.
+- 3단계 위자드를 다루는 `OrderPage` 기반 오케스트레이터 패턴 및 Edge Functions 목록.
