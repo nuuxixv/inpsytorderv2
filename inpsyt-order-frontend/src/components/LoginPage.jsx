@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -10,102 +9,238 @@ import {
   Alert,
   CircularProgress,
   CssBaseline,
-  Paper, // Paper 컴포넌트 import
+  Paper,
+  Grid,
+  IconButton
 } from '@mui/material';
+import { ArrowBack as ArrowBackIcon, Dialpad as DialpadIcon, Person as PersonIcon, Shield as ShieldIcon, LocalShipping as ShippingIcon, Storefront as StoreIcon } from '@mui/icons-material';
+
+const ROLE_LABELS = {
+  'master': { label: '마스터', icon: <ShieldIcon fontSize="large" sx={{ mb: 1 }} /> },
+  'onsite': { label: '현장 마케팅', icon: <StoreIcon fontSize="large" sx={{ mb: 1 }} /> },
+  'fulfillment': { label: '출고', icon: <ShippingIcon fontSize="large" sx={{ mb: 1 }} /> }
+};
 
 const LoginPage = () => {
-  const [email, setEmail] = useState('');
+  const [profiles, setProfiles] = useState([]);
+  const [loadingProfiles, setLoadingProfiles] = useState(true);
+  const [selectedRole, setSelectedRole] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [password, setPassword] = useState('');
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      try {
+        const { data, error } = await supabase.from('user_profiles').select('*');
+        if (error) throw error;
+        setProfiles(data || []);
+      } catch (err) {
+        console.error('Error fetching user profiles:', err);
+        setError('사용자 목록을 불러오지 못했습니다. 관리자에게 문의하세요.');
+      } finally {
+        setLoadingProfiles(false);
+      }
+    };
+    fetchProfiles();
+  }, []);
+
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (!selectedUser || !password) return;
+    
     setLoading(true);
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: selectedUser.email,
         password,
       });
 
-      if (error) throw error;
+      if (signInError) throw signInError;
+
+      // Log the auth action using edge function
+      await supabase.functions.invoke('log-auth', {
+        body: { action: 'login' },
+        headers: {
+          Authorization: `Bearer ${data.session.access_token}`
+        }
+      });
 
       navigate('/admin');
     } catch (error) {
-      setError(error.message);
+      if (error.message.includes('Invalid login credentials')) {
+        setError('비밀번호(PIN)가 일치하지 않습니다.');
+      } else {
+        setError(error.message);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const handleBack = () => {
+    if (selectedUser) {
+      setSelectedUser(null);
+      setPassword('');
+      setError(null);
+    } else if (selectedRole) {
+      setSelectedRole(null);
+      setError(null);
+    }
+  };
+
+  const availableRoles = ['master', 'onsite', 'fulfillment'];
+  const usersForRole = profiles.filter(p => p.role === selectedRole);
+
   return (
     <Box
       sx={{
         minHeight: '100vh',
-        backgroundColor: 'background.default', // 테마 배경색 사용
+        backgroundColor: 'background.default',
         display: 'flex',
-        alignItems: 'center', // 수직 중앙 정렬
-        justifyContent: 'center', // 수평 중앙 정렬
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
       <CssBaseline />
-      <Box 
+      <Paper 
+        elevation={3}
         sx={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           width: '100%',
-          maxWidth: 360, // 너비 소폭 축소
-          p: 2,
+          maxWidth: 420,
+          p: 4,
+          borderRadius: 4,
+          position: 'relative'
         }}
       >
-        <img src="/LOGO.svg" alt="logo" style={{ height: 40, marginBottom: '32px' }} />
-        <Typography component="h1" variant="h5" sx={{ fontWeight: 'bold', mb: 4 }}>
-          관리자 로그인
-        </Typography>
-        <Box component="form" noValidate onSubmit={handleLogin} sx={{ width: '100%' }}>
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="email"
-            label="이메일 주소"
-            name="email"
-            autoComplete="email"
-            autoFocus
-            variant="standard" // 밑줄 스타일
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            name="password"
-            label="비밀번호"
-            type="password"
-            id="password"
-            autoComplete="current-password"
-            variant="standard" // 밑줄 스타일
-            sx={{ mt: 3 }}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            sx={{ mt: 6, mb: 2, py: '12px' }} // 버튼 높이 소폭 조정
-            disabled={loading}
+        {(selectedRole || selectedUser) && (
+          <IconButton 
+            onClick={handleBack} 
+            sx={{ position: 'absolute', left: 16, top: 16 }}
+            aria-label="뒤로가기"
           >
-            {loading ? <CircularProgress size={24} color="inherit" /> : '로그인'}
-          </Button>
-          {error && <Alert severity="error" sx={{ mt: 2, width: '100%' }}>{error}</Alert>}
-        </Box>
-      </Box>
+            <ArrowBackIcon />
+          </IconButton>
+        )}
+
+        <img src="/LOGO.svg" alt="logo" style={{ height: 40, marginBottom: '32px', marginTop: '8px' }} />
+        
+        <Typography component="h1" variant="h6" sx={{ fontWeight: 'bold', mb: 4, color: 'text.primary' }}>
+          {selectedUser ? `${selectedUser.name} 님, 환영합니다` : selectedRole ? `${ROLE_LABELS[selectedRole]?.label} 선택` : '역할을 시선택해주세요'}
+        </Typography>
+
+        {error && <Alert severity="error" sx={{ mb: 3, width: '100%' }}>{error}</Alert>}
+
+        {loadingProfiles ? (
+          <CircularProgress sx={{ my: 4 }} />
+        ) : !selectedRole ? (
+          /* STEP 1: 역할 선택 */
+          <Grid container spacing={2} sx={{ width: '100%' }}>
+            {availableRoles.map(role => (
+              <Grid item xs={12} key={role}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  size="large"
+                  onClick={() => setSelectedRole(role)}
+                  sx={{ 
+                    py: 2, 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    textTransform: 'none',
+                    borderColor: 'divider',
+                    color: 'text.secondary',
+                    '&:hover': {
+                      borderColor: 'primary.main',
+                      color: 'primary.main',
+                      bgcolor: 'primary.50'
+                    }
+                  }}
+                >
+                  {ROLE_LABELS[role]?.icon}
+                  <Typography variant="subtitle1" fontWeight="bold">{ROLE_LABELS[role]?.label}</Typography>
+                </Button>
+              </Grid>
+            ))}
+          </Grid>
+        ) : !selectedUser ? (
+          /* STEP 2: 담당자(이름) 선택 */
+          <Grid container spacing={2} sx={{ width: '100%' }}>
+            {usersForRole.length === 0 ? (
+              <Grid item xs={12}>
+                <Alert severity="info" sx={{ width: '100%' }}>등록된 담당자가 없습니다.</Alert>
+              </Grid>
+            ) : (
+              usersForRole.map(user => (
+                <Grid item xs={12} key={user.id}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    size="large"
+                    color="primary"
+                    onClick={() => setSelectedUser(user)}
+                    sx={{ py: 1.5, fontSize: '1.1rem', fontWeight: 600 }}
+                    startIcon={<PersonIcon />}
+                  >
+                    {user.name}
+                  </Button>
+                </Grid>
+              ))
+            )}
+          </Grid>
+        ) : (
+          /* STEP 3: 비밀번호(PIN) 입력 */
+          <Box component="form" noValidate onSubmit={handleLogin} sx={{ width: '100%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, color: 'text.secondary' }}>
+              <DialpadIcon sx={{ mr: 1 }} />
+              <Typography variant="body2">비밀번호(PIN)를 입력하세요</Typography>
+            </Box>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="password"
+              placeholder="••••••"
+              type="password"
+              id="password"
+              autoComplete="current-password"
+              autoFocus
+              variant="outlined"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              sx={{ 
+                mb: 3, 
+                '& .MuiOutlinedInput-root': { 
+                  fontSize: '1.5rem', 
+                  letterSpacing: '0.5em',
+                  textAlign: 'center'
+                },
+                '& input': { textAlign: 'center' }
+              }}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              size="large"
+              sx={{ py: 1.5, fontSize: '1.1rem', fontWeight: 600 }}
+              disabled={loading || !password}
+            >
+              {loading ? <CircularProgress size={24} color="inherit" /> : '로그인'}
+            </Button>
+          </Box>
+        )}
+      </Paper>
     </Box>
   );
 };

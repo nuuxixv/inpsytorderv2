@@ -229,7 +229,7 @@ const EventManagementPage = () => {
   };
 
   const handleCopyUrl = (slug) => {
-    const url = `${window.location.origin}/order/${slug}`;
+    const url = `${window.location.origin}/order?events=${slug}`;
     navigator.clipboard.writeText(url);
     addNotification('주문 URL이 클립보드에 복사되었습니다.', 'success');
   };

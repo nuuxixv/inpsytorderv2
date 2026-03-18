@@ -268,6 +268,84 @@ const FieldReportSection = ({ eventId, eventName, revenueData }) => {
 };
 
 
+// ─── Audit Log Section (Master Only) ───
+const AuditLogSection = () => {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [profilesMap, setProfilesMap] = useState({});
+
+  const fetchLogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Fetch latest 20 logs
+      const { data: logData, error: logError } = await supabase
+        .from('admin_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(20);
+        
+      if (logError) throw logError;
+
+      // Fetch user profiles for mapping
+      const { data: profiles, error: profError } = await supabase
+        .from('user_profiles')
+        .select('id, name, email');
+        
+      if (!profError && profiles) {
+        const pMap = {};
+        profiles.forEach(p => pMap[p.id] = p);
+        setProfilesMap(pMap);
+      }
+
+      setLogs(logData || []);
+    } catch (e) {
+      console.error('Failed to fetch admin logs', e);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>시스템 접속 기록 (최근 20건)</Typography>
+        <IconButton size="small" onClick={fetchLogs}><RefreshIcon sx={{ fontSize: 18 }} /></IconButton>
+      </Box>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress size={20} /></Box>
+      ) : logs.length === 0 ? (
+        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>기록이 없습니다.</Typography>
+      ) : (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {logs.map(log => {
+            const profile = profilesMap[log.user_id] || {};
+            const isLogin = log.action === 'login';
+            return (
+              <Box key={log.id} sx={{ p: 1.5, bgcolor: '#FAFBFC', borderRadius: 2, border: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                    <Chip label={isLogin ? '로그인' : '로그아웃'} size="small" color={isLogin ? 'success' : 'default'} sx={{ height: 20, fontSize: '0.65rem' }} />
+                    <Typography variant="caption" sx={{ fontWeight: 800 }}>{profile.name || '알 수 없음'} ({profile.email || log.user_id})</Typography>
+                    <Chip label={log.role} size="small" variant="outlined" sx={{ height: 18, fontSize: '0.6rem' }} />
+                  </Box>
+                  <Typography variant="caption" color="text.secondary">IP: {log.ip_address}</Typography>
+                </Box>
+                <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                  {format(new Date(log.created_at), 'MM/dd HH:mm:ss')}
+                </Typography>
+              </Box>
+            );
+          })}
+        </Box>
+      )}
+    </Box>
+  );
+};
+
+
 // ═══════════════════════════════════════
 // ─── MAIN DASHBOARD ───
 // ═══════════════════════════════════════
@@ -528,6 +606,7 @@ const DashboardPage = () => {
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
       ) : dashboardData && (
+        <>
         <Grid container spacing={3}>
           {/* ─── Row 1: Revenue Metrics (Unified Bento Row) ─── */}
           <Grid size={{ xs: 12 }}>
@@ -636,6 +715,19 @@ const DashboardPage = () => {
             </Card>
           </Grid>
         </Grid>
+
+        {hasPermission('master') && (
+          <Grid container spacing={3} sx={{ mt: 0 }}>
+            <Grid size={{ xs: 12 }}>
+              <Card sx={{ borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                <CardContent>
+                  <AuditLogSection />
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        )}
+        </>
       )}
 
       {/* ─── Order Detail Modal ─── */}

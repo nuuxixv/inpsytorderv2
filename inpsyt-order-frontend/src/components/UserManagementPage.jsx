@@ -54,20 +54,18 @@ const UserManagementPage = () => {
   const [error, setError] = useState(null);
   const [openInviteModal, setOpenInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteName, setInviteName] = useState('');
+  const [inviteRole, setInviteRole] = useState('onsite');
   const [openMemoModal, setOpenMemoModal] = useState(false);
   const [currentEditingUser, setCurrentEditingUser] = useState(null);
   const [editedMemo, setEditedMemo] = useState('');
   const [openPermissionsModal, setOpenPermissionsModal] = useState(false);
-  const [currentPermissions, setCurrentPermissions] = useState([]);
+  const [currentRole, setCurrentRole] = useState('');
 
-  const allPermissions = [
-    { key: 'orders:view', label: '주문내역 보기', icon: '📋' },
-    { key: 'orders:edit', label: '주문내역 편집', icon: '✏️' },
-    { key: 'products:view', label: '상품목록 보기', icon: '📦' },
-    { key: 'products:edit', label: '상품목록 편집', icon: '🔧' },
-    { key: 'events:view', label: '학회목록 보기', icon: '🎯' },
-    { key: 'events:edit', label: '학회목록 편집', icon: '⚙️' },
-    { key: 'users:manage', label: '사용자 관리', icon: '👥' },
+  const availableRoles = [
+    { key: 'master', label: '마스터' },
+    { key: 'onsite', label: '현장 마케팅' },
+    { key: 'fulfillment', label: '출고' }
   ];
 
   const fetchUsers = useCallback(async () => {
@@ -103,30 +101,30 @@ const UserManagementPage = () => {
     }
   }, [user, hasPermission, fetchUsers]);
 
-  const handlePermissionsChange = async (userId, newPermissions) => {
+  const handleRoleChange = async (userId, newRole) => {
     if (!hasPermission('users:manage')) {
       addNotification('권한이 없습니다.', 'error');
       return;
     }
     const isMasterUser = users.find(u => u.id === userId)?.role === 'master';
-    if (isMasterUser && userId === user.id && !newPermissions.includes('master')) {
+    if (isMasterUser && userId === user.id && newRole !== 'master') {
       addNotification('자신의 master 권한을 변경할 수 없습니다.', 'warning');
       return;
     }
 
     try {
-      const { data, error: invokeError } = await supabase.functions.invoke('update-user-permissions', {
-        body: { userId, newPermissions },
+      const { data, error: invokeError } = await supabase.functions.invoke('update-user-role', {
+        body: { userId, newRole },
       });
 
       if (invokeError) throw invokeError;
       if (data?.error) throw new Error(data.error);
 
-      addNotification('사용자 권한이 업데이트되었습니다.', 'success');
+      addNotification('사용자 역할이 업데이트되었습니다.', 'success');
       fetchUsers();
     } catch (err) {
-      console.error('Error updating permissions:', err);
-      addNotification(`권한 업데이트 실패: ${err.message}`, 'error');
+      console.error('Error updating role:', err);
+      addNotification(`역할 업데이트 실패: ${err.message}`, 'error');
     }
   };
 
@@ -135,14 +133,14 @@ const UserManagementPage = () => {
       addNotification('권한이 없습니다.', 'error');
       return;
     }
-    if (!inviteEmail) {
-      addNotification('이메일을 입력해주세요.', 'warning');
+    if (!inviteEmail || !inviteName) {
+      addNotification('이메일과 이름을 모두 입력해주세요.', 'warning');
       return;
     }
 
     try {
       const { data, error: invokeError } = await supabase.functions.invoke('invite-user', {
-        body: { email: inviteEmail },
+        body: { email: inviteEmail, name: inviteName, role: inviteRole },
       });
 
       if (invokeError) throw invokeError;
@@ -222,29 +220,16 @@ const UserManagementPage = () => {
 
   const handleOpenPermissionsModal = (userToEdit) => {
     setCurrentEditingUser(userToEdit);
-    if (userToEdit.role === 'master') {
-      setCurrentPermissions(allPermissions.map(p => p.key));
-    } else {
-      setCurrentPermissions(userToEdit.permissions || []);
-    }
+    setCurrentRole(userToEdit.role || 'onsite');
     setOpenPermissionsModal(true);
-  };
-
-  const handleTogglePermission = (permissionKey) => {
-    setCurrentPermissions(prev =>
-      prev.includes(permissionKey)
-        ? prev.filter(p => p !== permissionKey)
-        : [...prev, permissionKey]
-    );
   };
 
   const handleSavePermissions = async () => {
     if (!currentEditingUser) return;
-    const newPermissions = currentEditingUser.role === 'master' ? ['master'] : currentPermissions;
-    await handlePermissionsChange(currentEditingUser.id, newPermissions);
+    await handleRoleChange(currentEditingUser.id, currentRole);
     setOpenPermissionsModal(false);
     setCurrentEditingUser(null);
-    setCurrentPermissions([]);
+    setCurrentRole('');
   };
 
   const getInitials = (email) => {
@@ -374,7 +359,6 @@ const UserManagementPage = () => {
               <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
                 <TableCell sx={{ fontWeight: 'bold' }}>사용자</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>역할</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>권한</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>메모</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>생성일</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>마지막 로그인</TableCell>
@@ -412,43 +396,26 @@ const UserManagementPage = () => {
                         </Avatar>
                         <Box>
                           <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {u.name || '이름 없음'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
                             {u.email}
                           </Typography>
                           {u.id === user.id && (
-                            <Chip label="나" size="small" color="primary" sx={{ mt: 0.5 }} />
+                            <Chip label="나" size="small" color="primary" sx={{ mt: 0.5, ml: 1 }} />
                           )}
                         </Box>
                       </Box>
                     </TableCell>
                     <TableCell>
                       {u.role === 'master' ? (
-                        <Chip 
-                          icon={<ShieldIcon />}
-                          label="Master" 
-                          size="small" 
-                          color="warning"
-                        />
+                        <Chip icon={<ShieldIcon />} label="마스터" size="small" color="warning" />
+                      ) : u.role === 'onsite' ? (
+                        <Chip label="현장 마케팅" size="small" color="info" />
+                      ) : u.role === 'fulfillment' ? (
+                        <Chip label="출고" size="small" color="secondary" />
                       ) : (
-                        <Chip label="일반" size="small" variant="outlined" />
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {u.role === 'master' ? (
-                        <Typography variant="body2" color="text.secondary">
-                          모든 권한
-                        </Typography>
-                      ) : (
-                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                          {u.permissions?.slice(0, 2).map((perm, idx) => (
-                            <Chip key={idx} label={perm.split(':')[0]} size="small" variant="outlined" />
-                          ))}
-                          {u.permissions?.length > 2 && (
-                            <Chip label={`+${u.permissions.length - 2}`} size="small" />
-                          )}
-                          {(!u.permissions || u.permissions.length === 0) && (
-                            <Typography variant="body2" color="text.secondary">없음</Typography>
-                          )}
-                        </Box>
+                        <Chip label={u.role || '알 수 없음'} size="small" variant="outlined" />
                       )}
                     </TableCell>
                     <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -531,7 +498,7 @@ const UserManagementPage = () => {
       {/* Invite User Dialog */}
       <Dialog open={openInviteModal} onClose={() => setOpenInviteModal(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 'bold' }}>사용자 초대</DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
+        <DialogContent sx={{ pt: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
           <TextField
             autoFocus
             label="이메일 주소"
@@ -541,6 +508,28 @@ const UserManagementPage = () => {
             onChange={(e) => setInviteEmail(e.target.value)}
             placeholder="user@example.com"
           />
+          <TextField
+            label="이름"
+            type="text"
+            fullWidth
+            value={inviteName}
+            onChange={(e) => setInviteName(e.target.value)}
+            placeholder="홍길동"
+          />
+          <TextField
+            select
+            label="역할"
+            fullWidth
+            value={inviteRole}
+            onChange={(e) => setInviteRole(e.target.value)}
+            SelectProps={{ native: true }}
+          >
+            {availableRoles.map((role) => (
+              <option key={role.key} value={role.key}>
+                {role.label}
+              </option>
+            ))}
+          </TextField>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setOpenInviteModal(false)}>취소</Button>
@@ -570,11 +559,11 @@ const UserManagementPage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Permissions Dialog */}
+      {/* Permissions/Role Dialog */}
       <Dialog open={openPermissionsModal} onClose={() => setOpenPermissionsModal(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 'bold' }}>사용자 권한 관리</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 'bold' }}>사용자 역할 관리</DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
-          {currentEditingUser && currentEditingUser.role === 'master' ? (
+          {currentEditingUser && currentEditingUser.role === 'master' && currentEditingUser.id === user.id ? (
             <Box sx={{ 
               p: 3, 
               bgcolor: alpha(theme.palette.warning.main, 0.1),
@@ -582,33 +571,24 @@ const UserManagementPage = () => {
               border: `1px solid ${alpha(theme.palette.warning.main, 0.3)}`
             }}>
               <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                🛡️ Master 사용자는 모든 권한을 가집니다.
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                권한을 변경할 수 없습니다.
+                🛡️ 본인의 Master 권한은 해제할 수 없습니다.
               </Typography>
             </Box>
           ) : (
-            <FormGroup>
-              {allPermissions.map(p => (
-                <FormControlLabel
-                  key={p.key}
-                  control={
-                    <Checkbox
-                      checked={currentPermissions.includes(p.key)}
-                      onChange={() => handleTogglePermission(p.key)}
-                    />
-                  }
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <span>{p.icon}</span>
-                      <span>{p.label}</span>
-                    </Box>
-                  }
-                  sx={{ py: 0.5 }}
-                />
+            <TextField
+              select
+              label="역할 선택"
+              fullWidth
+              value={currentRole}
+              onChange={(e) => setCurrentRole(e.target.value)}
+              SelectProps={{ native: true }}
+            >
+              {availableRoles.map((role) => (
+                <option key={role.key} value={role.key}>
+                  {role.label}
+                </option>
               ))}
-            </FormGroup>
+            </TextField>
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>

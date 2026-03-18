@@ -1,20 +1,26 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, IconButton, Popover, List, ListItem, ListItemText, Divider, Avatar, Menu, MenuItem, alpha } from '@mui/material';
+import { Box, Typography, IconButton, Popover, List, ListItem, ListItemText, Divider, Avatar, Menu, MenuItem, alpha, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import MenuIcon from '@mui/icons-material/Menu';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useNotification } from '../hooks/useNotification';
 import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../supabaseClient';
 
 const AdminHeader = ({ onMenuToggle }) => {
   const { user, logout } = useAuth();
-  const { notifications } = useNotification();
+  const { addNotification, notifications } = useNotification();
   const navigate = useNavigate();
 
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
   const [userAnchorEl, setUserAnchorEl] = useState(null);
+  
+  // Password change modal states
+  const [openPasswordModal, setOpenPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const handleNotificationClick = (event) => setNotificationAnchorEl(event.currentTarget);
   const handleNotificationClose = () => setNotificationAnchorEl(null);
@@ -26,6 +32,35 @@ const AdminHeader = ({ onMenuToggle }) => {
     handleUserMenuClose();
     await logout();
     navigate('/login');
+  };
+
+  const handleOpenPasswordModal = () => {
+    handleUserMenuClose();
+    setNewPassword('');
+    setConfirmPassword('');
+    setOpenPasswordModal(true);
+  };
+
+  const handlePasswordChange = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      addNotification('비밀번호(PIN)는 최소 6자리 이상이어야 합니다.', 'warning');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      addNotification('비밀번호가 일치하지 않습니다.', 'warning');
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      
+      addNotification('비밀번호가 성공적으로 변경되었습니다.', 'success');
+      setOpenPasswordModal(false);
+    } catch (err) {
+      console.error('Password change error:', err);
+      addNotification(`비밀번호 변경 실패: ${err.message}`, 'error');
+    }
   };
 
   const openNotification = Boolean(notificationAnchorEl);
@@ -137,12 +172,39 @@ const AdminHeader = ({ onMenuToggle }) => {
         >
           <Box sx={{ px: 2.5, py: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>{user?.email}</Typography>
-            <Typography variant="caption" color="text.secondary">관리자</Typography>
+            <Typography variant="caption" color="text.secondary">사용자 계정</Typography>
           </Box>
           <Divider sx={{ my: 0.5 }} />
+          <MenuItem onClick={handleOpenPasswordModal} sx={{ mx: 1, borderRadius: 1, fontSize: '0.9rem' }}>비밀번호 변경</MenuItem>
           <MenuItem onClick={handleLogout} sx={{ mx: 1, borderRadius: 1, fontSize: '0.9rem', color: 'error.main' }}>로그아웃</MenuItem>
         </Menu>
       </Box>
+
+      {/* Password Change Dialog */}
+      <Dialog open={openPasswordModal} onClose={() => setOpenPasswordModal(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 'bold' }}>비밀번호(PIN) 변경</DialogTitle>
+        <DialogContent sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <TextField
+            autoFocus
+            label="새 비밀번호 (최소 6자리 숫자/영문)"
+            type="password"
+            fullWidth
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
+          <TextField
+            label="새 비밀번호 확인"
+            type="password"
+            fullWidth
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setOpenPasswordModal(false)}>취소</Button>
+          <Button onClick={handlePasswordChange} variant="contained">변경하기</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
