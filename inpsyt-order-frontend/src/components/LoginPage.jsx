@@ -134,7 +134,7 @@ const LoginPage = () => {
         <img src="/LOGO.svg" alt="logo" style={{ height: 40, marginBottom: '32px', marginTop: '8px' }} />
         
         <Typography component="h1" variant="h6" sx={{ fontWeight: 'bold', mb: 4, color: 'text.primary' }}>
-          {selectedUser ? `${selectedUser.name} 님, 환영합니다` : selectedRole ? `${ROLE_LABELS[selectedRole]?.label} 선택` : '역할을 시선택해주세요'}
+          {selectedUser ? `${selectedUser.name} 님, 환영합니다` : selectedRole ? `${ROLE_LABELS[selectedRole]?.label} 선택` : '역할을 선택해주세요'}
         </Typography>
 
         {error && <Alert severity="error" sx={{ mb: 3, width: '100%' }}>{error}</Alert>}

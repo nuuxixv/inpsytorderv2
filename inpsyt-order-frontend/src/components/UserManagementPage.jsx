@@ -53,8 +53,8 @@ const UserManagementPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [openInviteModal, setOpenInviteModal] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
   const [inviteName, setInviteName] = useState('');
+  const [invitePIN, setInvitePIN] = useState('');
   const [inviteRole, setInviteRole] = useState('onsite');
   const [openMemoModal, setOpenMemoModal] = useState(false);
   const [currentEditingUser, setCurrentEditingUser] = useState(null);
@@ -65,7 +65,8 @@ const UserManagementPage = () => {
   const availableRoles = [
     { key: 'master', label: '마스터' },
     { key: 'onsite', label: '현장 마케팅' },
-    { key: 'fulfillment', label: '출고' }
+    { key: 'fulfillment_book', label: '출고 (도서)' },
+    { key: 'fulfillment_test', label: '출고 (검사)' }
   ];
 
   const fetchUsers = useCallback(async () => {
@@ -133,26 +134,40 @@ const UserManagementPage = () => {
       addNotification('권한이 없습니다.', 'error');
       return;
     }
-    if (!inviteEmail || !inviteName) {
-      addNotification('이메일과 이름을 모두 입력해주세요.', 'warning');
+    if (!inviteName || !invitePIN) {
+      addNotification('이름과 PIN(비밀번호)을 모두 입력해주세요.', 'warning');
+      return;
+    }
+    if (invitePIN.length < 6) {
+      addNotification('PIN은 최소 6자리여야 합니다.', 'warning');
       return;
     }
 
+    // Email is mandatory in Supabase Auth, so we generate a unique internal one
+    const randomSuffix = Math.random().toString(36).substring(2, 7);
+    const internalEmail = `${inviteName.replace(/\s+/g, '').toLowerCase()}_${randomSuffix}@inpsyt.internal`;
+
     try {
       const { data, error: invokeError } = await supabase.functions.invoke('invite-user', {
-        body: { email: inviteEmail, name: inviteName, role: inviteRole },
+        body: { email: internalEmail, name: inviteName, role: inviteRole, password: invitePIN },
       });
 
-      if (invokeError) throw invokeError;
+      if (invokeError) {
+        // FunctionsHttpError often contains the actual error message in the details or response
+        const errorMsg = invokeError.context?.statusText || invokeError.message;
+        throw new Error(errorMsg);
+      }
       if (data?.error) throw new Error(data.error);
 
-      addNotification('초대 이메일이 발송되었습니다.', 'success');
+      addNotification('사용자가 성공적으로 생성되었습니다.', 'success');
       setOpenInviteModal(false);
       setInviteEmail('');
+      setInviteName('');
+      setInvitePIN('');
       fetchUsers();
     } catch (err) {
-      console.error('Error inviting user:', err);
-      addNotification(`사용자 초대 실패: ${err.message}`, 'error');
+      console.error('Error creating user:', err);
+      addNotification(`사용자 생성 실패: ${err.message}`, 'error');
     }
   };
 
@@ -282,7 +297,7 @@ const UserManagementPage = () => {
             startIcon={<PersonAddIcon />}
             onClick={() => setOpenInviteModal(true)}
           >
-            사용자 초대
+            사용자 추가
           </Button>
         </Box>
 
@@ -395,11 +410,11 @@ const UserManagementPage = () => {
                           {getInitials(u.email)}
                         </Avatar>
                         <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
                             {u.name || '이름 없음'}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {u.email}
+                          <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.5 }}>
+                            내부 ID: {u.role === 'master' ? u.email : u.email.split('@')[0]}
                           </Typography>
                           {u.id === user.id && (
                             <Chip label="나" size="small" color="primary" sx={{ mt: 0.5, ml: 1 }} />
@@ -412,8 +427,10 @@ const UserManagementPage = () => {
                         <Chip icon={<ShieldIcon />} label="마스터" size="small" color="warning" />
                       ) : u.role === 'onsite' ? (
                         <Chip label="현장 마케팅" size="small" color="info" />
-                      ) : u.role === 'fulfillment' ? (
-                        <Chip label="출고" size="small" color="secondary" />
+                      ) : u.role === 'fulfillment_book' ? (
+                        <Chip label="출고 (도서)" size="small" color="secondary" />
+                      ) : u.role === 'fulfillment_test' ? (
+                        <Chip label="출고 (검사)" size="small" color="success" />
                       ) : (
                         <Chip label={u.role || '알 수 없음'} size="small" variant="outlined" />
                       )}
@@ -495,45 +512,50 @@ const UserManagementPage = () => {
         </TableContainer>
       </Card>
 
-      {/* Invite User Dialog */}
-      <Dialog open={openInviteModal} onClose={() => setOpenInviteModal(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 'bold' }}>사용자 초대</DialogTitle>
-        <DialogContent sx={{ pt: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {/* Add User Dialog */}
+      <Dialog open={openInviteModal} onClose={() => setOpenInviteModal(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 'bold' }}>새 사용자 추가</DialogTitle>
+        <DialogContent sx={{ pt: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+          <Box>
+            <Typography variant="caption" color="primary" sx={{ fontWeight: 'bold', mb: 0.5, display: 'block' }}>역할 선택</Typography>
+            <TextField
+              select
+              fullWidth
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value)}
+              SelectProps={{ native: true }}
+            >
+              {availableRoles.map((role) => (
+                <option key={role.key} value={role.key}>
+                  {role.label}
+                </option>
+              ))}
+            </TextField>
+          </Box>
           <TextField
             autoFocus
-            label="이메일 주소"
-            type="email"
-            fullWidth
-            value={inviteEmail}
-            onChange={(e) => setInviteEmail(e.target.value)}
-            placeholder="user@example.com"
-          />
-          <TextField
             label="이름"
             type="text"
             fullWidth
+            required
             value={inviteName}
             onChange={(e) => setInviteName(e.target.value)}
-            placeholder="홍길동"
+            placeholder="예: 홍길동"
           />
           <TextField
-            select
-            label="역할"
+            label="성인증 PIN (비밀번호)"
+            type="password"
             fullWidth
-            value={inviteRole}
-            onChange={(e) => setInviteRole(e.target.value)}
-            SelectProps={{ native: true }}
-          >
-            {availableRoles.map((role) => (
-              <option key={role.key} value={role.key}>
-                {role.label}
-              </option>
-            ))}
-          </TextField>
+            required
+            value={invitePIN}
+            onChange={(e) => setInvitePIN(e.target.value)}
+            placeholder="숫자 6자리 권장"
+            helperText="사용자가 로그인할 때 사용할 비밀번호입니다."
+          />
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
+        <DialogActions sx={{ p: 2.5 }}>
           <Button onClick={() => setOpenInviteModal(false)}>취소</Button>
-          <Button onClick={handleInviteUser} variant="contained">초대</Button>
+          <Button onClick={handleInviteUser} variant="contained" sx={{ px: 4 }}>생성하기</Button>
         </DialogActions>
       </Dialog>
 
