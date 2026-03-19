@@ -18,6 +18,10 @@ import {
   TextField,
   Tooltip,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -26,28 +30,17 @@ import {
   Psychology as TestIcon,
   ShoppingCart as CartIcon,
   Receipt as ReceiptIcon,
-  EmojiEvents as TrophyIcon,
   Edit as EditIcon,
-  Save as SaveIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
 } from '@mui/icons-material';
 import { supabase } from '../supabaseClient';
-import { formatISO, startOfToday, endOfToday, format, subYears } from 'date-fns';
+import { formatISO, startOfToday, format } from 'date-fns';
 import OrderDetailModal from './OrderDetailModal';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import { useNavigate } from 'react-router-dom';
-
-// ─── Status Maps ───
-const statusToKorean = {
-  pending: '결제대기', paid: '결제완료', preparing: '상품준비중',
-  shipped: '배송중', delivered: '배송완료', cancelled: '주문취소', refunded: '결제취소',
-};
-const statusColors = {
-  pending: '#F59E0B', paid: '#10B981', preparing: '#3B82F6',
-  shipped: '#6366F1', delivered: '#22C55E', cancelled: '#EF4444', refunded: '#F43F5E',
-};
+import { STATUS_TO_KOREAN as statusToKorean, STATUS_COLORS as statusColors } from '../constants/orderStatus';
 
 // ─── Compact KPI Item (For Bento Row 1) ───
 const CompactKpi = ({ title, value, icon: Icon, color, yoyPct }) => {
@@ -74,9 +67,9 @@ const CompactKpi = ({ title, value, icon: Icon, color, yoyPct }) => {
 };
 
 // ─── Status Bar ───
-const StatusBar = ({ statusCounts, totalOrders }) => {
+const StatusBar = ({ statusCounts, totalOrders, onStatusClick }) => {
   if (totalOrders === 0) return null;
-  const orderedStatuses = ['pending', 'paid', 'preparing', 'shipped', 'delivered', 'cancelled', 'refunded'];
+  const orderedStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'refunded'];
   const segments = orderedStatuses
     .filter(s => (statusCounts[s] || 0) > 0)
     .map(s => ({ key: s, count: statusCounts[s], pct: (statusCounts[s] / totalOrders) * 100 }));
@@ -84,15 +77,20 @@ const StatusBar = ({ statusCounts, totalOrders }) => {
   return (
     <Box>
       <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>주문 처리 현황</Typography>
-      <Box sx={{ display: 'flex', width: '100%', borderRadius: 2, overflow: 'hidden', height: 28, position: 'relative' }}>
+      <Box sx={{ display: 'flex', width: '100%', borderRadius: 2, overflow: 'hidden', height: 28 }}>
         {segments.map(seg => (
           <Tooltip key={seg.key} title={`${statusToKorean[seg.key]}: ${seg.count}건 (${seg.pct.toFixed(1)}%)`} arrow>
-            <Box sx={{
-              flex: seg.count, bgcolor: statusColors[seg.key], minWidth: 12,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'all 0.4s ease',
-            }}>
-              {seg.pct > 12 && (
+            <Box
+              onClick={() => onStatusClick?.(seg.key)}
+              sx={{
+                flex: seg.count, bgcolor: statusColors[seg.key], minWidth: 12,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: onStatusClick ? 'pointer' : 'default',
+                transition: 'opacity 0.2s',
+                '&:hover': onStatusClick ? { opacity: 0.8 } : {},
+              }}
+            >
+              {seg.pct > 5 && (
                 <Typography variant="caption" sx={{ color: '#fff', fontWeight: 700, fontSize: '0.65rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', px: 0.5 }}>
                   {seg.count}
                 </Typography>
@@ -101,9 +99,19 @@ const StatusBar = ({ statusCounts, totalOrders }) => {
           </Tooltip>
         ))}
       </Box>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 1.5 }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
         {segments.map(seg => (
-          <Box key={seg.key} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Box
+            key={seg.key}
+            onClick={() => onStatusClick?.(seg.key)}
+            sx={{
+              display: 'flex', alignItems: 'center', gap: 0.5,
+              cursor: onStatusClick ? 'pointer' : 'default',
+              px: 1, py: 0.5, borderRadius: 1,
+              '&:hover': onStatusClick ? { bgcolor: alpha(statusColors[seg.key], 0.08) } : {},
+              transition: 'background 0.15s',
+            }}
+          >
             <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: statusColors[seg.key] }} />
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
               {statusToKorean[seg.key]} {seg.count}
@@ -111,38 +119,79 @@ const StatusBar = ({ statusCounts, totalOrders }) => {
           </Box>
         ))}
       </Box>
+      {onStatusClick && (
+        <Typography variant="caption" sx={{ color: 'text.disabled', mt: 1, display: 'block', textAlign: 'right' }}>
+          상태 클릭 시 주문관리로 이동 →
+        </Typography>
+      )}
     </Box>
   );
 };
 
 // ─── Product Ranking Box ───
-const RankingBox = ({ title, icon: Icon, color, items }) => (
-  <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-      <Icon sx={{ fontSize: 20, color }} />
-      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{title}</Typography>
-    </Box>
-    <Box sx={{ flex: 1, bgcolor: alpha(color, 0.03), borderRadius: 2, p: 2, minWidth: 0 }}>
-      {items.length === 0 ? (
-        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>판매 내역 없음</Typography>
-      ) : (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-          {items.map((item, i) => (
-            <Box key={item.product_id} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, bg: '#fff', p: 1, borderRadius: 1, minWidth: 0 }}>
-               <Typography variant="caption" sx={{ fontWeight: 800, color: i < 3 ? color : 'text.disabled', minWidth: 16 }}>{i + 1}</Typography>
-               <Tooltip title={item.name} arrow placement="top">
-                 <Typography variant="body2" sx={{ flex: 1, fontWeight: i < 3 ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, cursor: 'pointer' }}>
-                   {item.name}
-                 </Typography>
-               </Tooltip>
-               <Chip label={`${item.totalQuantity}부`} size="small" sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700, bgcolor: i === 0 ? alpha(color, 0.15) : 'action.hover', color: i === 0 ? color : 'text.secondary', flexShrink: 0 }} />
-            </Box>
-          ))}
+const RankingBox = ({ title, icon: Icon, color, items }) => {
+  const [expanded, setExpanded] = React.useState(false);
+  const [sortBy, setSortBy] = React.useState('quantity'); // 'quantity' | 'amount'
+
+  const sorted = [...items].sort((a, b) =>
+    sortBy === 'amount' ? (b.totalAmount || 0) - (a.totalAmount || 0) : b.totalQuantity - a.totalQuantity
+  );
+  const displayed = expanded ? sorted : sorted.slice(0, 5);
+
+  return (
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+        <Icon sx={{ fontSize: 20, color }} />
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, flex: 1 }}>{title}</Typography>
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <Chip
+            label="수량순"
+            size="small"
+            onClick={() => setSortBy('quantity')}
+            sx={{ height: 20, fontSize: '0.65rem', cursor: 'pointer', fontWeight: sortBy === 'quantity' ? 700 : 400, bgcolor: sortBy === 'quantity' ? alpha(color, 0.15) : 'action.hover', color: sortBy === 'quantity' ? color : 'text.secondary' }}
+          />
+          <Chip
+            label="금액순"
+            size="small"
+            onClick={() => setSortBy('amount')}
+            sx={{ height: 20, fontSize: '0.65rem', cursor: 'pointer', fontWeight: sortBy === 'amount' ? 700 : 400, bgcolor: sortBy === 'amount' ? alpha(color, 0.15) : 'action.hover', color: sortBy === 'amount' ? color : 'text.secondary' }}
+          />
         </Box>
+      </Box>
+      <Box sx={{ flex: 1, bgcolor: alpha(color, 0.03), borderRadius: 2, p: 2, minWidth: 0 }}>
+        {items.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>판매 내역 없음</Typography>
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+            {displayed.map((item, i) => (
+              <Box key={item.product_id} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1, borderRadius: 1, minWidth: 0 }}>
+                <Typography variant="caption" sx={{ fontWeight: 800, color: i < 3 ? color : 'text.disabled', minWidth: 16 }}>{i + 1}</Typography>
+                <Tooltip title={item.name} arrow placement="top">
+                  <Typography variant="body2" sx={{ flex: 1, fontWeight: i < 3 ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, cursor: 'pointer' }}>
+                    {item.name}
+                  </Typography>
+                </Tooltip>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25, flexShrink: 0 }}>
+                  <Chip label={`${item.totalQuantity}부`} size="small" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: i === 0 ? alpha(color, 0.15) : 'action.hover', color: i === 0 ? color : 'text.secondary' }} />
+                  {item.totalAmount > 0 && <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.6rem' }}>{(item.totalAmount).toLocaleString()}원</Typography>}
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        )}
+      </Box>
+      {items.length > 5 && (
+        <Button
+          size="small"
+          onClick={() => setExpanded(e => !e)}
+          sx={{ mt: 1, fontSize: '0.75rem', color: 'text.secondary' }}
+        >
+          {expanded ? '접기' : `전체 보기 (${items.length}개)`}
+        </Button>
       )}
     </Box>
-  </Box>
-);
+  );
+};
 
 // ─── Field Report Section ───
 const FieldReportSection = ({ eventId, eventName, revenueData }) => {
@@ -154,6 +203,7 @@ const FieldReportSection = ({ eventId, eventName, revenueData }) => {
   const [editAuthor, setEditAuthor] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const fetchReports = useCallback(async () => {
     // If it's a multi-event filter (like "Overall"), we don't save reports to a single event ID easily
@@ -190,9 +240,13 @@ const FieldReportSection = ({ eventId, eventName, revenueData }) => {
     setEditingId(report.id); setEditContent(report.content); setEditDayNumber(report.day_number || 1); setEditAuthor(report.author_name || ''); setIsEditing(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('삭제하시겠습니까?')) return;
-    await supabase.from('field_reports').delete().eq('id', id);
+  const handleDelete = (id) => {
+    setDeleteTarget(id);
+  };
+
+  const handleDeleteConfirm = async () => {
+    await supabase.from('field_reports').delete().eq('id', deleteTarget);
+    setDeleteTarget(null);
     fetchReports();
   };
 
@@ -220,7 +274,7 @@ const FieldReportSection = ({ eventId, eventName, revenueData }) => {
           <EditIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>현장 보고서</Typography>
         </Box>
-        {!isEditing && <Button size="small" startIcon={<AddIcon />} onClick={handleNew} variant="outlined" sx={{ borderRadius: 2 }}>새 보고</Button>}
+        {!isEditing && <Button size="small" startIcon={<AddIcon />} onClick={handleNew} variant="outlined" sx={{ borderRadius: 2 }}>보고서 작성</Button>}
       </Box>
 
       {isEditing && (
@@ -263,6 +317,16 @@ const FieldReportSection = ({ eventId, eventName, revenueData }) => {
           ))}
         </Box>
       )}
+      <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} maxWidth="xs">
+        <DialogTitle sx={{ fontWeight: 700 }}>보고서 삭제</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">이 보고서를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setDeleteTarget(null)}>취소</Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">삭제</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
@@ -365,7 +429,7 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { hasPermission } = useAuth();
-  const addNotification = useNotification();
+  const { addNotification } = useNotification();
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -446,7 +510,7 @@ const DashboardPage = () => {
   const fetchDataForEventIds = async (eventIds, targetEventName = '전체(합계)') => {
     if (!eventIds || eventIds.length === 0) {
       setDashboardData({
-        eventName: targetEventName, totalRevenue: 0, bookRevenue: 0, testRevenue: 0,
+        eventName: targetEventName, totalRevenue: 0, bookRevenue: 0, testRevenue: 0, shippingRevenue: 0,
         totalOrders: 0, statusCounts: {}, bookTop5: [], testTop5: [], recentOrders: []
       });
       return;
@@ -454,7 +518,7 @@ const DashboardPage = () => {
 
     // Split eventIds into chunks if there are too many, but usually it's fine for REST
     const [ordersRes, recentRes] = await Promise.all([
-      supabase.from('orders').select('id, final_payment, status, created_at, order_items(product_id, quantity, price_at_purchase)').in('event_id', eventIds),
+      supabase.from('orders').select('id, final_payment, delivery_fee, status, created_at, order_items(product_id, quantity, price_at_purchase)').in('event_id', eventIds),
       supabase.from('orders').select('*, events(name), order_items(*, products(*))').in('event_id', eventIds).order('created_at', { ascending: false }).limit(5),
     ]);
 
@@ -486,38 +550,46 @@ const DashboardPage = () => {
 
     const orders = ordersRes.data || [];
     const statusCounts = {};
-    let bookRevenue = 0, testRevenue = 0, totalRevenue = 0;
+    let bookRevenue = 0, testRevenue = 0, shippingRevenue = 0, totalRevenue = 0;
     const productSales = {};
 
     const todayStart = formatISO(startOfToday());
     let todayOrdersCount = 0;
+    const NON_REVENUE_STATUSES = ['cancelled', 'refunded'];
 
     orders.forEach(order => {
       statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
-      totalRevenue += order.final_payment || 0;
       if (order.created_at >= todayStart) todayOrdersCount++;
+
+      // 취소/환불 주문은 매출에서 제외
+      if (NON_REVENUE_STATUSES.includes(order.status)) return;
+
+      totalRevenue += order.final_payment || 0;
+      shippingRevenue += order.delivery_fee || 0;
 
       (order.order_items || []).forEach(item => {
         const prod = productsMap[item.product_id];
         if (!prod) return;
         const qty = item.quantity || 0;
-        const price = item.price_at_purchase || prod.list_price || 0;
+        // list_price 폴백 제거: price_at_purchase가 없으면 0으로 처리
+        const price = item.price_at_purchase || 0;
         const cat = (prod.category || '').toLowerCase();
-        
+
         if (cat.includes('도서') || cat.includes('book')) bookRevenue += price * qty;
         else if (cat.includes('검사') || cat.includes('test')) testRevenue += price * qty;
-        
-        if (!productSales[item.product_id]) productSales[item.product_id] = { product_id: item.product_id, name: prod.name, category: prod.category, totalQuantity: 0 };
+
+        if (!productSales[item.product_id]) productSales[item.product_id] = { product_id: item.product_id, name: prod.name, category: prod.category, totalQuantity: 0, totalAmount: 0 };
         productSales[item.product_id].totalQuantity += qty;
+        productSales[item.product_id].totalAmount += price * qty;
       });
     });
 
     const salesList = Object.values(productSales);
-    const bookTop5 = salesList.filter(p => (p.category || '').includes('도서') || (p.category || '').toLowerCase().includes('book')).sort((a, b) => b.totalQuantity - a.totalQuantity).slice(0, 5);
-    const testTop5 = salesList.filter(p => (p.category || '').includes('검사') || (p.category || '').toLowerCase().includes('test')).sort((a, b) => b.totalQuantity - a.totalQuantity).slice(0, 5);
+    const bookTop5 = salesList.filter(p => (p.category || '').includes('도서') || (p.category || '').toLowerCase().includes('book')).sort((a, b) => b.totalQuantity - a.totalQuantity);
+    const testTop5 = salesList.filter(p => (p.category || '').includes('검사') || (p.category || '').toLowerCase().includes('test')).sort((a, b) => b.totalQuantity - a.totalQuantity);
 
     setDashboardData({
-      eventName: targetEventName, totalRevenue, bookRevenue, testRevenue, yoyPct,
+      eventName: targetEventName, totalRevenue, bookRevenue, testRevenue, shippingRevenue, yoyPct,
       totalOrders: orders.length, statusCounts, bookTop5, testTop5, todayOrdersCount,
       recentOrders: recentRes.data || []
     });
@@ -563,7 +635,10 @@ const DashboardPage = () => {
     <Box sx={{ pb: 6 }}>
       {/* ─── Header & Hierarchy Filters ─── */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: 2, flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
-        <Typography variant="h5" sx={{ fontWeight: 800 }}>대시보드</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ReceiptIcon sx={{ color: 'primary.main', fontSize: '1.4rem' }} />
+          <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>대시보드</Typography>
+        </Box>
         <IconButton onClick={handleRefresh} disabled={refreshing || loading} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.08) }}>
           <RefreshIcon sx={{ animation: refreshing ? 'spin 1s linear infinite' : 'none', fontSize: 20 }} />
         </IconButton>
@@ -571,163 +646,149 @@ const DashboardPage = () => {
 
       <Card sx={{ mb: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.03)', borderRadius: 3 }}>
         <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <FormControl fullWidth size="small">
-                <InputLabel>연도 보기</InputLabel>
-                <Select value={selectedYear} label="연도 보기" onChange={e => setSelectedYear(e.target.value)}>
-                  <MenuItem value="all"><em>전체 연도</em></MenuItem>
-                  {years.map(y => <MenuItem key={y} value={y}>{y}년</MenuItem>)}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <FormControl fullWidth size="small">
-                <InputLabel>학회 필터 (태그)</InputLabel>
-                <Select value={selectedSociety} label="학회 필터 (태그)" onChange={e => setSelectedSociety(e.target.value)}>
-                  <MenuItem value="all"><em>모든 학회</em></MenuItem>
-                  {societies.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <FormControl fullWidth size="small">
-                <InputLabel>상세 행사</InputLabel>
-                <Select value={selectedEventId} label="상세 행사" onChange={e => setSelectedEventId(e.target.value)}>
-                  <MenuItem value="all"><em>{filteredEventsForDropdown.length > 0 ? '전체 내역 합산 (합계)' : '관련 행사 없음'}</em></MenuItem>
-                  {filteredEventsForDropdown.map(ev => <MenuItem key={ev.id} value={ev.id}>{ev.name} ({ev.start_date ? new Date(ev.start_date).toLocaleDateString() : '일자 미상'})</MenuItem>)}
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>연도 보기</InputLabel>
+              <Select value={selectedYear} label="연도 보기" onChange={e => setSelectedYear(e.target.value)}>
+                <MenuItem value="all"><em>전체 연도</em></MenuItem>
+                {years.map(y => <MenuItem key={y} value={y}>{y}년</MenuItem>)}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth size="small">
+              <InputLabel>학회</InputLabel>
+              <Select value={selectedSociety} label="학회" onChange={e => setSelectedSociety(e.target.value)}>
+                <MenuItem value="all"><em>모든 학회</em></MenuItem>
+                {societies.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth size="small">
+              <InputLabel>상세 행사</InputLabel>
+              <Select value={selectedEventId} label="상세 행사" onChange={e => setSelectedEventId(e.target.value)}>
+                <MenuItem value="all"><em>{filteredEventsForDropdown.length > 0 ? '전체 내역 합산 (합계)' : '관련 행사 없음'}</em></MenuItem>
+                {filteredEventsForDropdown.map(ev => <MenuItem key={ev.id} value={ev.id}>{ev.name} ({ev.start_date ? new Date(ev.start_date).toLocaleDateString() : '일자 미상'})</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Box>
         </CardContent>
       </Card>
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
       ) : dashboardData && (
-        <>
-        <Grid container spacing={3}>
-          {/* ─── Row 1: Revenue Metrics (Unified Bento Row) ─── */}
-          <Grid size={{ xs: 12 }}>
-            <Card sx={{ borderRadius: 3, boxShadow: '0 4px 24px rgba(0,0,0,0.04)' }}>
-              <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 2 }}>
-                  {dashboardData.eventName} 매출 현황
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, width: '100%' }}>
-                  <CompactKpi title="총 검사 판매액" value={`${(dashboardData.testRevenue || 0).toLocaleString()}원`} icon={TestIcon} color="#6366F1" />
-                  <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
-                  <CompactKpi title="총 도서 판매액" value={`${(dashboardData.bookRevenue || 0).toLocaleString()}원`} icon={BookIcon} color="#3B82F6" />
-                  <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
-                  <CompactKpi title="조합 합산 매출액" value={`${(dashboardData.totalRevenue || 0).toLocaleString()}원`} icon={ReceiptIcon} color="#10B981" yoyPct={dashboardData.yoyPct} />
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {/* ─── Row 1: Revenue KPIs ─── */}
+          <Card sx={{ borderRadius: 3, boxShadow: '0 4px 24px rgba(0,0,0,0.04)' }}>
+            <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 2 }}>
+                {dashboardData.eventName} 매출 현황
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+                <CompactKpi title="검사 판매액" value={`${(dashboardData.testRevenue || 0).toLocaleString()}원`} icon={TestIcon} color="#6366F1" />
+                <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
+                <CompactKpi title="도서 판매액" value={`${(dashboardData.bookRevenue || 0).toLocaleString()}원`} icon={BookIcon} color="#3B82F6" />
+                <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
+                <CompactKpi title="배송비" value={`${(dashboardData.shippingRevenue || 0).toLocaleString()}원`} icon={CartIcon} color="#8B5CF6" />
+                <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
+                <CompactKpi title="총 매출액" value={`${(dashboardData.totalRevenue || 0).toLocaleString()}원`} icon={ReceiptIcon} color="#10B981" yoyPct={dashboardData.yoyPct} />
+              </Box>
+            </CardContent>
+          </Card>
 
-          {/* ─── Row 2: Top Rankings (Balanced 50/50) ─── */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Card sx={{ borderRadius: 3, height: '100%', boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
-              <CardContent><RankingBox title="검사 판매 TOP 5" icon={TestIcon} color="#6366F1" items={dashboardData.testTop5 || []} /></CardContent>
-            </Card>
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Card sx={{ borderRadius: 3, height: '100%', boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
-              <CardContent><RankingBox title="도서 판매 TOP 5" icon={BookIcon} color="#3B82F6" items={dashboardData.bookTop5 || []} /></CardContent>
-            </Card>
-          </Grid>
+          {/* ─── Row 2: Rankings 50/50 ─── */}
+          <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Card sx={{ borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                <CardContent><RankingBox title="검사 판매 순위" icon={TestIcon} color="#6366F1" items={dashboardData.testTop5 || []} /></CardContent>
+              </Card>
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Card sx={{ borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                <CardContent><RankingBox title="도서 판매 순위" icon={BookIcon} color="#3B82F6" items={dashboardData.bookTop5 || []} /></CardContent>
+              </Card>
+            </Box>
+          </Box>
 
-          {/* ─── Row 3: Operational Status ─── */}
-          <Grid size={{ xs: 12, md: 4 }}>
-            <Card sx={{ borderRadius: 3, height: '100%', boxShadow: '0 4px 24px rgba(0,0,0,0.04)' }}>
-              <CardContent sx={{ p: 3, '&:last-child': { pb: 3 }, display: 'flex', flexDirection: 'column', height: '100%', gap: 3 }}>
-                <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>오늘 접수 내역</Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: alpha('#F59E0B', 0.1) }}><CartIcon sx={{ color: '#F59E0B' }} /></Box>
-                    <Typography variant="h4" sx={{ fontWeight: 800, color: '#F59E0B' }}>{dashboardData.todayOrdersCount}건</Typography>
+          {/* ─── Row 3: Today + Status Bar ─── */}
+          <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' }, alignItems: 'stretch' }}>
+            <Box sx={{ flex: '0 0 auto', width: { xs: '100%', md: 280 } }}>
+              <Card sx={{ borderRadius: 3, height: '100%', boxShadow: '0 4px 24px rgba(0,0,0,0.04)' }}>
+                <CardContent sx={{ p: 3, '&:last-child': { pb: 3 }, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>오늘 접수 내역</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: alpha('#F59E0B', 0.1) }}><CartIcon sx={{ color: '#F59E0B' }} /></Box>
+                      <Typography variant="h4" sx={{ fontWeight: 800, color: '#F59E0B' }}>{dashboardData.todayOrdersCount}건</Typography>
+                    </Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>누적 {dashboardData.totalOrders}건 중 오늘 접수</Typography>
                   </Box>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>전체 누적 {dashboardData.totalOrders}건 중 접수</Typography>
-                </Box>
-
-                {hasAlerts && (
-                  <Box sx={{ mt: 'auto' }}>
-                    <Box onClick={() => navigate('/admin/orders')} sx={{ p: 2, borderRadius: 2, cursor: 'pointer', bgcolor: alpha('#F59E0B', 0.08), border: `1px solid ${alpha('#F59E0B', 0.2)}`, transition: 'all 0.2s', '&:hover': { bgcolor: alpha('#F59E0B', 0.15) } }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                        <WarningIcon sx={{ color: '#F59E0B', fontSize: 20 }} />
-                        <Typography variant="caption" sx={{ fontWeight: 800, color: '#F59E0B' }}>처리 필요 알림</Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        {pendingCount > 0 && <Typography variant="body2" sx={{ fontWeight: 600 }}>결제대기 {pendingCount}건</Typography>}
-                        {paidCount > 0 && <Typography variant="body2" sx={{ fontWeight: 600 }}>배송준비 필요 {paidCount}건</Typography>}
+                  {hasAlerts && (
+                    <Box sx={{ mt: 'auto' }}>
+                      <Box onClick={() => navigate('/admin/orders')} sx={{ p: 2, borderRadius: 2, cursor: 'pointer', bgcolor: alpha('#F59E0B', 0.08), border: `1px solid ${alpha('#F59E0B', 0.2)}`, transition: 'all 0.2s', '&:hover': { bgcolor: alpha('#F59E0B', 0.15) } }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                          <WarningIcon sx={{ color: '#F59E0B', fontSize: 20 }} />
+                          <Typography variant="caption" sx={{ fontWeight: 800, color: '#F59E0B' }}>처리 필요 알림</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {pendingCount > 0 && <Typography variant="body2" sx={{ fontWeight: 600 }}>결제대기 {pendingCount}건</Typography>}
+                          {paidCount > 0 && <Typography variant="body2" sx={{ fontWeight: 600 }}>결제완료(출고대기) {paidCount}건</Typography>}
+                        </Box>
                       </Box>
                     </Box>
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid size={{ xs: 12, md: 8 }}>
-            <Card sx={{ borderRadius: 3, height: '100%', boxShadow: '0 4px 24px rgba(0,0,0,0.04)' }}>
-              <CardContent sx={{ p: 3, '&:last-child': { pb: 3 }, display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
-                <StatusBar statusCounts={dashboardData.statusCounts || {}} totalOrders={dashboardData.totalOrders || 0} />
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* ─── Row 4: Reports and Recent Actions ─── */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Card sx={{ borderRadius: 3, height: '100%', boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
-              <CardContent>
-                <FieldReportSection 
-                  eventId={selectedEventId} 
-                  eventName={dashboardData.eventName} 
-                  revenueData={dashboardData} 
-                />
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Card sx={{ borderRadius: 3, height: '100%', boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
-              <CardContent>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2 }}>최근 주문 실시간 내역</Typography>
-                {(dashboardData.recentOrders || []).length === 0 ? (
-                  <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>주문 내역이 없습니다</Typography>
-                ) : (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {dashboardData.recentOrders.map(order => (
-                      <Box key={order.id} onClick={() => handleRowClick(order)} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, borderRadius: 2, cursor: 'pointer', transition: 'bgcolor 0.15s', '&:hover': { bgcolor: 'action.hover' }}}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>{order.customer_name}</Typography>
-                          <Chip label={statusToKorean[order.status] || order.status} size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, bgcolor: alpha(statusColors[order.status] || '#999', 0.12), color: statusColors[order.status] || '#999' }} />
-                        </Box>
-                        <Box sx={{ textAlign: 'right' }}>
-                          <Typography variant="body2" sx={{ fontWeight: 800, color: 'primary.main' }}>{(order.final_payment || 0).toLocaleString()}원</Typography>
-                          <Typography variant="caption" sx={{ color: 'text.disabled' }}>{format(new Date(order.created_at), 'MM/dd HH:mm')}</Typography>
-                        </Box>
-                      </Box>
-                    ))}
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        {hasPermission('master') && (
-          <Grid container spacing={3} sx={{ mt: 0 }}>
-            <Grid size={{ xs: 12 }}>
-              <Card sx={{ borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
-                <CardContent>
-                  <AuditLogSection />
+                  )}
                 </CardContent>
               </Card>
-            </Grid>
-          </Grid>
-        )}
-        </>
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Card sx={{ borderRadius: 3, height: '100%', boxShadow: '0 4px 24px rgba(0,0,0,0.04)' }}>
+                <CardContent sx={{ p: 3, '&:last-child': { pb: 3 }, display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
+                  <StatusBar statusCounts={dashboardData.statusCounts || {}} totalOrders={dashboardData.totalOrders || 0} onStatusClick={(status) => navigate(`/admin/orders?status=${status}`)} />
+                </CardContent>
+              </Card>
+            </Box>
+          </Box>
+
+          {/* ─── Row 4: Reports + Recent Orders ─── */}
+          <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Card sx={{ borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                <CardContent>
+                  <FieldReportSection eventId={selectedEventId} eventName={dashboardData.eventName} revenueData={dashboardData} />
+                </CardContent>
+              </Card>
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Card sx={{ borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                <CardContent>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2 }}>최근 주문 실시간 내역</Typography>
+                  {(dashboardData.recentOrders || []).length === 0 ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>주문 내역이 없습니다</Typography>
+                  ) : (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {dashboardData.recentOrders.map(order => (
+                        <Box key={order.id} onClick={() => handleRowClick(order)} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, borderRadius: 2, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>{order.customer_name}</Typography>
+                            <Chip label={statusToKorean[order.status] || order.status} size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, bgcolor: alpha(statusColors[order.status] || '#999', 0.12), color: statusColors[order.status] || '#999' }} />
+                          </Box>
+                          <Box sx={{ textAlign: 'right' }}>
+                            <Typography variant="body2" sx={{ fontWeight: 800, color: 'primary.main' }}>{(order.final_payment || 0).toLocaleString()}원</Typography>
+                            <Typography variant="caption" sx={{ color: 'text.disabled' }}>{format(new Date(order.created_at), 'MM/dd HH:mm')}</Typography>
+                          </Box>
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Box>
+          </Box>
+
+          {hasPermission('master') && (
+            <Card sx={{ borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+              <CardContent><AuditLogSection /></CardContent>
+            </Card>
+          )}
+        </Box>
       )}
 
       {/* ─── Order Detail Modal ─── */}

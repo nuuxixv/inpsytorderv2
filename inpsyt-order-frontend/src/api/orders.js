@@ -34,7 +34,18 @@ export const getOrders = async (options) => {
     .order('created_at', { ascending: false });
 
   if (searchTerm) {
-    query = query.or(`customer_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
+    // Normalize phone number: if digits-only input, also try hyphenated format
+    const digits = searchTerm.replace(/-/g, '');
+    let phoneVariant = searchTerm;
+    if (/^\d{10,11}$/.test(digits)) {
+      phoneVariant = digits.length === 11
+        ? `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
+        : `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    }
+    const phoneOrClause = phoneVariant !== searchTerm
+      ? `,phone_number.ilike.%${phoneVariant}%`
+      : '';
+    query = query.or(`customer_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone_number.ilike.%${searchTerm}%${phoneOrClause}`);
   }
   if (selectedStatus) {
     query = query.eq('status', selectedStatus);
@@ -56,4 +67,31 @@ export const getOrders = async (options) => {
   }
 
   return { data, count };
+};
+
+/**
+ * 출고 현황용 주문 목록을 가져옵니다 (order_items → products 중첩 join 포함).
+ */
+export const getFulfillmentOrders = async ({ eventId, statuses, dateFrom, dateTo } = {}) => {
+  let query = supabase
+    .from('orders')
+    .select(`
+      id, customer_name, phone_number, shipping_address,
+      final_payment, delivery_fee, status, created_at,
+      customer_request, admin_memo, event_id,
+      events(name),
+      order_items(product_id, quantity, price_at_purchase,
+        products(name, category)
+      )
+    `)
+    .in('status', statuses || ['paid', 'preparing', 'completed'])
+    .order('created_at', { ascending: false });
+
+  if (eventId) query = query.eq('event_id', eventId);
+  if (dateFrom) query = query.gte('created_at', dateFrom);
+  if (dateTo) query = query.lte('created_at', dateTo);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
 };

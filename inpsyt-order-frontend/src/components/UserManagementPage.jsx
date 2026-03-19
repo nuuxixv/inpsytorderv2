@@ -28,6 +28,7 @@ import {
   Chip,
   Grid,
   Avatar,
+  MenuItem,
 } from '@mui/material';
 import {
   PersonAdd as PersonAddIcon,
@@ -61,6 +62,8 @@ const UserManagementPage = () => {
   const [editedMemo, setEditedMemo] = useState('');
   const [openPermissionsModal, setOpenPermissionsModal] = useState(false);
   const [currentRole, setCurrentRole] = useState('');
+  const [userFilter, setUserFilter] = useState(null); // null=전체, 'master'=관리자, 'recent'=최근활동
+  const [deleteTargetUser, setDeleteTargetUser] = useState(null);
 
   const availableRoles = [
     { key: 'master', label: '마스터' },
@@ -138,14 +141,15 @@ const UserManagementPage = () => {
       addNotification('이름과 PIN(비밀번호)을 모두 입력해주세요.', 'warning');
       return;
     }
-    if (invitePIN.length < 6) {
-      addNotification('PIN은 최소 6자리여야 합니다.', 'warning');
+    if (invitePIN.length !== 6) {
+      addNotification('PIN은 숫자 6자리로 입력해주세요.', 'warning');
       return;
     }
 
     // Email is mandatory in Supabase Auth, so we generate a unique internal one
     const randomSuffix = Math.random().toString(36).substring(2, 7);
-    const internalEmail = `${inviteName.replace(/\s+/g, '').toLowerCase()}_${randomSuffix}@inpsyt.internal`;
+    const sanitizedName = inviteName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'user';
+    const internalEmail = `${sanitizedName}_${randomSuffix}@inpsytorder.com`;
 
     try {
       const { data, error: invokeError } = await supabase.functions.invoke('invite-user', {
@@ -161,7 +165,6 @@ const UserManagementPage = () => {
 
       addNotification('사용자가 성공적으로 생성되었습니다.', 'success');
       setOpenInviteModal(false);
-      setInviteEmail('');
       setInviteName('');
       setInvitePIN('');
       fetchUsers();
@@ -181,18 +184,18 @@ const UserManagementPage = () => {
       return;
     }
 
-    if (!window.confirm('정말로 이 사용자를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
-      return;
-    }
+    setDeleteTargetUser(userId);
+  };
 
+  const handleDeleteUserConfirm = async () => {
+    const userId = deleteTargetUser;
+    setDeleteTargetUser(null);
     try {
       const { data, error: invokeError } = await supabase.functions.invoke('delete-user', {
         body: { userId },
       });
-
       if (invokeError) throw invokeError;
       if (data?.error) throw new Error(data.error);
-
       addNotification('사용자가 성공적으로 삭제되었습니다.', 'success');
       fetchUsers();
     } catch (err) {
@@ -247,8 +250,9 @@ const UserManagementPage = () => {
     setCurrentRole('');
   };
 
-  const getInitials = (email) => {
-    return email.substring(0, 2).toUpperCase();
+  const getInitials = (name) => {
+    if (!name) return '?';
+    return name.charAt(0).toUpperCase();
   };
 
   if (loading) {
@@ -277,21 +281,39 @@ const UserManagementPage = () => {
   }
 
   const masterUsers = users.filter(u => u.role === 'master').length;
-  const regularUsers = users.length - masterUsers;
-  const recentlyActive = users.filter(u => {
+  const recentlyActiveCount = users.filter(u => {
     if (!u.last_sign_in_at) return false;
     const daysSinceLogin = (new Date() - new Date(u.last_sign_in_at)) / (1000 * 60 * 60 * 24);
     return daysSinceLogin < 7;
   }).length;
+
+  const displayedUsers = userFilter === 'master'
+    ? users.filter(u => u.role === 'master')
+    : userFilter === 'recent'
+    ? users.filter(u => {
+        if (!u.last_sign_in_at) return false;
+        return (new Date() - new Date(u.last_sign_in_at)) / (1000 * 60 * 60 * 24) < 7;
+      })
+    : users;
+
+  const statCardSx = (active) => ({
+    cursor: 'pointer',
+    transition: 'box-shadow 0.2s, transform 0.15s',
+    '&:hover': { boxShadow: 4, transform: 'translateY(-2px)' },
+    ...(active ? { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: '2px' } : {}),
+  });
 
   return (
     <Box>
       {/* Header with Stats */}
       <Box sx={{ mb: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
-            👥 사용자 관리
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <PeopleIcon sx={{ color: 'primary.main', fontSize: '1.4rem' }} />
+            <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+              사용자 관리
+            </Typography>
+          </Box>
           <Button 
             variant="contained" 
             startIcon={<PersonAddIcon />}
@@ -302,68 +324,53 @@ const UserManagementPage = () => {
         </Box>
 
         {/* Stats Cards */}
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={12} sm={6} md={4}>
-            <Card sx={{ 
-              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      전체 사용자
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                      {users.length}
-                    </Typography>
-                  </Box>
-                  <PeopleIcon sx={{ fontSize: 40, color: alpha(theme.palette.primary.main, 0.5) }} />
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexDirection: { xs: 'column', sm: 'row' } }}>
+          <Card onClick={() => setUserFilter(null)} sx={{ flex: 1,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+            border: `1px solid ${alpha(theme.palette.primary.main, userFilter === null ? 0.6 : 0.2)}`,
+            ...statCardSx(userFilter === null),
+          }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>전체 사용자</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'primary.main' }}>{users.length}</Typography>
                 </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <Card sx={{ 
-              background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)} 0%, ${alpha(theme.palette.warning.main, 0.05)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      관리자
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'warning.main' }}>
-                      {masterUsers}
-                    </Typography>
-                  </Box>
-                  <AdminIcon sx={{ fontSize: 40, color: alpha(theme.palette.warning.main, 0.5) }} />
+                <PeopleIcon sx={{ fontSize: 40, color: alpha(theme.palette.primary.main, 0.5) }} />
+              </Box>
+            </CardContent>
+          </Card>
+          <Card onClick={() => setUserFilter(f => f === 'master' ? null : 'master')} sx={{ flex: 1,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)} 0%, ${alpha(theme.palette.warning.main, 0.05)} 100%)`,
+            border: `1px solid ${alpha(theme.palette.warning.main, userFilter === 'master' ? 0.6 : 0.2)}`,
+            ...statCardSx(userFilter === 'master'),
+          }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>관리자</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'warning.main' }}>{masterUsers}</Typography>
                 </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <Card sx={{ 
-              background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.main, 0.05)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      최근 활동 (7일)
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.main' }}>
-                      {recentlyActive}
-                    </Typography>
-                  </Box>
-                  <ScheduleIcon sx={{ fontSize: 40, color: alpha(theme.palette.success.main, 0.5) }} />
+                <AdminIcon sx={{ fontSize: 40, color: alpha(theme.palette.warning.main, 0.5) }} />
+              </Box>
+            </CardContent>
+          </Card>
+          <Card onClick={() => setUserFilter(f => f === 'recent' ? null : 'recent')} sx={{ flex: 1,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.main, 0.05)} 100%)`,
+            border: `1px solid ${alpha(theme.palette.success.main, userFilter === 'recent' ? 0.6 : 0.2)}`,
+            ...statCardSx(userFilter === 'recent'),
+          }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>최근 활동 (7일)</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.main' }}>{recentlyActiveCount}</Typography>
                 </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+                <ScheduleIcon sx={{ fontSize: 40, color: alpha(theme.palette.success.main, 0.5) }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Box>
       </Box>
 
       {/* Users Table */}
@@ -381,7 +388,7 @@ const UserManagementPage = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {users.length === 0 ? (
+              {displayedUsers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} sx={{ border: 0, py: 4 }}>
                     <EmptyState
@@ -396,7 +403,7 @@ const UserManagementPage = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                users.map((u) => (
+                displayedUsers.map((u) => (
                   <TableRow 
                     key={u.id}
                     sx={{ 
@@ -407,14 +414,11 @@ const UserManagementPage = () => {
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36 }}>
-                          {getInitials(u.email)}
+                          {getInitials(u.name || u.email)}
                         </Avatar>
                         <Box>
                           <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
                             {u.name || '이름 없음'}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.5 }}>
-                            내부 ID: {u.role === 'master' ? u.email : u.email.split('@')[0]}
                           </Typography>
                           {u.id === user.id && (
                             <Chip label="나" size="small" color="primary" sx={{ mt: 0.5, ml: 1 }} />
@@ -516,22 +520,19 @@ const UserManagementPage = () => {
       <Dialog open={openInviteModal} onClose={() => setOpenInviteModal(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontWeight: 'bold' }}>새 사용자 추가</DialogTitle>
         <DialogContent sx={{ pt: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-          <Box>
-            <Typography variant="caption" color="primary" sx={{ fontWeight: 'bold', mb: 0.5, display: 'block' }}>역할 선택</Typography>
-            <TextField
-              select
-              fullWidth
-              value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value)}
-              SelectProps={{ native: true }}
-            >
-              {availableRoles.map((role) => (
-                <option key={role.key} value={role.key}>
-                  {role.label}
-                </option>
-              ))}
-            </TextField>
-          </Box>
+          <TextField
+            select
+            fullWidth
+            label="역할"
+            value={inviteRole}
+            onChange={(e) => setInviteRole(e.target.value)}
+          >
+            {availableRoles.map((role) => (
+              <MenuItem key={role.key} value={role.key}>
+                {role.label}
+              </MenuItem>
+            ))}
+          </TextField>
           <TextField
             autoFocus
             label="이름"
@@ -543,14 +544,16 @@ const UserManagementPage = () => {
             placeholder="예: 홍길동"
           />
           <TextField
-            label="성인증 PIN (비밀번호)"
+            label="PIN (숫자 6자리)"
             type="password"
             fullWidth
             required
             value={invitePIN}
-            onChange={(e) => setInvitePIN(e.target.value)}
-            placeholder="숫자 6자리 권장"
-            helperText="사용자가 로그인할 때 사용할 비밀번호입니다."
+            onChange={(e) => setInvitePIN(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            inputProps={{ maxLength: 6, inputMode: 'numeric' }}
+            placeholder="••••••"
+            helperText={`숫자 6자리 고정 (${invitePIN.length}/6)`}
+            error={invitePIN.length > 0 && invitePIN.length < 6}
           />
         </DialogContent>
         <DialogActions sx={{ p: 2.5 }}>
@@ -603,12 +606,11 @@ const UserManagementPage = () => {
               fullWidth
               value={currentRole}
               onChange={(e) => setCurrentRole(e.target.value)}
-              SelectProps={{ native: true }}
             >
               {availableRoles.map((role) => (
-                <option key={role.key} value={role.key}>
+                <MenuItem key={role.key} value={role.key}>
                   {role.label}
-                </option>
+                </MenuItem>
               ))}
             </TextField>
           )}
@@ -622,6 +624,18 @@ const UserManagementPage = () => {
           >
             저장
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={Boolean(deleteTargetUser)} onClose={() => setDeleteTargetUser(null)} maxWidth="xs">
+        <DialogTitle sx={{ fontWeight: 700 }}>사용자 삭제</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">정말로 이 사용자를 삭제하시겠습니까?<br />이 작업은 되돌릴 수 없습니다.</Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setDeleteTargetUser(null)}>취소</Button>
+          <Button onClick={handleDeleteUserConfirm} color="error" variant="contained">삭제</Button>
         </DialogActions>
       </Dialog>
     </Box>

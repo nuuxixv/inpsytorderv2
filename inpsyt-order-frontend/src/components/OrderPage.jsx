@@ -48,6 +48,7 @@ const OrderPage = () => {
   });
   const [cart, setCart] = useState([]);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [submittedOrderId, setSubmittedOrderId] = useState(null);
   const [eventInfo, setEventInfo] = useState(null);
   const [accessError, setAccessError] = useState(null); // 'no_slug' | 'expired' | 'not_found'
 
@@ -147,7 +148,6 @@ const OrderPage = () => {
   const handleSubmitOrder = async () => {
     if (!eventInfo) {
       setError('주문할 학회를 선택해주세요.');
-      setShowEventSelectionDialog(true);
       return;
     }
 
@@ -177,6 +177,7 @@ const OrderPage = () => {
       if (invokeError) throw invokeError;
       if (data.error) throw new Error(data.error);
 
+      setSubmittedOrderId(data?.order?.id || null);
       setShowSuccessDialog(true);
     } catch (error) {
       setError(`주문 처리 중 오류가 발생했습니다: ${error.message}`);
@@ -187,6 +188,7 @@ const OrderPage = () => {
 
   const handleCloseSuccessDialog = () => {
     setShowSuccessDialog(false);
+    setSubmittedOrderId(null);
     setCustomerInfo({
       name: '', email: '', phone: '', postcode: '',
       address: '', detailAddress: '', inpsytId: '', request: '',
@@ -211,19 +213,22 @@ const OrderPage = () => {
         emoji: '🔗',
         title: '직접 접속이 불가합니다',
         desc: '현재 진행 중인 학회 링크로만 주문하실 수 있습니다.\n담당자에게 문의하여 올바른 링크로 접속해주세요.',
+        showLookup: false,
       },
       expired: {
         emoji: '📅',
         title: '종료된 학회입니다',
         desc: '해당 학회의 주문 기간이 종료되었습니다.\n진행 중인 학회 링크를 담당자에게 문의해주세요.',
+        showLookup: true,
       },
       not_found: {
         emoji: '❓',
         title: '존재하지 않는 링크입니다',
         desc: '올바르지 않은 학회 주소입니다.\n담당자에게 정확한 링크를 요청해주세요.',
+        showLookup: false,
       },
     };
-    const { emoji, title, desc } = messages[accessError] || messages.not_found;
+    const { emoji, title, desc, showLookup } = messages[accessError] || messages.not_found;
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100dvh', p: 4, textAlign: 'center', gap: 2 }}>
         <Typography sx={{ fontSize: '4rem' }}>{emoji}</Typography>
@@ -231,6 +236,16 @@ const OrderPage = () => {
         <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>
           {desc}
         </Typography>
+        {showLookup && (
+          <Button
+            variant="outlined"
+            size="large"
+            onClick={() => navigate(eventSlug ? `/order/lookup?events=${eventSlug}` : '/order/lookup')}
+            sx={{ mt: 2, borderRadius: '12px', minHeight: 48, minWidth: 200 }}
+          >
+            주문내역 조회하기
+          </Button>
+        )}
       </Box>
     );
   }
@@ -246,25 +261,41 @@ const OrderPage = () => {
         mx: 'auto',
       }}
     >
-      {/* Header Branding - triple tap to toggle on-site purchase */}
-      <Box
-        onClick={() => {
-          tapCountRef.current += 1;
-          if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
-          tapTimerRef.current = setTimeout(() => { tapCountRef.current = 0; }, 600);
-          if (tapCountRef.current >= 3) {
-            tapCountRef.current = 0;
-            if (activeStep < 2) {
-              setIsOnsitePurchase(prev => !prev);
-              setOnsiteSnackbar(true);
+      {/* Header Branding */}
+      <Box sx={{ pt: 3, pb: 1, px: 2, display: 'flex', alignItems: 'center' }}>
+        {/* 좌측 여백 (우측 버튼 너비와 균형) */}
+        <Box sx={{ flex: 1 }} />
+        {/* 브랜드 텍스트 - 트리플탭 영역 */}
+        <Box
+          onClick={() => {
+            tapCountRef.current += 1;
+            if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+            tapTimerRef.current = setTimeout(() => { tapCountRef.current = 0; }, 600);
+            if (tapCountRef.current >= 3) {
+              tapCountRef.current = 0;
+              if (activeStep < 2) {
+                setIsOnsitePurchase(prev => !prev);
+                setOnsiteSnackbar(true);
+              }
             }
-          }
-        }}
-        sx={{ pt: 3, pb: 1, px: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', userSelect: 'none' }}
-      >
-        <Typography variant="subtitle2" sx={{ color: isOnsitePurchase ? 'warning.main' : 'primary.main', fontWeight: 800, letterSpacing: 1 }}>
-          인싸이트 / 학지사{isOnsitePurchase ? ' · 현장구매' : ''}
-        </Typography>
+          }}
+          sx={{ userSelect: 'none' }}
+        >
+          <Typography variant="subtitle2" sx={{ color: isOnsitePurchase ? 'warning.main' : 'primary.main', fontWeight: 800, letterSpacing: 1 }}>
+            인싸이트 / 학지사{isOnsitePurchase ? ' · 현장구매' : ''}
+          </Typography>
+        </Box>
+        {/* 우측: 주문 조회 버튼 */}
+        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+          <Button
+            size="small"
+            variant="text"
+            onClick={() => navigate(eventSlug ? `/order/lookup?events=${eventSlug}` : '/order/lookup')}
+            sx={{ fontSize: '0.72rem', color: 'text.secondary', minWidth: 'auto', px: 1 }}
+          >
+            주문 조회
+          </Button>
+        </Box>
       </Box>
 
       {/* Step indicator */}
@@ -346,24 +377,38 @@ const OrderPage = () => {
         PaperProps={{ sx: { borderRadius: '16px', mx: 2 } }}
       >
         <DialogTitle sx={{ fontWeight: 700, textAlign: 'center', pt: 4, pb: 1 }}>
-          주문이 완료되었습니다
+          주문이 접수되었습니다 ✓
         </DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ textAlign: 'center', color: 'text.secondary' }}>
+          <DialogContentText sx={{ textAlign: 'center', color: 'text.secondary', lineHeight: 1.8 }}>
             주문이 성공적으로 접수되었습니다.
             <br />
-            곧 결제 안내를 드리겠습니다.
+            담당자에게 카드를 건네어 결제를 완료해주세요.
           </DialogContentText>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3, justifyContent: 'center' }}>
+        <DialogActions sx={{ px: 3, pb: 3, flexDirection: 'column', gap: 1 }}>
+          {submittedOrderId && (
+            <Button
+              variant="contained"
+              size="large"
+              fullWidth
+              onClick={() => {
+                handleCloseSuccessDialog();
+                navigate(`/order/status/${submittedOrderId}`);
+              }}
+              sx={{ borderRadius: '12px', minHeight: 48 }}
+            >
+              주문내역 확인하기
+            </Button>
+          )}
           <Button
-            variant="contained"
+            variant="outlined"
             size="large"
             fullWidth
             onClick={handleCloseSuccessDialog}
             sx={{ borderRadius: '12px', minHeight: 48 }}
           >
-            확인
+            닫기
           </Button>
         </DialogActions>
       </Dialog>

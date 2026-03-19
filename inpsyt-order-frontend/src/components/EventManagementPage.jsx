@@ -23,7 +23,6 @@ import {
   alpha,
   useTheme,
   Tooltip,
-  Grid,
   Select,
   MenuItem,
   FormControl,
@@ -34,9 +33,9 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Event as EventIcon,
-  Discount as DiscountIcon,
   Link as LinkIcon,
   CalendarMonth as CalendarIcon,
+  CalendarToday as CalendarTodayIcon,
   ContentCopy as CopyIcon,
   Settings as SettingsIcon,
 } from '@mui/icons-material';
@@ -55,11 +54,11 @@ const EventManagementPage = () => {
   const [societyModalOpen, setSocietyModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentEvent, setCurrentEvent] = useState(null);
-  const [availableTags, setAvailableTags] = useState([]);
   const [availableSocieties, setAvailableSocieties] = useState([]);
   const { user, hasPermission } = useAuth();
   const { addNotification } = useNotification();
   const [loading, setLoading] = useState(false);
+  const [eventFilter, setEventFilter] = useState('all'); // 'all' | 'active' | 'upcoming' | 'ended'
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
@@ -68,7 +67,7 @@ const EventManagementPage = () => {
       const [eventsRes, societiesRes] = await Promise.all([
         supabase
           .from('events')
-          .select('id, name, discount_rate, order_url_slug, start_date, end_date, tags, event_year, host_society, event_season, status')
+          .select('id, name, discount_rate, order_url_slug, start_date, end_date, event_year, host_society, event_season, status')
           .order('start_date', { ascending: false }),
         supabase.from('societies').select('id, name, slug_prefix').order('name', { ascending: true })
       ]);
@@ -78,8 +77,6 @@ const EventManagementPage = () => {
         addNotification('학회 정보를 불러오는 데 실패했습니다.', 'error');
       } else {
         setEvents(eventsRes.data);
-        const allTags = eventsRes.data.flatMap(event => event.tags || []);
-        setAvailableTags(Array.from(new Set(allTags)));
       }
 
       if (!societiesRes.error && societiesRes.data) {
@@ -112,7 +109,7 @@ const EventManagementPage = () => {
   const handleOpen = (event = null) => {
     setIsEditing(!!event);
     setCurrentEvent(event || { 
-      name: '', discount_rate: 0, order_url_slug: '', start_date: '', end_date: '', tags: [],
+      name: '', discount_rate: 0, order_url_slug: '', start_date: '', end_date: '',
       event_year: new Date().getFullYear(), host_society: '', event_season: ''
     });
     setOpen(true);
@@ -156,21 +153,10 @@ const EventManagementPage = () => {
           }
         }
         
-        // Auto-add Host Society to Tags if missing
-        if (name === 'host_society' && value && typeof value === 'string') {
-          const currentTags = newState.tags || [];
-          if (!currentTags.includes(value)) {
-            newState.tags = [...currentTags, value];
-          }
-        }
       }
 
       return newState;
     });
-  };
-
-  const handleTagsChange = (event, newTags) => {
-    setCurrentEvent(prev => ({ ...prev, tags: newTags }));
   };
 
   const handleSave = async () => {
@@ -252,26 +238,39 @@ const EventManagementPage = () => {
     return <Box sx={{ p: 3 }}><Typography>학회 관리 페이지 접근 권한이 없습니다.</Typography></Box>;
   }
 
-  const activeEvents = events.filter(e => {
-    const now = new Date();
-    const end = parseISO(e.end_date);
-    return !isAfter(now, end);
-  }).length;
+  const now = new Date();
+  const activeEventsCount = events.filter(e => !isAfter(now, parseISO(e.end_date))).length;
+  const upcomingEventsCount = events.filter(e => isBefore(now, parseISO(e.start_date))).length;
 
-  const upcomingEvents = events.filter(e => {
-    const now = new Date();
-    const start = parseISO(e.start_date);
-    return isBefore(now, start);
-  }).length;
+  const today = new Date();
+  const filteredEvents = events.filter(event => {
+    if (eventFilter === 'all') return true;
+    const start = event.start_date ? new Date(event.start_date) : null;
+    const end = event.end_date ? new Date(event.end_date) : null;
+    if (eventFilter === 'active') return start && end && start <= today && end >= today;
+    if (eventFilter === 'upcoming') return start && start > today;
+    if (eventFilter === 'ended') return end && end < today;
+    return true;
+  });
+
+  const statCardSx = (active) => ({
+    cursor: 'pointer',
+    transition: 'box-shadow 0.2s, transform 0.15s',
+    '&:hover': { boxShadow: 4, transform: 'translateY(-2px)' },
+    ...(active ? { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: '2px' } : {}),
+  });
 
   return (
     <Box>
       {/* Header with Stats */}
       <Box sx={{ mb: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
-            🎯 학회 관리
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <EventIcon sx={{ color: 'primary.main', fontSize: '1.4rem' }} />
+            <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+              학회 관리
+            </Typography>
+          </Box>
           <Box sx={{ display: 'flex', gap: 1 }}>
             {hasPermission('events:edit') && (
               <Button 
@@ -295,68 +294,76 @@ const EventManagementPage = () => {
         </Box>
 
         {/* Stats Cards */}
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={12} sm={6} md={4}>
-            <Card sx={{ 
-              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      전체 학회
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                      {events.length}
-                    </Typography>
-                  </Box>
-                  <EventIcon sx={{ fontSize: 40, color: alpha(theme.palette.primary.main, 0.5) }} />
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexDirection: { xs: 'column', sm: 'row' } }}>
+          <Card onClick={() => setEventFilter('all')} sx={{ flex: 1,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+            border: `1px solid ${alpha(theme.palette.primary.main, eventFilter === 'all' ? 0.6 : 0.2)}`,
+            ...statCardSx(eventFilter === 'all'),
+          }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>전체 학회</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'primary.main' }}>{events.length}</Typography>
                 </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <Card sx={{ 
-              background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.main, 0.05)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      활성 학회
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.main' }}>
-                      {activeEvents}
-                    </Typography>
-                  </Box>
-                  <CalendarIcon sx={{ fontSize: 40, color: alpha(theme.palette.success.main, 0.5) }} />
+                <EventIcon sx={{ fontSize: 40, color: alpha(theme.palette.primary.main, 0.5) }} />
+              </Box>
+            </CardContent>
+          </Card>
+          <Card onClick={() => setEventFilter(f => f === 'active' ? 'all' : 'active')} sx={{ flex: 1,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.main, 0.05)} 100%)`,
+            border: `1px solid ${alpha(theme.palette.success.main, eventFilter === 'active' ? 0.6 : 0.2)}`,
+            ...statCardSx(eventFilter === 'active'),
+          }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>활성 학회</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.main' }}>{activeEventsCount}</Typography>
                 </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <Card sx={{ 
-              background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.info.main, 0.05)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                <CalendarIcon sx={{ fontSize: 40, color: alpha(theme.palette.success.main, 0.5) }} />
+              </Box>
+            </CardContent>
+          </Card>
+          <Card onClick={() => setEventFilter(f => f === 'upcoming' ? 'all' : 'upcoming')} sx={{ flex: 1,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.info.main, 0.05)} 100%)`,
+            border: `1px solid ${alpha(theme.palette.info.main, eventFilter === 'upcoming' ? 0.6 : 0.2)}`,
+            ...statCardSx(eventFilter === 'upcoming'),
+          }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
                       예정 학회
                     </Typography>
                     <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'info.main' }}>
-                      {upcomingEvents}
+                      {upcomingEventsCount}
                     </Typography>
                   </Box>
-                  <DiscountIcon sx={{ fontSize: 40, color: alpha(theme.palette.info.main, 0.5) }} />
+                  <CalendarTodayIcon sx={{ fontSize: 40, color: alpha(theme.palette.info.main, 0.5) }} />
                 </Box>
               </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+          </Card>
+        </Box>
+      </Box>
+
+      {/* Status Filter Tabs */}
+      <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+        {[
+          { key: 'all', label: '전체' },
+          { key: 'active', label: '진행중' },
+          { key: 'upcoming', label: '예정' },
+          { key: 'ended', label: '종료' },
+        ].map(({ key, label }) => (
+          <Chip
+            key={key}
+            label={label}
+            onClick={() => setEventFilter(key)}
+            color={eventFilter === key ? 'primary' : 'default'}
+            variant={eventFilter === key ? 'filled' : 'outlined'}
+            sx={{ cursor: 'pointer', fontWeight: eventFilter === key ? 700 : 400 }}
+          />
+        ))}
       </Box>
 
       {/* Events Table */}
@@ -370,19 +377,19 @@ const EventManagementPage = () => {
                 <TableCell sx={{ fontWeight: 'bold' }}>고유 주소</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }} align="center">할인율</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>기간</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>태그</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>주최학회</TableCell>
                 {hasPermission('events:edit') && <TableCell sx={{ fontWeight: 'bold' }} align="center">작업</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
                 <TableSkeleton rows={5} columns={7} />
-              ) : events.length === 0 ? (
+              ) : filteredEvents.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} sx={{ border: 0, py: 4 }}>
                     <EmptyState
-                      message="등록된 학회가 없습니다"
-                      subMessage="새 학회를 추가하여 시작하세요"
+                      message="해당 학회가 없습니다"
+                      subMessage="필터를 해제하거나 새 학회를 추가하세요"
                       icon={<EventIcon sx={{ fontSize: 64, color: 'text.disabled' }} />}
                       action={hasPermission('events:edit') ? {
                         label: "학회 추가",
@@ -392,7 +399,7 @@ const EventManagementPage = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                events.map((event) => {
+                filteredEvents.map((event) => {
                   const status = getEventStatus(event.start_date, event.end_date);
                   return (
                     <TableRow 
@@ -448,14 +455,11 @@ const EventManagementPage = () => {
                         </Box>
                       </TableCell>
                       <TableCell>
-                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                          {event.tags?.slice(0, 2).map((tag, idx) => (
-                            <Chip key={idx} label={tag} size="small" variant="outlined" />
-                          ))}
-                          {event.tags?.length > 2 && (
-                            <Chip label={`+${event.tags.length - 2}`} size="small" />
-                          )}
-                        </Box>
+                        {event.host_society ? (
+                          <Chip label={event.host_society} size="small" variant="outlined" />
+                        ) : (
+                          <Typography variant="caption" color="text.disabled">—</Typography>
+                        )}
                       </TableCell>
                       {hasPermission('events:edit') && (
                         <TableCell align="center">
@@ -489,7 +493,7 @@ const EventManagementPage = () => {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5, mt: 2 }}>
             {/* Step 1: Structured Information */}
             <Box sx={{ p: 2.5, bgcolor: alpha(theme.palette.primary.main, 0.03), borderRadius: 2, border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`, display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <Typography variant="caption" sx={{ fontWeight: 800, color: 'primary.main', textTransform: 'uppercase', letterSpacing: 1 }}>행사 구조 정보 (마법사)</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 800, color: 'primary.main', letterSpacing: 0.5 }}>✦ 행사 구조 자동 입력</Typography>
               
               <TextField
                 select
@@ -611,28 +615,6 @@ const EventManagementPage = () => {
                 />
               </Box>
 
-              <Autocomplete
-                multiple
-                freeSolo
-                options={availableTags}
-                value={currentEvent?.tags || []}
-                onChange={handleTagsChange}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => (
-                    <Chip variant="outlined" label={option} {...getTagProps({ index })} key={index} />
-                  ))
-                }
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="태그"
-                    placeholder="태그 추가"
-                    fullWidth
-                    InputLabelProps={{ shrink: true }}
-                  />
-                )}
-                disabled={!hasPermission('events:edit')}
-              />
             </Box>
           </Box>
         </DialogContent>

@@ -10,7 +10,7 @@ import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../supabaseClient';
 
 const AdminHeader = ({ onMenuToggle }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, profile } = useAuth();
   const { addNotification, notifications } = useNotification();
   const navigate = useNavigate();
 
@@ -92,7 +92,7 @@ const AdminHeader = ({ onMenuToggle }) => {
       <IconButton
         onClick={onMenuToggle}
         size="medium"
-        sx={{ display: { lg: 'none' }, color: 'text.secondary' }}
+        sx={{ display: { md: 'none' }, color: 'text.secondary' }}
         aria-label="메뉴 열기"
       >
         <MenuIcon />
@@ -151,7 +151,7 @@ const AdminHeader = ({ onMenuToggle }) => {
 
         <IconButton onClick={handleUserMenuClick} size="small" sx={{ p: 0.5, border: '1px solid transparent', '&:hover': { borderColor: 'primary.light' } }}>
           <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.9rem', fontWeight: 'bold' }}>
-            {user?.email?.[0].toUpperCase()}
+            {(profile?.name || user?.email)?.[0]?.toUpperCase()}
           </Avatar>
         </IconButton>
         <Menu
@@ -171,8 +171,12 @@ const AdminHeader = ({ onMenuToggle }) => {
           }}
         >
           <Box sx={{ px: 2.5, py: 1.5 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>{user?.email}</Typography>
-            <Typography variant="caption" color="text.secondary">사용자 계정</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+              {profile?.name || user?.email?.split('@')[0] || '사용자'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {user?.email}
+            </Typography>
           </Box>
           <Divider sx={{ my: 0.5 }} />
           <MenuItem onClick={handleOpenPasswordModal} sx={{ mx: 1, borderRadius: 1, fontSize: '0.9rem' }}>비밀번호 변경</MenuItem>

@@ -10,6 +10,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [accessToken, setAccessToken] = useState(null); // New state for access token
   const [permissions, setPermissions] = useState([]);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const defaultOperatorPermissions = [
@@ -41,10 +42,18 @@ export const AuthProvider = ({ children }) => {
         }
         setUser(session.user);
         setAccessToken(session.access_token); // Set access token here
+        // Fetch display name from user_profiles table
+        supabase
+          .from('user_profiles')
+          .select('name, role')
+          .eq('id', session.user.id)
+          .single()
+          .then(({ data }) => { if (data) setProfile(data); });
       } else {
         setUser(null);
         setAccessToken(null); // Clear access token
         setPermissions([]);
+        setProfile(null);
       }
       setLoading(false);
     };
@@ -83,7 +92,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, permissions, hasPermission, loading, setUser, logout }}>
+    <AuthContext.Provider value={{ user, accessToken, permissions, profile, hasPermission, loading, setUser, logout }}>
       {!loading && children}
     </AuthContext.Provider>
   );

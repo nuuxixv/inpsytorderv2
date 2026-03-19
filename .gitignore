@@ -1,1 +1,3 @@
 .vercel
+# AI tooling - ignore Claude Code worktrees (managed by Claude Code, not git)
+.claude/worktrees/

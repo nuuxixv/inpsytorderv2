@@ -10,7 +10,6 @@ import {
   CircularProgress,
   CssBaseline,
   Paper,
-  Grid,
   IconButton
 } from '@mui/material';
 import { ArrowBack as ArrowBackIcon, Dialpad as DialpadIcon, Person as PersonIcon, Shield as ShieldIcon, LocalShipping as ShippingIcon, Storefront as StoreIcon } from '@mui/icons-material';
@@ -95,7 +94,11 @@ const LoginPage = () => {
   };
 
   const availableRoles = ['master', 'onsite', 'fulfillment'];
-  const usersForRole = profiles.filter(p => p.role === selectedRole);
+  const usersForRole = profiles.filter(p =>
+    selectedRole === 'fulfillment'
+      ? p.role === 'fulfillment' || p.role === 'fulfillment_book' || p.role === 'fulfillment_test'
+      : p.role === selectedRole
+  );
 
   return (
     <Box
@@ -143,59 +146,55 @@ const LoginPage = () => {
           <CircularProgress sx={{ my: 4 }} />
         ) : !selectedRole ? (
           /* STEP 1: 역할 선택 */
-          <Grid container spacing={2} sx={{ width: '100%' }}>
+          <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
             {availableRoles.map(role => (
-              <Grid item xs={12} key={role}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  size="large"
-                  onClick={() => setSelectedRole(role)}
-                  sx={{ 
-                    py: 2, 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    textTransform: 'none',
-                    borderColor: 'divider',
-                    color: 'text.secondary',
-                    '&:hover': {
-                      borderColor: 'primary.main',
-                      color: 'primary.main',
-                      bgcolor: 'primary.50'
-                    }
-                  }}
-                >
-                  {ROLE_LABELS[role]?.icon}
-                  <Typography variant="subtitle1" fontWeight="bold">{ROLE_LABELS[role]?.label}</Typography>
-                </Button>
-              </Grid>
+              <Button
+                key={role}
+                fullWidth
+                variant="outlined"
+                size="large"
+                onClick={() => setSelectedRole(role)}
+                sx={{
+                  py: 2,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  textTransform: 'none',
+                  borderColor: 'divider',
+                  color: 'text.secondary',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    color: 'primary.main',
+                    bgcolor: 'primary.50'
+                  }
+                }}
+              >
+                {ROLE_LABELS[role]?.icon}
+                <Typography variant="subtitle1" fontWeight="bold">{ROLE_LABELS[role]?.label}</Typography>
+              </Button>
             ))}
-          </Grid>
+          </Box>
         ) : !selectedUser ? (
           /* STEP 2: 담당자(이름) 선택 */
-          <Grid container spacing={2} sx={{ width: '100%' }}>
+          <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
             {usersForRole.length === 0 ? (
-              <Grid item xs={12}>
-                <Alert severity="info" sx={{ width: '100%' }}>등록된 담당자가 없습니다.</Alert>
-              </Grid>
+              <Alert severity="info" sx={{ width: '100%' }}>등록된 담당자가 없습니다.</Alert>
             ) : (
               usersForRole.map(user => (
-                <Grid item xs={12} key={user.id}>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    size="large"
-                    color="primary"
-                    onClick={() => setSelectedUser(user)}
-                    sx={{ py: 1.5, fontSize: '1.1rem', fontWeight: 600 }}
-                    startIcon={<PersonIcon />}
-                  >
-                    {user.name}
-                  </Button>
-                </Grid>
+                <Button
+                  key={user.id}
+                  fullWidth
+                  variant="contained"
+                  size="large"
+                  color="primary"
+                  onClick={() => setSelectedUser(user)}
+                  sx={{ py: 1.5, fontSize: '1.1rem', fontWeight: 600 }}
+                  startIcon={<PersonIcon />}
+                >
+                  {user.name}
+                </Button>
               ))
             )}
-          </Grid>
+          </Box>
         ) : (
           /* STEP 3: 비밀번호(PIN) 입력 */
           <Box component="form" noValidate onSubmit={handleLogin} sx={{ width: '100%' }}>
@@ -226,7 +225,15 @@ const LoginPage = () => {
                 '& input': { textAlign: 'center' }
               }}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              inputProps={{ maxLength: 6, inputMode: 'numeric' }}
+              helperText={
+                <Box component="span" sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <span style={{ color: password.length === 6 ? '#10B981' : 'inherit' }}>
+                    {password.length} / 6
+                  </span>
+                </Box>
+              }
             />
             <Button
               type="submit"
@@ -234,7 +241,7 @@ const LoginPage = () => {
               variant="contained"
               size="large"
               sx={{ py: 1.5, fontSize: '1.1rem', fontWeight: 600 }}
-              disabled={loading || !password}
+              disabled={loading || password.length !== 6}
             >
               {loading ? <CircularProgress size={24} color="inherit" /> : '로그인'}
             </Button>

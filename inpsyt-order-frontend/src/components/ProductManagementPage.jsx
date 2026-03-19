@@ -31,7 +31,6 @@ import {
   useTheme,
   Tooltip,
   Badge,
-  Grid,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -67,6 +66,9 @@ const ProductManagementPage = () => {
   const [productsPerPage, setProductsPerPage] = useState(50);
   const [totalProducts, setTotalProducts] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [productQuickFilter, setProductQuickFilter] = useState(null); // null=전체, 'discountable', 'popular'
+  const [totalDiscountableCount, setTotalDiscountableCount] = React.useState(0);
+  const [totalPopularCount, setTotalPopularCount] = React.useState(0);
 
   const fileInputRef = useRef(null);
 
@@ -75,21 +77,27 @@ const ProductManagementPage = () => {
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, count, error } = await fetchProductsApi({
-        searchTerm,
-        category: selectedCategory,
-        currentPage,
-        productsPerPage,
-      });
+      const [pageResult, discountResult, popularResult] = await Promise.all([
+        fetchProductsApi({
+          searchTerm,
+          category: selectedCategory,
+          currentPage,
+          productsPerPage,
+        }),
+        supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_discountable', true),
+        supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_popular', true),
+      ]);
 
-      if (error) {
-        addNotification(`상품 목록을 불러오는 데 실패했습니다: ${error.message}`, 'error');
+      if (pageResult.error) {
+        addNotification(`상품 목록을 불러오는 데 실패했습니다: ${pageResult.error.message}`, 'error');
       } else {
-        setProducts(data);
-        setTotalProducts(count);
-        const allTags = data.flatMap(product => product.tags || []);
+        setProducts(pageResult.data);
+        setTotalProducts(pageResult.count);
+        const allTags = pageResult.data.flatMap(product => product.tags || []);
         setAvailableTags(Array.from(new Set(allTags)));
       }
+      if (!discountResult.error) setTotalDiscountableCount(discountResult.count || 0);
+      if (!popularResult.error) setTotalPopularCount(popularResult.count || 0);
     } finally {
       setLoading(false);
     }
@@ -250,18 +258,34 @@ const ProductManagementPage = () => {
     return <Box sx={{ p: 3 }}><Typography>상품 관리 페이지 접근 권한이 없습니다.</Typography></Box>;
   }
 
-  const totalDiscountable = products.filter(p => p.is_discountable).length;
-  const totalPopular = products.filter(p => p.is_popular).length;
+  const totalDiscountable = totalDiscountableCount;
+  const totalPopular = totalPopularCount;
   const hasFilters = searchTerm || selectedCategory;
+
+  const displayedProducts = productQuickFilter === 'discountable'
+    ? products.filter(p => p.is_discountable)
+    : productQuickFilter === 'popular'
+    ? products.filter(p => p.is_popular)
+    : products;
+
+  const statCardSx = (active) => ({
+    cursor: 'pointer',
+    transition: 'box-shadow 0.2s, transform 0.15s',
+    '&:hover': { boxShadow: 4, transform: 'translateY(-2px)' },
+    ...(active ? { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: '2px' } : {}),
+  });
 
   return (
     <Box>
       {/* Header with Stats */}
       <Box sx={{ mb: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
-            📦 상품 관리
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <InventoryIcon sx={{ color: 'primary.main', fontSize: '1.4rem' }} />
+            <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+              상품 관리
+            </Typography>
+          </Box>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Tooltip title="양식 다운로드">
               <IconButton
@@ -313,88 +337,67 @@ const ProductManagementPage = () => {
         </Box>
 
         {/* Stats Cards */}
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{
-              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      전체 상품
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                      {totalProducts}
-                    </Typography>
-                  </Box>
-                  <InventoryIcon sx={{ fontSize: 40, color: alpha(theme.palette.primary.main, 0.5) }} />
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+          <Card onClick={() => setProductQuickFilter(null)} sx={{ flex: '1 1 180px',
+            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+            border: `1px solid ${alpha(theme.palette.primary.main, productQuickFilter === null ? 0.6 : 0.2)}`,
+            ...statCardSx(productQuickFilter === null),
+          }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>전체 상품</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'primary.main' }}>{totalProducts}</Typography>
                 </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{
-              background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.main, 0.05)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      할인 가능
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.main' }}>
-                      {totalDiscountable}
-                    </Typography>
-                  </Box>
-                  <TagIcon sx={{ fontSize: 40, color: alpha(theme.palette.success.main, 0.5) }} />
+                <InventoryIcon sx={{ fontSize: 40, color: alpha(theme.palette.primary.main, 0.5) }} />
+              </Box>
+            </CardContent>
+          </Card>
+          <Card onClick={() => setProductQuickFilter(f => f === 'discountable' ? null : 'discountable')} sx={{ flex: '1 1 180px',
+            background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.main, 0.05)} 100%)`,
+            border: `1px solid ${alpha(theme.palette.success.main, productQuickFilter === 'discountable' ? 0.6 : 0.2)}`,
+            ...statCardSx(productQuickFilter === 'discountable'),
+          }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>할인 가능</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.main' }}>{totalDiscountable}</Typography>
                 </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{
-              background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)} 0%, ${alpha(theme.palette.warning.main, 0.05)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      인기 상품
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'warning.main' }}>
-                      {totalPopular}
-                    </Typography>
-                  </Box>
-                  <TrendingUpIcon sx={{ fontSize: 40, color: alpha(theme.palette.warning.main, 0.5) }} />
+                <TagIcon sx={{ fontSize: 40, color: alpha(theme.palette.success.main, 0.5) }} />
+              </Box>
+            </CardContent>
+          </Card>
+          <Card onClick={() => setProductQuickFilter(f => f === 'popular' ? null : 'popular')} sx={{ flex: '1 1 180px',
+            background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)} 0%, ${alpha(theme.palette.warning.main, 0.05)} 100%)`,
+            border: `1px solid ${alpha(theme.palette.warning.main, productQuickFilter === 'popular' ? 0.6 : 0.2)}`,
+            ...statCardSx(productQuickFilter === 'popular'),
+          }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>인기 상품</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'warning.main' }}>{totalPopular}</Typography>
                 </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{
-              background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.info.main, 0.05)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      카테고리
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'info.main' }}>
-                      {categories.length}
-                    </Typography>
-                  </Box>
-                  <SearchIcon sx={{ fontSize: 40, color: alpha(theme.palette.info.main, 0.5) }} />
+                <TrendingUpIcon sx={{ fontSize: 40, color: alpha(theme.palette.warning.main, 0.5) }} />
+              </Box>
+            </CardContent>
+          </Card>
+          <Card sx={{ flex: '1 1 180px',
+            background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.info.main, 0.05)} 100%)`,
+            border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+          }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>카테고리</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'info.main' }}>{categories.length}</Typography>
                 </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+                <SearchIcon sx={{ fontSize: 40, color: alpha(theme.palette.info.main, 0.5) }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Box>
       </Box>
 
       {/* Filters */}
@@ -477,7 +480,7 @@ const ProductManagementPage = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                products.map((product) => (
+                displayedProducts.map((product) => (
                   <TableRow
                     key={product.id}
                     sx={{
@@ -510,7 +513,9 @@ const ProductManagementPage = () => {
                           <Chip key={idx} label={tag} size="small" variant="outlined" />
                         ))}
                         {product.tags?.length > 2 && (
-                          <Chip label={`+${product.tags.length - 2}`} size="small" />
+                          <Tooltip title={product.tags.slice(2).join(', ')} arrow>
+                            <Chip label={`+${product.tags.length - 2}`} size="small" sx={{ cursor: 'pointer' }} />
+                          </Tooltip>
                         )}
                       </Box>
                     </TableCell>

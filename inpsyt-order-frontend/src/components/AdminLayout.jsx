@@ -9,6 +9,7 @@ import OrderManagementPage from './OrderManagementPage';
 import EventManagementPage from './EventManagementPage';
 import ProductManagementPage from './ProductManagementPage';
 import UserManagementPage from './UserManagementPage'; // UserManagementPage 임포트
+import FulfillmentPage from './FulfillmentPage';
 import NotificationsDisplay from './NotificationsDisplay';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
@@ -18,16 +19,10 @@ const AdminLayout = () => {
   const { hasPermission, permissions } = useAuth();
   const { addNotification } = useNotification();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    try { return localStorage.getItem('admin-sidebar-collapsed') === 'true'; } catch { return false; }
-  });
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const handleToggleCollapse = () => {
-    setSidebarCollapsed(prev => {
-      const next = !prev;
-      try { localStorage.setItem('admin-sidebar-collapsed', String(next)); } catch {}
-      return next;
-    });
+    setSidebarCollapsed(prev => !prev);
   };
 
   useEffect(() => {
@@ -37,7 +32,7 @@ const AdminLayout = () => {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders' },
         (payload) => {
-          console.log('New order received:', payload);
+          if (import.meta.env.DEV) console.log('New order received:', payload);
           addNotification('새로운 주문이 도착했습니다!', 'success');
         }
       )
@@ -83,6 +78,12 @@ const AdminLayout = () => {
             <Route
               path="/products"
               element={hasPermission('products:view') ? <ProductManagementPage /> : <Navigate to="/admin" replace />}
+            />
+
+            {/* 출고 현황 */}
+            <Route
+              path="/fulfillment"
+              element={hasPermission('orders:view') ? <FulfillmentPage /> : <Navigate to="/admin" replace />}
             />
 
             {/* 사용자 관리 (권한 필요) */}
