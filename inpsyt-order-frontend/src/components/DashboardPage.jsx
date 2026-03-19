@@ -571,7 +571,6 @@ const DashboardPage = () => {
         const prod = productsMap[item.product_id];
         if (!prod) return;
         const qty = item.quantity || 0;
-        // list_price 폴백 제거: price_at_purchase가 없으면 0으로 처리
         const price = item.price_at_purchase || 0;
         const cat = (prod.category || '').toLowerCase();
 
