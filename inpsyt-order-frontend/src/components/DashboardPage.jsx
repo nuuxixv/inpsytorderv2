@@ -564,7 +564,6 @@ const DashboardPage = () => {
       // 취소/환불 주문은 매출에서 제외
       if (NON_REVENUE_STATUSES.includes(order.status)) return;
 
-      totalRevenue += order.final_payment || 0;
       shippingRevenue += order.delivery_fee || 0;
 
       (order.order_items || []).forEach(item => {
@@ -582,6 +581,7 @@ const DashboardPage = () => {
         productSales[item.product_id].totalAmount += price * qty;
       });
     });
+    totalRevenue = bookRevenue + testRevenue + shippingRevenue;
 
     const salesList = Object.values(productSales);
     const bookTop5 = salesList.filter(p => (p.category || '').includes('도서') || (p.category || '').toLowerCase().includes('book')).sort((a, b) => b.totalQuantity - a.totalQuantity);

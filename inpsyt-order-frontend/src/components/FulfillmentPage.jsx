@@ -24,7 +24,7 @@ import {
 } from '@mui/material';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { getFulfillmentOrders } from '../api/orders';
+import { getFulfillmentOrders, groupLinkedOrders } from '../api/orders';
 import { getEvents } from '../api/events';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
@@ -67,10 +67,12 @@ const statusLabel = {
 
 // ─── 주문 카드 (좌측 목록) ───────────────────────────────────────────────────
 const OrderCard = ({ order, isSelected, onClick }) => {
-  const orderType = classifyOrder(order.order_items);
+  const displayItems = order.mergedItems || order.order_items;
+  const orderType = classifyOrder(displayItems);
   const badge = orderTypeBadge[orderType];
-  const itemCount = (order.order_items || []).length;
+  const itemCount = (displayItems || []).length;
   const eventName = order.events?.name || '-';
+  const isLinked = order.linkedChildren && order.linkedChildren.length > 0;
 
   return (
     <Card
@@ -100,6 +102,21 @@ const OrderCard = ({ order, isSelected, onClick }) => {
                 '& .MuiChip-label': { px: 0.75 },
               }}
             />
+            {isLinked && (
+              <Chip
+                label={`연계 ${order.linkedChildren.length + 1}건`}
+                size="small"
+                sx={{
+                  height: 18,
+                  fontSize: '0.625rem',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  bgcolor: '#F59E0B',
+                  color: '#fff',
+                  '& .MuiChip-label': { px: 0.75 },
+                }}
+              />
+            )}
           </Box>
           <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', lineHeight: 1.3 }}>
             {order.customer_name}
@@ -108,7 +125,7 @@ const OrderCard = ({ order, isSelected, onClick }) => {
             {eventName} · {itemCount}개 상품
           </Typography>
           <Typography sx={{ fontWeight: 700, fontSize: '0.875rem', color: 'primary.main', mt: 0.5 }}>
-            {(order.final_payment || 0).toLocaleString()}원
+            {(order.mergedTotal ?? order.final_payment ?? 0).toLocaleString()}원
           </Typography>
         </CardContent>
       </CardActionArea>
@@ -169,7 +186,7 @@ const OrderDetail = ({ order, viewMode, onShip, canShip }) => {
               <Box sx={{ flex: 1 }}>
                 <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>결제금액</Typography>
                 <Typography sx={{ fontWeight: 700, fontSize: '0.875rem', color: 'primary.main' }}>
-                  {(order.final_payment || 0).toLocaleString()}원
+                  {(order.mergedTotal ?? order.final_payment ?? 0).toLocaleString()}원
                 </Typography>
               </Box>
             </Box>
@@ -207,7 +224,7 @@ const OrderDetail = ({ order, viewMode, onShip, canShip }) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {(order.order_items || []).map((item, idx) => {
+              {(order.mergedItems || order.order_items || []).map((item, idx) => {
                 const category = item.products?.category;
                 const productName = item.products?.name || '-';
                 const isGreyed =
@@ -271,7 +288,7 @@ const OrderDetail = ({ order, viewMode, onShip, canShip }) => {
                 </Typography>
               )}
               <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', color: 'primary.main' }}>
-                합계 {(order.final_payment || 0).toLocaleString()}원
+                합계 {(order.mergedTotal ?? order.final_payment ?? 0).toLocaleString()}원
               </Typography>
             </Box>
             {canShip && order.status === 'paid' && (
@@ -314,7 +331,7 @@ const FulfillmentPage = () => {
         eventId: filterEvent || undefined,
         statuses: ['paid'],
       });
-      setOrders(data || []);
+      setOrders(groupLinkedOrders(data || []));
       setSelectedOrder(null);
     } catch (err) {
       setError(err.message || '주문을 불러오는 중 오류가 발생했습니다.');
@@ -344,9 +361,10 @@ const FulfillmentPage = () => {
     loadOrders();
   }, [loadOrders]);
 
-  // 뷰 모드에 따라 주문 목록 필터링
+  // 뷰 모드에 따라 주문 목록 필터링 (자식 주문은 부모에 병합되어 표시하지 않음)
   const filteredOrders = orders.filter(order => {
-    const orderType = classifyOrder(order.order_items);
+    if (order.parent_order_id) return false; // child orders hidden; merged into parent
+    const orderType = classifyOrder(order.mergedItems || order.order_items);
     return isOrderVisible(orderType, viewMode);
   });
 

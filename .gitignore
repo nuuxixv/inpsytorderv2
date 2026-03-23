@@ -1,3 +1,28 @@
-.vercel
+# Build and Dependencies
+node_modules/
+dist/
+build/
+.vercel/
+
+# Environment Variables and Secrets
+.env
+.env.*
+!.env.example
+*.local
+
 # AI tooling - ignore Claude Code worktrees (managed by Claude Code, not git)
 .claude/worktrees/
+.gemini/
+
+# System Files
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Supabase
+supabase/.temp/
+supabase/functions/.debug/

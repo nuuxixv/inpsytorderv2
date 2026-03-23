@@ -34,18 +34,7 @@ export const getOrders = async (options) => {
     .order('created_at', { ascending: false });
 
   if (searchTerm) {
-    // Normalize phone number: if digits-only input, also try hyphenated format
-    const digits = searchTerm.replace(/-/g, '');
-    let phoneVariant = searchTerm;
-    if (/^\d{10,11}$/.test(digits)) {
-      phoneVariant = digits.length === 11
-        ? `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
-        : `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-    }
-    const phoneOrClause = phoneVariant !== searchTerm
-      ? `,phone_number.ilike.%${phoneVariant}%`
-      : '';
-    query = query.or(`customer_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone_number.ilike.%${searchTerm}%${phoneOrClause}`);
+    query = query.or(`customer_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
   }
   if (selectedStatus) {
     query = query.eq('status', selectedStatus);
@@ -76,7 +65,7 @@ export const getFulfillmentOrders = async ({ eventId, statuses, dateFrom, dateTo
   let query = supabase
     .from('orders')
     .select(`
-      id, customer_name, phone_number, shipping_address,
+      id, parent_order_id, customer_name, phone_number, shipping_address,
       final_payment, delivery_fee, status, created_at,
       customer_request, admin_memo, event_id,
       events(name),
@@ -94,4 +83,115 @@ export const getFulfillmentOrders = async ({ eventId, statuses, dateFrom, dateTo
   const { data, error } = await query;
   if (error) throw error;
   return data;
+};
+
+/**
+ * 두 주문을 연계시킵니다. childOrderId의 parent_order_id를 parentOrderId로 설정하고
+ * 배송비를 자동 조정합니다.
+ * - 정가(total_cost) 합산 기준으로 3만원 이상이면 무료배송
+ * - 합배송이므로 child의 delivery_fee는 항상 0
+ * - 3만원 이상 + parent가 이미 배송비 납부했으면 그 금액도 child에서 차감
+ */
+export const linkOrders = async (parentOrderId, childOrderId) => {
+  const { data: orders, error: fetchError } = await supabase
+    .from('orders')
+    .select('id, total_cost, discount_amount, delivery_fee, final_payment, status, customer_name')
+    .in('id', [parentOrderId, childOrderId]);
+
+  if (fetchError) throw fetchError;
+
+  const parent = orders.find(o => o.id === parentOrderId);
+  const child = orders.find(o => o.id === childOrderId);
+  if (!parent || !child) throw new Error('주문을 찾을 수 없습니다.');
+
+  const combinedListPrice = parent.total_cost + child.total_cost;
+  const PAID_STATUSES = ['paid', 'shipped', 'completed'];
+
+  // child의 배송비는 항상 0 (합배송)
+  let newFinalPayment = child.total_cost - child.discount_amount;
+
+  if (combinedListPrice >= 30000) {
+    // 무료배송 조건 충족 — parent가 이미 납부한 배송비도 child에서 차감
+    if (PAID_STATUSES.includes(parent.status) && parent.delivery_fee > 0) {
+      newFinalPayment -= parent.delivery_fee;
+    }
+  }
+  // < 30000: 합배송이지만 배송비 1개 유지 (parent가 부담) → child만 0원으로
+
+  const { error } = await supabase
+    .from('orders')
+    .update({ parent_order_id: parentOrderId, delivery_fee: 0, final_payment: newFinalPayment })
+    .eq('id', childOrderId);
+
+  if (error) throw error;
+
+  return {
+    combinedListPrice,
+    freeShipping: combinedListPrice >= 30000,
+    parentPaidShipping: PAID_STATUSES.includes(parent.status) ? parent.delivery_fee : 0,
+    newFinalPayment,
+    originalFinalPayment: child.final_payment,
+    saved: child.final_payment - newFinalPayment,
+  };
+};
+
+/**
+ * 주어진 주문 목록에서 연계 주문을 그룹화하여 병합된 주문 객체를 반환합니다.
+ * - 부모 주문: { ...order, linkedChildren: [...], mergedItems: [...], mergedTotal: N }
+ * - 자식 주문: 그대로 반환 (parent_order_id 유지)
+ */
+export const groupLinkedOrders = (orders) => {
+  // Build a map of children by parent_order_id
+  const childrenMap = {};
+  orders.forEach(order => {
+    if (order.parent_order_id) {
+      if (!childrenMap[order.parent_order_id]) childrenMap[order.parent_order_id] = [];
+      childrenMap[order.parent_order_id].push(order);
+    }
+  });
+
+  return orders.map(order => {
+    if (!order.parent_order_id) {
+      // Parent order
+      const children = childrenMap[order.id] || [];
+      const mergedItems = [
+        ...(order.order_items || []),
+        ...children.flatMap(c => c.order_items || []),
+      ];
+      const mergedTotal = (order.final_payment || 0) + children.reduce((s, c) => s + (c.final_payment || 0), 0);
+      return { ...order, linkedChildren: children, mergedItems, mergedTotal };
+    } else {
+      // Child order - return as-is
+      return { ...order, linkedChildren: [], mergedItems: order.order_items || [], mergedTotal: order.final_payment || 0 };
+    }
+  });
+};
+
+/**
+ * 연계 주문 연결 시 parent 후보를 검색합니다.
+ * parent_order_id가 없는 주문만 반환 (이미 child인 주문은 parent가 될 수 없음).
+ */
+export const searchOrdersForLinking = async (term, excludeOrderId) => {
+  const digits = term.replace(/-/g, '');
+  let phoneVariant = term;
+  if (/^\d{10,11}$/.test(digits)) {
+    phoneVariant = digits.length === 11
+      ? `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
+      : `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  const phoneOrClause = phoneVariant !== term ? `,phone_number.ilike.%${phoneVariant}%` : '';
+
+  let query = supabase
+    .from('orders')
+    .select('id, customer_name, phone_number, total_cost, final_payment, delivery_fee, status, created_at, parent_order_id')
+    .or(`customer_name.ilike.%${term}%,phone_number.ilike.%${term}%${phoneOrClause}`)
+    .is('parent_order_id', null)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (excludeOrderId) query = query.neq('id', excludeOrderId);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
 };
