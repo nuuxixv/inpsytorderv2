@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -16,42 +16,76 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
   const { addNotification } = useNotification();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('popular'); // 'all' or 'popular'
   const [selectedCategory, setSelectedCategory] = useState('all'); // 'all' or specific category name
+  
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const observer = useRef();
 
-  const loadProducts = useCallback(async (search = '', mode = 'popular', category = 'all') => {
-    setLoading(true);
+  const loadProducts = useCallback(async (search = '', mode = 'popular', category = 'all', pageNum = 1) => {
+    if (pageNum === 1) setLoading(true);
+    else setLoadingMore(true);
+
     try {
+      const productsPerPage = 40;
       const params = {
         searchTerm: search,
         // '전체' 모드가 아닐 때만 학회 태그 필터 적용
         tags: (mode !== 'all' && eventTags?.length > 0) ? eventTags : undefined,
+        isPopularOnly: mode === 'popular' && !search,
         isNewOnly: mode === 'new',
         category: category !== 'all' ? category : undefined,
-        productsPerPage: 100,
+        currentPage: pageNum,
+        productsPerPage,
       };
-      const { data } = await fetchProducts(params);
-      setProducts(data || []);
+      
+      const { data, count } = await fetchProducts(params);
+      
+      if (pageNum === 1) {
+        setProducts(data || []);
+      } else {
+        setProducts(prev => [...prev, ...(data || [])]);
+      }
+      
+      setHasMore((data || []).length === productsPerPage && (pageNum * productsPerPage) < (count || 0));
     } catch (error) {
       addNotification(`상품 검색에 실패했습니다: ${error.message}`, 'error');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [eventTags, addNotification]);
 
-  // Load products on mount
-  useEffect(() => {
-    loadProducts('', 'popular', 'all');
-  }, [loadProducts]);
+  // Last element ref for Intersection Observer
+  const lastProductElementRef = useCallback(node => {
+    if (loading || loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setPage(prevPage => prevPage + 1);
+      }
+    });
+    
+    if (node) observer.current.observe(node);
+  }, [loading, loadingMore, hasMore]);
 
-  // Debounced search
+  // Reset and load when filters change
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadProducts(searchTerm, viewMode, selectedCategory);
-    }, 300);
-    return () => clearTimeout(timer);
+    setPage(1);
+    loadProducts(searchTerm, viewMode, selectedCategory, 1);
   }, [searchTerm, viewMode, selectedCategory, loadProducts]);
+
+  // Load more when page changes
+  useEffect(() => {
+    if (page > 1) {
+      loadProducts(searchTerm, viewMode, selectedCategory, page);
+    }
+  }, [page, loadProducts, searchTerm, viewMode, selectedCategory]);
 
   const getCartQuantity = (productId) => {
     const item = cart.find(p => p.id === productId);
@@ -223,17 +257,27 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
             gap: 1.5,
           }}
         >
-          {products.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              discountRate={discountRate}
-              cartQuantity={getCartQuantity(product.id)}
-              onAdd={() => handleAddProduct(product)}
-              onIncrement={() => handleIncrement(product.id)}
-              onDecrement={() => handleDecrement(product.id)}
-            />
-          ))}
+          {products.map((product, index) => {
+            const isLast = products.length === index + 1;
+            return (
+              <Box key={product.id} ref={isLast ? lastProductElementRef : null}>
+                <ProductCard
+                  product={product}
+                  discountRate={discountRate}
+                  cartQuantity={getCartQuantity(product.id)}
+                  onAdd={() => handleAddProduct(product)}
+                  onIncrement={() => handleIncrement(product.id)}
+                  onDecrement={() => handleDecrement(product.id)}
+                />
+              </Box>
+            );
+          })}
+        </Box>
+      )}
+
+      {loadingMore && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+          <CircularProgress size={24} thickness={4} />
         </Box>
       )}
     </Box>

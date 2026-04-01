@@ -14,10 +14,8 @@ import {
   Delete as DeleteIcon,
 } from '@mui/icons-material';
 
-const SHIPPING_FEE = 3000;
-const FREE_SHIPPING_THRESHOLD = 30000;
-
-const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, discountRate = 0, isOnsitePurchase = false }) => {
+const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, discountRate = 0, isOnsitePurchase = false }) => {
+  const { free_shipping_threshold = 30000, shipping_cost = 3000 } = settings || {};
   const validItems = cart.filter(item => item.id);
 
   const handleQuantityChange = (productId, newQuantity) => {
@@ -187,7 +185,7 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, discountRa
                 배송비
               </Typography>
               <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                {totalPrice >= FREE_SHIPPING_THRESHOLD ? '무료' : `${SHIPPING_FEE.toLocaleString()}원`}
+                {totalPrice >= free_shipping_threshold ? '무료' : `${shipping_cost.toLocaleString()}원`}
               </Typography>
             </Box>
           )}
@@ -198,7 +196,7 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, discountRa
             <Typography variant="h4" sx={{ fontWeight: 800, color: 'primary.main' }}>
               {(isOnsitePurchase
                 ? totalPrice
-                : totalPrice + (totalPrice >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE)
+                : totalPrice + (totalPrice >= free_shipping_threshold ? 0 : shipping_cost)
               ).toLocaleString()}원
             </Typography>
           </Box>

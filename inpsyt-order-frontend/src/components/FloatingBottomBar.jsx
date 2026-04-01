@@ -26,7 +26,7 @@ const FloatingBottomBar = ({
   const getNextLabel = () => {
     switch (activeStep) {
       case 0:
-        return '다음';
+        return '주문서 작성하기';
       case 1:
         return '다음';
       case 2:

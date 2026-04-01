@@ -92,6 +92,10 @@ const initialState = {
     shippingCost: 0,
     finalPayment: 0,
   },
+  settings: {
+    free_shipping_threshold: 30000,
+    shipping_cost: 3000,
+  },
   selectedOrders: [],
 };
 
@@ -246,10 +250,18 @@ const OrderManagementPage = () => {
     dispatch({ type: 'SET_STATE', payload: { loading: false } });
   }, [state.currentPage, state.searchTerm, state.selectedStatus, state.selectedEvent, state.startDate, state.endDate, addNotification]);
 
+  const fetchSettings = useCallback(async () => {
+    const { data } = await supabase.from('site_settings').select('*').single();
+    if (data) {
+      dispatch({ type: 'SET_STATE', payload: { settings: data } });
+    }
+  }, []);
+
   useEffect(() => {
     fetchProducts();
     fetchEvents();
-  }, [fetchProducts, fetchEvents]);
+    fetchSettings();
+  }, [fetchProducts, fetchEvents, fetchSettings]);
 
   useEffect(() => {
     fetchOrders();
@@ -269,11 +281,12 @@ const OrderManagementPage = () => {
       return sum + (item.price_at_purchase || 0) * (item.quantity || 0);
     }, 0);
     const calculatedDiscount = originalSubtotal - discountedSubtotal;
-    const calculatedShipping = discountedSubtotal > 0 && discountedSubtotal < 30000 ? 3000 : 0;
+    const { free_shipping_threshold, shipping_cost } = state.settings;
+    const calculatedShipping = discountedSubtotal > 0 && discountedSubtotal < free_shipping_threshold ? shipping_cost : 0;
     const calculatedFinalPayment = discountedSubtotal + calculatedShipping;
 
     dispatch({ type: 'SET_NEW_ORDER_CALCULATIONS', payload: { totalAmount: originalSubtotal, discountAmount: calculatedDiscount, shippingCost: calculatedShipping, finalPayment: calculatedFinalPayment } });
-  }, [state.newOrder.items, state.newOrder.selectedEvent, state.events, state.products]);
+  }, [state.newOrder.items, state.newOrder.selectedEvent, state.events, state.products, state.settings]);
 
   const handleSaveNewOrder = async () => {
     const { isOnSiteSale, customerName, customerEmail, selectedEvent, items } = state.newOrder;

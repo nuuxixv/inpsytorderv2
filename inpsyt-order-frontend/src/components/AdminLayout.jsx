@@ -10,6 +10,7 @@ import EventManagementPage from './EventManagementPage';
 import ProductManagementPage from './ProductManagementPage';
 import UserManagementPage from './UserManagementPage'; // UserManagementPage 임포트
 import FulfillmentPage from './FulfillmentPage';
+import SettingsPage from './SettingsPage'; // SettingsPage 임포트
 import NotificationsDisplay from './NotificationsDisplay';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
@@ -90,6 +91,12 @@ const AdminLayout = () => {
             <Route
               path="/users"
               element={hasPermission('users:manage') ? <UserManagementPage /> : <Navigate to="/admin" replace />}
+            />
+
+            {/* 설정 (Master 권한 필요) */}
+            <Route
+              path="/settings"
+              element={permissions.includes('master') ? <SettingsPage /> : <Navigate to="/admin" replace />}
             />
           </Routes>
         </Box>

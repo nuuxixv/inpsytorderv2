@@ -22,9 +22,6 @@ import CustomerInfoStep from './CustomerInfoStep';
 import OrderReviewStep from './OrderReviewStep';
 import CartBottomSheet from './CartBottomSheet';
 
-const SHIPPING_FEE = 3000;
-const FREE_SHIPPING_THRESHOLD = 30000;
-
 const OrderPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -37,6 +34,12 @@ const OrderPage = () => {
   const [onsiteSnackbar, setOnsiteSnackbar] = useState(false);
   const tapCountRef = useRef(0);
   const tapTimerRef = useRef(null);
+
+  // Settings state
+  const [settings, setSettings] = useState({
+    free_shipping_threshold: 30000,
+    shipping_cost: 3000,
+  });
 
   // Data state
   const [loading, setLoading] = useState(true);
@@ -70,12 +73,25 @@ const OrderPage = () => {
   const hasOnlineCode = validCartItems.some(item => item.category === '온라인코드' || (item.name && item.name.includes('온라인')));
   const isSubmittable = isCustomerInfoValid && hasCartItems;
 
-  // Fetch event data
+  // Fetch event data and settings
   useEffect(() => {
-    const fetchEventData = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         setAccessError(null);
+
+        // Fetch settings first
+        try {
+          const { data: settingsData, error: settingsError } = await supabase
+            .from('site_settings')
+            .select('*')
+            .single();
+          if (!settingsError && settingsData) {
+            setSettings(settingsData);
+          }
+        } catch (sErr) {
+          console.error('Failed to fetch settings, using defaults:', sErr);
+        }
 
         // 슬러그 없이 접근 → 즉시 차단
         if (!eventSlug) {
@@ -108,7 +124,7 @@ const OrderPage = () => {
         setLoading(false);
       }
     };
-    fetchEventData();
+    fetchData();
   }, [eventSlug]);
 
 
@@ -256,9 +272,10 @@ const OrderPage = () => {
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        bgcolor: 'background.paper',
+        bgcolor: activeStep === 0 ? 'background.paper' : '#F8F9FA',
         maxWidth: 600,
         mx: 'auto',
+        transition: 'background-color 0.3s ease',
       }}
     >
       {/* Header Branding */}
@@ -298,8 +315,8 @@ const OrderPage = () => {
         </Box>
       </Box>
 
-      {/* Step indicator */}
-      <OrderStepIndicator activeStep={activeStep} />
+      {/* Step indicator - Hide only in Step 0 (Lounge mode) */}
+      {activeStep > 0 && <OrderStepIndicator activeStep={activeStep} />}
 
       {/* Error display */}
       {error && (
@@ -337,6 +354,7 @@ const OrderPage = () => {
           <OrderReviewStep
             cart={cart}
             customerInfo={customerInfo}
+            settings={settings}
             discountRate={discountRate}
             onGoToStep={handleGoToStep}
             isOnsitePurchase={isOnsitePurchase}
@@ -349,7 +367,7 @@ const OrderPage = () => {
         activeStep={activeStep}
         cart={cart}
         totalPrice={totalPrice}
-        freeShippingThreshold={FREE_SHIPPING_THRESHOLD}
+        freeShippingThreshold={settings.free_shipping_threshold}
         isOnsitePurchase={isOnsitePurchase}
         onNext={handleNext}
         onBack={handleBack}
@@ -359,7 +377,6 @@ const OrderPage = () => {
         isSubmittable={isSubmittable}
       />
 
-      {/* Cart bottom sheet */}
       <CartBottomSheet
         open={cartSheetOpen}
         onClose={() => setCartSheetOpen(false)}
@@ -368,12 +385,18 @@ const OrderPage = () => {
         onCartChange={setCart}
         discountRate={discountRate}
         isOnsitePurchase={isOnsitePurchase}
+        settings={settings}
       />
 
       {/* Success dialog */}
       <Dialog
         open={showSuccessDialog}
-        onClose={handleCloseSuccessDialog}
+        onClose={(event, reason) => {
+          // Allow closing on backdrop click or escape key for better UX
+          if (reason === 'backdropClick' || reason === 'escapeKeyDown' || !reason) {
+            handleCloseSuccessDialog();
+          }
+        }}
         PaperProps={{ sx: { borderRadius: '16px', mx: 2 } }}
       >
         <DialogTitle sx={{ fontWeight: 700, textAlign: 'center', pt: 4, pb: 1 }}>

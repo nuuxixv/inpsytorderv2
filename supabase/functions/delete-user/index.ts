@@ -21,7 +21,7 @@ serve(async (req: Request) => {
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'No authorization header' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        status: 401,
       })
     }
 
@@ -31,14 +31,14 @@ serve(async (req: Request) => {
     if (authError || !currentUser) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        status: 401,
       })
     }
 
     if (currentUser.app_metadata?.role !== 'master') {
       return new Response(JSON.stringify({ error: 'Forbidden' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        status: 403,
       })
     }
 
@@ -46,7 +46,7 @@ serve(async (req: Request) => {
     if (!userId) {
       return new Response(JSON.stringify({ error: 'Missing userId' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        status: 400,
       })
     }
 
@@ -56,7 +56,7 @@ serve(async (req: Request) => {
     if (deleteError) {
       return new Response(JSON.stringify({ error: deleteError.message }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        status: 400,
       })
     }
 
@@ -67,7 +67,7 @@ serve(async (req: Request) => {
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
+      status: 500,
     })
   }
 })

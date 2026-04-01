@@ -7,10 +7,8 @@ import {
   LinearProgress
 } from '@mui/material';
 
-const SHIPPING_FEE = 3000;
-const FREE_SHIPPING_THRESHOLD = 30000;
-
-const CostSummary = ({ cart, discountRate = 0, embedded = false, compact = false, isOnsitePurchase = false }) => {
+const CostSummary = ({ cart, settings, discountRate = 0, embedded = false, compact = false, isOnsitePurchase = false }) => {
+  const { free_shipping_threshold = 30000, shipping_cost = 3000 } = settings || {};
   const calculateCosts = () => {
     let totalOriginalPrice = 0;
     let totalDiscountedPrice = 0;
@@ -31,15 +29,15 @@ const CostSummary = ({ cart, discountRate = 0, embedded = false, compact = false
     });
 
     const totalDiscountAmount = totalOriginalPrice - totalDiscountedPrice;
-    const shippingCost = isOnsitePurchase ? 0 : (totalOriginalPrice >= FREE_SHIPPING_THRESHOLD || totalOriginalPrice === 0 ? 0 : SHIPPING_FEE);
+    const shippingCost = isOnsitePurchase ? 0 : (totalOriginalPrice >= free_shipping_threshold || totalOriginalPrice === 0 ? 0 : shipping_cost);
     const finalCost = totalDiscountedPrice + shippingCost;
-    const freeShippingProgress = Math.min((totalOriginalPrice / FREE_SHIPPING_THRESHOLD) * 100, 100);
+    const freeShippingProgress = Math.min((totalOriginalPrice / free_shipping_threshold) * 100, 100);
 
     return { totalOriginalPrice, totalDiscountAmount, shippingCost, finalCost, freeShippingProgress };
   };
 
   const { totalOriginalPrice, totalDiscountAmount, shippingCost, finalCost, freeShippingProgress } = calculateCosts();
-  const remainingForFreeShipping = FREE_SHIPPING_THRESHOLD - totalOriginalPrice;
+  const remainingForFreeShipping = free_shipping_threshold - totalOriginalPrice;
 
   // Compact mode: only show final price (for FloatingBottomBar)
   if (compact) {
@@ -59,7 +57,7 @@ const CostSummary = ({ cart, discountRate = 0, embedded = false, compact = false
         <Box sx={{ mb: 3, p: 2, bgcolor: '#F2F4F6', borderRadius: '12px' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
             <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8125rem' }}>
-              {totalOriginalPrice < FREE_SHIPPING_THRESHOLD
+            {totalOriginalPrice < free_shipping_threshold
                 ? `무료배송까지 ${remainingForFreeShipping.toLocaleString()}원 남았습니다!`
                 : '무료배송 혜택이 적용되었습니다!'}
             </Typography>

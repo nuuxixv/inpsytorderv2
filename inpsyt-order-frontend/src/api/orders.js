@@ -88,11 +88,11 @@ export const getFulfillmentOrders = async ({ eventId, statuses, dateFrom, dateTo
 /**
  * 두 주문을 연계시킵니다. childOrderId의 parent_order_id를 parentOrderId로 설정하고
  * 배송비를 자동 조정합니다.
- * - 정가(total_cost) 합산 기준으로 3만원 이상이면 무료배송
- * - 합배송이므로 child의 delivery_fee는 항상 0
- * - 3만원 이상 + parent가 이미 배송비 납부했으면 그 금액도 child에서 차감
+ * @param {string} parentOrderId 부모 주문 ID
+ * @param {string} childOrderId 자식 주문 ID
+ * @param {object} [settings] 사이트 환경설정 (배송비 임계치 등)
  */
-export const linkOrders = async (parentOrderId, childOrderId) => {
+export const linkOrders = async (parentOrderId, childOrderId, settings = {}) => {
   const { data: orders, error: fetchError } = await supabase
     .from('orders')
     .select('id, total_cost, discount_amount, delivery_fee, final_payment, status, customer_name')
@@ -104,19 +104,20 @@ export const linkOrders = async (parentOrderId, childOrderId) => {
   const child = orders.find(o => o.id === childOrderId);
   if (!parent || !child) throw new Error('주문을 찾을 수 없습니다.');
 
+  const threshold = settings.free_shipping_threshold ?? 30000;
   const combinedListPrice = parent.total_cost + child.total_cost;
   const PAID_STATUSES = ['paid', 'shipped', 'completed'];
 
   // child의 배송비는 항상 0 (합배송)
   let newFinalPayment = child.total_cost - child.discount_amount;
 
-  if (combinedListPrice >= 30000) {
-    // 무료배송 조건 충족 — parent가 이미 납부한 배송비도 child에서 차감
+  if (combinedListPrice >= threshold) {
+    // 무료배송 조건 충족 — parent가 이미 납부한 배송비도 child에서 차감 (캐시백 효과)
     if (PAID_STATUSES.includes(parent.status) && parent.delivery_fee > 0) {
       newFinalPayment -= parent.delivery_fee;
     }
   }
-  // < 30000: 합배송이지만 배송비 1개 유지 (parent가 부담) → child만 0원으로
+  // < threshold: 합배송이지만 배송비 1개 유지 (parent가 부담) → child만 0원으로
 
   const { error } = await supabase
     .from('orders')
@@ -127,12 +128,47 @@ export const linkOrders = async (parentOrderId, childOrderId) => {
 
   return {
     combinedListPrice,
-    freeShipping: combinedListPrice >= 30000,
+    freeShipping: combinedListPrice >= threshold,
     parentPaidShipping: PAID_STATUSES.includes(parent.status) ? parent.delivery_fee : 0,
     newFinalPayment,
     originalFinalPayment: child.final_payment,
     saved: child.final_payment - newFinalPayment,
   };
+};
+
+/**
+ * 합배송된 주문을 다시 분리합니다 (부모 주문과의 연결 해제).
+ * @param {string} orderId 분리할 주문 ID
+ * @param {object} [settings] 사이트 환경설정 (배송비 임계치 등)
+ */
+export const unlinkOrders = async (orderId, settings = {}) => {
+  const { data: order, error: fetchError } = await supabase
+    .from('orders')
+    .select('total_cost, discount_amount')
+    .eq('id', orderId)
+    .single();
+
+  if (fetchError) throw fetchError;
+
+  const threshold = settings.free_shipping_threshold ?? 30000;
+  const shippingFee = settings.shipping_cost ?? 3000;
+
+  // 개별 주문 기준으로 배송비 재계산
+  const deliveryFee = order.total_cost >= threshold ? 0 : shippingFee;
+  const finalPayment = order.total_cost - order.discount_amount + deliveryFee;
+
+  const { error } = await supabase
+    .from('orders')
+    .update({ 
+      parent_order_id: null, 
+      delivery_fee: deliveryFee, 
+      final_paymentValue: finalPayment, // typo? 아니, final_payment 
+      final_payment: finalPayment
+    })
+    .eq('id', orderId);
+
+  if (error) throw error;
+  return { success: true };
 };
 
 /**

@@ -44,7 +44,7 @@ SECURITY DEFINER
 AS $$
   SELECT coalesce(
     current_setting('request.jwt.claims', true)::jsonb -> 'app_metadata' -> 'permissions',
-    '["view", "edit"]'::jsonb  -- Default permissions for users without explicit permissions
+    '[]'::jsonb  -- SECURITY PATCH: Prevent defaulting to view/edit for unknown users
   );
 $$;
 
@@ -58,14 +58,8 @@ AS $$
     -- Master has all permissions
     (get_current_user_permissions() ? 'master') OR
     -- Check for specific permission
-    (get_current_user_permissions() ? required_perm) OR
-    -- Fallback: if authenticated and no permissions set, grant view/edit
-    (auth.uid() IS NOT NULL AND jsonb_array_length(
-      coalesce(
-        current_setting('request.jwt.claims', true)::jsonb -> 'app_metadata' -> 'permissions',
-        '[]'::jsonb
-      )
-    ) = 0)
+    (get_current_user_permissions() ? required_perm)
+    -- SECURITY PATCH: Removed the dangerous fallback that granted view/edit to any authenticated user without explicit permissions
   );
 $$;
 

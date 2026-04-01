@@ -30,13 +30,22 @@ serve(async (req) => {
   )
 
   try {
-    // 1. Fetch products and event details for server-side calculation
+    // 1. Fetch products, event details, and site settings for server-side calculation
+    const { data: settings, error: settingsError } = await supabaseClient
+      .from('site_settings')
+      .select('free_shipping_threshold, shipping_cost')
+      .single()
+    
+    if (settingsError) {
+      console.error('Settings fetch error:', settingsError)
+    }
+
     const { data: products, error: productsError } = await supabaseClient
       .from('products')
       .select('id, list_price, is_discountable')
       .in(
         'id',
-        cart.map((item) => item.product_id)
+        cart.map((item: any) => item.product_id)
       )
     if (productsError) throw productsError
 
@@ -53,7 +62,7 @@ serve(async (req) => {
     let totalOriginalPrice = 0
     let totalDiscountedPrice = 0
 
-    cart.forEach((item) => {
+    cart.forEach((item: any) => {
       const product = products.find((p) => p.id === item.product_id)
       if (product) {
         const quantity = item.quantity || 0
@@ -68,8 +77,8 @@ serve(async (req) => {
       }
     })
 
-    const SHIPPING_FEE = 3000
-    const FREE_SHIPPING_THRESHOLD = 30000
+    const SHIPPING_FEE = settings?.shipping_cost ?? 3000
+    const FREE_SHIPPING_THRESHOLD = settings?.free_shipping_threshold ?? 30000
 
     const totalDiscountAmount = totalOriginalPrice - totalDiscountedPrice
     const shippingCost =
@@ -100,12 +109,12 @@ serve(async (req) => {
 
     if (orderError) throw orderError
 
-    const orderItemsData = cart.map((item) => {
+    const orderItemsData = cart.map((item: any) => {
       const product = products.find((p) => p.id === item.product_id)
       const originalPrice = product ? product.list_price : 0
       const priceAtPurchase = product.is_discountable
         ? Math.round(originalPrice * (1 - discountRate))
-        : originalPrice
+        : (product ? originalPrice : 0)
 
       return {
         order_id: newOrder.id,
@@ -212,11 +221,11 @@ serve(async (req) => {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
       status: 200,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating order:', error)
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      status: 400,
+      status: 500,
     })
   }
 })

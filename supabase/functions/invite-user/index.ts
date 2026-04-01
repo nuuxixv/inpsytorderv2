@@ -24,7 +24,7 @@ serve(async (req: Request) => {
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'No authorization header' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200, // Return 200 for debugging
+        status: 401,
       })
     }
 
@@ -34,7 +34,7 @@ serve(async (req: Request) => {
     if (authError || !user) {
       return new Response(JSON.stringify({ error: authError?.message || 'Unauthorized' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        status: 401,
       })
     }
 
@@ -42,7 +42,7 @@ serve(async (req: Request) => {
     if (userRole !== 'master') {
       return new Response(JSON.stringify({ error: 'Forbidden: Only master users can manage users' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        status: 403,
       })
     }
 
@@ -53,7 +53,7 @@ serve(async (req: Request) => {
     if (!email || !name || !role || !password) {
       return new Response(JSON.stringify({ error: 'Missing email, name, role, or password in request' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        status: 400,
       })
     }
 
@@ -85,7 +85,7 @@ serve(async (req: Request) => {
       console.error('Auth User Creation Error:', createError)
       return new Response(JSON.stringify({ error: `Auth Error: ${createError.message}` }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        status: 400,
       })
     }
 
@@ -109,7 +109,7 @@ serve(async (req: Request) => {
           user: data.user 
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
+          status: 207, // Multi-Status
         })
       }
       console.log(`User created and profile synced: ${data.user.id}`);
@@ -123,7 +123,7 @@ serve(async (req: Request) => {
     console.error('Fatal Edge Function error:', error)
     return new Response(JSON.stringify({ error: `System Error: ${error.message}` }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
+      status: 500,
     })
   }
 })

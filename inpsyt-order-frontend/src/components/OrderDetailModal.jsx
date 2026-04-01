@@ -69,6 +69,23 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
   const [linkSearchLoading, setLinkSearchLoading] = useState(false);
   const [linkLoading, setLinkLoading] = useState(false);
 
+  // Settings state
+  const [settings, setSettings] = useState({
+    free_shipping_threshold: 30000,
+    shipping_cost: 3000,
+  });
+
+  // Fetch settings
+  useEffect(() => {
+    supabase
+      .from('site_settings')
+      .select('*')
+      .single()
+      .then(({ data }) => {
+        if (data) setSettings(data);
+      });
+  }, []);
+
   // This useEffect is the single source of truth for setting state from the order prop.
   useEffect(() => {
     if (order) {
@@ -109,7 +126,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
 
     const currentTotalDiscount = currentSubtotal * discountRate;
     const subtotalAfterDiscount = currentSubtotal - currentTotalDiscount;
-    const currentShippingFee = subtotalAfterDiscount >= 30000 ? 0 : 3000;
+    const currentShippingFee = subtotalAfterDiscount >= settings.free_shipping_threshold ? 0 : settings.shipping_cost;
     const currentFinalTotal = subtotalAfterDiscount + currentShippingFee;
 
     setSubtotal(currentSubtotal);
@@ -117,7 +134,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
     setShippingFee(currentShippingFee);
     setFinalTotal(currentFinalTotal);
 
-  }, [isEditing, editedOrderItems, editedEventId, productsMap, events]);
+  }, [isEditing, editedOrderItems, editedEventId, productsMap, events, settings]);
 
   useEffect(() => {
     if (!order) return;
@@ -364,7 +381,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
             <List dense>
               {linkSearchResults.map(result => {
                 const combinedListPrice = (order?.total_cost || 0) + result.total_cost;
-                const freeShipping = combinedListPrice >= 30000;
+                const freeShipping = combinedListPrice >= settings.free_shipping_threshold;
                 const parentPaidShipping = ['paid', 'shipped', 'completed'].includes(result.status) ? result.delivery_fee : 0;
                 const newFinal = (order?.total_cost || 0) - (order?.discount_amount || 0) - (freeShipping ? parentPaidShipping : 0);
                 const saved = (order?.final_payment || 0) - newFinal;

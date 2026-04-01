@@ -14,7 +14,7 @@ const InfoRow = ({ label, value }) => (
   </Box>
 );
 
-const OrderReviewStep = ({ cart, customerInfo, discountRate = 0, onGoToStep, isOnsitePurchase = false }) => {
+const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoToStep, isOnsitePurchase = false }) => {
   const validItems = cart.filter(item => item.id);
 
   const getItemPrice = (item) => {
@@ -119,7 +119,7 @@ const OrderReviewStep = ({ cart, customerInfo, discountRate = 0, onGoToStep, isO
       {/* Cost summary */}
       <Card sx={{ borderRadius: '16px', boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
         <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-          <CostSummary cart={cart} discountRate={discountRate} embedded isOnsitePurchase={isOnsitePurchase} />
+          <CostSummary cart={cart} settings={settings} discountRate={discountRate} embedded isOnsitePurchase={isOnsitePurchase} />
         </CardContent>
       </Card>
     </Box>

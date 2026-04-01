@@ -24,6 +24,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import SettingsIcon from '@mui/icons-material/Settings';
 import { useAuth } from '../hooks/useAuth';
 
 const DRAWER_WIDTH = 260;
@@ -36,6 +37,7 @@ const allMenuItems = [
   { text: '상품 관리', icon: <CategoryIcon />, path: '/admin/products', permissionKey: 'products:view' },
   { text: '출고 현황', icon: <LocalShippingIcon />, path: '/admin/fulfillment', permissionKey: 'orders:view' },
   { text: '사용자 관리', icon: <PeopleIcon />, path: '/admin/users', permissionKey: 'users:manage' },
+  { text: '설정', icon: <SettingsIcon />, path: '/admin/settings', permissionKey: 'master' },
 ];
 
 const AdminSidebar = ({ open, onClose, collapsed = false, onToggleCollapse }) => {
