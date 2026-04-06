@@ -41,7 +41,7 @@ import { format, subDays } from 'date-fns';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
-import { Close as CloseIcon, KeyboardArrowDown as KeyboardArrowDownIcon } from '@mui/icons-material';
+import { Close as CloseIcon, KeyboardArrowDown as KeyboardArrowDownIcon, Assignment as AssignmentIcon } from '@mui/icons-material';
 import { useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import OrderDetailModal from './OrderDetailModal';
@@ -513,8 +513,11 @@ const OrderManagementPage = () => {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', p: { xs: 1, md: 2 } }}>
-      <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', mb: 2, px: { xs: 1, md: 0 } }}>주문 관리</Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        <AssignmentIcon sx={{ color: 'primary.main', fontSize: '1.4rem' }} />
+        <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>주문 관리</Typography>
+      </Box>
 
       {isMobile ? (
         <Box sx={{ px: 1, mb: 2, display: 'flex', justifyContent: 'flex-start' }}>

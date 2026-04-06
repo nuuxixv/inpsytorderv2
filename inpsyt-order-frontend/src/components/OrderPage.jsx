@@ -268,7 +268,7 @@ const OrderPage = () => {
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        bgcolor: activeStep === 0 ? 'background.paper' : '#F8F9FA',
+        bgcolor: activeStep < 2 ? 'background.paper' : '#F8F9FA',
         maxWidth: 600,
         mx: 'auto',
         transition: 'background-color 0.3s ease',
