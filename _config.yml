@@ -1,0 +1,7 @@
+exclude:
+  - DOCS/archive
+  - inpsyt-order-frontend
+  - supabase
+  - node_modules
+  - "*.json"
+  - "*.lock"
