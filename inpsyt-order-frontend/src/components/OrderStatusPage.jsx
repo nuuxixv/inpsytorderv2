@@ -126,7 +126,7 @@ const OrderStatusPage = () => {
   const isCancelled = ['cancelled', 'refunded'].includes(order.status);
 
   return (
-    <Box sx={{ maxWidth: 480, mx: 'auto', minHeight: '100dvh', bgcolor: 'background.default' }}>
+    <Box sx={{ maxWidth: 480, mx: 'auto', minHeight: '100dvh', bgcolor: 'background.paper' }}>
 
       {/* 상태 배너 */}
       <Box sx={{ bgcolor: banner.color, px: 3, pt: 4, pb: 3.5, textAlign: 'center' }}>
