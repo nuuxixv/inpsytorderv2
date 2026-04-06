@@ -99,7 +99,7 @@ const OrderLookupPage = () => {
           <ArrowBackIcon />
         </IconButton>
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>주문내역 조회</Typography>
+          <Typography variant="h5" component="h1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>주문내역 조회</Typography>
           {eventInfo && (
             <Typography variant="caption" color="text.secondary">{eventInfo.name}</Typography>
           )}
