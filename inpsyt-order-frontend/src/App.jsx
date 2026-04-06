@@ -34,7 +34,7 @@ function AppRoutes() {
         <Route path="/" element={<OrderPage />} />
         <Route path="/order" element={<OrderPage />} />
         <Route path="/order/lookup" element={<OrderLookupPage />} />
-        <Route path="/order/status/:orderId" element={<OrderStatusPage />} />
+        <Route path="/order/status/:token" element={<OrderStatusPage />} />
         <Route path="/login" element={<LoginPage />} />
         {/* Redirect /smartadmin to /admin */}
           <Route path="/smartadmin" element={<Navigate to="/admin" replace />} />

@@ -52,7 +52,7 @@ const OrderLookupPage = () => {
       let query = supabase
         .from('orders')
         .select(`
-          id, created_at, status, final_payment,
+          id, access_token, created_at, status, final_payment,
           events(name),
           order_items(quantity, products(name))
         `)
@@ -173,7 +173,7 @@ const OrderLookupPage = () => {
                 return (
                   <Card
                     key={order.id}
-                    onClick={() => navigate(`/order/status/${order.id}`)}
+                    onClick={() => navigate(`/order/status/${order.access_token}`)}
                     sx={{
                       borderRadius: '12px',
                       cursor: 'pointer',

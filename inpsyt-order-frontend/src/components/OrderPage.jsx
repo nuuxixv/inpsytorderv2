@@ -189,7 +189,7 @@ const OrderPage = () => {
       if (invokeError) throw invokeError;
       if (data.error) throw new Error(data.error);
 
-      setSubmittedOrderId(data?.order?.id || null);
+      setSubmittedOrderId(data?.order?.access_token || null);
       setShowSuccessDialog(true);
     } catch (error) {
       setError(`주문 처리 중 오류가 발생했습니다: ${error.message}`);

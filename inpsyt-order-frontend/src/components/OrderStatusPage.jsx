@@ -11,7 +11,7 @@ import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
 const OrderStatusPage = () => {
-  const { orderId } = useParams();
+  const { token } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -31,7 +31,7 @@ const OrderStatusPage = () => {
               products(name, category)
             )
           `)
-          .eq('id', orderId)
+          .eq('access_token', token)
           .single();
 
         if (queryError) throw queryError;
@@ -42,7 +42,7 @@ const OrderStatusPage = () => {
         setLoading(false);
       }
     };
-    if (orderId) fetchOrder();
+    if (token) fetchOrder();
   }, [orderId]);
 
   if (loading) {
