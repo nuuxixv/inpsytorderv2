@@ -126,7 +126,8 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
 
     const currentTotalDiscount = currentSubtotal * discountRate;
     const subtotalAfterDiscount = currentSubtotal - currentTotalDiscount;
-    const currentShippingFee = subtotalAfterDiscount >= settings.free_shipping_threshold ? 0 : settings.shipping_cost;
+    // 무료배송 기준은 정가(할인 전) 기준 — create-order Edge Function과 동일한 로직
+    const currentShippingFee = currentSubtotal >= settings.free_shipping_threshold ? 0 : settings.shipping_cost;
     const currentFinalTotal = subtotalAfterDiscount + currentShippingFee;
 
     setSubtotal(currentSubtotal);

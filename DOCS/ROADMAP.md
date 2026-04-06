@@ -149,19 +149,36 @@ CREATE UNIQUE INDEX ON orders(access_token);
 ### [주문 조회] 개인정보 노출 취약점
 
 **현황:**
-- `/order/status/:id` — 순차 숫자 ID라 열거 공격 가능 (1, 2, 3... 순서대로 접근)
+- `/order/status/:id` — ✅ **해결됨 (2026-04-06):** UUID access_token으로 교체, 열거 공격 불가
 - `/order/lookup` — 이름+연락처를 아는 사람이면 주소까지 열람 가능
 - 같은 학회·같은 기관 동료 수준의 정보만 있어도 타인 주소 노출 위험
 
 **가장 민감한 데이터:** 배송지 주소
 
+**⚠️ 미결: RLS anon SELECT 정책 과잉 허용 (2026-04-06 발견)**
+- `orders` 테이블에 `USING (true)` RLS 정책이 적용되어 있어, anon key를 가진 누구든
+  Supabase REST API를 직접 호출하면 UUID 필터 없이 전체 주문 데이터를 조회 가능
+- `curl 'https://[project].supabase.co/rest/v1/orders?select=*' -H 'apikey: [anon_key]'`
+- anon key는 프론트엔드 JS 번들에 공개되어 있음
+- **근본 해결:** `SECURITY DEFINER` DB function + anon SELECT RLS 삭제
+  ```sql
+  CREATE FUNCTION get_order_by_token(p_token uuid) RETURNS json
+  LANGUAGE sql SECURITY DEFINER AS $$
+    SELECT row_to_json(o) FROM (
+      SELECT o.*, json_agg(oi) FROM orders o
+      JOIN order_items oi ON oi.order_id = o.id
+      WHERE o.access_token = p_token GROUP BY o.id
+    ) o;
+  $$;
+  ```
+- **현재 판단:** 연 800건 소규모 + UUID 난수 보호로 실질 위험 낮음 → 이메일 알림 구현 후 함께 처리
+
 **보류 이유:**
-- 토큰 기반 URL(ROADMAP)은 이메일 의존 → 이메일을 덜어내는 방향을 검토 중
 - 이메일 없이 토큰을 전달할 수단 필요 (카카오 알림톡, SMS 등)
 
 **후보 해결책:**
 - A) 주문 상세 진입 시 이름+연락처 재확인 (프론트엔드만, 즉시 가능)
-- B) 토큰 기반 URL + 이메일/알림톡으로 발송 (근본 해결)
+- B) 토큰 기반 URL + 이메일/알림톡으로 발송 + DB function으로 API 직접 접근 차단 (근본 해결)
 - C) 주문 상세 화면에서 배송지 주소만 숨기기 (최소 조치, 즉시 가능)
 
 **다음 결정 시 고려사항:** 이메일을 완전히 배제할 경우 토큰 전달 수단 확보가 선행 조건.

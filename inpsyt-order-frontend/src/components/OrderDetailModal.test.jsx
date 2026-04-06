@@ -7,11 +7,29 @@ import { NotificationContext } from '../NotificationContext';
 import { supabase } from '../supabaseClient';
 
 // supabase 클라이언트 모킹(가짜로 만들기)
-vi.mock('../supabaseClient', () => ({
-  supabase: {
-    rpc: vi.fn(),
-  },
-}));
+// Supabase query builder는 thenable — 모든 체인 메서드가 .then()을 가져야 함
+vi.mock('../supabaseClient', () => {
+  const resolved = Promise.resolve({ data: null, error: null });
+  const chain = Object.assign(resolved, {
+    select: vi.fn(),
+    single: vi.fn(),
+    eq: vi.fn(),
+    order: vi.fn(),
+    in: vi.fn(),
+  });
+  // 모든 체인 메서드가 동일한 thenable chain을 반환
+  chain.select.mockReturnValue(chain);
+  chain.single.mockReturnValue(chain);
+  chain.eq.mockReturnValue(chain);
+  chain.order.mockReturnValue(chain);
+  chain.in.mockReturnValue(chain);
+  return {
+    supabase: {
+      rpc: vi.fn(),
+      from: vi.fn().mockReturnValue(chain),
+    },
+  };
+});
 
 const addNotification = vi.fn();
 
@@ -51,7 +69,7 @@ const mockProductsMap = {
 };
 
 // 컴포넌트를 렌더링하는 헬퍼 함수
-const renderModal = (order) => {
+const renderModal = (order, overrides = {}) => {
   return render(
     <NotificationContext.Provider value={{ addNotification }}>
       <OrderDetailModal
@@ -65,6 +83,8 @@ const renderModal = (order) => {
         addNotification={addNotification}
         onUpdate={vi.fn()}
         productsLoading={false}
+        hasPermission={vi.fn().mockReturnValue(true)}
+        {...overrides}
       />
     </NotificationContext.Provider>
   );
@@ -73,6 +93,39 @@ const renderModal = (order) => {
 describe('OrderDetailModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('[REGRESSION] 편집 모드 배송비는 정가(할인 전) 기준으로 계산되어야 한다', async () => {
+    // 시나리오: 정가 32,000원 (threshold 30,000원 초과), 할인율 10%
+    //   할인가: 28,800원 → threshold 미달
+    //   Bug: 28,800 < 30,000 → 배송비 3,000원, 최종 31,800원 (틀림)
+    //   Fix: 32,000 >= 30,000 → 배송비 0원, 최종 28,800원 (맞음)
+    const highValueOrder = {
+      ...mockOrder,
+      event_id: 101, // discount_rate: 0.1
+      order_items: [{ product_id: 3, quantity: 1 }],
+    };
+    const extendedProductsMap = {
+      ...mockProductsMap,
+      3: { id: 3, name: '고가 상품', list_price: 32000 },
+    };
+
+    renderModal(highValueOrder, {
+      productsMap: extendedProductsMap,
+      products: [...mockProducts, { id: 3, name: '고가 상품', list_price: 32000 }],
+    });
+
+    const editButton = screen.getByRole('button', { name: /편집/i });
+    fireEvent.click(editButton);
+
+    // 정가(32,000) >= threshold(30,000) → 배송비 0원, 최종결제 28,800원
+    // 할인가(28,800)와 최종금액(28,800) 모두 동일하게 표시됨
+    await waitFor(() => {
+      const matches = screen.getAllByText('28,800원');
+      expect(matches.length).toBeGreaterThanOrEqual(1);
+    });
+    // 배송비가 3,000원으로 잘못 계산되면 최종금액이 31,800원이 됨 (버그 증거)
+    expect(screen.queryByText('31,800원')).not.toBeInTheDocument();
   });
 
   it('주문 데이터가 주어졌을 때, 초기 정보를 올바르게 렌더링해야 한다', () => {
