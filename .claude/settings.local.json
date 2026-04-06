@@ -24,7 +24,15 @@
       "Bash(git remote:*)",
       "Bash(gh pr:*)",
       "Bash(gh repo:*)",
-      "Bash(git symbolic-ref:*)"
+      "Bash(git symbolic-ref:*)",
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash('~/.claude/skills/gstack/bin/gstack-timeline-log' '{\"skill\":\"design-review\",\"event\":\"completed\",\"branch\":\"main\",\"outcome\":\"success\",\"session\":\"__TRACKED_VAR__\"}')",
+      "Bash(git push:*)",
+      "Bash(gh run:*)",
+      "Bash(python3 -c ':*)"
     ]
   }
 }
