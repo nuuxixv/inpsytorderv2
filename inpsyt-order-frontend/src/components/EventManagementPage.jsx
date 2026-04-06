@@ -67,7 +67,7 @@ const EventManagementPage = () => {
       const [eventsRes, societiesRes] = await Promise.all([
         supabase
           .from('events')
-          .select('id, name, discount_rate, order_url_slug, start_date, end_date, event_year, host_society, event_season, status')
+          .select('id, name, discount_rate, order_url_slug, start_date, end_date, estimated_delivery_date, event_year, host_society, event_season, status')
           .order('start_date', { ascending: false }),
         supabase.from('societies').select('id, name, slug_prefix').order('name', { ascending: true })
       ]);
@@ -614,6 +614,18 @@ const EventManagementPage = () => {
                   disabled={!hasPermission('events:edit')}
                 />
               </Box>
+
+              <TextField
+                name="estimated_delivery_date"
+                label="배송 예정일"
+                type="date"
+                fullWidth
+                value={currentEvent?.estimated_delivery_date || ''}
+                onChange={(e) => handleChange(e.target.name, e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                helperText="입력 시 고객 주문 조회 페이지에 도착 예정일이 표시됩니다."
+                disabled={!hasPermission('events:edit')}
+              />
 
             </Box>
           </Box>
