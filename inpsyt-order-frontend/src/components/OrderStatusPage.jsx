@@ -65,7 +65,6 @@ const OrderStatusPage = () => {
   const statusColor = STATUS_COLORS[order.status] || '#8B95A1';
   const statusLabel = STATUS_TO_KOREAN[order.status] || order.status;
   const isPending = order.status === 'pending';
-  const isShipped = order.status === 'shipped';
   const estimatedDelivery = order.events?.estimated_delivery_date;
 
   return (
@@ -108,8 +107,8 @@ const OrderStatusPage = () => {
           </Alert>
         )}
 
-        {/* 배송 예정일 안내 (배송 중 상태 + 학회에 예상도착일 설정된 경우) */}
-        {isShipped && estimatedDelivery && (
+        {/* 배송 예정일 안내 */}
+        {estimatedDelivery && !order.is_on_site_sale && (
           <Alert severity="success" sx={{ mb: 3, borderRadius: '12px' }}>
             {format(new Date(estimatedDelivery), 'M월 d일 (E)', { locale: ko })} 도착 예정입니다.
           </Alert>

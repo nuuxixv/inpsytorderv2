@@ -1,6 +1,8 @@
 import React from 'react';
 import { Box, Typography, Card, CardContent, Button, Divider } from '@mui/material';
 import { Edit as EditIcon } from '@mui/icons-material';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
 import CostSummary from './CostSummary';
 
 const InfoRow = ({ label, value }) => (
@@ -14,7 +16,7 @@ const InfoRow = ({ label, value }) => (
   </Box>
 );
 
-const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoToStep, isOnsitePurchase = false }) => {
+const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoToStep, isOnsitePurchase = false, estimatedDeliveryDate }) => {
   const validItems = cart.filter(item => item.id);
 
   const getItemPrice = (item) => {
@@ -122,6 +124,15 @@ const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoT
           <CostSummary cart={cart} settings={settings} discountRate={discountRate} embedded isOnsitePurchase={isOnsitePurchase} />
         </CardContent>
       </Card>
+
+      {/* 배송 예정일 안내 */}
+      {!isOnsitePurchase && estimatedDeliveryDate && (
+        <Box sx={{ bgcolor: 'primary.50', border: '1px solid', borderColor: 'primary.100', borderRadius: '12px', p: 2, textAlign: 'center' }}>
+          <Typography variant="body2" sx={{ color: 'primary.main', fontWeight: 600 }}>
+            🚚 지금 주문하면 {format(new Date(estimatedDeliveryDate), 'M월 d일 (E)', { locale: ko })}까지 90% 도착
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 };

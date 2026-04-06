@@ -101,7 +101,7 @@ const OrderPage = () => {
         // 슬러그로 이벤트 조회 (날짜 유효성 포함)
         const { data: eventData, error: eventError } = await supabase
           .from('events')
-          .select('id, name, discount_rate, tags, start_date, end_date')
+          .select('id, name, discount_rate, tags, start_date, end_date, estimated_delivery_date')
           .eq('order_url_slug', eventSlug)
           .single();
 
@@ -354,6 +354,7 @@ const OrderPage = () => {
             discountRate={discountRate}
             onGoToStep={handleGoToStep}
             isOnsitePurchase={isOnsitePurchase}
+            estimatedDeliveryDate={eventInfo?.estimated_delivery_date}
           />
         )}
       </Box>
