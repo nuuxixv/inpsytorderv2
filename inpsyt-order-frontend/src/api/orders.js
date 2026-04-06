@@ -111,13 +111,11 @@ export const linkOrders = async (parentOrderId, childOrderId, settings = {}) => 
   // child의 배송비는 항상 0 (합배송)
   let newFinalPayment = child.total_cost - child.discount_amount;
 
-  if (combinedListPrice >= threshold) {
-    // 무료배송 조건 충족 — parent가 이미 납부한 배송비도 child에서 차감 (캐시백 효과)
-    if (PAID_STATUSES.includes(parent.status) && parent.delivery_fee > 0) {
-      newFinalPayment -= parent.delivery_fee;
-    }
+  // parent가 배송비를 이미 납부한 경우, 합산 금액 무관하게 child에서 차감
+  // (박 선생님이 3,000원 냈으면 김 선생님은 그만큼 덜 내는 구조)
+  if (PAID_STATUSES.includes(parent.status) && parent.delivery_fee > 0) {
+    newFinalPayment -= parent.delivery_fee;
   }
-  // < threshold: 합배송이지만 배송비 1개 유지 (parent가 부담) → child만 0원으로
 
   const { error } = await supabase
     .from('orders')
