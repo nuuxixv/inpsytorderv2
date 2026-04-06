@@ -346,7 +346,26 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
         <Box sx={{ mb: 4 }}><Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>주문 상품 목록</Typography><TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px' }}><Table size="small"><TableHead><TableRow sx={{ bgcolor: 'grey.50' }}><TableCell sx={{ minWidth: 120, whiteSpace: 'nowrap' }}>상품명</TableCell><TableCell align="right" sx={{ minWidth: 80, whiteSpace: 'nowrap' }}>정가</TableCell><TableCell align="right" sx={{ minWidth: 80, whiteSpace: 'nowrap' }}>할인가</TableCell><TableCell align="right" sx={{ minWidth: 60, whiteSpace: 'nowrap' }}>수량</TableCell><TableCell align="right" sx={{ minWidth: 80, whiteSpace: 'nowrap' }}>합계</TableCell>{hasPermission('orders:edit') && <TableCell sx={{ minWidth: 50, whiteSpace: 'nowrap' }}>작업</TableCell>}</TableRow></TableHead><TableBody>{productsLoading ? (<TableRow><TableCell colSpan={6} align="center"><CircularProgress size={24} /></TableCell></TableRow>) : ((editedOrderItems || []).map((item, index) => { const product = productsMap[item.product_id]; const originalPrice = product?.list_price || 0; const discountedPrice = originalPrice * (1 - discountRate); const itemTotal = discountedPrice * item.quantity; return (<TableRow key={index}><TableCell sx={{ p: 1 }}>{isEditing ? (<FormControl size="small" fullWidth><Select value={item.product_id} onChange={(e) => handleItemChange(index, 'product_id', e.target.value)} disabled={!hasPermission('orders:edit')} sx={{ borderRadius: '8px' }}>{products.map((p) => (<MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>))}</Select></FormControl>) : (product?.name || '알 수 없는 상품')}</TableCell><TableCell align="right">{originalPrice.toLocaleString()}원</TableCell><TableCell align="right">{discountedPrice.toLocaleString()}원</TableCell><TableCell align="right" sx={{ p: 1 }}>{isEditing ? (<TextField type="number" value={item.quantity} onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value, 10) || 0)} size="small" sx={{ width: 70, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }} inputProps={{ min: 0 }} disabled={!hasPermission('orders:edit')} />) : (item.quantity)}</TableCell><TableCell align="right">{itemTotal.toLocaleString()}원</TableCell>{hasPermission('orders:edit') && isEditing && (<TableCell><IconButton onClick={() => handleRemoveOrderItem(index)} color="error" size="small"><CloseIcon /></IconButton></TableCell>)}</TableRow>); }))}</TableBody></Table>{hasPermission('orders:edit') && isEditing && (<Box sx={{ mt: 1, p: 1, textAlign: 'right' }}><Button onClick={handleAddOrderItem} variant="outlined" size="small" sx={{ borderRadius: '8px' }}>상품 추가</Button></Box>)}</TableContainer></Box>
         <Box><Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>결제 정보</Typography><Paper variant="outlined" sx={{ borderRadius: '12px' }}><Table size="small"><TableBody><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50', width: '60%' }}>정가의 합</TableCell><TableCell align="right">{subtotal.toLocaleString()}원</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>할인된 금액</TableCell><TableCell align="right">{totalDiscount.toLocaleString()}원</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>배송비</TableCell><TableCell align="right">{shippingFee.toLocaleString()}원</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50', fontSize: '1.1rem' }}>총 결제 금액</TableCell><TableCell align="right" sx={{ fontSize: '1.1rem', fontWeight: 'bold' }}>{finalTotal.toLocaleString()}원</TableCell></TableRow></TableBody></Table></Paper></Box>
       </Box>
-      <Box sx={{ p: 2, display: 'flex', justifyContent: 'center', borderTop: 1, borderColor: 'divider' }}><Button onClick={onClose} variant="outlined" size="large" fullWidth={isMobile} sx={{ borderRadius: '12px', minHeight: '48px' }}>닫기</Button></Box>
+      <Box sx={{ p: 2, display: 'flex', gap: 1, justifyContent: 'center', borderTop: 1, borderColor: 'divider', flexWrap: 'wrap' }}>
+        {order?.access_token && (
+          <Button
+            variant="outlined"
+            size="large"
+            color="secondary"
+            fullWidth={isMobile}
+            sx={{ borderRadius: '12px', minHeight: '48px', fontSize: '0.8rem' }}
+            onClick={() => {
+              const url = `${window.location.origin}/order/status/${order.access_token}`;
+              navigator.clipboard.writeText(url).then(() => {
+                addNotification('주문 조회 링크가 복사됐습니다.', 'success');
+              });
+            }}
+          >
+            🔗 링크 복사 (베타)
+          </Button>
+        )}
+        <Button onClick={onClose} variant="outlined" size="large" fullWidth={isMobile} sx={{ borderRadius: '12px', minHeight: '48px' }}>닫기</Button>
+      </Box>
     </Box>
   );
 
