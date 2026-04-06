@@ -17,7 +17,14 @@
       "Bash(git -C \"c:/Users/김건우/Desktop/VS/inpsytorderv3\" submodule status)",
       "Skill(gstack)",
       "Skill(gstack:*)",
-      "Bash(~/.claude/skills/gstack/bin/gstack-config set:*)"
+      "Bash(~/.claude/skills/gstack/bin/gstack-config set:*)",
+      "Bash(export PATH=\"$HOME/.bun/bin:$PATH\")",
+      "Bash(npx vitest:*)",
+      "Bash(~/.claude/skills/gstack/bin/gstack-config get:*)",
+      "Bash(git remote:*)",
+      "Bash(gh pr:*)",
+      "Bash(gh repo:*)",
+      "Bash(git symbolic-ref:*)"
     ]
   }
 }

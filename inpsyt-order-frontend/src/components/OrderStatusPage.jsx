@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
-  Box, Typography, Chip, CircularProgress, Divider,
-  IconButton, Alert,
+  Box, Typography, Chip, CircularProgress, Divider, Alert,
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { supabase } from '../supabaseClient';
 import { STATUS_TO_KOREAN, STATUS_COLORS } from '../constants/orderStatus';
 import { format } from 'date-fns';
@@ -12,7 +10,6 @@ import { ko } from 'date-fns/locale';
 
 const OrderStatusPage = () => {
   const { token } = useParams();
-  const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -26,7 +23,7 @@ const OrderStatusPage = () => {
             id, customer_name, phone_number, shipping_address,
             final_payment, delivery_fee, status, created_at,
             customer_request, is_on_site_sale,
-            events(name),
+            events(name, estimated_delivery_date),
             order_items(quantity, price_at_purchase,
               products(name, category)
             )
@@ -68,14 +65,13 @@ const OrderStatusPage = () => {
   const statusColor = STATUS_COLORS[order.status] || '#8B95A1';
   const statusLabel = STATUS_TO_KOREAN[order.status] || order.status;
   const isPending = order.status === 'pending';
+  const isShipped = order.status === 'shipped';
+  const estimatedDelivery = order.events?.estimated_delivery_date;
 
   return (
     <Box sx={{ maxWidth: 480, mx: 'auto', minHeight: '100dvh', bgcolor: 'background.paper' }}>
       {/* Header */}
-      <Box sx={{ px: 2, pt: 3, pb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-        <IconButton onClick={() => navigate(-1)} size="small" sx={{ color: 'text.secondary' }}>
-          <ArrowBackIcon />
-        </IconButton>
+      <Box sx={{ px: 3, pt: 3, pb: 2 }}>
         <Typography variant="h6" sx={{ fontWeight: 700 }}>주문 상세</Typography>
       </Box>
 
@@ -99,7 +95,7 @@ const OrderStatusPage = () => {
             {format(new Date(order.created_at), 'yyyy년 M월 d일 HH:mm 접수', { locale: ko })}
           </Typography>
           {order.events?.name && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
               {order.events.name}
             </Typography>
           )}
@@ -108,29 +104,16 @@ const OrderStatusPage = () => {
         {/* 결제 대기 안내 */}
         {isPending && (
           <Alert severity="info" sx={{ mb: 3, borderRadius: '12px' }}>
-            담당자에게 카드를 건네어 결제를 완료해주세요.
+            결제가 아직 완료되지 않았습니다. 문의사항은 담당자에게 연락해주세요.
           </Alert>
         )}
 
-        {/* 주문자 정보 */}
-        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>주문자 정보</Typography>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mb: 3 }}>
-          {[
-            { label: '이름', value: order.customer_name },
-            { label: '연락처', value: order.phone_number },
-            ...(order.shipping_address?.address
-              ? [{ label: '배송지', value: `${order.shipping_address.address} ${order.shipping_address.detail || ''}`.trim() }]
-              : [{ label: '배송', value: '현장 수령' }]
-            ),
-          ].map(({ label, value }) => (
-            <Box key={label} sx={{ display: 'flex', gap: 2 }}>
-              <Typography variant="body2" sx={{ minWidth: 52, color: 'text.disabled', flexShrink: 0 }}>{label}</Typography>
-              <Typography variant="body2" color="text.primary">{value}</Typography>
-            </Box>
-          ))}
-        </Box>
-
-        <Divider sx={{ mb: 3 }} />
+        {/* 배송 예정일 안내 (배송 중 상태 + 학회에 예상도착일 설정된 경우) */}
+        {isShipped && estimatedDelivery && (
+          <Alert severity="success" sx={{ mb: 3, borderRadius: '12px' }}>
+            {format(new Date(estimatedDelivery), 'M월 d일 (E)', { locale: ko })} 도착 예정입니다.
+          </Alert>
+        )}
 
         {/* 주문 상품 */}
         <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>주문 상품</Typography>
@@ -157,7 +140,7 @@ const OrderStatusPage = () => {
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Typography variant="body2" color="text.secondary">배송비</Typography>
             <Typography variant="body2">
-              {order.delivery_fee === 0 ? '무료' : `${order.delivery_fee?.toLocaleString()}원`}
+              {(order.delivery_fee ?? 0) === 0 ? '무료' : `${(order.delivery_fee).toLocaleString()}원`}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
@@ -168,6 +151,26 @@ const OrderStatusPage = () => {
           </Box>
         </Box>
 
+        <Divider sx={{ mb: 3 }} />
+
+        {/* 주문자 정보 */}
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>주문자 정보</Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mb: 3 }}>
+          {[
+            { label: '이름', value: order.customer_name },
+            { label: '연락처', value: order.phone_number },
+            ...(order.shipping_address?.address
+              ? [{ label: '배송지', value: `${order.shipping_address.address} ${order.shipping_address.detail || ''}`.trim() }]
+              : [{ label: '배송', value: '현장 수령' }]
+            ),
+          ].map(({ label, value }) => (
+            <Box key={label} sx={{ display: 'flex', gap: 2 }}>
+              <Typography variant="body2" sx={{ minWidth: 56, color: 'text.disabled', flexShrink: 0 }}>{label}</Typography>
+              <Typography variant="body2" color="text.primary">{value}</Typography>
+            </Box>
+          ))}
+        </Box>
+
         {/* 요청사항 */}
         {order.customer_request && (
           <Box sx={{ bgcolor: 'grey.50', borderRadius: '8px', p: 2, mb: 3 }}>
@@ -176,6 +179,16 @@ const OrderStatusPage = () => {
             </Typography>
           </Box>
         )}
+
+        {/* 문의 */}
+        <Box sx={{ textAlign: 'center', pb: 4 }}>
+          <Typography variant="caption" color="text.disabled">
+            문의사항이 있으신가요?{' '}
+            <a href="mailto:support@inpsyt.co.kr" style={{ color: 'inherit' }}>
+              담당자에게 문의하기
+            </a>
+          </Typography>
+        </Box>
       </Box>
     </Box>
   );
