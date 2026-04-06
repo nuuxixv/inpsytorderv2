@@ -57,7 +57,7 @@ const CompactKpi = ({ title, value, icon: Icon, color, yoyPct }) => {
             <Chip 
               label={`${yoyPct > 0 ? '▲' : yoyPct < 0 ? '▼' : '-'} ${Math.abs(yoyPct)}%`} 
               size="small" 
-              sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, bgcolor: yoyPct > 0 ? alpha('#10B981', 0.15) : alpha('#EF4444', 0.15), color: yoyPct > 0 ? '#10B981' : '#EF4444', mb: 0.5 }} 
+              sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, bgcolor: yoyPct > 0 ? alpha('#00B894', 0.15) : alpha('#FF6B6B', 0.15), color: yoyPct > 0 ? '#00B894' : '#FF6B6B', mb: 0.5 }}
             />
           )}
         </Box>
@@ -682,13 +682,13 @@ const DashboardPage = () => {
                 {dashboardData.eventName} 매출 현황
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
-                <CompactKpi title="검사 판매액" value={`${(dashboardData.testRevenue || 0).toLocaleString()}원`} icon={TestIcon} color="#6366F1" />
+                <CompactKpi title="검사 판매액" value={`${(dashboardData.testRevenue || 0).toLocaleString()}원`} icon={TestIcon} color="#2B398F" />
                 <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
-                <CompactKpi title="도서 판매액" value={`${(dashboardData.bookRevenue || 0).toLocaleString()}원`} icon={BookIcon} color="#3B82F6" />
+                <CompactKpi title="도서 판매액" value={`${(dashboardData.bookRevenue || 0).toLocaleString()}원`} icon={BookIcon} color="#3d4db0" />
                 <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
-                <CompactKpi title="배송비" value={`${(dashboardData.shippingRevenue || 0).toLocaleString()}원`} icon={CartIcon} color="#8B5CF6" />
+                <CompactKpi title="배송비" value={`${(dashboardData.shippingRevenue || 0).toLocaleString()}원`} icon={CartIcon} color="#0984e3" />
                 <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
-                <CompactKpi title="총 매출액" value={`${(dashboardData.totalRevenue || 0).toLocaleString()}원`} icon={ReceiptIcon} color="#10B981" yoyPct={dashboardData.yoyPct} />
+                <CompactKpi title="총 매출액" value={`${(dashboardData.totalRevenue || 0).toLocaleString()}원`} icon={ReceiptIcon} color="#00B894" yoyPct={dashboardData.yoyPct} />
               </Box>
             </CardContent>
           </Card>
@@ -697,12 +697,12 @@ const DashboardPage = () => {
           <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Card sx={{ borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
-                <CardContent><RankingBox title="검사 판매 순위" icon={TestIcon} color="#6366F1" items={dashboardData.testTop5 || []} /></CardContent>
+                <CardContent><RankingBox title="검사 판매 순위" icon={TestIcon} color="#2B398F" items={dashboardData.testTop5 || []} /></CardContent>
               </Card>
             </Box>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Card sx={{ borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
-                <CardContent><RankingBox title="도서 판매 순위" icon={BookIcon} color="#3B82F6" items={dashboardData.bookTop5 || []} /></CardContent>
+                <CardContent><RankingBox title="도서 판매 순위" icon={BookIcon} color="#3d4db0" items={dashboardData.bookTop5 || []} /></CardContent>
               </Card>
             </Box>
           </Box>
