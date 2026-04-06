@@ -32,7 +32,12 @@
       "Bash('~/.claude/skills/gstack/bin/gstack-timeline-log' '{\"skill\":\"design-review\",\"event\":\"completed\",\"branch\":\"main\",\"outcome\":\"success\",\"session\":\"__TRACKED_VAR__\"}')",
       "Bash(git push:*)",
       "Bash(gh run:*)",
-      "Bash(python3 -c ':*)"
+      "Bash(python3 -c ':*)",
+      "Bash(~/.claude/skills/gstack/bin/gstack-review-read)",
+      "Bash(bash -c ':*)",
+      "Bash([ -f README.md ])",
+      "Bash([ -f inpsyt-order-frontend/package.json ])",
+      "Bash(~/.claude/skills/gstack/bin/gstack-learnings-search --limit 10)"
     ]
   }
 }
