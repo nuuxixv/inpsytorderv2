@@ -43,7 +43,7 @@ const OrderStatusPage = () => {
       }
     };
     if (token) fetchOrder();
-  }, [orderId]);
+  }, [token]);
 
   if (loading) {
     return (
