@@ -109,8 +109,11 @@ const OrderStatusPage = () => {
 
         {/* 배송 예정일 안내 */}
         {estimatedDelivery && !order.is_on_site_sale && (
-          <Alert severity="success" sx={{ mb: 3, borderRadius: '12px' }}>
-            {format(new Date(estimatedDelivery), 'M월 d일 (E)', { locale: ko })} 도착 예정입니다.
+          <Alert severity={isPending ? 'warning' : 'success'} sx={{ mb: 3, borderRadius: '12px' }}>
+            {isPending
+              ? `지금 결제 시 ${format(new Date(estimatedDelivery), 'M월 d일 (E)', { locale: ko })}까지 90% 도착`
+              : `${format(new Date(estimatedDelivery), 'M월 d일 (E)', { locale: ko })} 도착 예정입니다.`
+            }
           </Alert>
         )}
 
