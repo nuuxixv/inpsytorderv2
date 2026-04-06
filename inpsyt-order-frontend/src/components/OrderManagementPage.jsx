@@ -514,7 +514,7 @@ const OrderManagementPage = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', p: { xs: 1, md: 2 } }}>
-      <Typography variant="h4" gutterBottom sx={{ color: '#333', fontWeight: 'bold', mb: 2, px: { xs: 1, md: 0 } }}>주문 관리</Typography>
+      <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', mb: 2, px: { xs: 1, md: 0 } }}>주문 관리</Typography>
 
       {isMobile ? (
         <Box sx={{ px: 1, mb: 2, display: 'flex', justifyContent: 'flex-start' }}>
