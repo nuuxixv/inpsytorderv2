@@ -10,7 +10,10 @@
       "WebFetch(domain:toss.oopy.io)",
       "mcp__Claude_Preview__preview_start",
       "Bash(where npm)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(grep -E \"\\\\.\\(jsx|js\\)$\")",
+      "Bash(wc -l \"/c/Users/김건우/Desktop/VS/inpsytorderv3/inpsyt-order-frontend/src/components\"/*.jsx)",
+      "mcp__claude_ai_Supabase__apply_migration"
     ]
   }
 }

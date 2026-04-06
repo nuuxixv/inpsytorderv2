@@ -60,14 +60,10 @@ const OrderPage = () => {
   const validCartItems = cart.filter(item => item.id);
   const hasCartItems = validCartItems.length > 0;
 
-  const totalPrice = useMemo(() => {
-    return validCartItems.reduce((sum, item) => {
-      const price = item.is_discountable
-        ? Math.round(item.list_price * (1 - discountRate))
-        : item.list_price;
-      return sum + price * item.quantity;
-    }, 0);
-  }, [validCartItems, discountRate]);
+  // 무료배송 기준은 정가(할인 전) 기준
+  const totalOriginalPrice = useMemo(() => {
+    return validCartItems.reduce((sum, item) => sum + (item.list_price || 0) * item.quantity, 0);
+  }, [validCartItems]);
 
   const isCustomerInfoValid = customerInfo.name && customerInfo.email && customerInfo.phone;
   const hasOnlineCode = validCartItems.some(item => item.category === '온라인코드' || (item.name && item.name.includes('온라인')));
@@ -366,7 +362,7 @@ const OrderPage = () => {
       <FloatingBottomBar
         activeStep={activeStep}
         cart={cart}
-        totalPrice={totalPrice}
+        totalPrice={totalOriginalPrice}
         freeShippingThreshold={settings.free_shipping_threshold}
         isOnsitePurchase={isOnsitePurchase}
         onNext={handleNext}
@@ -410,29 +406,29 @@ const OrderPage = () => {
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3, flexDirection: 'column', gap: 1 }}>
-          {submittedOrderId && (
-            <Button
-              variant="contained"
-              size="large"
-              fullWidth
-              onClick={() => {
-                handleCloseSuccessDialog();
-                navigate(`/order/status/${submittedOrderId}`);
-              }}
-              sx={{ borderRadius: '12px', minHeight: 48 }}
-            >
-              주문내역 확인하기
-            </Button>
-          )}
           <Button
-            variant="outlined"
+            variant="contained"
             size="large"
             fullWidth
             onClick={handleCloseSuccessDialog}
             sx={{ borderRadius: '12px', minHeight: 48 }}
           >
-            닫기
+            확인했습니다
           </Button>
+          {submittedOrderId && (
+            <Button
+              variant="text"
+              size="small"
+              fullWidth
+              onClick={() => {
+                handleCloseSuccessDialog();
+                navigate(`/order/status/${submittedOrderId}`);
+              }}
+              sx={{ borderRadius: '12px', color: 'text.secondary', fontSize: '0.8125rem' }}
+            >
+              주문내역 확인하기
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 

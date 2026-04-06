@@ -43,6 +43,9 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
     return sum + getItemPrice(item) * item.quantity;
   }, 0);
 
+  // 무료배송 기준은 정가(할인 전) 기준
+  const totalOriginalPrice = validItems.reduce((sum, item) => sum + item.list_price * item.quantity, 0);
+
   return (
     <SwipeableDrawer
       anchor="bottom"
@@ -185,7 +188,7 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
                 배송비
               </Typography>
               <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                {totalPrice >= free_shipping_threshold ? '무료' : `${shipping_cost.toLocaleString()}원`}
+                {totalOriginalPrice >= free_shipping_threshold ? '무료' : `${shipping_cost.toLocaleString()}원`}
               </Typography>
             </Box>
           )}
@@ -196,7 +199,7 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
             <Typography variant="h4" sx={{ fontWeight: 800, color: 'primary.main' }}>
               {(isOnsitePurchase
                 ? totalPrice
-                : totalPrice + (totalPrice >= free_shipping_threshold ? 0 : shipping_cost)
+                : totalPrice + (totalOriginalPrice >= free_shipping_threshold ? 0 : shipping_cost)
               ).toLocaleString()}원
             </Typography>
           </Box>
