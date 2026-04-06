@@ -95,7 +95,7 @@ const OrderLookupPage = () => {
     >
       {/* Header */}
       <Box sx={{ px: 2, pt: 3, pb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-        <IconButton onClick={() => navigate(-1)} size="small" sx={{ color: 'text.secondary' }}>
+        <IconButton onClick={() => navigate(-1)} sx={{ color: 'text.secondary', p: '10px' }}>
           <ArrowBackIcon />
         </IconButton>
         <Box>
