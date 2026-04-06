@@ -150,6 +150,14 @@ const OrderLookupPage = () => {
           조회하기
         </Button>
 
+        {/* 초기 안내 */}
+        {orders === null && (
+          <Box sx={{ textAlign: 'center', py: 4, color: 'text.disabled' }}>
+            <Typography sx={{ fontSize: '2rem', mb: 1 }}>📋</Typography>
+            <Typography variant="caption">주문 시 입력한 이름과 연락처로 조회할 수 있어요</Typography>
+          </Box>
+        )}
+
         {/* 결과 */}
         {orders !== null && (
           orders.length === 0 ? (
