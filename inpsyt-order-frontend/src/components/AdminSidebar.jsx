@@ -135,12 +135,11 @@ const AdminSidebar = ({ open, onClose, collapsed = false, onToggleCollapse }) =>
         <Box sx={{ p: 1.5, display: 'flex', justifyContent: collapsed ? 'center' : 'flex-end' }}>
           <IconButton
             onClick={onToggleCollapse}
-            size="small"
             sx={{
               bgcolor: alpha(theme.palette.primary.main, 0.06),
               '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.12) },
-              width: 36,
-              height: 36,
+              width: 44,
+              height: 44,
             }}
           >
             {collapsed ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}

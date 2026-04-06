@@ -100,11 +100,12 @@ const AdminHeader = ({ onMenuToggle }) => {
 
       {/* 우측: 알림 및 사용자 메뉴 */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: 'auto' }}>
-        <IconButton 
-          onClick={handleNotificationClick} 
-          size="small"
-          sx={{ 
+        <IconButton
+          onClick={handleNotificationClick}
+          sx={{
             color: 'text.secondary',
+            minWidth: 44,
+            minHeight: 44,
             '&:hover': { color: 'primary.main', bgcolor: 'primary.light', opacity: 0.1 }
           }}
         >
@@ -149,7 +150,7 @@ const AdminHeader = ({ onMenuToggle }) => {
           </List>
         </Popover>
 
-        <IconButton onClick={handleUserMenuClick} size="small" sx={{ p: 0.5, border: '1px solid transparent', '&:hover': { borderColor: 'primary.light' } }}>
+        <IconButton onClick={handleUserMenuClick} sx={{ p: 0.5, minWidth: 44, minHeight: 44, border: '1px solid transparent', '&:hover': { borderColor: 'primary.light' } }}>
           <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.9rem', fontWeight: 'bold' }}>
             {(profile?.name || user?.email)?.[0]?.toUpperCase()}
           </Avatar>
