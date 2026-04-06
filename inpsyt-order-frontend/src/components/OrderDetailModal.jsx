@@ -33,7 +33,10 @@ import {
   Divider,
   CircularProgress,
   Alert,
+  Collapse,
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import CloseIcon from '@mui/icons-material/Close';
 import { supabase } from '../supabaseClient';
 import { linkOrders, searchOrdersForLinking } from '../api/orders';
@@ -305,41 +308,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
         <Box sx={{ mb: 4 }}><Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>주문 상세 정보</Typography><Paper variant="outlined" sx={{ borderRadius: '12px' }}><Table size="small"><TableBody><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50', width: 120 }}>상품주문번호</TableCell><TableCell>{displayId}</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>주문일</TableCell><TableCell>{new Date(order.created_at).toLocaleString('ko-KR')}</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>학회명</TableCell><TableCell sx={{ p: 1 }}>{isEditing ? (<FormControl size="small" fullWidth><Select value={editedEventId} onChange={(e) => setEditedEventId(e.target.value)} disabled={!hasPermission('orders:edit')} sx={{ borderRadius: '8px' }}>{events && events.map((event) => (<MenuItem key={event.id} value={event.id}>{event.name}</MenuItem>))}</Select></FormControl>) : (events && events.find(e => e.id === order.event_id)?.name || 'N/A')}</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>상태</TableCell><TableCell sx={{ p: 1 }}><FormControl size="small" fullWidth><Select value={currentStatus} onChange={(e) => { const newStatus = e.target.value; setCurrentStatus(newStatus); handleSaveStatusOnly(newStatus); }} disabled={!hasPermission('orders:edit')} sx={{ borderRadius: '8px' }}>{statusToKorean && Object.entries(statusToKorean).map(([key, value]) => (<MenuItem key={key} value={key}>{value}</MenuItem>))}</Select></FormControl></TableCell></TableRow></TableBody></Table></Paper></Box>
         {/* 상태 이력 */}
         {Array.isArray(order.status_history) && order.status_history.length > 0 && (
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>상태 이력</Typography>
-            <Paper variant="outlined" sx={{ borderRadius: '12px', overflow: 'hidden' }}>
-              {[...order.status_history].reverse().map((entry, idx) => (
-                <Box
-                  key={idx}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 2,
-                    px: 2,
-                    py: 1.25,
-                    borderBottom: idx < order.status_history.length - 1 ? '1px solid' : 'none',
-                    borderColor: 'divider',
-                    bgcolor: idx === 0 ? 'grey.50' : 'transparent',
-                  }}
-                >
-                  <Chip
-                    label={statusToKorean[entry.status] || entry.status}
-                    size="small"
-                    sx={{ minWidth: 72, fontWeight: idx === 0 ? 700 : 400 }}
-                  />
-                  <Typography variant="body2" color={idx === 0 ? 'text.primary' : 'text.secondary'}>
-                    {new Date(entry.changed_at).toLocaleString('ko-KR', {
-                      year: 'numeric', month: '2-digit', day: '2-digit',
-                      hour: '2-digit', minute: '2-digit', second: '2-digit',
-                    })}
-                  </Typography>
-                  {idx === 0 && (
-                    <Chip label="현재" size="small" color="primary" variant="outlined" sx={{ ml: 'auto', fontSize: '0.7rem' }} />
-                  )}
-                </Box>
-              ))}
-            </Paper>
-          </Box>
+          <StatusHistoryAccordion history={order.status_history} statusToKorean={statusToKorean} />
         )}
         <Box sx={{ mb: 4 }}><Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>주문자 정보</Typography><Paper variant="outlined" sx={{ borderRadius: '12px' }}><Table size="small"><TableBody><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50', width: 120 }}>주문자명</TableCell><TableCell sx={{ p: 1 }}>{isEditing ? (<TextField value={editedCustomerName} onChange={(e) => setEditedCustomerName(e.target.value)} size="small" fullWidth disabled={!hasPermission('orders:edit')} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }} />) : (order.customer_name)}</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>연락처</TableCell><TableCell sx={{ p: 1 }}>{isEditing ? (<TextField value={editedPhoneNumber} onChange={(e) => setEditedPhoneNumber(e.target.value)} size="small" fullWidth disabled={!hasPermission('orders:edit')} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }} />) : (order.phone_number || 'N/A')}</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>이메일</TableCell><TableCell sx={{ p: 1 }}>{isEditing ? (<TextField value={editedCustomerEmail} onChange={(e) => setEditedCustomerEmail(e.target.value)} size="small" fullWidth disabled={!hasPermission('orders:edit')} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }} />) : (order.email)}</TableCell></TableRow></TableBody></Table></Paper></Box>
         <Box sx={{ mb: 4 }}><Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>배송지 정보</Typography><Paper variant="outlined" sx={{ borderRadius: '12px' }}><Table size="small"><TableBody><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50', width: 120 }}>우편번호</TableCell><TableCell sx={{ p: 1 }}>{isEditing ? (<TextField value={editedShippingPostcode} onChange={(e) => setEditedShippingPostcode(e.target.value)} size="small" fullWidth disabled={!hasPermission('orders:edit')} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }} />) : (order.shipping_address?.postcode || 'N/A')}</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>주소</TableCell><TableCell sx={{ p: 1 }}>{isEditing ? (<TextField value={editedShippingAddress} onChange={(e) => setEditedShippingAddress(e.target.value)} size="small" fullWidth disabled={!hasPermission('orders:edit')} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }} />) : (order.shipping_address?.address || 'N/A')}</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>상세 주소</TableCell><TableCell sx={{ p: 1 }}>{isEditing ? (<TextField value={editedShippingDetail} onChange={(e) => setEditedShippingDetail(e.target.value)} size="small" fullWidth disabled={!hasPermission('orders:edit')} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }} />) : (order.shipping_address?.detail || 'N/A')}</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>배송 메모</TableCell><TableCell sx={{ p: 1 }}>{isEditing ? (<TextField value={editedCustomerRequest} onChange={(e) => setEditedCustomerRequest(e.target.value)} size="small" fullWidth disabled={!hasPermission('orders:edit')} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }} />) : (order.customer_request || '없음')}</TableCell></TableRow></TableBody></Table></Paper></Box>
@@ -456,6 +425,69 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
         </DialogActions>
       </Dialog>
     </>
+  );
+};
+
+const StatusHistoryAccordion = ({ history, statusToKorean }) => {
+  const [open, setOpen] = useState(false);
+  const reversed = [...history].reverse();
+  const current = reversed[0];
+  const rest = reversed.slice(1);
+
+  return (
+    <Box sx={{ mb: 4 }}>
+      <Box
+        onClick={() => setOpen(o => !o)}
+        sx={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          mb: open ? 1 : 0, cursor: 'pointer', userSelect: 'none',
+        }}
+      >
+        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>상태 이력</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {!open && (
+            <Typography variant="caption" color="text.secondary">
+              {rest.length}개 이전 이력
+            </Typography>
+          )}
+          {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+        </Box>
+      </Box>
+      <Paper variant="outlined" sx={{ borderRadius: '12px', overflow: 'hidden' }}>
+        {/* 현재 상태는 항상 표시 */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, px: 2, py: 1.25, bgcolor: 'grey.50', borderBottom: open && rest.length > 0 ? '1px solid' : 'none', borderColor: 'divider' }}>
+          <Chip label={statusToKorean[current.status] || current.status} size="small" sx={{ minWidth: 72, fontWeight: 700 }} />
+          <Typography variant="body2">
+            {new Date(current.changed_at).toLocaleString('ko-KR', {
+              year: 'numeric', month: '2-digit', day: '2-digit',
+              hour: '2-digit', minute: '2-digit', second: '2-digit',
+            })}
+          </Typography>
+          <Chip label="현재" size="small" color="primary" variant="outlined" sx={{ ml: 'auto', fontSize: '0.7rem' }} />
+        </Box>
+        {/* 이전 이력 — 접힘/펼침 */}
+        <Collapse in={open}>
+          {rest.map((entry, idx) => (
+            <Box
+              key={idx}
+              sx={{
+                display: 'flex', alignItems: 'center', gap: 2, px: 2, py: 1.25,
+                borderBottom: idx < rest.length - 1 ? '1px solid' : 'none',
+                borderColor: 'divider',
+              }}
+            >
+              <Chip label={statusToKorean[entry.status] || entry.status} size="small" sx={{ minWidth: 72 }} />
+              <Typography variant="body2" color="text.secondary">
+                {new Date(entry.changed_at).toLocaleString('ko-KR', {
+                  year: 'numeric', month: '2-digit', day: '2-digit',
+                  hour: '2-digit', minute: '2-digit', second: '2-digit',
+                })}
+              </Typography>
+            </Box>
+          ))}
+        </Collapse>
+      </Paper>
+    </Box>
   );
 };
 
