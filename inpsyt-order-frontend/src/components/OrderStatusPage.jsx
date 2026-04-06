@@ -147,7 +147,7 @@ const OrderStatusPage = () => {
         {isCancelled ? (
           <>
             <SectionTitle>취소된 주문 상품</SectionTitle>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 4 }}>
+            <Box sx={{ bgcolor: '#fff', border: '1px solid', borderColor: 'divider', borderRadius: '12px', p: 2, mb: 4, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               {order.order_items?.map((item, idx) => (
                 <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <Box sx={{ flex: 1, mr: 2 }}>
@@ -169,7 +169,7 @@ const OrderStatusPage = () => {
           <>
             {/* 주문 상품 */}
             <SectionTitle>주문 상품</SectionTitle>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 3 }}>
+            <Box sx={{ bgcolor: '#fff', border: '1px solid', borderColor: 'divider', borderRadius: '12px', p: 2, mb: 3, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               {order.order_items?.map((item, idx) => (
                 <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <Box sx={{ flex: 1, mr: 2 }}>
