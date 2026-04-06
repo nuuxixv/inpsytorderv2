@@ -69,7 +69,7 @@ const CompactKpi = ({ title, value, icon: Icon, color, yoyPct }) => {
 // ─── Status Bar ───
 const StatusBar = ({ statusCounts, totalOrders, onStatusClick }) => {
   if (totalOrders === 0) return null;
-  const orderedStatuses = ['pending', 'paid', 'shipped', 'completed', 'cancelled', 'refunded'];
+  const orderedStatuses = ['pending', 'paid', 'completed', 'cancelled', 'refunded'];
   const segments = orderedStatuses
     .filter(s => (statusCounts[s] || 0) > 0)
     .map(s => ({ key: s, count: statusCounts[s], pct: (statusCounts[s] / totalOrders) * 100 }));

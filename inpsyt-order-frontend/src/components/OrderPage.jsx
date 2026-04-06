@@ -418,6 +418,22 @@ const OrderPage = () => {
           </Button>
           {submittedOrderId && (
             <Button
+              variant="outlined"
+              size="large"
+              fullWidth
+              onClick={() => {
+                const url = `${window.location.origin}/order/status/${submittedOrderId}`;
+                navigator.clipboard.writeText(url).then(() => {
+                  alert('주문 조회 링크가 복사됐습니다. 카카오톡으로 전달하면 나중에 배송 상태를 확인할 수 있어요.');
+                });
+              }}
+              sx={{ borderRadius: '12px', minHeight: 48 }}
+            >
+              🔗 주문 조회 링크 복사
+            </Button>
+          )}
+          {submittedOrderId && (
+            <Button
               variant="text"
               size="small"
               fullWidth

@@ -303,6 +303,44 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
       </Box>
       <Box sx={{ p: isMobile ? 2 : 3, overflowY: 'auto' }}>
         <Box sx={{ mb: 4 }}><Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>주문 상세 정보</Typography><Paper variant="outlined" sx={{ borderRadius: '12px' }}><Table size="small"><TableBody><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50', width: 120 }}>상품주문번호</TableCell><TableCell>{displayId}</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>주문일</TableCell><TableCell>{new Date(order.created_at).toLocaleString('ko-KR')}</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>학회명</TableCell><TableCell sx={{ p: 1 }}>{isEditing ? (<FormControl size="small" fullWidth><Select value={editedEventId} onChange={(e) => setEditedEventId(e.target.value)} disabled={!hasPermission('orders:edit')} sx={{ borderRadius: '8px' }}>{events && events.map((event) => (<MenuItem key={event.id} value={event.id}>{event.name}</MenuItem>))}</Select></FormControl>) : (events && events.find(e => e.id === order.event_id)?.name || 'N/A')}</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>상태</TableCell><TableCell sx={{ p: 1 }}><FormControl size="small" fullWidth><Select value={currentStatus} onChange={(e) => { const newStatus = e.target.value; setCurrentStatus(newStatus); handleSaveStatusOnly(newStatus); }} disabled={!hasPermission('orders:edit')} sx={{ borderRadius: '8px' }}>{statusToKorean && Object.entries(statusToKorean).map(([key, value]) => (<MenuItem key={key} value={key}>{value}</MenuItem>))}</Select></FormControl></TableCell></TableRow></TableBody></Table></Paper></Box>
+        {/* 상태 이력 */}
+        {Array.isArray(order.status_history) && order.status_history.length > 0 && (
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>상태 이력</Typography>
+            <Paper variant="outlined" sx={{ borderRadius: '12px', overflow: 'hidden' }}>
+              {[...order.status_history].reverse().map((entry, idx) => (
+                <Box
+                  key={idx}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 2,
+                    px: 2,
+                    py: 1.25,
+                    borderBottom: idx < order.status_history.length - 1 ? '1px solid' : 'none',
+                    borderColor: 'divider',
+                    bgcolor: idx === 0 ? 'grey.50' : 'transparent',
+                  }}
+                >
+                  <Chip
+                    label={statusToKorean[entry.status] || entry.status}
+                    size="small"
+                    sx={{ minWidth: 72, fontWeight: idx === 0 ? 700 : 400 }}
+                  />
+                  <Typography variant="body2" color={idx === 0 ? 'text.primary' : 'text.secondary'}>
+                    {new Date(entry.changed_at).toLocaleString('ko-KR', {
+                      year: 'numeric', month: '2-digit', day: '2-digit',
+                      hour: '2-digit', minute: '2-digit',
+                    })}
+                  </Typography>
+                  {idx === 0 && (
+                    <Chip label="현재" size="small" color="primary" variant="outlined" sx={{ ml: 'auto', fontSize: '0.7rem' }} />
+                  )}
+                </Box>
+              ))}
+            </Paper>
+          </Box>
+        )}
         <Box sx={{ mb: 4 }}><Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>주문자 정보</Typography><Paper variant="outlined" sx={{ borderRadius: '12px' }}><Table size="small"><TableBody><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50', width: 120 }}>주문자명</TableCell><TableCell sx={{ p: 1 }}>{isEditing ? (<TextField value={editedCustomerName} onChange={(e) => setEditedCustomerName(e.target.value)} size="small" fullWidth disabled={!hasPermission('orders:edit')} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }} />) : (order.customer_name)}</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>연락처</TableCell><TableCell sx={{ p: 1 }}>{isEditing ? (<TextField value={editedPhoneNumber} onChange={(e) => setEditedPhoneNumber(e.target.value)} size="small" fullWidth disabled={!hasPermission('orders:edit')} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }} />) : (order.phone_number || 'N/A')}</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>이메일</TableCell><TableCell sx={{ p: 1 }}>{isEditing ? (<TextField value={editedCustomerEmail} onChange={(e) => setEditedCustomerEmail(e.target.value)} size="small" fullWidth disabled={!hasPermission('orders:edit')} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }} />) : (order.email)}</TableCell></TableRow></TableBody></Table></Paper></Box>
         <Box sx={{ mb: 4 }}><Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>배송지 정보</Typography><Paper variant="outlined" sx={{ borderRadius: '12px' }}><Table size="small"><TableBody><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50', width: 120 }}>우편번호</TableCell><TableCell sx={{ p: 1 }}>{isEditing ? (<TextField value={editedShippingPostcode} onChange={(e) => setEditedShippingPostcode(e.target.value)} size="small" fullWidth disabled={!hasPermission('orders:edit')} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }} />) : (order.shipping_address?.postcode || 'N/A')}</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>주소</TableCell><TableCell sx={{ p: 1 }}>{isEditing ? (<TextField value={editedShippingAddress} onChange={(e) => setEditedShippingAddress(e.target.value)} size="small" fullWidth disabled={!hasPermission('orders:edit')} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }} />) : (order.shipping_address?.address || 'N/A')}</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>상세 주소</TableCell><TableCell sx={{ p: 1 }}>{isEditing ? (<TextField value={editedShippingDetail} onChange={(e) => setEditedShippingDetail(e.target.value)} size="small" fullWidth disabled={!hasPermission('orders:edit')} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }} />) : (order.shipping_address?.detail || 'N/A')}</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>배송 메모</TableCell><TableCell sx={{ p: 1 }}>{isEditing ? (<TextField value={editedCustomerRequest} onChange={(e) => setEditedCustomerRequest(e.target.value)} size="small" fullWidth disabled={!hasPermission('orders:edit')} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }} />) : (order.customer_request || '없음')}</TableCell></TableRow></TableBody></Table></Paper></Box>
         <Box sx={{ mb: 4 }}><Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>관리자 메모</Typography><Paper variant="outlined" sx={{ borderRadius: '12px' }}><Table size="small"><TableBody><TableRow><TableCell sx={{ p: 1 }}>{isEditing ? (<TextField value={editedAdminMemo} onChange={(e) => setEditedAdminMemo(e.target.value)} size="small" fullWidth multiline rows={3} placeholder="관리자만 볼 수 있는 메모입니다. 환불 정보, 고객 특이사항 등을 기록하세요." disabled={!hasPermission('orders:edit')} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }} />) : (<Typography sx={{ whiteSpace: 'pre-wrap', p: 1 }}>{order.admin_memo || '작성된 메모가 없습니다.'}</Typography>)}</TableCell></TableRow></TableBody></Table></Paper></Box>
@@ -346,26 +384,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
         <Box sx={{ mb: 4 }}><Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>주문 상품 목록</Typography><TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px' }}><Table size="small"><TableHead><TableRow sx={{ bgcolor: 'grey.50' }}><TableCell sx={{ minWidth: 120, whiteSpace: 'nowrap' }}>상품명</TableCell><TableCell align="right" sx={{ minWidth: 80, whiteSpace: 'nowrap' }}>정가</TableCell><TableCell align="right" sx={{ minWidth: 80, whiteSpace: 'nowrap' }}>할인가</TableCell><TableCell align="right" sx={{ minWidth: 60, whiteSpace: 'nowrap' }}>수량</TableCell><TableCell align="right" sx={{ minWidth: 80, whiteSpace: 'nowrap' }}>합계</TableCell>{hasPermission('orders:edit') && <TableCell sx={{ minWidth: 50, whiteSpace: 'nowrap' }}>작업</TableCell>}</TableRow></TableHead><TableBody>{productsLoading ? (<TableRow><TableCell colSpan={6} align="center"><CircularProgress size={24} /></TableCell></TableRow>) : ((editedOrderItems || []).map((item, index) => { const product = productsMap[item.product_id]; const originalPrice = product?.list_price || 0; const discountedPrice = originalPrice * (1 - discountRate); const itemTotal = discountedPrice * item.quantity; return (<TableRow key={index}><TableCell sx={{ p: 1 }}>{isEditing ? (<FormControl size="small" fullWidth><Select value={item.product_id} onChange={(e) => handleItemChange(index, 'product_id', e.target.value)} disabled={!hasPermission('orders:edit')} sx={{ borderRadius: '8px' }}>{products.map((p) => (<MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>))}</Select></FormControl>) : (product?.name || '알 수 없는 상품')}</TableCell><TableCell align="right">{originalPrice.toLocaleString()}원</TableCell><TableCell align="right">{discountedPrice.toLocaleString()}원</TableCell><TableCell align="right" sx={{ p: 1 }}>{isEditing ? (<TextField type="number" value={item.quantity} onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value, 10) || 0)} size="small" sx={{ width: 70, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }} inputProps={{ min: 0 }} disabled={!hasPermission('orders:edit')} />) : (item.quantity)}</TableCell><TableCell align="right">{itemTotal.toLocaleString()}원</TableCell>{hasPermission('orders:edit') && isEditing && (<TableCell><IconButton onClick={() => handleRemoveOrderItem(index)} color="error" size="small"><CloseIcon /></IconButton></TableCell>)}</TableRow>); }))}</TableBody></Table>{hasPermission('orders:edit') && isEditing && (<Box sx={{ mt: 1, p: 1, textAlign: 'right' }}><Button onClick={handleAddOrderItem} variant="outlined" size="small" sx={{ borderRadius: '8px' }}>상품 추가</Button></Box>)}</TableContainer></Box>
         <Box><Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>결제 정보</Typography><Paper variant="outlined" sx={{ borderRadius: '12px' }}><Table size="small"><TableBody><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50', width: '60%' }}>정가의 합</TableCell><TableCell align="right">{subtotal.toLocaleString()}원</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>할인된 금액</TableCell><TableCell align="right">{totalDiscount.toLocaleString()}원</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50' }}>배송비</TableCell><TableCell align="right">{shippingFee.toLocaleString()}원</TableCell></TableRow><TableRow><TableCell sx={{ fontWeight: 'bold', bgcolor: 'grey.50', fontSize: '1.1rem' }}>총 결제 금액</TableCell><TableCell align="right" sx={{ fontSize: '1.1rem', fontWeight: 'bold' }}>{finalTotal.toLocaleString()}원</TableCell></TableRow></TableBody></Table></Paper></Box>
       </Box>
-      <Box sx={{ p: 2, display: 'flex', gap: 1, justifyContent: 'center', borderTop: 1, borderColor: 'divider', flexWrap: 'wrap' }}>
-        {order?.access_token && (
-          <Button
-            variant="outlined"
-            size="large"
-            color="secondary"
-            fullWidth={isMobile}
-            sx={{ borderRadius: '12px', minHeight: '48px', fontSize: '0.8rem' }}
-            onClick={() => {
-              const url = `${window.location.origin}/order/status/${order.access_token}`;
-              navigator.clipboard.writeText(url).then(() => {
-                addNotification('주문 조회 링크가 복사됐습니다.', 'success');
-              });
-            }}
-          >
-            🔗 링크 복사 (베타)
-          </Button>
-        )}
-        <Button onClick={onClose} variant="outlined" size="large" fullWidth={isMobile} sx={{ borderRadius: '12px', minHeight: '48px' }}>닫기</Button>
-      </Box>
+      <Box sx={{ p: 2, display: 'flex', justifyContent: 'center', borderTop: 1, borderColor: 'divider' }}><Button onClick={onClose} variant="outlined" size="large" fullWidth={isMobile} sx={{ borderRadius: '12px', minHeight: '48px' }}>닫기</Button></Box>
     </Box>
   );
 
@@ -402,7 +421,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
               {linkSearchResults.map(result => {
                 const combinedListPrice = (order?.total_cost || 0) + result.total_cost;
                 const freeShipping = combinedListPrice >= settings.free_shipping_threshold;
-                const parentPaidShipping = ['paid', 'shipped', 'completed'].includes(result.status) ? result.delivery_fee : 0;
+                const parentPaidShipping = ['paid', 'completed'].includes(result.status) ? result.delivery_fee : 0;
                 const newFinal = (order?.total_cost || 0) - (order?.discount_amount || 0) - (freeShipping ? parentPaidShipping : 0);
                 const saved = (order?.final_payment || 0) - newFinal;
                 return (

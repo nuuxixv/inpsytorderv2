@@ -59,7 +59,6 @@ const orderTypeBadge = {
 const statusLabel = {
   pending:   '결제대기',
   paid:      '결제완료',
-  shipped:   '출고완료',
   completed: '처리완료',
   cancelled: '주문취소',
   refunded:  '결제취소',
@@ -344,7 +343,7 @@ const FulfillmentPage = () => {
     const order = orders.find(o => o.id === orderId);
     const name = order?.customer_name || `#${orderId}`;
     try {
-      const { error } = await supabase.from('orders').update({ status: 'shipped' }).eq('id', orderId);
+      const { error } = await supabase.from('orders').update({ status: 'completed' }).eq('id', orderId);
       if (error) throw error;
       addNotification(`${name}님의 주문이 출고 처리되었습니다.`, 'success');
       loadOrders();

@@ -106,7 +106,7 @@ export const linkOrders = async (parentOrderId, childOrderId, settings = {}) => 
 
   const threshold = settings.free_shipping_threshold ?? 30000;
   const combinedListPrice = parent.total_cost + child.total_cost;
-  const PAID_STATUSES = ['paid', 'shipped', 'completed'];
+  const PAID_STATUSES = ['paid', 'completed'];
 
   // child의 배송비는 항상 0 (합배송)
   let newFinalPayment = child.total_cost - child.discount_amount;
