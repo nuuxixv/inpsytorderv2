@@ -2,7 +2,7 @@ import { createTheme, alpha } from '@mui/material/styles';
 
 // Brand Colors
 const PRIMARY_MAIN = '#2B398F';
-const SECONDARY_MAIN = '#6C5CE7';
+const SECONDARY_MAIN = '#3d4db0';
 
 // Toss-inspired Modern Theme
 const theme = createTheme({
@@ -15,8 +15,8 @@ const theme = createTheme({
     },
     secondary: {
       main: SECONDARY_MAIN,
-      light: '#a29bfe',
-      dark: '#4834d4',
+      light: '#6677cc',
+      dark: '#2B398F',
       contrastText: '#ffffff',
     },
     background: {

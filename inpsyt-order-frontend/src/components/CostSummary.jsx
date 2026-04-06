@@ -71,7 +71,7 @@ const CostSummary = ({ cart, settings, discountRate = 0, embedded = false, compa
               bgcolor: 'grey.200',
               '& .MuiLinearProgress-bar': {
                 borderRadius: 3,
-                backgroundImage: 'linear-gradient(90deg, #2B398F 0%, #6C5CE7 100%)'
+                backgroundImage: 'linear-gradient(90deg, #2B398F 0%, #3d4db0 100%)'
               }
             }}
           />
