@@ -11,7 +11,7 @@
 | 서비스 단계 | **정식** — 알림톡 연동 완료 |
 | 알림톡 | 결제완료(paid) 시 자동 발송, 어드민 재발송 버튼 |
 | 이메일 수집 | 제거됨 (알림톡으로 대체) |
-| RLS 보안 | ⚠️ 미처리 — 정식 운영 중 처리 필요 |
+| RLS 보안 | ✅ 완료 — get_order_by_token RPC, anon SELECT 차단 |
 
 ### 정식 전환 완료 체크리스트
 - [x] 알림톡 채널 심사 통과
@@ -20,32 +20,11 @@
 - [x] 이메일 필드 제거 (주문 폼, DB nullable 처리)
 - [x] 어드민 "링크 복사" 버튼 제거 (이미 없음 확인)
 - [x] 주문 상태 페이지 배너 통합 (완료)
-- [ ] RLS DB function 수정 (아래 🔒 참조)
+- [x] RLS DB function 수정 — get_order_by_token RPC, anon SELECT 차단
 
 ---
 
 ## 🔴 우선순위 높음
-
-### 🔒 RLS anon SELECT 보안 강화 — 필수
-**배경:**
-- `orders` 테이블 `USING (true)` → anon key로 전체 주문 조회 가능
-- anon key는 프론트엔드 JS 번들에 공개됨
-- **현재:** UUID 난수 토큰으로 실질 위험은 낮으나, 운영 규모 커지면 위험
-
-**해결 방법:** `SECURITY DEFINER` DB function으로 토큰 기반 조회만 허용 + anon SELECT RLS 삭제
-
-```sql
-CREATE FUNCTION get_order_by_token(p_token uuid) RETURNS json
-LANGUAGE sql SECURITY DEFINER AS $$
-  SELECT row_to_json(o) FROM (
-    SELECT o.*, json_agg(oi) FROM orders o
-    JOIN order_items oi ON oi.order_id = o.id
-    WHERE o.access_token = p_token GROUP BY o.id
-  ) o;
-$$;
-```
-
----
 
 ### [부분 취소] 기획 필요
 고객이 특정 상품만 취소하는 경우 퍼널:
@@ -78,6 +57,7 @@ $$;
 ---
 
 ## ✅ 완료된 주요 작업
+- **RLS 보안 강화** (2026-04-07): anon SELECT 차단, get_order_by_token RPC, OrderLookupPage 제거
 - **카카오 알림톡 연동** (2026-04-07): 원샷 msgagent API, 결제완료 자동 발송, 어드민 재발송 버튼
 - **이메일 제거**: 주문 폼에서 이메일 수집 제거, DB nullable 처리
 - **주문 상태 페이지 배너 통합**: 단일 카드로 정리
