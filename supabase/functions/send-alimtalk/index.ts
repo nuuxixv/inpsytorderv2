@@ -2,16 +2,15 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.43.0'
 import { corsHeaders } from '../_shared/cors.ts'
 
-// ─── 원샷 API 설정 (환경변수로 관리) ───────────────────────────
-// TODO: 원샷 고객센터에서 받은 후 Supabase 환경변수에 등록
-// supabase secrets set ONESHOT_API_KEY=...
-// supabase secrets set ONESHOT_API_URL=...
-const ONESHOT_API_KEY = Deno.env.get('ONESHOT_API_KEY')
-const ONESHOT_API_URL = Deno.env.get('ONESHOT_API_URL')  // ex) https://api.one-shot.co.kr/alimtalk/send
 const FRONTEND_URL = Deno.env.get('FRONTEND_URL') ?? 'https://inpsytorder.vercel.app'
 
-// 카카오 알림톡 템플릿 코드 (원샷 관리자에서 확인)
-const TEMPLATE_CODE = 'inpsytorder_order1'
+// 원샷 설정 (Supabase 환경변수로 관리)
+// supabase secrets set ONESHOT_SENDER_KEY=799de9af7fd86b7301222f39715f012c33d8ed85
+// supabase secrets set ONESHOT_CALLBACK=발신번호(원샷에 등록된 번호, 하이픈 없이)
+const SENDER_KEY = Deno.env.get('ONESHOT_SENDER_KEY')
+const CALLBACK = Deno.env.get('ONESHOT_CALLBACK')
+const ENDPOINT = 'https://api2.msgagent.com/api/webshot/send/kakao/AT/inpsyt2'
+const TEMPLATE_CODE = 'inpsytorder_paid1'
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -46,7 +45,7 @@ serve(async (req) => {
       })
     }
 
-    // 2. 현장 수령 주문은 알림톡 발송 안 함
+    // 2. 현장 수령 주문은 발송 안 함
     if (order.is_on_site_sale) {
       return new Response(JSON.stringify({ skipped: true, reason: '현장 수령 주문' }), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -54,7 +53,6 @@ serve(async (req) => {
       })
     }
 
-    // 3. 발송에 필요한 변수 구성
     const recipientPhone = order.phone_number?.replace(/-/g, '') ?? ''
     const customerName = order.customer_name ?? ''
     const eventName = order.events?.name ?? ''
@@ -67,39 +65,43 @@ serve(async (req) => {
       })
     }
 
-    // 4. 원샷 API 호출
-    // TODO: 원샷 API 명세 확인 후 아래 payload 구조 수정 필요
-    if (!ONESHOT_API_KEY || !ONESHOT_API_URL) {
-      console.error('ONESHOT_API_KEY 또는 ONESHOT_API_URL 환경변수 미설정')
+    if (!SENDER_KEY || !CALLBACK) {
+      console.error('ONESHOT_SENDER_KEY 또는 ONESHOT_CALLBACK 환경변수 미설정')
       return new Response(JSON.stringify({ error: '알림톡 API 설정이 완료되지 않았습니다.' }), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
         status: 503,
       })
     }
 
-    const apiResponse = await fetch(ONESHOT_API_URL, {
+    // 3. 템플릿 본문 (승인된 템플릿과 정확히 일치해야 함)
+    const msg = `${customerName}님, 안녕하세요.\n${eventName}에서 결제가 완료되었습니다.\n\n주문 내역은 아래에서 확인하실 수 있습니다.`
+
+    // 4. 원샷 API 호출 (multipart/form-data)
+    const formData = new FormData()
+    formData.append('id', 'inpsyt2')
+    formData.append('PHONE', recipientPhone)
+    formData.append('CALLBACK', CALLBACK)
+    formData.append('MSG', msg)
+    formData.append('SEDNER_KEY', SENDER_KEY)   // 원샷 오타 그대로 유지
+    formData.append('TEMPLATE_CODE', TEMPLATE_CODE)
+    formData.append('BTN_TYPES', 'WL')           // 웹링크 버튼
+    formData.append('BTN_TXTS', '주문내역 확인하기')
+    formData.append('BTN_URLS1', statusUrl)       // 모바일
+    formData.append('BTN_URLS2', statusUrl)       // PC
+    // 카카오 미사용자 SMS 대체 발송
+    formData.append('FAILED_TYPE', 'SMS')
+    formData.append('FAILED_MSG', `[인싸이트] ${customerName}님, ${eventName} 결제가 완료되었습니다. 주문 조회: ${statusUrl}`)
+
+    const apiResponse = await fetch(ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // TODO: 원샷 인증 방식에 맞게 수정 (API Key 방식 또는 Basic Auth 등)
-        'Authorization': `Bearer ${ONESHOT_API_KEY}`,
-      },
-      body: JSON.stringify({
-        // TODO: 원샷 알림톡 발송 파라미터 명세에 맞게 수정
-        template_code: TEMPLATE_CODE,
-        recipient_no: recipientPhone,
-        template_parameter: {
-          NAME: customerName,
-          SYMPO: eventName,
-          URL: statusUrl,
-        },
-      }),
+      body: formData,
     })
 
+    const responseText = await apiResponse.text()
+
     if (!apiResponse.ok) {
-      const errorBody = await apiResponse.text()
-      console.error('원샷 API 오류:', errorBody)
-      return new Response(JSON.stringify({ error: '알림톡 발송 실패', detail: errorBody }), {
+      console.error('원샷 API 오류:', responseText)
+      return new Response(JSON.stringify({ error: '알림톡 발송 실패', detail: responseText }), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
         status: 502,
       })
@@ -111,7 +113,9 @@ serve(async (req) => {
       .update({ alimtalk_sent_at: new Date().toISOString() })
       .eq('id', order_id)
 
-    return new Response(JSON.stringify({ success: true }), {
+    console.log(`알림톡 발송 완료 — 주문 ${order_id}, 수신: ${recipientPhone}`)
+
+    return new Response(JSON.stringify({ success: true, response: responseText }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
       status: 200,
     })
