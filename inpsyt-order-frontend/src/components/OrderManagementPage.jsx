@@ -466,10 +466,22 @@ const OrderManagementPage = () => {
       if (error) throw error;
       addNotification(`주문 ${orderId}의 상태가 '${statusToKorean[newStatus]}'으로 업데이트되었습니다.`, 'success');
       fetchOrders();
+
+      // paid 전환 시 알림톡 자동 발송 (현장 수령 제외)
+      if (newStatus === 'paid') {
+        const order = state.orders.find(o => o.id === orderId);
+        if (order && !order.is_on_site_sale) {
+          supabase.functions.invoke('send-alimtalk', { body: { order_id: orderId } })
+            .then(({ error: alimtalkError }) => {
+              if (alimtalkError) console.error('알림톡 발송 오류:', alimtalkError);
+              else addNotification('알림톡이 발송되었습니다.', 'info');
+            });
+        }
+      }
     } catch (err) {
       addNotification(`주문 상태 업데이트 실패: ${err.message}`, 'error');
     }
-  }, [fetchOrders, addNotification]);
+  }, [fetchOrders, addNotification, state.orders]);
 
   const formatOrderId = (order) => {
     if (order.parent_order_id) {
