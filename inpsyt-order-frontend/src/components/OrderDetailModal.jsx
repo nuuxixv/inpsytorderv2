@@ -238,11 +238,15 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
 
       // paid 전환 시 알림톡 자동 발송 (현장 수령 제외)
       if (newStatus === 'paid' && !order.is_on_site_sale) {
+        console.log('[알림톡] 호출 시작, order_id:', order.id, 'is_on_site_sale:', order.is_on_site_sale);
         supabase.functions.invoke('send-alimtalk', { body: { order_id: order.id } })
-          .then(({ error: alimtalkError }) => {
+          .then(({ data, error: alimtalkError }) => {
+            console.log('[알림톡] 응답:', data, '오류:', alimtalkError);
             if (alimtalkError) console.error('알림톡 발송 오류:', alimtalkError);
             else addNotification('알림톡이 발송되었습니다.', 'info');
           });
+      } else {
+        console.log('[알림톡] 스킵 — newStatus:', newStatus, 'is_on_site_sale:', order.is_on_site_sale);
       }
     } catch (error) {
       console.error('Error updating order status:', error);
