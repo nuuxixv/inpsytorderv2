@@ -235,9 +235,29 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
       addNotification(`주문 ${order.id}의 상태가 '${statusToKorean[newStatus]}'으로 업데이트되었습니다.`, 'success');
       onUpdate();
       setCurrentStatus(newStatus);
+
+      // paid 전환 시 알림톡 자동 발송 (현장 수령 제외)
+      if (newStatus === 'paid' && !order.is_on_site_sale) {
+        supabase.functions.invoke('send-alimtalk', { body: { order_id: order.id } })
+          .then(({ error: alimtalkError }) => {
+            if (alimtalkError) console.error('알림톡 발송 오류:', alimtalkError);
+            else addNotification('알림톡이 발송되었습니다.', 'info');
+          });
+      }
     } catch (error) {
       console.error('Error updating order status:', error);
       addNotification(`주문 상태 업데이트 실패: ${error.message}`, 'error');
+    }
+  };
+
+  const handleResendAlimtalk = async () => {
+    try {
+      const { error } = await supabase.functions.invoke('send-alimtalk', { body: { order_id: order.id } });
+      if (error) throw error;
+      addNotification('알림톡이 재발송되었습니다.', 'success');
+      onUpdate();
+    } catch (error) {
+      addNotification(`알림톡 재발송 실패: ${error.message}`, 'error');
     }
   };
 
@@ -313,6 +333,16 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
             >
               <OpenInNewIcon fontSize="small" />
             </IconButton>
+          )}
+          {hasPermission('orders:edit') && order.status === 'paid' && !order.is_on_site_sale && (
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleResendAlimtalk}
+              sx={{ borderRadius: '8px', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+            >
+              알림톡 재발송
+            </Button>
           )}
           {hasPermission('orders:edit') && (isEditing ? (<Button variant="contained" onClick={handleSaveAll} sx={{ borderRadius: '8px' }}>저장</Button>) : (<Button variant="outlined" onClick={() => setIsEditing(true)} sx={{ borderRadius: '8px' }}>편집</Button>))}
           <IconButton aria-label="close" onClick={onClose} sx={{ color: (theme) => theme.palette.grey[500] }}><CloseIcon /></IconButton>

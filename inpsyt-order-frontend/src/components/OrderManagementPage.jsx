@@ -335,7 +335,6 @@ const OrderManagementPage = () => {
 
     dispatch({ type: 'SET_STATE', payload: { loading: true } });
     try {
-      // This RPC function needs to be created in Supabase
       const { error } = await supabase.rpc('bulk_update_order_status', {
         order_ids: state.selectedOrders,
         new_status: bulkStatus
@@ -344,13 +343,45 @@ const OrderManagementPage = () => {
       if (error) throw error;
 
       addNotification(`${state.selectedOrders.length}개 주문의 상태가 '${statusToKorean[bulkStatus]}'으로 업데이트되었습니다.`, 'success');
+
+      // paid 일괄 전환 시 알림톡 순차 발송 (현장 수령 제외)
+      if (bulkStatus === 'paid') {
+        const targets = state.selectedOrders.filter(id => {
+          const o = state.orders.find(o => o.id === id);
+          return o && !o.is_on_site_sale;
+        });
+
+        if (targets.length > 0) {
+          let successCount = 0;
+          let failCount = 0;
+
+          for (const orderId of targets) {
+            const { error: alimtalkError } = await supabase.functions.invoke('send-alimtalk', {
+              body: { order_id: orderId },
+            });
+            if (alimtalkError) {
+              console.error(`알림톡 발송 실패 (주문 ${orderId}):`, alimtalkError);
+              failCount++;
+            } else {
+              successCount++;
+            }
+          }
+
+          if (failCount === 0) {
+            addNotification(`알림톡 ${successCount}건 발송 완료`, 'info');
+          } else {
+            addNotification(`알림톡 ${successCount}건 성공, ${failCount}건 실패 — 실패 건은 주문 상세에서 재발송하세요.`, 'warning');
+          }
+        }
+      }
+
       dispatch({ type: 'SET_SELECTED_ORDERS', payload: [] });
       setBulkStatus('');
-      fetchOrders(); // Refresh the orders list
+      fetchOrders();
     } catch (err) {
       addNotification(`일괄 상태 업데이트 실패: ${err.message}`, 'error');
     } finally {
-        dispatch({ type: 'SET_STATE', payload: { loading: false } });
+      dispatch({ type: 'SET_STATE', payload: { loading: false } });
     }
   };
 
