@@ -46,10 +46,23 @@ export const sendAlimtalk = async (orderId) => {
 
     const response = await fetch(ENDPOINT, { method: 'POST', body: formData });
     const responseText = await response.text();
+    console.log('[알림톡] 원샷 응답:', responseText);
 
     if (!response.ok) {
-      console.error('원샷 API 오류:', responseText);
+      console.error('원샷 API HTTP 오류:', responseText);
       return { success: false, error: `원샷 API 오류: ${responseText}` };
+    }
+
+    // 원샷은 HTTP 200이어도 result_code로 성공 여부 판단
+    let resultCode = null;
+    try {
+      const json = JSON.parse(responseText);
+      resultCode = json.result_code;
+    } catch {}
+
+    if (resultCode !== undefined && resultCode !== 100) {
+      console.error('[알림톡] 발송 실패 result_code:', resultCode);
+      return { success: false, error: `원샷 result_code: ${resultCode}` };
     }
 
     // 발송 이력 기록
