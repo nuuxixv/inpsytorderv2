@@ -2,7 +2,7 @@ import { supabase } from '../supabaseClient';
 
 const ENDPOINT = 'https://api2.msgagent.com/api/webshot/send/kakao/AT/inpsyt2';
 const SENDER_KEY = '799de9af7fd86b7301222f39715f012c33d8ed85';
-const CALLBACK = '023367133';
+const CALLBACK = '023305121';
 const TEMPLATE_CODE = 'inpsytorder_paid1';
 const FRONTEND_URL = import.meta.env.VITE_APP_URL ?? 'https://inpsytorder.vercel.app';
 
