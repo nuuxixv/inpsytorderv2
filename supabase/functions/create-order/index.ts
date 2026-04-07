@@ -99,6 +99,7 @@ serve(async (req) => {
         delivery_fee: shippingCost,
         final_payment: finalCost,
         event_id,
+        status_history: [{ status: 'pending', changed_at: new Date().toISOString() }],
       })
       .select()
       .single()
