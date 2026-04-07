@@ -46,12 +46,11 @@ const OrderPage = () => {
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({
-    name: '', email: '', phone: '', postcode: '',
+    name: '', phone: '', postcode: '',
     address: '', detailAddress: '', inpsytId: '', request: '',
   });
   const [cart, setCart] = useState([]);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
-  const [submittedOrderId, setSubmittedOrderId] = useState(null);
   const [eventInfo, setEventInfo] = useState(null);
   const [accessError, setAccessError] = useState(null); // 'no_slug' | 'expired' | 'not_found'
 
@@ -65,7 +64,7 @@ const OrderPage = () => {
     return validCartItems.reduce((sum, item) => sum + (item.list_price || 0) * item.quantity, 0);
   }, [validCartItems]);
 
-  const isCustomerInfoValid = customerInfo.name && customerInfo.email && customerInfo.phone;
+  const isCustomerInfoValid = customerInfo.name && customerInfo.phone;
   const hasOnlineCode = validCartItems.some(item => item.category === '온라인코드' || (item.name && item.name.includes('온라인')));
   const isSubmittable = isCustomerInfoValid && hasCartItems;
 
@@ -170,7 +169,6 @@ const OrderPage = () => {
       const { data, error: invokeError } = await supabase.functions.invoke('create-order', {
         body: {
           customer_name: customerInfo.name,
-          email: customerInfo.email,
           phone_number: customerInfo.phone,
           shipping_address: {
             postcode: customerInfo.postcode,
@@ -189,7 +187,6 @@ const OrderPage = () => {
       if (invokeError) throw invokeError;
       if (data.error) throw new Error(data.error);
 
-      setSubmittedOrderId(data?.order?.access_token || null);
       setShowSuccessDialog(true);
     } catch (error) {
       setError(`주문 처리 중 오류가 발생했습니다: ${error.message}`);
@@ -200,9 +197,8 @@ const OrderPage = () => {
 
   const handleCloseSuccessDialog = () => {
     setShowSuccessDialog(false);
-    setSubmittedOrderId(null);
     setCustomerInfo({
-      name: '', email: '', phone: '', postcode: '',
+      name: '', phone: '', postcode: '',
       address: '', detailAddress: '', inpsytId: '', request: '',
     });
     setCart([]);
@@ -401,12 +397,12 @@ const OrderPage = () => {
         </DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ textAlign: 'center', color: 'text.secondary', lineHeight: 1.8 }}>
-            주문이 성공적으로 접수되었습니다.
-            <br />
             담당자에게 카드를 건네어 결제를 완료해주세요.
+            <br />
+            결제 완료 후 카카오 알림톡으로 주문 내역을 보내드립니다.
           </DialogContentText>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3, flexDirection: 'column', gap: 1 }}>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
           <Button
             variant="contained"
             size="large"
@@ -414,38 +410,8 @@ const OrderPage = () => {
             onClick={handleCloseSuccessDialog}
             sx={{ borderRadius: '12px', minHeight: 48 }}
           >
-            확인했습니다
+            확인
           </Button>
-          {submittedOrderId && (
-            <Button
-              variant="outlined"
-              size="large"
-              fullWidth
-              onClick={() => {
-                const url = `${window.location.origin}/order/status/${submittedOrderId}`;
-                navigator.clipboard.writeText(url).then(() => {
-                  alert('주문 조회 링크가 복사됐습니다. 카카오톡으로 전달하면 나중에 배송 상태를 확인할 수 있어요.');
-                });
-              }}
-              sx={{ borderRadius: '12px', minHeight: 48 }}
-            >
-              🔗 주문 조회 링크 복사
-            </Button>
-          )}
-          {submittedOrderId && (
-            <Button
-              variant="text"
-              size="small"
-              fullWidth
-              onClick={() => {
-                handleCloseSuccessDialog();
-                navigate(`/order/status/${submittedOrderId}`);
-              }}
-              sx={{ borderRadius: '12px', color: 'text.secondary', fontSize: '0.8125rem' }}
-            >
-              주문내역 확인하기
-            </Button>
-          )}
         </DialogActions>
       </Dialog>
 

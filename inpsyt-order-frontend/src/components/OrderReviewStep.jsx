@@ -111,7 +111,6 @@ const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoT
 
           <InfoRow label="성함" value={customerInfo.name} />
           <InfoRow label="연락처" value={customerInfo.phone} />
-          <InfoRow label="이메일" value={customerInfo.email} />
           {fullAddress && <InfoRow label="배송지" value={fullAddress} />}
           {customerInfo.inpsytId && <InfoRow label="인싸이트 ID" value={customerInfo.inpsytId} />}
           {customerInfo.request && <InfoRow label="요청사항" value={customerInfo.request} />}

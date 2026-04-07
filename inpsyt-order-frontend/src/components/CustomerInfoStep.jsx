@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import DaumPostcode from 'react-daum-postcode';
 import {
   Typography,
@@ -9,11 +9,9 @@ import {
   Stack,
   Button,
   Divider,
-  Autocomplete,
 } from '@mui/material';
 import {
   Person as PersonIcon,
-  Email as EmailIcon,
   Phone as PhoneIcon,
   Home as HomeIcon,
   Search as SearchIcon,
@@ -42,15 +40,6 @@ const inputSx = {
     fontSize: '16px',
   },
 };
-
-const EMAIL_DOMAINS = [
-  '@naver.com',
-  '@gmail.com',
-  '@daum.net',
-  '@hanmail.net',
-  '@kakao.com',
-  '@nate.com',
-];
 
 const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false, isOnsitePurchase = false }) => {
   const [isPostcodeModalOpen, setIsPostcodeModalOpen] = useState(false);
@@ -90,24 +79,6 @@ const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false
   const handleChange = (e) => {
     const { name, value } = e.target;
     setCustomerInfo(prevState => ({ ...prevState, [name]: value }));
-  };
-
-  // Email autocomplete suggestions
-  const emailSuggestions = useMemo(() => {
-    const email = customerInfo.email || '';
-    if (!email || email.includes('@')) return [];
-    return EMAIL_DOMAINS.map(domain => `${email}${domain}`);
-  }, [customerInfo.email]);
-
-  const handleEmailChange = (event, newValue) => {
-    // newValue comes from Autocomplete selection
-    if (typeof newValue === 'string') {
-      setCustomerInfo(prevState => ({ ...prevState, email: newValue }));
-    }
-  };
-
-  const handleEmailInputChange = (event, newInputValue) => {
-    setCustomerInfo(prevState => ({ ...prevState, email: newInputValue }));
   };
 
   return (
@@ -164,38 +135,6 @@ const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false
             ),
           }}
           sx={inputSx}
-        />
-        <Autocomplete
-          freeSolo
-          options={emailSuggestions}
-          value={customerInfo.email}
-          onChange={handleEmailChange}
-          onInputChange={handleEmailInputChange}
-          disableClearable
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              required
-              fullWidth
-              name="email"
-              label="이메일"
-              type="email"
-              InputProps={{
-                ...params.InputProps,
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <EmailIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={inputSx}
-            />
-          )}
-          sx={{
-            '& .MuiAutocomplete-listbox': {
-              fontSize: '14px',
-            },
-          }}
         />
       </Stack>
 
