@@ -39,7 +39,7 @@ export const sendAlimtalk = async (orderId) => {
     formData.append('MSG', msg);
     formData.append('SENDER_KEY', SENDER_KEY);
     formData.append('TEMPLATE_CODE', TEMPLATE_CODE);
-    formData.append('BTN_TYPES', 'WL');
+    formData.append('BTN_TYPES', '웹링크');
     formData.append('BTN_TXTS', '주문내역 확인하기');
     formData.append('BTN_URLS1', statusUrl);
     formData.append('BTN_URLS2', statusUrl);
