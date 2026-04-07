@@ -2,7 +2,7 @@ import { supabase } from '../supabaseClient';
 
 const ENDPOINT = 'https://api2.msgagent.com/api/webshot/send/kakao/AT/inpsyt2';
 const SENDER_KEY = '799de9af7fd86b7301222f39715f012c33d8ed85';
-const CALLBACK = import.meta.env.VITE_ONESHOT_CALLBACK;
+const CALLBACK = '023367133';
 const TEMPLATE_CODE = 'inpsytorder_paid1';
 const FRONTEND_URL = import.meta.env.VITE_APP_URL ?? 'https://inpsytorder.vercel.app';
 
@@ -29,6 +29,8 @@ export const sendAlimtalk = async (orderId) => {
     const eventName = order.events?.name ?? '';
     const statusUrl = `${FRONTEND_URL}/order/status/${order.access_token}`;
     const msg = `${name}님, 안녕하세요.\n${eventName}에서 결제가 완료되었습니다.\n\n주문 내역은 아래에서 확인하실 수 있습니다.`;
+
+    console.log('[알림톡] CALLBACK:', CALLBACK, '| PHONE:', phone, '| MSG:', msg);
 
     const formData = new FormData();
     formData.append('id', 'inpsyt2');
@@ -60,7 +62,7 @@ export const sendAlimtalk = async (orderId) => {
       resultCode = json.result_code;
     } catch {}
 
-    if (resultCode !== undefined && resultCode !== 100) {
+    if (resultCode !== undefined && resultCode !== 0) {
       console.error('[알림톡] 발송 실패 result_code:', resultCode);
       return { success: false, error: `원샷 result_code: ${resultCode}` };
     }
