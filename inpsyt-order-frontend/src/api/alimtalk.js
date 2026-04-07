@@ -28,11 +28,12 @@ export const sendAlimtalk = async (orderId) => {
     const name = order.customer_name ?? '';
     const eventName = order.events?.name ?? '';
     const statusUrl = `${FRONTEND_URL}/order/status/${order.access_token}`;
-    // 템플릿 변수를 #{} 그대로 유지하고, 값은 별도 파라미터로 전달 (방식 B)
-    const msg = `#{NAME}님, 안녕하세요.\n#{SYMPO}에서 결제가 완료되었습니다.\n\n주문 내역은 아래에서 확인하실 수 있습니다.`;
-    const statusUrlPath = statusUrl.replace('https://', ''); // 템플릿이 https://#{URL} 형식
+    // MSG: 변수 치환된 완성 텍스트
+    const msg = `${name}님, 안녕하세요.\n${eventName}에서 결제가 완료되었습니다.\n\n주문 내역은 아래에서 확인하실 수 있습니다.`;
+    // 템플릿 버튼이 https://#{URL} 형식이므로 https:// 제외한 경로만 전달
+    const statusUrlPath = statusUrl.replace('https://', '');
 
-    console.log('[알림톡] CALLBACK:', CALLBACK, '| PHONE:', phone, '| NAME:', name, '| SYMPO:', eventName);
+    console.log('[알림톡] CALLBACK:', CALLBACK, '| PHONE:', phone, '| URL:', statusUrlPath);
 
     const formData = new FormData();
     formData.append('id', 'inpsyt2');
@@ -41,14 +42,10 @@ export const sendAlimtalk = async (orderId) => {
     formData.append('MSG', msg);
     formData.append('SENDER_KEY', SENDER_KEY);
     formData.append('TEMPLATE_CODE', TEMPLATE_CODE);
-    // 템플릿 변수 값
-    formData.append('NAME', name);
-    formData.append('SYMPO', eventName);
-    formData.append('URL', statusUrlPath);
     formData.append('BTN_TYPES', 'WL');
     formData.append('BTN_TXTS', '주문내역 확인하기');
-    formData.append('BTN_URLS1', statusUrl);
-    formData.append('BTN_URLS2', statusUrl);
+    formData.append('BTN_URLS1', statusUrlPath);
+    formData.append('BTN_URLS2', statusUrlPath);
     formData.append('FAILED_TYPE', 'LMS');
     formData.append('FAILED_MSG', `[인싸이트] ${name}님, ${eventName} 결제가 완료되었습니다.\n주문 조회: ${statusUrl}`);
 
