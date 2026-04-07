@@ -38,6 +38,7 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import CloseIcon from '@mui/icons-material/Close';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { supabase } from '../supabaseClient';
 import { linkOrders, searchOrdersForLinking } from '../api/orders';
 
@@ -299,8 +300,21 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
     <Box sx={modalStyle}>
       <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'grey.100', ...(isMobile && { borderRadius: '16px 16px 0 0' }) }}>
         <Typography variant="h6">상품주문정보 조회</Typography>
-        <Box>
-          {hasPermission('orders:edit') && (isEditing ? (<Button variant="contained" onClick={handleSaveAll} sx={{ mr: 1, borderRadius: '8px' }}>저장</Button>) : (<Button variant="outlined" onClick={() => setIsEditing(true)} sx={{ mr: 1, borderRadius: '8px' }}>편집</Button>))}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {order.access_token && (
+            <IconButton
+              component="a"
+              href={`/order/status/${order.access_token}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              size="small"
+              title="고객 주문 조회 페이지"
+              sx={{ color: 'primary.main' }}
+            >
+              <OpenInNewIcon fontSize="small" />
+            </IconButton>
+          )}
+          {hasPermission('orders:edit') && (isEditing ? (<Button variant="contained" onClick={handleSaveAll} sx={{ borderRadius: '8px' }}>저장</Button>) : (<Button variant="outlined" onClick={() => setIsEditing(true)} sx={{ borderRadius: '8px' }}>편집</Button>))}
           <IconButton aria-label="close" onClick={onClose} sx={{ color: (theme) => theme.palette.grey[500] }}><CloseIcon /></IconButton>
         </Box>
       </Box>
