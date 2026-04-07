@@ -82,7 +82,7 @@ serve(async (req) => {
     formData.append('PHONE', recipientPhone)
     formData.append('CALLBACK', CALLBACK)
     formData.append('MSG', msg)
-    formData.append('SEDNER_KEY', SENDER_KEY)   // 원샷 오타 그대로 유지
+    formData.append('SENDER_KEY', SENDER_KEY)
     formData.append('TEMPLATE_CODE', TEMPLATE_CODE)
     formData.append('BTN_TYPES', 'WL')           // 웹링크 버튼
     formData.append('BTN_TXTS', '주문내역 확인하기')
