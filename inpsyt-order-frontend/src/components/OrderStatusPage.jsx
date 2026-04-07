@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Box, Typography, CircularProgress } from '@mui/material';
+import { Box, Typography, CircularProgress, Chip } from '@mui/material';
 import { supabase } from '../supabaseClient';
 import { STATUS_COLORS } from '../constants/orderStatus';
 import { format } from 'date-fns';
@@ -8,14 +8,12 @@ import { ko } from 'date-fns/locale';
 
 const fmt = (dateStr) => format(new Date(dateStr), 'M.d(E)', { locale: ko });
 
-// status_history 배열에서 특정 상태의 가장 최근 시각 반환
 const getStatusAt = (history, status) => {
   if (!Array.isArray(history)) return null;
   const entries = history.filter(h => h.status === status);
   return entries.length ? entries[entries.length - 1].changed_at : null;
 };
 
-// 상태별 배너 설정
 const getBannerConfig = (order) => {
   const edd = !order.is_on_site_sale ? order.events?.estimated_delivery_date : null;
   const completedAt = getStatusAt(order.status_history, 'completed');
@@ -68,9 +66,12 @@ const getBannerConfig = (order) => {
   }
 };
 
+const ORDER_ITEM_SELECT = `quantity, price_at_purchase, products(name, category)`;
+
 const OrderStatusPage = () => {
   const { token } = useParams();
   const [order, setOrder] = useState(null);
+  const [linkedOrder, setLinkedOrder] = useState(null); // parent 또는 child
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -83,16 +84,33 @@ const OrderStatusPage = () => {
             id, customer_name, phone_number, shipping_address,
             final_payment, delivery_fee, status, created_at,
             customer_request, is_on_site_sale, status_history,
+            parent_order_id,
             events(name, estimated_delivery_date),
-            order_items(quantity, price_at_purchase,
-              products(name, category)
-            )
+            order_items(${ORDER_ITEM_SELECT})
           `)
           .eq('access_token', token)
           .single();
 
         if (queryError) throw queryError;
         setOrder(data);
+
+        // 연계 주문 fetch
+        if (data.parent_order_id) {
+          // 이 주문이 child → parent 가져오기
+          const { data: parent } = await supabase
+            .from('orders')
+            .select(`id, final_payment, delivery_fee, status, order_items(${ORDER_ITEM_SELECT})`)
+            .eq('id', data.parent_order_id)
+            .single();
+          if (parent) setLinkedOrder({ role: 'parent', ...parent });
+        } else {
+          // 이 주문이 parent → child 가져오기
+          const { data: children } = await supabase
+            .from('orders')
+            .select(`id, final_payment, delivery_fee, status, order_items(${ORDER_ITEM_SELECT})`)
+            .eq('parent_order_id', data.id);
+          if (children && children.length > 0) setLinkedOrder({ role: 'child', ...children[0] });
+        }
       } catch {
         setError('주문을 찾을 수 없습니다.');
       } finally {
@@ -125,6 +143,18 @@ const OrderStatusPage = () => {
   const banner = getBannerConfig(order);
   const isCancelled = ['cancelled', 'refunded'].includes(order.status);
 
+  // 연계 주문 구성: 현재 주문이 child면 parent가 1차, 현재가 2차
+  // 현재 주문이 parent면 현재가 1차, child가 2차
+  const isChild = !!order.parent_order_id;
+  const firstOrder = isChild ? linkedOrder : order;
+  const secondOrder = isChild ? order : linkedOrder;
+  const hasLinked = !!linkedOrder;
+
+  // 합산 결제금액 (연계 주문이 있을 때)
+  const totalFinalPayment = hasLinked
+    ? (order.final_payment ?? 0) + (linkedOrder.final_payment ?? 0)
+    : order.final_payment;
+
   return (
     <Box sx={{ maxWidth: 480, mx: 'auto', minHeight: '100dvh', bgcolor: 'background.paper' }}>
 
@@ -147,58 +177,64 @@ const OrderStatusPage = () => {
         {isCancelled ? (
           <>
             <SectionTitle>취소된 주문 상품</SectionTitle>
-            <Box sx={{ bgcolor: '#fff', border: '1px solid', borderColor: 'divider', borderRadius: '12px', p: 2, mb: 4, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              {order.order_items?.map((item, idx) => (
-                <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Box sx={{ flex: 1, mr: 2 }}>
-                    <Typography variant="body2" sx={{ color: 'text.disabled', textDecoration: 'line-through' }}>
-                      {item.products?.name}
-                    </Typography>
-                    <Typography variant="caption" color="text.disabled">
-                      {item.products?.category} · {item.quantity}개
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" sx={{ color: 'text.disabled', whiteSpace: 'nowrap', textDecoration: 'line-through' }}>
-                    {(item.price_at_purchase * item.quantity).toLocaleString()}원
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
+            <ItemsCard items={order.order_items} cancelled />
           </>
         ) : (
           <>
             {/* 주문 상품 */}
-            <SectionTitle>주문 상품</SectionTitle>
-            <Box sx={{ bgcolor: '#fff', border: '1px solid', borderColor: 'divider', borderRadius: '12px', p: 2, mb: 3, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              {order.order_items?.map((item, idx) => (
-                <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Box sx={{ flex: 1, mr: 2 }}>
-                    <Typography variant="body2" sx={{ lineHeight: 1.4 }}>{item.products?.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {item.products?.category} · {item.quantity}개
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
-                    {(item.price_at_purchase * item.quantity).toLocaleString()}원
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
+            {hasLinked ? (
+              <>
+                <SectionTitle>1차 주문 상품</SectionTitle>
+                <ItemsCard items={firstOrder?.order_items} />
+                <SectionTitle>2차 주문 상품</SectionTitle>
+                <ItemsCard items={secondOrder?.order_items} chip="추가 주문" />
+              </>
+            ) : (
+              <>
+                <SectionTitle>주문 상품</SectionTitle>
+                <ItemsCard items={order.order_items} />
+              </>
+            )}
 
             {/* 결제 요약 */}
             <Box sx={{ bgcolor: '#fff', border: '1px solid', borderColor: 'divider', borderRadius: '12px', p: 2, mb: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
-                <Typography variant="body2" color="text.secondary">배송비</Typography>
-                <Typography variant="body2">
-                  {(order.delivery_fee ?? 0) === 0 ? '무료' : `${order.delivery_fee.toLocaleString()}원`}
-                </Typography>
-              </Box>
-              <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1, display: 'flex', justifyContent: 'space-between' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>최종 결제금액</Typography>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: banner.color }}>
-                  {order.final_payment?.toLocaleString()}원
-                </Typography>
-              </Box>
+              {hasLinked ? (
+                <>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
+                    <Typography variant="body2" color="text.secondary">1차 결제금액</Typography>
+                    <Typography variant="body2">
+                      {(firstOrder?.final_payment ?? 0).toLocaleString()}원
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
+                    <Typography variant="body2" color="text.secondary">2차 결제금액</Typography>
+                    <Typography variant="body2">
+                      {(secondOrder?.final_payment ?? 0).toLocaleString()}원
+                    </Typography>
+                  </Box>
+                  <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1, display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>합산 결제금액</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: banner.color }}>
+                      {totalFinalPayment.toLocaleString()}원
+                    </Typography>
+                  </Box>
+                </>
+              ) : (
+                <>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
+                    <Typography variant="body2" color="text.secondary">배송비</Typography>
+                    <Typography variant="body2">
+                      {(order.delivery_fee ?? 0) === 0 ? '무료' : `${order.delivery_fee.toLocaleString()}원`}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1, display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>최종 결제금액</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: banner.color }}>
+                      {order.final_payment?.toLocaleString()}원
+                    </Typography>
+                  </Box>
+                </>
+              )}
             </Box>
 
             {/* 주문자 정보 */}
@@ -247,6 +283,29 @@ const SectionTitle = ({ children }) => (
   <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
     {children}
   </Typography>
+);
+
+const ItemsCard = ({ items, cancelled = false, chip }) => (
+  <Box sx={{ bgcolor: '#fff', border: '1px solid', borderColor: 'divider', borderRadius: '12px', p: 2, mb: 3, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+    {chip && (
+      <Chip label={chip} size="small" sx={{ alignSelf: 'flex-start', mb: 0.5, bgcolor: 'primary.main', color: '#fff', fontWeight: 700, fontSize: '0.68rem', height: 20, borderRadius: '6px' }} />
+    )}
+    {items?.map((item, idx) => (
+      <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Box sx={{ flex: 1, mr: 2 }}>
+          <Typography variant="body2" sx={cancelled ? { color: 'text.disabled', textDecoration: 'line-through' } : { lineHeight: 1.4 }}>
+            {item.products?.name}
+          </Typography>
+          <Typography variant="caption" color={cancelled ? 'text.disabled' : 'text.secondary'}>
+            {item.products?.category} · {item.quantity}개
+          </Typography>
+        </Box>
+        <Typography variant="body2" sx={{ fontWeight: cancelled ? 400 : 600, whiteSpace: 'nowrap', ...(cancelled && { color: 'text.disabled', textDecoration: 'line-through' }) }}>
+          {(item.price_at_purchase * item.quantity).toLocaleString()}원
+        </Typography>
+      </Box>
+    ))}
+  </Box>
 );
 
 export default OrderStatusPage;

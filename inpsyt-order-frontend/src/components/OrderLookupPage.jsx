@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, TextField, Button, Card, CardContent,
-  Chip, CircularProgress, Alert, IconButton,
+  Chip, CircularProgress, Alert, IconButton, Stack,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
@@ -52,7 +52,7 @@ const OrderLookupPage = () => {
       let query = supabase
         .from('orders')
         .select(`
-          id, access_token, created_at, status, final_payment,
+          id, access_token, created_at, status, final_payment, parent_order_id,
           events(name),
           order_items(quantity, products(name))
         `)
@@ -172,57 +172,78 @@ const OrderLookupPage = () => {
             </Box>
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              <Typography variant="caption" color="text.secondary">
-                {orders.length}건의 주문을 찾았습니다
-              </Typography>
-              {orders.map((order) => {
-                const statusColor = STATUS_COLORS[order.status] || '#8B95A1';
-                const statusLabel = STATUS_TO_KOREAN[order.status] || order.status;
+              {(() => {
+                // parent_order_id가 있는 주문의 parent id 목록
+                const parentIds = new Set(orders.filter(o => o.parent_order_id).map(o => o.parent_order_id));
+                // parent가 결과에 포함된 child는 숨김 (parent 카드에서 통합 표시)
+                const visible = orders.filter(o => !o.parent_order_id || !orders.some(p => p.id === o.parent_order_id));
+                const hasChildren = (order) => parentIds.has(order.id);
+
                 return (
-                  <Card
-                    key={order.id}
-                    onClick={() => navigate(`/order/status/${order.access_token}`)}
-                    sx={{
-                      borderRadius: '12px',
-                      cursor: 'pointer',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      boxShadow: 'none',
-                      '&:hover': { boxShadow: 3, borderColor: 'primary.main' },
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.75 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {order.events?.name || '학회'}
-                        </Typography>
-                        <Chip
-                          label={statusLabel}
-                          size="small"
+                  <>
+                    <Typography variant="caption" color="text.secondary">
+                      {visible.length}건의 주문을 찾았습니다
+                    </Typography>
+                    {visible.map((order) => {
+                      const statusColor = STATUS_COLORS[order.status] || '#8B95A1';
+                      const statusLabel = STATUS_TO_KOREAN[order.status] || order.status;
+                      const isChildOnly = !!order.parent_order_id; // parent가 결과에 없는 단독 child
+                      return (
+                        <Card
+                          key={order.id}
+                          onClick={() => navigate(`/order/status/${order.access_token}`)}
                           sx={{
-                            bgcolor: statusColor + '22',
-                            color: statusColor,
-                            fontWeight: 700,
-                            fontSize: '0.68rem',
-                            height: 20,
+                            borderRadius: '12px',
+                            cursor: 'pointer',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            boxShadow: 'none',
+                            '&:hover': { boxShadow: 3, borderColor: 'primary.main' },
+                            transition: 'all 0.15s',
                           }}
-                        />
-                      </Box>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="caption" color="text.secondary">
-                          {format(new Date(order.created_at), 'yyyy.MM.dd HH:mm', { locale: ko })}
-                          {' · '}
-                          상품 {totalItems(order)}개
-                        </Typography>
-                        <Typography variant="caption" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                          {order.final_payment?.toLocaleString()}원
-                        </Typography>
-                      </Box>
-                    </CardContent>
-                  </Card>
+                        >
+                          <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.75 }}>
+                              <Stack direction="row" spacing={0.75} alignItems="center">
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                  {order.events?.name || '학회'}
+                                </Typography>
+                                {isChildOnly && (
+                                  <Chip label="추가 주문" size="small" sx={{ bgcolor: 'primary.main', color: '#fff', fontWeight: 700, fontSize: '0.65rem', height: 18, borderRadius: '6px' }} />
+                                )}
+                                {hasChildren(order) && (
+                                  <Chip label="연계 주문 포함" size="small" sx={{ bgcolor: '#F5F6F8', color: 'text.secondary', fontWeight: 600, fontSize: '0.65rem', height: 18, borderRadius: '6px' }} />
+                                )}
+                              </Stack>
+                              <Chip
+                                label={statusLabel}
+                                size="small"
+                                sx={{
+                                  bgcolor: statusColor + '22',
+                                  color: statusColor,
+                                  fontWeight: 700,
+                                  fontSize: '0.68rem',
+                                  height: 20,
+                                }}
+                              />
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Typography variant="caption" color="text.secondary">
+                                {format(new Date(order.created_at), 'yyyy.MM.dd HH:mm', { locale: ko })}
+                                {' · '}
+                                상품 {totalItems(order)}개
+                              </Typography>
+                              <Typography variant="caption" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                                {order.final_payment?.toLocaleString()}원
+                              </Typography>
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </>
                 );
-              })}
+              })()}
             </Box>
           )
         )}
