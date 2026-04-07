@@ -37,7 +37,7 @@ export const sendAlimtalk = async (orderId) => {
     formData.append('PHONE', phone);
     formData.append('CALLBACK', CALLBACK ?? '');
     formData.append('MSG', msg);
-    formData.append('SENDER_KEY', SENDER_KEY);
+    formData.append('SEDNER_KEY', SENDER_KEY); // 원샷 API 오타 — SENDER가 아닌 SEDNER
     formData.append('TEMPLATE_CODE', TEMPLATE_CODE);
     formData.append('BTN_TYPES', 'WL');
     formData.append('BTN_TXTS', '주문내역 확인하기');
