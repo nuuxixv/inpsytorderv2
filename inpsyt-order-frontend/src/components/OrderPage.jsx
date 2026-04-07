@@ -197,6 +197,7 @@ const OrderPage = () => {
 
   const handleCloseSuccessDialog = () => {
     setShowSuccessDialog(false);
+    setSubmittedOrderId(null);
     setCustomerInfo({
       name: '', phone: '', postcode: '',
       address: '', detailAddress: '', inpsytId: '', request: '',
@@ -219,20 +220,20 @@ const OrderPage = () => {
     const messages = {
       no_slug: {
         emoji: '🔗',
-        title: '직접 접속이 불가합니다',
-        desc: '현재 진행 중인 학회 링크로만 주문하실 수 있습니다.\n담당자에게 문의하여 올바른 링크로 접속해주세요.',
+        title: '링크를 확인해 주세요',
+        desc: '학회 전용 링크로만 주문할 수 있어요.\n담당자에게 올바른 링크를 받아 다시 접속해 주세요.',
         showLookup: false,
       },
       expired: {
         emoji: '📅',
-        title: '종료된 학회입니다',
-        desc: '해당 학회의 주문 기간이 종료되었습니다.\n진행 중인 학회 링크를 담당자에게 문의해주세요.',
+        title: '주문 기간이 끝났어요',
+        desc: '해당 학회의 주문이 마감되었습니다.\n이미 주문하셨다면 아래에서 내역을 확인하실 수 있어요.',
         showLookup: true,
       },
       not_found: {
         emoji: '❓',
-        title: '존재하지 않는 링크입니다',
-        desc: '올바르지 않은 학회 주소입니다.\n담당자에게 정확한 링크를 요청해주세요.',
+        title: '찾을 수 없는 링크예요',
+        desc: '주소가 잘못되었거나 만료된 링크입니다.\n담당자에게 정확한 링크를 요청해 주세요.',
         showLookup: false,
       },
     };
@@ -393,13 +394,13 @@ const OrderPage = () => {
         PaperProps={{ sx: { borderRadius: '16px', mx: 2 } }}
       >
         <DialogTitle sx={{ fontWeight: 700, textAlign: 'center', pt: 4, pb: 1 }}>
-          주문이 접수되었습니다 ✓
+          주문이 접수됐어요
         </DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ textAlign: 'center', color: 'text.secondary', lineHeight: 1.8 }}>
-            담당자에게 카드를 건네어 결제를 완료해주세요.
+            담당자에게 카드를 건네 결제를 진행해 주세요.
             <br />
-            결제 완료 후 카카오 알림톡으로 주문 내역을 보내드립니다.
+            결제가 완료되면 카카오 알림톡으로 주문 내역을 보내드려요.
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
@@ -410,7 +411,7 @@ const OrderPage = () => {
             onClick={handleCloseSuccessDialog}
             sx={{ borderRadius: '12px', minHeight: 48 }}
           >
-            확인
+            닫기
           </Button>
         </DialogActions>
       </Dialog>
@@ -421,7 +422,7 @@ const OrderPage = () => {
         open={onsiteSnackbar}
         autoHideDuration={2000}
         onClose={() => setOnsiteSnackbar(false)}
-        message={isOnsitePurchase ? '🏪 현장구매 모드가 활성화되었습니다' : '📦 일반 배송 모드로 전환되었습니다'}
+        message={isOnsitePurchase ? '🏪 현장구매 모드로 전환됐어요' : '📦 일반 배송 모드로 전환됐어요'}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       />
     </Box>
