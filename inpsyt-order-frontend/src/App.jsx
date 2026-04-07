@@ -4,7 +4,6 @@ import { AuthProvider } from './AuthContext';
 import { useAuth } from './hooks/useAuth';
 import { NotificationProvider } from './NotificationContext';
 import OrderPage from './components/OrderPage';
-import OrderLookupPage from './components/OrderLookupPage';
 import OrderStatusPage from './components/OrderStatusPage';
 import AdminLayout from './components/AdminLayout';
 import LoginPage from './components/LoginPage';
@@ -33,7 +32,6 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<OrderPage />} />
         <Route path="/order" element={<OrderPage />} />
-        <Route path="/order/lookup" element={<OrderLookupPage />} />
         <Route path="/order/status/:token" element={<OrderStatusPage />} />
         <Route path="/login" element={<LoginPage />} />
         {/* Redirect /smartadmin to /admin */}

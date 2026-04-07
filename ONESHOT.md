@@ -146,3 +146,108 @@ Content-Type: multipart/form-data
 - `status` → `paid` 변경 시
 - `is_on_site_sale = true`이면 발송 안 함 (현장수령 주문)
 - `phone_number`가 없으면 발송 안 함
+
+
+--
+
+매뉴얼 내용을 모두 확인했습니다. 버튼 파라미터 사용법을 정리해드립니다.
+
+---
+
+## 카카오 알림톡(AT) WL(웹링크) 버튼 API 파라미터
+
+### 📌 요청 기본 정보
+| 항목 | 내용 |
+|------|------|
+| **URL** | `https://api2.msgagent.com/api/webshot/send/kakao/AT/{id}` |
+| **인코딩** | `multipart/form-data` |
+| **전송방식** | `POST` |
+
+---
+
+### 🔘 버튼 관련 파라미터 상세
+
+#### `BTN_TYPES` — 버튼 타입 리스트
+- 버튼 타입을 **콤마(,)** 로 구분하여 입력
+- 최대 **5개**까지 추가 가능
+- 사용 가능한 타입:
+
+| 타입명 | 설명 |
+|--------|------|
+| `웹링크` | 웹 URL 연결 (PC/모바일 URL) |
+| `앱링크` | 앱 스킴 URL 연결 |
+| `봇키워드` | 챗봇 키워드 전달 |
+| `메시지전달` | 메시지 전달 |
+| `배송조회` | 배송 조회 |
+
+> ⚠️ **승인된 템플릿과 불일치 시 전송 실패**
+
+---
+
+#### `BTN_TXTS` — 버튼 이름 리스트
+- `BTN_TYPES` 입력 순서와 동일하게 버튼 표시 텍스트를 **콤마(,)** 로 구분하여 입력
+- 승인된 템플릿의 버튼명과 정확히 일치해야 함
+
+---
+
+#### `BTN_URLS1` — 버튼 링크 URL1
+- 웹링크/앱링크 타입은 **필수 입력**
+- 봇키워드, 메시지전달, 배송조회는 `null` 값
+- 버튼이 2개 이상이면 **콤마(,)** 로 구분
+
+> 웹링크의 경우 `BTN_URLS1` = **모바일 URL**로 사용
+
+---
+
+#### `BTN_URLS2` — 버튼 링크 URL2
+- 버튼 1개에 링크가 2개인 경우(웹링크의 PC/모바일 URL 분리) 사용
+- 버튼이 2개 이상이면 **콤마(,)** 로 구분
+
+> 웹링크의 경우 `BTN_URLS2` = **PC URL**로 사용
+
+---
+
+### ✅ 웹링크(WL) 버튼 예시
+
+#### 예시 1 — 웹링크 버튼 1개
+
+```
+BTN_TYPES  = 웹링크
+BTN_TXTS   = 자세히 보기
+BTN_URLS1  = https://m.example.com/notice/123    (모바일 URL)
+BTN_URLS2  = https://www.example.com/notice/123  (PC URL)
+```
+
+---
+
+#### 예시 2 — 웹링크 버튼 2개
+
+```
+BTN_TYPES  = 웹링크,웹링크
+BTN_TXTS   = 주문 확인,고객센터
+BTN_URLS1  = https://m.example.com/order,https://m.example.com/cs
+BTN_URLS2  = https://www.example.com/order,https://www.example.com/cs
+```
+
+---
+
+#### 예시 3 — 웹링크 + 배송조회 혼합
+
+```
+BTN_TYPES  = 웹링크,배송조회
+BTN_TXTS   = 주문 상세,배송 조회
+BTN_URLS1  = https://m.example.com/order,null
+BTN_URLS2  = https://www.example.com/order,null
+```
+
+---
+
+### 💡 핵심 규칙 요약
+
+| 규칙 | 내용 |
+|------|------|
+| 구분자 | 버튼간 **콤마(`,`)** 로 구분 |
+| 순서 일치 | `BTN_TYPES`, `BTN_TXTS`, `BTN_URLS1`, `BTN_URLS2` 모두 **동일 인덱스 순서** 유지 |
+| 템플릿 일치 | 카카오 승인 템플릿의 버튼명/타입과 **정확히 일치**해야 전송 성공 |
+| URL 없는 버튼 | 배송조회, 봇키워드, 메시지전달은 URL 자리에 `null` 입력 |
+| 웹링크 URL | `BTN_URLS1` = 모바일, `BTN_URLS2` = PC URL |

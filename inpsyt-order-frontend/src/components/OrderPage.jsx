@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../supabaseClient';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -24,7 +24,6 @@ import CartBottomSheet from './CartBottomSheet';
 
 const OrderPage = () => {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const eventSlug = searchParams.get('events');
 
   // Step state
@@ -226,14 +225,14 @@ const OrderPage = () => {
       },
       expired: {
         emoji: '📅',
-        title: '주문 기간이 끝났어요',
-        desc: '해당 학회의 주문이 마감되었습니다.\n이미 주문하셨다면 아래에서 내역을 확인하실 수 있어요.',
+        title: '주문이 가능한 날짜가 아니예요.',
+        desc: '주문 내역은 받아보신 알림톡에서 확인할 수 있어요.',
         showLookup: true,
       },
       not_found: {
         emoji: '❓',
         title: '찾을 수 없는 링크예요',
-        desc: '주소가 잘못되었거나 만료된 링크입니다.\n담당자에게 정확한 링크를 요청해 주세요.',
+        desc: '학회 전용 링크로만 주문할 수 있어요.\n담당자에게 올바른 링크를 받아 다시 접속해 주세요.',
         showLookup: false,
       },
     };
@@ -245,16 +244,6 @@ const OrderPage = () => {
         <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>
           {desc}
         </Typography>
-        {showLookup && (
-          <Button
-            variant="outlined"
-            size="large"
-            onClick={() => navigate(eventSlug ? `/order/lookup?events=${eventSlug}` : '/order/lookup')}
-            sx={{ mt: 2, borderRadius: '12px', minHeight: 48, minWidth: 200 }}
-          >
-            주문내역 조회하기
-          </Button>
-        )}
       </Box>
     );
   }
@@ -295,17 +284,7 @@ const OrderPage = () => {
             인싸이트 / 학지사{isOnsitePurchase ? ' · 현장구매' : ''}
           </Typography>
         </Box>
-        {/* 우측: 주문 조회 버튼 */}
-        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button
-            size="small"
-            variant="text"
-            onClick={() => navigate(eventSlug ? `/order/lookup?events=${eventSlug}` : '/order/lookup')}
-            sx={{ fontSize: '0.72rem', color: 'text.secondary', minWidth: 'auto', px: 1 }}
-          >
-            주문 조회
-          </Button>
-        </Box>
+        <Box sx={{ flex: 1 }} />
       </Box>
 
       {/* Step indicator - Hide only in Step 0 (Lounge mode) */}
@@ -398,7 +377,7 @@ const OrderPage = () => {
         </DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ textAlign: 'center', color: 'text.secondary', lineHeight: 1.8 }}>
-            담당자에게 카드를 건네 결제를 진행해 주세요.
+            담당자를 통해 결제를 진행해 주세요.
             <br />
             결제가 완료되면 카카오 알림톡으로 주문 내역을 보내드려요.
           </DialogContentText>

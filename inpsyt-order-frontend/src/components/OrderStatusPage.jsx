@@ -26,7 +26,7 @@ const getBannerConfig = (order) => {
         color: STATUS_COLORS.pending,
         subMessage: edd
           ? `지금 결제 시 ${fmt(edd)} 도착`
-          : '담당자에게 카드를 건네어 결제를 완료해주세요.',
+          : '담당자를 통해 결제를 진행해 주세요.',
       };
     case 'paid':
       return {
@@ -78,38 +78,19 @@ const OrderStatusPage = () => {
   useEffect(() => {
     const fetchOrder = async () => {
       try {
-        const { data, error: queryError } = await supabase
-          .from('orders')
-          .select(`
-            id, customer_name, phone_number, shipping_address,
-            final_payment, delivery_fee, status, created_at,
-            customer_request, is_on_site_sale, status_history,
-            parent_order_id,
-            events(name, estimated_delivery_date),
-            order_items(${ORDER_ITEM_SELECT})
-          `)
-          .eq('access_token', token)
-          .single();
+        const { data, error: rpcError } = await supabase
+          .rpc('get_order_by_token', { p_token: token });
 
-        if (queryError) throw queryError;
+        if (rpcError) throw rpcError;
+        if (!data) throw new Error('not found');
+
         setOrder(data);
 
-        // 연계 주문 fetch
-        if (data.parent_order_id) {
-          // 이 주문이 child → parent 가져오기
-          const { data: parent } = await supabase
-            .from('orders')
-            .select(`id, final_payment, delivery_fee, status, order_items(${ORDER_ITEM_SELECT})`)
-            .eq('id', data.parent_order_id)
-            .single();
-          if (parent) setLinkedOrder({ role: 'parent', ...parent });
-        } else {
-          // 이 주문이 parent → child 가져오기
-          const { data: children } = await supabase
-            .from('orders')
-            .select(`id, final_payment, delivery_fee, status, order_items(${ORDER_ITEM_SELECT})`)
-            .eq('parent_order_id', data.id);
-          if (children && children.length > 0) setLinkedOrder({ role: 'child', ...children[0] });
+        // 연계 주문 처리
+        if (data.parent_order) {
+          setLinkedOrder({ role: 'parent', ...data.parent_order });
+        } else if (data.child_orders?.length > 0) {
+          setLinkedOrder({ role: 'child', ...data.child_orders[0] });
         }
       } catch {
         setError('주문을 찾을 수 없습니다.');
