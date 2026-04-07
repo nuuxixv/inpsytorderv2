@@ -43,8 +43,8 @@ export const sendAlimtalk = async (orderId) => {
     formData.append('BTN_TXTS', '주문내역 확인하기');
     formData.append('BTN_URLS1', statusUrl);
     formData.append('BTN_URLS2', statusUrl);
-    formData.append('FAILED_TYPE', 'SMS');
-    formData.append('FAILED_MSG', `[인싸이트] ${name}님, ${eventName} 결제가 완료되었습니다. 주문 조회: ${statusUrl}`);
+    formData.append('FAILED_TYPE', 'LMS');
+    formData.append('FAILED_MSG', `[인싸이트] ${name}님, ${eventName} 결제가 완료되었습니다.\n주문 조회: ${statusUrl}`);
 
     const response = await fetch(ENDPOINT, { method: 'POST', body: formData });
     const responseText = await response.text();
