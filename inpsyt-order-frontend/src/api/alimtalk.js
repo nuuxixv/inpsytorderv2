@@ -2,7 +2,7 @@ import { supabase } from '../supabaseClient';
 
 const ENDPOINT = 'https://api2.msgagent.com/api/webshot/send/kakao/AT/inpsyt2';
 const SENDER_KEY = '799de9af7fd86b7301222f39715f012c33d8ed85';
-const CALLBACK = '023305121';
+const CALLBACK = import.meta.env.VITE_ONESHOT_CALLBACK ?? '023305121';
 const TEMPLATE_CODE = 'inpsytorder_paid1';
 const FRONTEND_URL = import.meta.env.VITE_APP_URL ?? 'https://inpsytorder.vercel.app';
 
@@ -13,7 +13,6 @@ const FRONTEND_URL = import.meta.env.VITE_APP_URL ?? 'https://inpsytorder.vercel
  */
 export const sendAlimtalk = async (orderId) => {
   try {
-    // 주문 정보 조회
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select('id, customer_name, phone_number, is_on_site_sale, access_token, events(name)')
@@ -28,14 +27,12 @@ export const sendAlimtalk = async (orderId) => {
     const name = order.customer_name ?? '';
     const eventName = order.events?.name ?? '';
     const statusUrl = `${FRONTEND_URL}/order/status/${order.access_token}`;
-    // MSG: 변수 치환된 완성 텍스트
     const msg = `${name}님, 안녕하세요.\n${eventName}에서 결제가 완료되었습니다.\n\n주문 내역은 아래에서 확인하실 수 있습니다.`;
-    console.log('[알림톡] PHONE:', phone, '| URL:', statusUrl);
 
     const formData = new FormData();
     formData.append('id', 'inpsyt2');
     formData.append('PHONE', phone);
-    formData.append('CALLBACK', CALLBACK ?? '');
+    formData.append('CALLBACK', CALLBACK);
     formData.append('MSG', msg);
     formData.append('SENDER_KEY', SENDER_KEY);
     formData.append('TEMPLATE_CODE', TEMPLATE_CODE);
@@ -48,14 +45,12 @@ export const sendAlimtalk = async (orderId) => {
 
     const response = await fetch(ENDPOINT, { method: 'POST', body: formData });
     const responseText = await response.text();
-    console.log('[알림톡] 원샷 응답:', responseText);
 
     if (!response.ok) {
-      console.error('원샷 API HTTP 오류:', responseText);
+      console.error('[알림톡] API HTTP 오류:', responseText);
       return { success: false, error: `원샷 API 오류: ${responseText}` };
     }
 
-    // 원샷은 HTTP 200이어도 result_code로 성공 여부 판단
     let resultCode = null;
     try {
       const json = JSON.parse(responseText);
@@ -67,12 +62,11 @@ export const sendAlimtalk = async (orderId) => {
       return { success: false, error: `원샷 result_code: ${resultCode}` };
     }
 
-    // 발송 이력 기록
     await supabase.from('orders').update({ alimtalk_sent_at: new Date().toISOString() }).eq('id', orderId);
 
     return { success: true };
   } catch (err) {
-    console.error('sendAlimtalk error:', err);
+    console.error('[알림톡] sendAlimtalk error:', err);
     return { success: false, error: err.message };
   }
 };
