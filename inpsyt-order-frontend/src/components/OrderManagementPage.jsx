@@ -51,6 +51,7 @@ import { SearchOff as SearchOffIcon, FilterList as FilterListIcon } from '@mui/i
 import { getEvents } from '../api/events';
 import { fetchAllProducts } from '../api/products';
 import { getOrders, groupLinkedOrders } from '../api/orders';
+import { sendAlimtalk } from '../api/alimtalk';
 
 const statusToKorean = {
   pending: '결제대기',
@@ -344,29 +345,19 @@ const OrderManagementPage = () => {
 
       addNotification(`${state.selectedOrders.length}개 주문의 상태가 '${statusToKorean[bulkStatus]}'으로 업데이트되었습니다.`, 'success');
 
-      // paid 일괄 전환 시 알림톡 순차 발송 (현장 수령 제외)
+      // paid 일괄 전환 시 알림톡 순차 발송
       if (bulkStatus === 'paid') {
-        const targets = state.selectedOrders.filter(id => {
-          const o = state.orders.find(o => o.id === id);
-          return o && !o.is_on_site_sale;
-        });
+        let successCount = 0;
+        let failCount = 0;
 
-        if (targets.length > 0) {
-          let successCount = 0;
-          let failCount = 0;
+        for (const orderId of state.selectedOrders) {
+          const { success, skipped } = await sendAlimtalk(orderId);
+          if (skipped) continue;
+          if (success) successCount++;
+          else failCount++;
+        }
 
-          for (const orderId of targets) {
-            const { error: alimtalkError } = await supabase.functions.invoke('send-alimtalk', {
-              body: { order_id: orderId },
-            });
-            if (alimtalkError) {
-              console.error(`알림톡 발송 실패 (주문 ${orderId}):`, alimtalkError);
-              failCount++;
-            } else {
-              successCount++;
-            }
-          }
-
+        if (successCount + failCount > 0) {
           if (failCount === 0) {
             addNotification(`알림톡 ${successCount}건 발송 완료`, 'info');
           } else {
@@ -469,14 +460,11 @@ const OrderManagementPage = () => {
 
       // paid 전환 시 알림톡 자동 발송 (현장 수령 제외)
       if (newStatus === 'paid') {
-        const order = state.orders.find(o => o.id === orderId);
-        if (order && !order.is_on_site_sale) {
-          supabase.functions.invoke('send-alimtalk', { body: { order_id: orderId } })
-            .then(({ error: alimtalkError }) => {
-              if (alimtalkError) console.error('알림톡 발송 오류:', alimtalkError);
-              else addNotification('알림톡이 발송되었습니다.', 'info');
-            });
-        }
+        sendAlimtalk(orderId).then(({ success, error: alimtalkError, skipped }) => {
+          if (skipped) return;
+          if (!success) console.error('알림톡 발송 오류:', alimtalkError);
+          else addNotification('알림톡이 발송되었습니다.', 'info');
+        });
       }
     } catch (err) {
       addNotification(`주문 상태 업데이트 실패: ${err.message}`, 'error');

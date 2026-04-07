@@ -41,6 +41,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { supabase } from '../supabaseClient';
 import { linkOrders, searchOrdersForLinking } from '../api/orders';
+import { sendAlimtalk } from '../api/alimtalk';
 
 const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, products, events, addNotification, onUpdate, productsLoading, hasPermission }) => {
   const theme = useTheme();
@@ -239,15 +240,11 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
 
       // paid 전환 시 알림톡 자동 발송 (현장 수령 제외)
       if (newStatus === 'paid' && !order.is_on_site_sale) {
-        console.log('[알림톡] 호출 시작, order_id:', order.id, 'is_on_site_sale:', order.is_on_site_sale);
-        supabase.functions.invoke('send-alimtalk', { body: { order_id: order.id } })
-          .then(({ data, error: alimtalkError }) => {
-            console.log('[알림톡] 응답:', data, '오류:', alimtalkError);
-            if (alimtalkError) console.error('알림톡 발송 오류:', alimtalkError);
-            else addNotification('알림톡이 발송되었습니다.', 'info');
-          });
-      } else {
-        console.log('[알림톡] 스킵 — newStatus:', newStatus, 'is_on_site_sale:', order.is_on_site_sale);
+        sendAlimtalk(order.id).then(({ success, error: alimtalkError, skipped }) => {
+          if (skipped) return;
+          if (!success) console.error('알림톡 발송 오류:', alimtalkError);
+          else addNotification('알림톡이 발송되었습니다.', 'info');
+        });
       }
     } catch (error) {
       console.error('Error updating order status:', error);
@@ -256,13 +253,12 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
   };
 
   const handleResendAlimtalk = async () => {
-    try {
-      const { error } = await supabase.functions.invoke('send-alimtalk', { body: { order_id: order.id } });
-      if (error) throw error;
+    const { success, error: alimtalkError } = await sendAlimtalk(order.id);
+    if (success) {
       addNotification('알림톡이 재발송되었습니다.', 'success');
       onUpdate();
-    } catch (error) {
-      addNotification(`알림톡 재발송 실패: ${error.message}`, 'error');
+    } else {
+      addNotification(`알림톡 재발송 실패: ${alimtalkError}`, 'error');
     }
   };
 
