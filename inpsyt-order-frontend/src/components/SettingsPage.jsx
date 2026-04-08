@@ -83,7 +83,7 @@ const SettingsPage = () => {
   return (
     <Box sx={{ maxWidth: 600, mx: 'auto', p: 2 }}>
       <Typography variant="h4" sx={{ fontWeight: 800, mb: 3 }}>
-        서비스 설정
+        설정
       </Typography>
 
       <Paper sx={{ p: 4, borderRadius: '16px' }}>
@@ -93,13 +93,13 @@ const SettingsPage = () => {
               배송비 정책
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              주문 금액에 따른 배송비 및 무료 배송 기준을 설정합니다.
+              주문 금액에 따른 배송비 및 무료 배송 기준을 설정합니다. 현장 판매는 배송비가 적용되지 않습니다.
             </Typography>
             
             <Stack spacing={2}>
               <TextField
                 fullWidth
-                label="무료 배송 임계값"
+                label="무료 배송 기준 금액"
                 type="number"
                 value={settings.free_shipping_threshold}
                 onChange={(e) => setSettings({ ...settings, free_shipping_threshold: e.target.value })}
@@ -111,14 +111,14 @@ const SettingsPage = () => {
               
               <TextField
                 fullWidth
-                label="기본 배송비"
+                label="배송비"
                 type="number"
                 value={settings.shipping_cost}
                 onChange={(e) => setSettings({ ...settings, shipping_cost: e.target.value })}
                 InputProps={{
                   endAdornment: <InputAdornment position="end">원</InputAdornment>,
                 }}
-                helperText="임계값 미만 구매 시 부과되는 배송비입니다."
+                helperText="기준 금액 미만 구매 시 부과되는 배송비입니다."
               />
             </Stack>
           </Box>
@@ -147,7 +147,7 @@ const SettingsPage = () => {
       </Paper>
 
       <Alert severity="info" sx={{ mt: 3, borderRadius: '12px' }}>
-        기본 설정 변경 사항은 실시간으로 모든 사용자에게 적용됩니다. 
+        설정 변경 사항은 즉시 적용됩니다. 
         (이미 생성된 주문에는 영향을 주지 않으며, 신규 주문부터 적용됩니다.)
       </Alert>
     </Box>

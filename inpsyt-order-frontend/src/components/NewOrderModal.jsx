@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import DaumPostcode from 'react-daum-postcode';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Typography, Button, TextField, IconButton,
   FormControlLabel, Checkbox, Select, MenuItem,
   FormControl, InputLabel, Chip, Divider, InputAdornment,
-  CircularProgress, Stack, alpha,
+  CircularProgress, Stack, alpha, Modal,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -18,9 +19,28 @@ import {
 import { supabase } from '../supabaseClient';
 import { useNotification } from '../hooks/useNotification';
 
-const statusLabel = {
-  pending: '결제대기',
-  paid: '결제완료',
+const postcodeModalStyle = {
+  position: 'absolute',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  width: '90%',
+  maxWidth: 400,
+  bgcolor: 'background.paper',
+  boxShadow: 24,
+  borderRadius: 2,
+  overflow: 'hidden',
+  zIndex: 1400,
+};
+
+const getEventStatus = (startDate, endDate) => {
+  const now = new Date();
+  const start = startDate ? new Date(startDate) : null;
+  const end = endDate ? new Date(endDate) : null;
+  if (!start || !end) return null;
+  if (now < start) return { label: '예정', color: '#0984e3' };
+  if (now > end) return { label: '종료', color: '#b2bec3' };
+  return { label: '진행중', color: '#00b894' };
 };
 
 const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], settings = {} }) => {
@@ -31,8 +51,10 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
   const [isOnSite, setIsOnSite] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [postcode, setPostcode] = useState('');
   const [address, setAddress] = useState('');
-  const [initialStatus, setInitialStatus] = useState('pending');
+  const [detailAddress, setDetailAddress] = useState('');
+  const [postcodeOpen, setPostcodeOpen] = useState(false);
 
   // Event selection
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -50,14 +72,29 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
       setIsOnSite(false);
       setName('');
       setPhone('');
+      setPostcode('');
       setAddress('');
-      setInitialStatus('pending');
+      setDetailAddress('');
       setSelectedEventId('');
       setSearchTerm('');
       setSelectedCategory('all');
       setCart([]);
     }
   }, [open]);
+
+  // Daum postcode
+  const handleCompletePostcode = (data) => {
+    let fullAddress = data.address;
+    let extraAddress = '';
+    if (data.addressType === 'R') {
+      if (data.bname !== '') extraAddress += data.bname;
+      if (data.buildingName !== '') extraAddress += (extraAddress !== '' ? `, ${data.buildingName}` : data.buildingName);
+      fullAddress += (extraAddress !== '' ? ` (${extraAddress})` : '');
+    }
+    setPostcode(data.zonecode);
+    setAddress(fullAddress);
+    setPostcodeOpen(false);
+  };
 
   // Derived: selected event
   const selectedEvent = useMemo(
@@ -89,7 +126,6 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
       const lower = searchTerm.toLowerCase();
       list = list.filter(p => p.name?.toLowerCase().includes(lower));
     } else {
-      // default: popular only
       list = list.filter(p => p.is_popular);
     }
     if (selectedCategory !== 'all') {
@@ -127,22 +163,22 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
     setCart(prev => prev.filter(c => c.product.id !== productId));
   };
 
-  // Calculations
-  const { totalAmount, discountAmount, shippingCost, finalPayment } = useMemo(() => {
+  // Calculations — 현장판매 시 배송비 없음
+  const { totalAmount, discountAmount, deliveryFee, finalPayment } = useMemo(() => {
     const originalSubtotal = cart.reduce((sum, c) => sum + (c.product.list_price || 0) * c.quantity, 0);
     const discountedSubtotal = cart.reduce((sum, c) => sum + calcDiscountedPrice(c.product) * c.quantity, 0);
     const calcDiscount = originalSubtotal - discountedSubtotal;
     const freeThreshold = settings.free_shipping_threshold ?? 30000;
     const shipCost = settings.shipping_cost ?? 3000;
-    const calcShipping = discountedSubtotal > 0 && discountedSubtotal < freeThreshold ? shipCost : 0;
+    const fee = isOnSite ? 0 : (discountedSubtotal > 0 && discountedSubtotal < freeThreshold ? shipCost : 0);
     return {
       totalAmount: originalSubtotal,
       discountAmount: calcDiscount,
-      shippingCost: calcShipping,
-      finalPayment: discountedSubtotal + calcShipping,
+      deliveryFee: fee,
+      finalPayment: discountedSubtotal + fee,
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cart, discountRate, settings]);
+  }, [cart, discountRate, settings, isOnSite]);
 
   const handleSave = async () => {
     if (!isOnSite && !name.trim()) {
@@ -158,18 +194,22 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
     setSaving(true);
     try {
       const customerName = isOnSite ? `현장판매_${Date.now()}` : name.trim();
+      const shippingAddress = !isOnSite && (address.trim() || postcode)
+        ? { postcode, address: address.trim(), detail: detailAddress.trim() }
+        : null;
+
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
           customer_name: customerName,
           phone_number: phone || null,
-          shipping_address: address.trim() ? { address: address.trim(), postcode: '', detail: '' } : null,
+          shipping_address: shippingAddress,
           event_id: selectedEventId,
           is_on_site_sale: isOnSite,
-          status: initialStatus,
-          total_amount: totalAmount,
+          status: 'pending',
+          total_cost: totalAmount,
           discount_amount: discountAmount,
-          shipping_cost: shippingCost,
+          delivery_fee: deliveryFee,
           final_payment: finalPayment,
         })
         .select()
@@ -203,294 +243,329 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
   );
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>신규 주문 추가</Typography>
-        <IconButton size="small" onClick={onClose}><CloseIcon /></IconButton>
-      </DialogTitle>
+    <>
+      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>신규 주문 추가</Typography>
+          <IconButton size="small" onClick={onClose}><CloseIcon /></IconButton>
+        </DialogTitle>
 
-      <DialogContent dividers sx={{ p: 0 }}>
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, minHeight: 500 }}>
+        <DialogContent dividers sx={{ p: 0, overflow: 'hidden' }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, height: { sm: 560 } }}>
 
-          {/* ── LEFT PANEL: Customer + Event ── */}
-          <Box sx={{ flex: '0 0 320px', p: 3, borderRight: { sm: '1px solid' }, borderColor: { sm: 'divider' }, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+            {/* ── LEFT PANEL ── */}
+            <Box sx={{
+              flex: '0 0 300px',
+              p: 2.5,
+              borderRight: { sm: '1px solid' },
+              borderColor: { sm: 'divider' },
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              overflowY: 'auto',
+            }}>
 
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={isOnSite}
-                  onChange={(e) => {
-                    setIsOnSite(e.target.checked);
-                    if (e.target.checked) { setName(''); setPhone(''); setAddress(''); }
-                  }}
-                />
-              }
-              label={<Typography variant="body2" sx={{ fontWeight: 600 }}>현장판매 (익명)</Typography>}
-            />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={isOnSite}
+                    onChange={(e) => {
+                      setIsOnSite(e.target.checked);
+                      if (e.target.checked) { setName(''); setPhone(''); setPostcode(''); setAddress(''); setDetailAddress(''); }
+                    }}
+                  />
+                }
+                label={<Typography variant="body2" sx={{ fontWeight: 600 }}>현장판매</Typography>}
+              />
 
-            <FormControl fullWidth size="small" required>
-              <InputLabel>학회 / 행사 *</InputLabel>
-              <Select
-                value={selectedEventId}
-                label="학회 / 행사 *"
-                onChange={e => setSelectedEventId(e.target.value)}
-              >
-                {sortedEvents.map(ev => (
-                  <MenuItem key={ev.id} value={ev.id}>
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3 }}>{ev.name}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {ev.start_date} {ev.discount_rate > 0 && `· 할인 ${Math.round(ev.discount_rate * 100)}%`}
-                      </Typography>
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            {!isOnSite && (
-              <>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="고객명 *"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start"><PersonIcon sx={{ fontSize: 18, color: 'text.secondary' }} /></InputAdornment>,
-                  }}
-                />
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="연락처"
-                  value={phone}
-                  onChange={handlePhoneChange}
-                  inputProps={{ maxLength: 13 }}
-                  placeholder="010-0000-0000"
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start"><PhoneIcon sx={{ fontSize: 18, color: 'text.secondary' }} /></InputAdornment>,
-                  }}
-                />
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="주소 (선택)"
-                  value={address}
-                  onChange={e => setAddress(e.target.value)}
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start"><HomeIcon sx={{ fontSize: 18, color: 'text.secondary' }} /></InputAdornment>,
-                  }}
-                />
-              </>
-            )}
-
-            <FormControl fullWidth size="small">
-              <InputLabel>초기 상태</InputLabel>
-              <Select value={initialStatus} label="초기 상태" onChange={e => setInitialStatus(e.target.value)}>
-                <MenuItem value="pending">결제대기</MenuItem>
-                <MenuItem value="paid">결제완료</MenuItem>
-              </Select>
-            </FormControl>
-
-            {/* ── Order Summary ── */}
-            {cart.length > 0 && (
-              <Box sx={{ mt: 'auto', pt: 2 }}>
-                <Divider sx={{ mb: 2 }} />
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>주문 요약</Typography>
-                <Stack spacing={0.75}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="body2" color="text.secondary">총 상품금액</Typography>
-                    <Typography variant="body2">{totalAmount.toLocaleString()}원</Typography>
-                  </Box>
-                  {discountAmount > 0 && (
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2" color="error.main">할인</Typography>
-                      <Typography variant="body2" color="error.main">- {discountAmount.toLocaleString()}원</Typography>
-                    </Box>
-                  )}
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="body2" color="text.secondary">배송비</Typography>
-                    <Typography variant="body2">{shippingCost > 0 ? `${shippingCost.toLocaleString()}원` : '무료'}</Typography>
-                  </Box>
-                  <Divider />
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>최종 결제금액</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 800, color: 'primary.main' }}>{finalPayment.toLocaleString()}원</Typography>
-                  </Box>
-                </Stack>
-              </Box>
-            )}
-          </Box>
-
-          {/* ── RIGHT PANEL: Product search + Cart ── */}
-          <Box sx={{ flex: 1, p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
-
-            {/* Search */}
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="상품명으로 검색"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: 'text.disabled' }} /></InputAdornment>,
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '12px',
-                  bgcolor: '#F2F4F6',
-                  '& fieldset': { borderColor: 'transparent' },
-                  '&:hover fieldset': { borderColor: 'transparent' },
-                  '&.Mui-focused fieldset': { borderColor: 'primary.main' },
-                },
-              }}
-            />
-
-            {/* Category chips */}
-            <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-              {['all', ...categories].map(cat => (
-                <Chip
-                  key={cat}
-                  label={cat === 'all' ? '전체' : cat}
-                  size="small"
-                  variant={selectedCategory === cat ? 'filled' : 'outlined'}
-                  color={selectedCategory === cat ? 'primary' : 'default'}
-                  onClick={() => setSelectedCategory(cat)}
-                  sx={{ borderRadius: '8px', fontWeight: selectedCategory === cat ? 700 : 500, cursor: 'pointer' }}
-                />
-              ))}
-            </Box>
-
-            {/* Product list */}
-            <Box sx={{ flex: 1, overflowY: 'auto', maxHeight: 280, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-              {filteredProducts.length === 0 ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 100 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    {searchTerm ? '검색 결과가 없습니다' : '인기 상품이 없습니다'}
-                  </Typography>
-                </Box>
-              ) : (
-                filteredProducts.map(product => {
-                  const inCart = !!getCartItem(product.id);
-                  const discounted = calcDiscountedPrice(product);
-                  const isDisc = product.is_discountable && discountRate > 0;
-                  return (
-                    <Box
-                      key={product.id}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        px: 2,
-                        py: 1.25,
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                        '&:last-child': { borderBottom: 'none' },
-                        bgcolor: inCart ? alpha('#1976d2', 0.04) : 'transparent',
-                      }}
-                    >
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {product.name}
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
-                          {product.category && (
-                            <Chip label={product.category} size="small" sx={{ height: 16, fontSize: '0.65rem', borderRadius: '4px' }} />
-                          )}
-                          <Typography variant="caption" color="text.secondary">
-                            {isDisc ? (
-                              <>
-                                <span style={{ textDecoration: 'line-through', marginRight: 4 }}>{product.list_price?.toLocaleString()}원</span>
-                                <span style={{ color: '#d32f2f', fontWeight: 700 }}>{discounted.toLocaleString()}원</span>
-                              </>
-                            ) : (
-                              `${product.list_price?.toLocaleString()}원`
+              <FormControl fullWidth size="small" required>
+                <InputLabel>학회 / 행사 *</InputLabel>
+                <Select
+                  value={selectedEventId}
+                  label="학회 / 행사 *"
+                  onChange={e => setSelectedEventId(e.target.value)}
+                >
+                  {sortedEvents.map(ev => {
+                    const status = getEventStatus(ev.start_date, ev.end_date);
+                    return (
+                      <MenuItem key={ev.id} value={ev.id}>
+                        <Box sx={{ width: '100%' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                            {status && (
+                              <Box component="span" sx={{
+                                fontSize: '0.6rem', fontWeight: 700, px: 0.75, py: 0.25,
+                                borderRadius: '4px', bgcolor: alpha(status.color, 0.12),
+                                color: status.color, flexShrink: 0,
+                              }}>
+                                {status.label}
+                              </Box>
                             )}
+                            <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
+                              {ev.name}
+                            </Typography>
+                          </Box>
+                          <Typography variant="caption" color="text.secondary">
+                            {ev.start_date}{ev.discount_rate > 0 && ` · 할인 ${Math.round(ev.discount_rate * 100)}%`}
                           </Typography>
                         </Box>
-                      </Box>
-                      {inCart ? (
-                        <Chip label="담김" size="small" color="primary" variant="outlined" sx={{ ml: 1, borderRadius: '8px', fontWeight: 600, fontSize: '0.7rem' }} />
-                      ) : (
-                        <Button
-                          size="small"
-                          variant="contained"
-                          onClick={() => handleAddToCart(product)}
-                          sx={{ ml: 1, minWidth: 48, borderRadius: '8px', fontWeight: 700, fontSize: '0.75rem', px: 1 }}
-                        >
-                          담기
-                        </Button>
-                      )}
+                      </MenuItem>
+                    );
+                  })}
+                </Select>
+              </FormControl>
+
+              {!isOnSite && (
+                <>
+                  <TextField
+                    fullWidth size="small" label="고객명 *"
+                    value={name} onChange={e => setName(e.target.value)}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start"><PersonIcon sx={{ fontSize: 18, color: 'text.secondary' }} /></InputAdornment>,
+                    }}
+                  />
+                  <TextField
+                    fullWidth size="small" label="연락처"
+                    value={phone} onChange={handlePhoneChange}
+                    inputProps={{ maxLength: 13 }} placeholder="010-0000-0000"
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start"><PhoneIcon sx={{ fontSize: 18, color: 'text.secondary' }} /></InputAdornment>,
+                    }}
+                  />
+                  <TextField
+                    fullWidth size="small" label="주소 검색"
+                    value={address}
+                    onClick={() => setPostcodeOpen(true)}
+                    InputProps={{
+                      readOnly: true,
+                      startAdornment: <InputAdornment position="start"><HomeIcon sx={{ fontSize: 18, color: 'text.secondary' }} /></InputAdornment>,
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <Button size="small" variant="outlined" onClick={() => setPostcodeOpen(true)}
+                            sx={{ minWidth: 'auto', px: 1, py: 0.25, fontSize: '0.7rem', borderRadius: 1 }}>
+                            검색
+                          </Button>
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{ cursor: 'pointer', '& .MuiInputBase-root': { cursor: 'pointer' } }}
+                  />
+                  {address && (
+                    <TextField
+                      fullWidth size="small" label="상세주소"
+                      value={detailAddress} onChange={e => setDetailAddress(e.target.value)}
+                    />
+                  )}
+                </>
+              )}
+
+              {/* ── Order Summary ── */}
+              {cart.length > 0 && (
+                <Box sx={{ mt: 'auto', pt: 1.5 }}>
+                  <Divider sx={{ mb: 1.5 }} />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>주문 요약</Typography>
+                  <Stack spacing={0.75}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2" color="text.secondary">총 상품금액</Typography>
+                      <Typography variant="body2">{totalAmount.toLocaleString()}원</Typography>
                     </Box>
-                  );
-                })
+                    {discountAmount > 0 && (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="error.main">할인</Typography>
+                        <Typography variant="body2" color="error.main">- {discountAmount.toLocaleString()}원</Typography>
+                      </Box>
+                    )}
+                    {!isOnSite && (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">배송비</Typography>
+                        <Typography variant="body2">{deliveryFee > 0 ? `${deliveryFee.toLocaleString()}원` : '무료'}</Typography>
+                      </Box>
+                    )}
+                    <Divider />
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>최종 결제금액</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 800, color: 'primary.main' }}>{finalPayment.toLocaleString()}원</Typography>
+                    </Box>
+                  </Stack>
+                </Box>
               )}
             </Box>
 
-            {/* Cart */}
-            {cart.length > 0 && (
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                  장바구니 ({cart.length}종)
-                </Typography>
-                <Stack spacing={0.5}>
-                  {cart.map(({ product, quantity }) => {
+            {/* ── RIGHT PANEL ── */}
+            <Box sx={{ flex: 1, minWidth: 0, p: 2.5, display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
+
+              {/* Search */}
+              <TextField
+                fullWidth size="small" placeholder="상품명으로 검색"
+                value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: 'text.disabled' }} /></InputAdornment>,
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '12px', bgcolor: '#F2F4F6',
+                    '& fieldset': { borderColor: 'transparent' },
+                    '&:hover fieldset': { borderColor: 'transparent' },
+                    '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+                  },
+                }}
+              />
+
+              {/* Category chips */}
+              <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', flexShrink: 0 }}>
+                {['all', ...categories].map(cat => (
+                  <Chip
+                    key={cat}
+                    label={cat === 'all' ? '전체' : cat}
+                    size="small"
+                    variant={selectedCategory === cat ? 'filled' : 'outlined'}
+                    color={selectedCategory === cat ? 'primary' : 'default'}
+                    onClick={() => setSelectedCategory(cat)}
+                    sx={{ borderRadius: '8px', fontWeight: selectedCategory === cat ? 700 : 500, cursor: 'pointer' }}
+                  />
+                ))}
+              </Box>
+
+              {/* Product list */}
+              <Box sx={{ flex: '1 1 0', overflowY: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 2, minHeight: 0 }}>
+                {filteredProducts.length === 0 ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 100 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {searchTerm ? '검색 결과가 없습니다' : '인기 상품이 없습니다'}
+                    </Typography>
+                  </Box>
+                ) : (
+                  filteredProducts.map(product => {
+                    const inCart = !!getCartItem(product.id);
                     const discounted = calcDiscountedPrice(product);
+                    const isDisc = product.is_discountable && discountRate > 0;
                     return (
                       <Box
                         key={product.id}
                         sx={{
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 1,
                           px: 1.5,
                           py: 1,
-                          borderRadius: 2,
-                          border: '1px solid',
+                          borderBottom: '1px solid',
                           borderColor: 'divider',
-                          bgcolor: 'grey.50',
+                          '&:last-child': { borderBottom: 'none' },
+                          bgcolor: inCart ? alpha('#1976d2', 0.04) : 'transparent',
+                          minWidth: 0,
                         }}
                       >
-                        <Typography variant="body2" sx={{ flex: 1, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {product.name}
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: 'primary.main', fontWeight: 700, minWidth: 72, textAlign: 'right' }}>
-                          {(discounted * quantity).toLocaleString()}원
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <IconButton size="small" onClick={() => handleDecrement(product.id)} sx={{ width: 24, height: 24 }}>
-                            <RemoveIcon sx={{ fontSize: 14 }} />
-                          </IconButton>
-                          <Typography variant="body2" sx={{ minWidth: 20, textAlign: 'center', fontWeight: 700 }}>{quantity}</Typography>
-                          <IconButton size="small" onClick={() => handleIncrement(product.id)} sx={{ width: 24, height: 24 }}>
-                            <AddIcon sx={{ fontSize: 14 }} />
-                          </IconButton>
+                        <Box sx={{ flex: 1, minWidth: 0, mr: 1 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {product.name}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25, flexWrap: 'wrap' }}>
+                            {product.category && (
+                              <Chip label={product.category} size="small" sx={{ height: 16, fontSize: '0.6rem', borderRadius: '4px' }} />
+                            )}
+                            <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                              {isDisc ? (
+                                <>
+                                  <span style={{ textDecoration: 'line-through', marginRight: 4 }}>{product.list_price?.toLocaleString()}원</span>
+                                  <span style={{ color: '#d32f2f', fontWeight: 700 }}>{discounted.toLocaleString()}원</span>
+                                </>
+                              ) : (
+                                `${product.list_price?.toLocaleString()}원`
+                              )}
+                            </Typography>
+                          </Box>
                         </Box>
-                        <IconButton size="small" onClick={() => handleRemoveFromCart(product.id)} sx={{ width: 24, height: 24, color: 'text.disabled' }}>
-                          <CloseIcon sx={{ fontSize: 14 }} />
-                        </IconButton>
+                        <Box sx={{ flexShrink: 0 }}>
+                          {inCart ? (
+                            <Chip label="담김" size="small" color="primary" variant="outlined" sx={{ borderRadius: '8px', fontWeight: 600, fontSize: '0.7rem' }} />
+                          ) : (
+                            <Button
+                              size="small"
+                              variant="contained"
+                              onClick={() => handleAddToCart(product)}
+                              sx={{ minWidth: 44, borderRadius: '8px', fontWeight: 700, fontSize: '0.75rem', px: 1 }}
+                            >
+                              담기
+                            </Button>
+                          )}
+                        </Box>
                       </Box>
                     );
-                  })}
-                </Stack>
+                  })
+                )}
               </Box>
-            )}
-          </Box>
-        </Box>
-      </DialogContent>
 
-      <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
-        <Button onClick={onClose} disabled={saving}>취소</Button>
-        <Button
-          variant="contained"
-          onClick={handleSave}
-          disabled={saving || cart.length === 0}
-          startIcon={saving ? <CircularProgress size={16} /> : null}
-        >
-          {saving ? '저장 중...' : '주문 추가'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+              {/* Cart */}
+              {cart.length > 0 && (
+                <Box sx={{ flexShrink: 0 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.75 }}>
+                    장바구니 ({cart.length}종)
+                  </Typography>
+                  <Stack spacing={0.5} sx={{ maxHeight: 160, overflowY: 'auto' }}>
+                    {cart.map(({ product, quantity }) => {
+                      const discounted = calcDiscountedPrice(product);
+                      return (
+                        <Box
+                          key={product.id}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 0.5,
+                            px: 1.25,
+                            py: 0.75,
+                            borderRadius: 1.5,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            bgcolor: 'grey.50',
+                            minWidth: 0,
+                          }}
+                        >
+                          <Typography variant="body2" sx={{ flex: 1, minWidth: 0, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {product.name}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: 'primary.main', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                            {(discounted * quantity).toLocaleString()}원
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                            <IconButton size="small" onClick={() => handleDecrement(product.id)} sx={{ width: 22, height: 22 }}>
+                              <RemoveIcon sx={{ fontSize: 12 }} />
+                            </IconButton>
+                            <Typography variant="body2" sx={{ minWidth: 18, textAlign: 'center', fontWeight: 700, fontSize: '0.8rem' }}>{quantity}</Typography>
+                            <IconButton size="small" onClick={() => handleIncrement(product.id)} sx={{ width: 22, height: 22 }}>
+                              <AddIcon sx={{ fontSize: 12 }} />
+                            </IconButton>
+                          </Box>
+                          <IconButton size="small" onClick={() => handleRemoveFromCart(product.id)} sx={{ width: 22, height: 22, color: 'text.disabled', flexShrink: 0 }}>
+                            <CloseIcon sx={{ fontSize: 12 }} />
+                          </IconButton>
+                        </Box>
+                      );
+                    })}
+                  </Stack>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          <Button onClick={onClose} disabled={saving}>취소</Button>
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            disabled={saving || cart.length === 0}
+            startIcon={saving ? <CircularProgress size={16} /> : null}
+          >
+            {saving ? '저장 중...' : '주문 추가'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Daum Postcode Modal */}
+      <Modal open={postcodeOpen} onClose={() => setPostcodeOpen(false)} sx={{ zIndex: 1400 }}>
+        <Box sx={postcodeModalStyle}>
+          <DaumPostcode onComplete={handleCompletePostcode} style={{ height: '60vh' }} />
+        </Box>
+      </Modal>
+    </>
   );
 };
 

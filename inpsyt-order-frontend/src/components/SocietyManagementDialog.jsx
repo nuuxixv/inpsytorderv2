@@ -86,10 +86,10 @@ const SocietyManagementDialog = ({ open, onClose, onUpdated }) => {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 'bold' }}>주최 학회 목록 관리</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 'bold' }}>학회 목록 관리</DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          이곳에 등록된 학회는 새 행사 추가 시 드롭다운 목록으로 제공되며, 고유 주소(URL) 자동 생성 시 영문 약자가 활용됩니다.
+          이곳에 등록된 학회는 '새 학회 추가' 시 드롭다운으로 나타나며, URL 태그는 주문서 주소 생성에 활용됩니다.
         </Typography>
 
         {/* Add New Section */}
@@ -97,14 +97,14 @@ const SocietyManagementDialog = ({ open, onClose, onUpdated }) => {
           <Box sx={{ display: 'flex', gap: 1, mb: 3, p: 2, bgcolor: alpha('#10B981', 0.05), borderRadius: 2 }}>
             <TextField 
               size="small" 
-              label="학회명 (예: 대한비만학회)" 
+              label="학회명 (예: 대한치매학회)" 
               value={newName} 
               onChange={e => setNewName(e.target.value)} 
               fullWidth
             />
             <TextField 
               size="small" 
-              label="영문 약자 (예: ksso)" 
+              label="URL 태그" 
               value={newSlug} 
               onChange={e => setNewSlug(e.target.value)} 
               sx={{ width: 150 }}
@@ -124,7 +124,7 @@ const SocietyManagementDialog = ({ open, onClose, onUpdated }) => {
               <ListItem key={soc.id} divider>
                 <ListItemText 
                   primary={soc.name} 
-                  secondary={`URL 접두사: ${soc.slug_prefix}`} 
+                  secondary={`URL 태그: ${soc.slug_prefix}`} 
                   primaryTypographyProps={{ fontWeight: 600 }}
                 />
                 {hasPermission('events:edit') && (

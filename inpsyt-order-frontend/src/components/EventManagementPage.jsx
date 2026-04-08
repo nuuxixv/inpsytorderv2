@@ -278,7 +278,7 @@ const EventManagementPage = () => {
                 startIcon={<SettingsIcon />}
                 onClick={() => setSocietyModalOpen(true)}
               >
-                주최 학회 관리
+                학회 목록 관리
               </Button>
             )}
             {hasPermission('events:edit') && (
@@ -374,7 +374,7 @@ const EventManagementPage = () => {
               <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
                 <TableCell sx={{ fontWeight: 'bold' }}>학회명</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>상태</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>고유 주소</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>주문 URL</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }} align="center">할인율</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>기간</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>주최학회</TableCell>
@@ -493,7 +493,7 @@ const EventManagementPage = () => {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5, mt: 2 }}>
             {/* Step 1: Structured Information */}
             <Box sx={{ p: 2.5, bgcolor: alpha(theme.palette.primary.main, 0.03), borderRadius: 2, border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`, display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <Typography variant="caption" sx={{ fontWeight: 800, color: 'primary.main', letterSpacing: 0.5 }}>✦ 행사 구조 자동 입력</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 800, color: 'primary.main', letterSpacing: 0.5 }}>✦ 행사명 형식</Typography>
               
               <TextField
                 select
@@ -557,7 +557,7 @@ const EventManagementPage = () => {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               <TextField
                 name="name"
-                label="행사명 통합 (자동 완성)"
+                label="행사명 (자동 완성)"
                 fullWidth
                 value={currentEvent?.name || ''}
                 onChange={(e) => handleChange(e.target.name, e.target.value)}
@@ -567,7 +567,7 @@ const EventManagementPage = () => {
               />
             <TextField
               name="order_url_slug"
-              label="고유 주소 (Slug)"
+              label="주문 URL"
               type="text"
               fullWidth
               value={currentEvent?.order_url_slug || ''}
