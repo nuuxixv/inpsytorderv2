@@ -23,6 +23,8 @@ export const sendAlimtalk = async (orderId) => {
       return { success: false, error: detail };
     }
     if (data?.skipped) return { success: true, skipped: true };
+    // 원샷 API 실제 응답을 콘솔에 출력 (디버깅용)
+    console.log('[알림톡] Edge Function 응답:', JSON.stringify(data));
     if (!data?.success) return { success: false, error: data?.error ?? '알 수 없는 오류' };
 
     return { success: true };
