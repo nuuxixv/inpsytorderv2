@@ -15,14 +15,14 @@ import { format, startOfDay, endOfDay } from 'date-fns';
  * @throws {Error} 데이터 조회 실패 시 에러 발생
  */
 export const getOrders = async (options) => {
-  const { 
-    currentPage, 
-    ordersPerPage, 
-    searchTerm, 
-    selectedStatus, 
-    selectedEvent, 
-    startDate, 
-    endDate 
+  const {
+    currentPage,
+    ordersPerPage,
+    searchTerm,
+    selectedStatuses,
+    selectedEvents,
+    startDate,
+    endDate
   } = options;
 
   const from = (currentPage - 1) * ordersPerPage;
@@ -36,11 +36,11 @@ export const getOrders = async (options) => {
   if (searchTerm) {
     query = query.ilike('customer_name', `%${searchTerm}%`);
   }
-  if (selectedStatus) {
-    query = query.eq('status', selectedStatus);
+  if (selectedStatuses && selectedStatuses.length > 0) {
+    query = query.in('status', selectedStatuses);
   }
-  if (selectedEvent && selectedEvent !== '') {
-    query = query.eq('event_id', selectedEvent);
+  if (selectedEvents && selectedEvents.length > 0) {
+    query = query.in('event_id', selectedEvents);
   }
   if (startDate && endDate) {
     const start = format(startOfDay(startDate), 'yyyy-MM-dd HH:mm:ss');

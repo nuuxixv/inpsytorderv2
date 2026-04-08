@@ -25,9 +25,9 @@ import {
   Pagination,
   Checkbox,
   FormControlLabel,
-  Autocomplete,
+  ListItemText,
+  OutlinedInput,
   Divider,
-  Grid,
   Card,
   CardContent,
   Stack,
@@ -41,10 +41,11 @@ import { format, subDays } from 'date-fns';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
-import { Close as CloseIcon, KeyboardArrowDown as KeyboardArrowDownIcon, Assignment as AssignmentIcon } from '@mui/icons-material';
+import { Close as CloseIcon, KeyboardArrowDown as KeyboardArrowDownIcon, ShoppingCart as ShoppingCartIcon, RestartAlt as RestartAltIcon } from '@mui/icons-material';
 import { useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import OrderDetailModal from './OrderDetailModal';
+import NewOrderModal from './NewOrderModal';
 import EmptyState from './EmptyState';
 import TableSkeleton from './TableSkeleton';
 import { SearchOff as SearchOffIcon, FilterList as FilterListIcon } from '@mui/icons-material';
@@ -68,9 +69,9 @@ const initialState = {
   currentPage: 1,
   totalOrders: 0,
   searchTerm: '',
-  selectedStatus: '',
+  selectedStatuses: [],
   events: [],
-  selectedEvent: '',
+  selectedEvents: [],
   startDate: subDays(new Date(), 30),
   endDate: new Date(),
   products: [],
@@ -86,6 +87,7 @@ const initialState = {
     selectedEvent: '',
     items: [{ product_id: '', quantity: 1, price_at_purchase: 0 }],
   },
+
   newOrderCalculations: {
     totalAmount: 0,
     discountAmount: 0,
@@ -116,8 +118,8 @@ function reducer(state, action) {
       return {
         ...state,
         searchTerm: '',
-        selectedStatus: '',
-        selectedEvent: '',
+        selectedStatuses: [],
+        selectedEvents: [],
         startDate: subDays(new Date(), 30),
         endDate: new Date(),
         selectedOrders: [],
@@ -170,7 +172,7 @@ const OrderManagementPage = () => {
   const [searchParams] = useSearchParams();
   const [state, dispatch] = useReducer(reducer, {
     ...initialState,
-    selectedStatus: searchParams.get('status') || '',
+    selectedStatuses: searchParams.get('status') ? [searchParams.get('status')] : [],
   });
   const [bulkStatus, setBulkStatus] = React.useState('');
   const [excelMenuAnchor, setExcelMenuAnchor] = React.useState(null);
@@ -236,8 +238,8 @@ const OrderManagementPage = () => {
         currentPage: state.currentPage,
         ordersPerPage,
         searchTerm: state.searchTerm,
-        selectedStatus: state.selectedStatus,
-        selectedEvent: state.selectedEvent,
+        selectedStatuses: state.selectedStatuses,
+        selectedEvents: state.selectedEvents,
         startDate: state.startDate,
         endDate: state.endDate,
       });
@@ -247,7 +249,7 @@ const OrderManagementPage = () => {
       dispatch({ type: 'SET_STATE', payload: { orders: [], totalOrders: 0 } });
     }
     dispatch({ type: 'SET_STATE', payload: { loading: false } });
-  }, [state.currentPage, state.searchTerm, state.selectedStatus, state.selectedEvent, state.startDate, state.endDate, addNotification]);
+  }, [state.currentPage, state.searchTerm, state.selectedStatuses, state.selectedEvents, state.startDate, state.endDate, addNotification]);
 
   const fetchSettings = useCallback(async () => {
     const { data } = await supabase.from('site_settings').select('*').single();
@@ -266,65 +268,6 @@ const OrderManagementPage = () => {
     fetchOrders();
   }, [fetchOrders]);
 
-  // New Order Modal Calculations
-  useEffect(() => {
-    const currentEvent = state.events.find(e => e.id === state.newOrder.selectedEvent);
-    const discountRate = currentEvent ? currentEvent.discount_rate : 0;
-
-    // originalSubtotal = 정가 합계, discountedSubtotal = 할인가 합계 (price_at_purchase 기준)
-    const originalSubtotal = state.newOrder.items.reduce((sum, item) => {
-      const product = state.products.find(p => p.id === item.product_id);
-      return sum + (product?.list_price || 0) * (item.quantity || 0);
-    }, 0);
-    const discountedSubtotal = state.newOrder.items.reduce((sum, item) => {
-      return sum + (item.price_at_purchase || 0) * (item.quantity || 0);
-    }, 0);
-    const calculatedDiscount = originalSubtotal - discountedSubtotal;
-    const { free_shipping_threshold, shipping_cost } = state.settings;
-    const calculatedShipping = discountedSubtotal > 0 && discountedSubtotal < free_shipping_threshold ? shipping_cost : 0;
-    const calculatedFinalPayment = discountedSubtotal + calculatedShipping;
-
-    dispatch({ type: 'SET_NEW_ORDER_CALCULATIONS', payload: { totalAmount: originalSubtotal, discountAmount: calculatedDiscount, shippingCost: calculatedShipping, finalPayment: calculatedFinalPayment } });
-  }, [state.newOrder.items, state.newOrder.selectedEvent, state.events, state.products, state.settings]);
-
-  const handleSaveNewOrder = async () => {
-    const { isOnSiteSale, customerName, selectedEvent, items } = state.newOrder;
-    const { finalPayment, totalAmount, discountAmount, shippingCost } = state.newOrderCalculations;
-
-    if (!isOnSiteSale && !customerName) {
-      addNotification('고객명을 입력해야 합니다.', 'warning');
-      return;
-    }
-    if (!selectedEvent) {
-      addNotification('학회를 선택해주세요.', 'warning');
-      return;
-    }
-    if (items.some(item => !item.product_id || item.quantity <= 0)) {
-      addNotification('유효하지 않은 상품 항목이 있습니다. 상품을 선택하고 수량을 1 이상으로 입력하세요.', 'warning');
-      return;
-    }
-
-    try {
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert({ ...state.newOrder, final_payment: finalPayment, total_amount: totalAmount, discount_amount: discountAmount, shipping_cost: shippingCost, status: 'pending' })
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      const orderItemsToInsert = items.map(item => ({ ...item, order_id: orderData.id }));
-      const { error: orderItemsError } = await supabase.from('order_items').insert(orderItemsToInsert);
-      if (orderItemsError) throw orderItemsError;
-
-      addNotification('신규 주문이 성공적으로 추가되었습니다.', 'success');
-      dispatch({ type: 'CLOSE_NEW_ORDER' });
-      fetchOrders();
-    } catch (error) {
-      console.error('Error saving new order:', error);
-      addNotification(`신규 주문 추가 실패: ${error.message}`, 'error');
-    }
-  };
 
   const handleBulkStatusUpdate = async () => {
     if (!bulkStatus || state.selectedOrders.length === 0) {
@@ -378,11 +321,19 @@ const OrderManagementPage = () => {
     setExcelMenuAnchor(null);
     dispatch({ type: 'SET_STATE', payload: { loading: true } });
     try {
-      const { data: allOrders, error } = await getOrders({ ...state, currentPage: 1, ordersPerPage: state.totalOrders });
+      const { data: allOrders, error } = await getOrders({
+        currentPage: 1,
+        ordersPerPage: state.totalOrders,
+        searchTerm: state.searchTerm,
+        selectedStatuses: state.selectedStatuses,
+        selectedEvents: state.selectedEvents,
+        startDate: state.startDate,
+        endDate: state.endDate,
+      });
       if (error) throw error;
 
       const dataForExcel = [];
-      const isFilteredByEvent = Boolean(state.selectedEvent);
+      const isFilteredByEvent = state.selectedEvents.length === 1;
       
       allOrders.forEach(order => {
         const orderEvent = state.events.find(e => e.id === order.event_id)?.name || 'N/A';
@@ -434,8 +385,8 @@ const OrderManagementPage = () => {
       XLSX.utils.book_append_sheet(workbook, worksheet, '출고목록');
       
       const dateStr = format(new Date(), 'yyyyMMdd');
-      const eventPrefix = isFilteredByEvent 
-        ? `[${state.events.find(e => e.id === state.selectedEvent)?.name}]_` 
+      const eventPrefix = isFilteredByEvent
+        ? `[${state.events.find(e => e.id === state.selectedEvents[0])?.name}]_`
         : '';
       const typeStr = type === 'book' ? '도서출고목록' : type === 'test' ? '검사출고목록' : '통합주문목록';
       
@@ -480,33 +431,61 @@ const OrderManagementPage = () => {
 
   const filterControls = (
     <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-      <FormControl size="small" sx={{ minWidth: 180 }}>
+      {/* 학회 멀티 선택 */}
+      <FormControl size="small" sx={{ minWidth: 200 }}>
         <InputLabel>학회 선택</InputLabel>
         <Select
-          value={state.selectedEvent}
+          multiple
+          value={state.selectedEvents}
           label="학회 선택"
-          onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'selectedEvent', value: e.target.value } })}
+          input={<OutlinedInput label="학회 선택" />}
+          onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'selectedEvents', value: e.target.value } })}
+          renderValue={(selected) =>
+            selected.length === 0
+              ? '전체'
+              : selected.length === 1
+              ? state.events.find(e => e.id === selected[0])?.name || ''
+              : `${selected.length}개 선택`
+          }
         >
-          <MenuItem value=""><em>전체</em></MenuItem>
-          {state.events.map((event) => <MenuItem key={event.id} value={event.id}>{event.name}</MenuItem>)}
+          {state.events.map((event) => (
+            <MenuItem key={event.id} value={event.id}>
+              <Checkbox checked={state.selectedEvents.includes(event.id)} size="small" />
+              <ListItemText primary={event.name} primaryTypographyProps={{ variant: 'body2' }} />
+            </MenuItem>
+          ))}
         </Select>
       </FormControl>
-      <FormControl size="small" sx={{ minWidth: 160 }}>
+
+      {/* 주문상태 멀티 선택 */}
+      <FormControl size="small" sx={{ minWidth: 180 }}>
         <InputLabel>주문 상태</InputLabel>
         <Select
-          value={state.selectedStatus}
+          multiple
+          value={state.selectedStatuses}
           label="주문 상태"
-          onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'selectedStatus', value: e.target.value } })}
+          input={<OutlinedInput label="주문 상태" />}
+          onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'selectedStatuses', value: e.target.value } })}
+          renderValue={(selected) =>
+            selected.length === 0
+              ? '전체'
+              : selected.map(s => statusToKorean[s]).join(', ')
+          }
         >
-          <MenuItem value=""><em>전체</em></MenuItem>
-          {Object.entries(statusToKorean).map(([key, value]) => <MenuItem key={key} value={key}>{value}</MenuItem>)}
+          {Object.entries(statusToKorean).map(([key, value]) => (
+            <MenuItem key={key} value={key}>
+              <Checkbox checked={state.selectedStatuses.includes(key)} size="small" />
+              <ListItemText primary={value} primaryTypographyProps={{ variant: 'body2' }} />
+            </MenuItem>
+          ))}
         </Select>
       </FormControl>
+
       <TextField
-        label="고객 이름 검색"
+        label="고객명 검색"
         variant="outlined"
         size="small"
-        sx={{ flex: 1, minWidth: 180 }}
+        sx={{ flex: 1, minWidth: 160 }}
         value={state.searchTerm}
         onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'searchTerm', value: e.target.value } })}
       />
@@ -530,8 +509,12 @@ const OrderManagementPage = () => {
         InputLabelProps={{ shrink: true }}
         sx={{ minWidth: 150 }}
       />
-      <Button variant="outlined" onClick={() => { dispatch({ type: 'CLEAR_FILTERS' }); if (isMobile) setFilterDrawerOpen(false); }}>
-        필터 초기화
+      <Button
+        variant="outlined"
+        startIcon={<RestartAltIcon />}
+        onClick={() => { dispatch({ type: 'CLEAR_FILTERS' }); if (isMobile) setFilterDrawerOpen(false); }}
+      >
+        초기화
       </Button>
     </Box>
   );
@@ -543,7 +526,7 @@ const OrderManagementPage = () => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-        <AssignmentIcon sx={{ color: 'primary.main', fontSize: '1.4rem' }} />
+        <ShoppingCartIcon sx={{ color: 'primary.main', fontSize: '1.4rem' }} />
         <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>주문 관리</Typography>
       </Box>
 
@@ -597,7 +580,7 @@ const OrderManagementPage = () => {
             )}
           </Box>
           <Box display="flex" gap={2}>
-            {hasPermission('orders:edit') && <Button variant="contained" color="primary" onClick={() => dispatch({ type: 'OPEN_NEW_ORDER' })}>신규 주문 추가</Button>}
+            {hasPermission('orders:edit') && <Button variant="contained" color="primary" onClick={() => dispatch({ type: 'OPEN_NEW_ORDER' })}>+ 신규 주문</Button>}
             <Button 
               variant="outlined" 
               onClick={(e) => setExcelMenuAnchor(e.currentTarget)}
@@ -624,8 +607,8 @@ const OrderManagementPage = () => {
             ) : state.orders.length === 0 ? (
               <Box sx={{ py: 4 }}>
                 <EmptyState 
-                  message={state.searchTerm || state.selectedStatus || state.selectedEvent ? "조건에 맞는 주문이 없습니다." : "아직 접수된 주문이 없습니다."}
-                  subMessage={state.searchTerm || state.selectedStatus || state.selectedEvent ? "검색 조건이나 필터를 변경해보세요." : "새로운 주문이 들어오면 여기에 표시됩니다."}
+                  message={state.searchTerm || state.selectedStatuses.length > 0 || state.selectedEvents.length > 0 ? "조건에 맞는 주문이 없습니다." : "아직 접수된 주문이 없습니다."}
+                  subMessage={state.searchTerm || state.selectedStatuses.length > 0 || state.selectedEvents.length > 0 ? "검색 조건이나 필터를 변경해보세요." : "새로운 주문이 들어오면 여기에 표시됩니다."}
                 />
               </Box>
             ) : (
@@ -704,7 +687,7 @@ const OrderManagementPage = () => {
                   <TableRow>
                     <TableCell colSpan={hasPermission('orders:edit') ? 8 : 7}>
                       <Box sx={{ py: 4 }}>
-                        {state.searchTerm || state.selectedStatus || state.selectedEvent ? (
+                        {state.searchTerm || state.selectedStatuses.length > 0 || state.selectedEvents.length > 0 ? (
                           <EmptyState 
                             message="조건에 맞는 주문이 없습니다." 
                             subMessage="검색 조건이나 필터를 변경해보세요."
@@ -781,96 +764,14 @@ const OrderManagementPage = () => {
         />
       )}
 
-      <Dialog open={state.openNewOrderModal} onClose={() => dispatch({ type: 'CLOSE_NEW_ORDER' })} maxWidth="md" fullWidth>
-        <DialogTitle>신규 주문 추가</DialogTitle>
-        <DialogContent>
-          <FormControlLabel
-            control={<Checkbox checked={state.newOrder.isOnSiteSale} onChange={(e) => dispatch({ type: 'TOGGLE_ONSITE_SALE', payload: e.target.checked })} />}
-            label="현장판매"
-          />
-          <TextField margin="dense" label="고객명" fullWidth variant="standard" value={state.newOrder.customerName} onChange={(e) => dispatch({ type: 'UPDATE_NEW_ORDER_FIELD', payload: { key: 'customerName', value: e.target.value } })} disabled={state.newOrder.isOnSiteSale} required={!state.newOrder.isOnSiteSale} />
-          <TextField margin="dense" label="연락처" fullWidth variant="standard" value={state.newOrder.contact} onChange={(e) => dispatch({ type: 'UPDATE_NEW_ORDER_FIELD', payload: { key: 'contact', value: e.target.value } })} disabled={state.newOrder.isOnSiteSale} />
-          <TextField margin="dense" label="주소" fullWidth variant="standard" value={state.newOrder.address} onChange={(e) => dispatch({ type: 'UPDATE_NEW_ORDER_FIELD', payload: { key: 'address', value: e.target.value } })} disabled={state.newOrder.isOnSiteSale} />
-          
-          <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 2, mt: 2 }}>
-            <FormControl fullWidth margin="dense">
-              <InputLabel>학회 선택 *</InputLabel>
-              <Select value={state.newOrder.selectedEvent} onChange={(e) => dispatch({ type: 'UPDATE_NEW_ORDER_FIELD', payload: { key: 'selectedEvent', value: e.target.value } })} required>
-                {state.events.map((event) => <MenuItem key={event.id} value={event.id}>{event.name}</MenuItem>)}
-              </Select>
-            </FormControl>
-            {state.newOrder.selectedEvent && (
-              <Typography variant="body2" color="primary" sx={{ mb: 1, whiteSpace: 'nowrap' }}>
-                (할인율: {Math.round((state.events.find(e => e.id === state.newOrder.selectedEvent)?.discount_rate || 0) * 100)}%)
-              </Typography>
-            )}
-          </Box>
-
-          <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>주문 항목</Typography>
-          {state.newOrder.items.map((item, index) => (
-            <Box key={index} sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
-              <Autocomplete
-                options={state.products}
-                getOptionLabel={(option) => option.name || ''}
-                value={state.products.find(p => p.id === item.product_id) || null}
-                onChange={(event, newValue) => {
-                    const newItems = [...state.newOrder.items];
-                    if (newValue) {
-                        newItems[index].product_id = newValue.id;
-                        newItems[index].price_at_purchase = newValue.list_price;
-                    } else {
-                        newItems[index].product_id = '';
-                        newItems[index].price_at_purchase = 0;
-                    }
-                    dispatch({ type: 'UPDATE_NEW_ORDER_FIELD', payload: { key: 'items', value: newItems } });
-                }}
-                loading={state.productsLoading}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="상품 검색"
-                    variant="standard"
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (
-                        <>
-                          {state.productsLoading ? <CircularProgress color="inherit" size={20} /> : null}
-                          {params.InputProps.endAdornment}
-                        </>
-                      ),
-                    }}
-                  />
-                )}
-                sx={{ flexGrow: 1 }}
-              />
-              <TextField label="수량" type="number" value={item.quantity} onChange={(e) => dispatch({ type: 'UPDATE_NEW_ORDER_ITEM', payload: { index, field: 'quantity', value: parseInt(e.target.value, 10) || 1 } })} sx={{ width: 100 }} InputProps={{ inputProps: { min: 1 } }} />
-              <TextField label="개당 가격" type="number" value={item.price_at_purchase} onChange={(e) => dispatch({ type: 'UPDATE_NEW_ORDER_ITEM', payload: { index, field: 'price_at_purchase', value: parseFloat(e.target.value) || 0 } })} sx={{ width: 150 }} />
-              <IconButton onClick={() => dispatch({ type: 'REMOVE_NEW_ORDER_ITEM', payload: index })}><CloseIcon /></IconButton>
-            </Box>
-          ))}
-          <Button onClick={() => dispatch({ type: 'ADD_NEW_ORDER_ITEM' })} sx={{ mt: 1 }}>항목 추가</Button>
-          
-          <Paper variant="outlined" sx={{ p: 2, mt: 2, backgroundColor: 'grey.50' }}>
-            <Typography variant="h6" gutterBottom>주문 요약</Typography>
-            <Grid container spacing={1}>
-                <Grid item xs={6}><Typography>총 상품 금액:</Typography></Grid>
-                <Grid item xs={6} textAlign="right"><Typography>{state.newOrderCalculations.totalAmount.toLocaleString()}원</Typography></Grid>
-                <Grid item xs={6}><Typography color="error">할인 금액:</Typography></Grid>
-                <Grid item xs={6} textAlign="right"><Typography color="error">- {state.newOrderCalculations.discountAmount.toLocaleString()}원</Typography></Grid>
-                <Grid item xs={6}><Typography>배송비:</Typography></Grid>
-                <Grid item xs={6} textAlign="right"><Typography>{state.newOrderCalculations.shippingCost.toLocaleString()}원</Typography></Grid>
-                <Grid item xs={12}><Divider sx={{ my: 1 }} /></Grid>
-                <Grid item xs={6}><Typography variant="h6" component="div">최종 결제 금액:</Typography></Grid>
-                <Grid item xs={6} textAlign="right"><Typography variant="h6" component="div">{state.newOrderCalculations.finalPayment.toLocaleString()}원</Typography></Grid>
-            </Grid>
-          </Paper>
-
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => dispatch({ type: 'CLOSE_NEW_ORDER' })}>취소</Button>
-          <Button onClick={handleSaveNewOrder} variant="contained">저장</Button>
-        </DialogActions>
-      </Dialog>
+      <NewOrderModal
+        open={state.openNewOrderModal}
+        onClose={() => dispatch({ type: 'CLOSE_NEW_ORDER' })}
+        onSuccess={() => { fetchOrders(); }}
+        events={state.events}
+        products={state.products}
+        settings={state.settings}
+      />
     </Box>
   );
 };

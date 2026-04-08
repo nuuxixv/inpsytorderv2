@@ -39,6 +39,7 @@ import {
   Edit as EditIcon,
   Search as SearchIcon,
   Inventory as InventoryIcon,
+  Category as CategoryIcon,
   LocalOffer as TagIcon,
   TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material';
@@ -281,7 +282,7 @@ const ProductManagementPage = () => {
       <Box sx={{ mb: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <InventoryIcon sx={{ color: 'primary.main', fontSize: '1.4rem' }} />
+            <CategoryIcon sx={{ color: 'primary.main', fontSize: '1.4rem' }} />
             <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
               상품 관리
             </Typography>

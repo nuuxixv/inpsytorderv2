@@ -73,7 +73,7 @@ const AdminSidebar = ({ open, onClose, collapsed = false, onToggleCollapse }) =>
         <img src="/LOGO.svg" alt="logo" style={{ height: 32 }} />
         {!collapsed && (
           <Typography variant="h6" sx={{ fontWeight: 800, color: 'primary.main', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
-            인싸이트 오더
+            인싸이트 현장주문
           </Typography>
         )}
       </Box>

@@ -10,6 +10,9 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Checkbox,
+  ListItemText,
+  OutlinedInput,
   IconButton,
   Chip,
   alpha,
@@ -30,6 +33,7 @@ import {
   Psychology as TestIcon,
   ShoppingCart as CartIcon,
   Receipt as ReceiptIcon,
+  Dashboard as DashboardIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
@@ -332,82 +336,6 @@ const FieldReportSection = ({ eventId, eventName, revenueData }) => {
 };
 
 
-// ─── Audit Log Section (Master Only) ───
-const AuditLogSection = () => {
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [profilesMap, setProfilesMap] = useState({});
-
-  const fetchLogs = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Fetch latest 20 logs
-      const { data: logData, error: logError } = await supabase
-        .from('admin_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(20);
-        
-      if (logError) throw logError;
-
-      // Fetch user profiles for mapping
-      const { data: profiles, error: profError } = await supabase
-        .from('user_profiles')
-        .select('id, name, email');
-        
-      if (!profError && profiles) {
-        const pMap = {};
-        profiles.forEach(p => pMap[p.id] = p);
-        setProfilesMap(pMap);
-      }
-
-      setLogs(logData || []);
-    } catch (e) {
-      console.error('Failed to fetch admin logs', e);
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
-
-  return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>시스템 접속 기록 (최근 20건)</Typography>
-        <IconButton size="small" onClick={fetchLogs}><RefreshIcon sx={{ fontSize: 18 }} /></IconButton>
-      </Box>
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress size={20} /></Box>
-      ) : logs.length === 0 ? (
-        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>기록이 없습니다.</Typography>
-      ) : (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          {logs.map(log => {
-            const profile = profilesMap[log.user_id] || {};
-            const isLogin = log.action === 'login';
-            return (
-              <Box key={log.id} sx={{ p: 1.5, bgcolor: '#FAFBFC', borderRadius: 2, border: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                    <Chip label={isLogin ? '로그인' : '로그아웃'} size="small" color={isLogin ? 'success' : 'default'} sx={{ height: 20, fontSize: '0.65rem' }} />
-                    <Typography variant="caption" sx={{ fontWeight: 800 }}>{profile.name || '알 수 없음'} ({profile.email || log.user_id})</Typography>
-                    <Chip label={log.role} size="small" variant="outlined" sx={{ height: 18, fontSize: '0.6rem' }} />
-                  </Box>
-                  <Typography variant="caption" color="text.secondary">IP: {log.ip_address}</Typography>
-                </Box>
-                <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                  {format(new Date(log.created_at), 'MM/dd HH:mm:ss')}
-                </Typography>
-              </Box>
-            );
-          })}
-        </Box>
-      )}
-    </Box>
-  );
-};
 
 
 // ═══════════════════════════════════════
@@ -417,13 +345,14 @@ const DashboardPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const [events, setEvents] = useState([]);
+  const [availableSocieties, setAvailableSocieties] = useState([]);
   const [productsMap, setProductsMap] = useState({});
   const [products, setProducts] = useState([]);
   
   // Hierarchy Filters State
   const [selectedYear, setSelectedYear] = useState('all');
   const [selectedSociety, setSelectedSociety] = useState('all');
-  const [selectedEventId, setSelectedEventId] = useState('all');
+  const [selectedEventIds, setSelectedEventIds] = useState([]);
 
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -452,12 +381,16 @@ const DashboardPage = () => {
           return all;
         };
 
-        const [eventsRes, allProds] = await Promise.all([
+        const [eventsRes, societiesRes, allProds] = await Promise.all([
           supabase.from('events').select('id, name, start_date, tags, event_year, host_society, event_season').order('start_date', { ascending: false }),
+          supabase.from('societies').select('id, name').order('name', { ascending: true }),
           fetchAllProducts(),
         ]);
         if (eventsRes.error) throw eventsRes.error;
         setEvents(eventsRes.data || []);
+        if (!societiesRes.error && societiesRes.data) {
+          setAvailableSocieties(societiesRes.data);
+        }
         
         setProducts(allProds);
         setProductsMap(allProds.reduce((acc, p) => { acc[p.id] = p; return acc; }, {}));
@@ -477,19 +410,8 @@ const DashboardPage = () => {
   }, [events]);
 
   const societies = useMemo(() => {
-    const sSet = new Set();
-    events.forEach(e => {
-      if (e.host_society) {
-        sSet.add(e.host_society);
-      } else if (e.tags) {
-        // Simple heuristic filtering for backward compatibility
-        e.tags.forEach(t => {
-          if (!['춘계', '추계', '연수강좌', '온라인', '오프라인'].includes(t)) sSet.add(t);
-        });
-      }
-    });
-    return Array.from(sSet).sort();
-  }, [events]);
+    return availableSocieties.map(s => s.name);
+  }, [availableSocieties]);
 
   const filteredEventsForDropdown = useMemo(() => {
     return events.filter(e => {
@@ -504,7 +426,7 @@ const DashboardPage = () => {
   }, [events, selectedYear, selectedSociety]);
 
   // Handle cascading dropdown resets
-  useEffect(() => { setSelectedEventId('all'); }, [selectedYear, selectedSociety]);
+  useEffect(() => { setSelectedEventIds([]); }, [selectedYear, selectedSociety]);
 
   // ─── Aggregate Data Fetching ───
   const fetchDataForEventIds = async (eventIds, targetEventName = '전체(합계)') => {
@@ -526,7 +448,7 @@ const DashboardPage = () => {
     
     // YoY Calculation for the previous year (same selected society, previous year)
     let yoyPct = null;
-    if (selectedYear !== 'all' && selectedEventId === 'all') {
+    if (selectedYear !== 'all' && selectedEventIds.length === 0) {
       const prevYearStr = (parseInt(selectedYear) - 1).toString();
       const prevYearEvents = events.filter(e => {
         const eYear = e.event_year ? e.event_year.toString() : (e.start_date ? new Date(e.start_date).getFullYear().toString() : null);
@@ -598,15 +520,17 @@ const DashboardPage = () => {
     if (Object.keys(productsMap).length === 0) return;
     setLoading(true);
     try {
-      if (selectedEventId === 'all') {
+      if (selectedEventIds.length === 0) {
+        // 선택 없음 = 필터 조건(연도+학회) 내 전체 합계
         const eventIds = filteredEventsForDropdown.map(e => e.id);
-        const nameLabel = selectedSociety !== 'all' 
-          ? `${selectedYear !== 'all' ? selectedYear + '년 ' : ''}${selectedSociety} 누적 합계` 
+        const nameLabel = selectedSociety !== 'all'
+          ? `${selectedYear !== 'all' ? selectedYear + '년 ' : ''}${selectedSociety} 누적 합계`
           : `${selectedYear !== 'all' ? selectedYear + '년 ' : '전체 기간 '}누적 합계`;
         await fetchDataForEventIds(eventIds, nameLabel);
       } else {
-        const evt = events.find(e => e.id === selectedEventId);
-        await fetchDataForEventIds([selectedEventId], evt ? evt.name : '개별 행사 보기');
+        const names = selectedEventIds.map(id => events.find(e => e.id === id)?.name).filter(Boolean);
+        const label = names.length === 1 ? names[0] : `${names.length}개 행사 합계`;
+        await fetchDataForEventIds(selectedEventIds, label);
       }
     } catch (e) {
       console.error(e);
@@ -615,7 +539,7 @@ const DashboardPage = () => {
     setLoading(false); setRefreshing(false);
   };
 
-  useEffect(() => { fetchData(); }, [selectedEventId, selectedYear, selectedSociety, productsMap]);
+  useEffect(() => { fetchData(); }, [selectedEventIds, selectedYear, selectedSociety, productsMap]);
 
   // ─── Handlers ───
   const handleRefresh = () => { setRefreshing(true); fetchData(); };
@@ -635,7 +559,7 @@ const DashboardPage = () => {
       {/* ─── Header & Hierarchy Filters ─── */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: 2, flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ReceiptIcon sx={{ color: 'primary.main', fontSize: '1.4rem' }} />
+          <DashboardIcon sx={{ color: 'primary.main', fontSize: '1.4rem' }} />
           <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>대시보드</Typography>
         </Box>
         <IconButton onClick={handleRefresh} disabled={refreshing || loading} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.08) }}>
@@ -662,9 +586,35 @@ const DashboardPage = () => {
             </FormControl>
             <FormControl fullWidth size="small">
               <InputLabel>상세 행사</InputLabel>
-              <Select value={selectedEventId} label="상세 행사" onChange={e => setSelectedEventId(e.target.value)}>
-                <MenuItem value="all"><em>{filteredEventsForDropdown.length > 0 ? '전체 내역 합산 (합계)' : '관련 행사 없음'}</em></MenuItem>
-                {filteredEventsForDropdown.map(ev => <MenuItem key={ev.id} value={ev.id}>{ev.name} ({ev.start_date ? new Date(ev.start_date).toLocaleDateString() : '일자 미상'})</MenuItem>)}
+              <Select
+                multiple
+                value={selectedEventIds}
+                label="상세 행사"
+                input={<OutlinedInput label="상세 행사" />}
+                onChange={e => setSelectedEventIds(e.target.value)}
+                renderValue={(selected) =>
+                  selected.length === 0
+                    ? (filteredEventsForDropdown.length > 0 ? '전체 합산' : '관련 행사 없음')
+                    : selected.length === 1
+                    ? filteredEventsForDropdown.find(ev => ev.id === selected[0])?.name || ''
+                    : `${selected.length}개 선택`
+                }
+              >
+                {filteredEventsForDropdown.length === 0 ? (
+                  <MenuItem disabled><em>관련 행사 없음</em></MenuItem>
+                ) : (
+                  filteredEventsForDropdown.map(ev => (
+                    <MenuItem key={ev.id} value={ev.id}>
+                      <Checkbox checked={selectedEventIds.includes(ev.id)} size="small" />
+                      <ListItemText
+                        primary={ev.name}
+                        secondary={ev.start_date ? new Date(ev.start_date).toLocaleDateString() : '일자 미상'}
+                        primaryTypographyProps={{ variant: 'body2' }}
+                        secondaryTypographyProps={{ variant: 'caption' }}
+                      />
+                    </MenuItem>
+                  ))
+                )}
               </Select>
             </FormControl>
           </Box>
@@ -751,7 +701,7 @@ const DashboardPage = () => {
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Card sx={{ borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
                 <CardContent>
-                  <FieldReportSection eventId={selectedEventId} eventName={dashboardData.eventName} revenueData={dashboardData} />
+                  <FieldReportSection eventId={selectedEventIds.length === 1 ? selectedEventIds[0] : null} eventName={dashboardData.eventName} revenueData={dashboardData} />
                 </CardContent>
               </Card>
             </Box>
@@ -782,11 +732,6 @@ const DashboardPage = () => {
             </Box>
           </Box>
 
-          {hasPermission('master') && (
-            <Card sx={{ borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
-              <CardContent><AuditLogSection /></CardContent>
-            </Card>
-          )}
         </Box>
       )}
 

@@ -1,11 +1,5 @@
 {
-  "functions": {
-    "api/send-alimtalk.js": {
-      "regions": ["icn1"]
-    }
-  },
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
