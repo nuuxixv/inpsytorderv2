@@ -12,7 +12,6 @@ serve(async (req) => {
   // 실제 요청 본문 파싱
   const {
     customer_name,
-    email,
     phone_number,
     shipping_address,
     inpsyt_id,
@@ -89,7 +88,6 @@ serve(async (req) => {
       .from('orders')
       .insert({
         customer_name,
-        email,
         phone_number,
         shipping_address,
         inpsyt_id,

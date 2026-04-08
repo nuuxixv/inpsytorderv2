@@ -81,7 +81,6 @@ const initialState = {
   newOrder: {
     isOnSiteSale: false,
     customerName: '',
-    customerEmail: '',
     contact: '',
     address: '',
     selectedEvent: '',
@@ -141,7 +140,6 @@ function reducer(state, action) {
                 ...state.newOrder,
                 isOnSiteSale: isOnSite,
                 customerName: isOnSite ? `현장판매_${Date.now()}` : '',
-                customerEmail: '',
                 contact: '',
                 address: '',
             }
@@ -290,11 +288,11 @@ const OrderManagementPage = () => {
   }, [state.newOrder.items, state.newOrder.selectedEvent, state.events, state.products, state.settings]);
 
   const handleSaveNewOrder = async () => {
-    const { isOnSiteSale, customerName, customerEmail, selectedEvent, items } = state.newOrder;
+    const { isOnSiteSale, customerName, selectedEvent, items } = state.newOrder;
     const { finalPayment, totalAmount, discountAmount, shippingCost } = state.newOrderCalculations;
 
-    if (!isOnSiteSale && (!customerName || !customerEmail)) {
-      addNotification('일반 주문은 고객명과 이메일을 모두 입력해야 합니다.', 'warning');
+    if (!isOnSiteSale && !customerName) {
+      addNotification('고객명을 입력해야 합니다.', 'warning');
       return;
     }
     if (!selectedEvent) {
@@ -406,7 +404,6 @@ const OrderManagementPage = () => {
              '주문일시': format(new Date(order.created_at), 'yyyy-MM-dd HH:mm'),
              '주문번호': order.id,
              '고객명': order.customer_name,
-             '이메일': order.email,
              '연락처': order.phone_number,
              '배송 주소': `${order.shipping_address?.postcode || ''} ${order.shipping_address?.address || ''} ${order.shipping_address?.detail || ''}`.trim(),
              '고객 요청사항': order.customer_request || '-',
@@ -506,7 +503,7 @@ const OrderManagementPage = () => {
         </Select>
       </FormControl>
       <TextField
-        label="고객 이름/이메일 검색"
+        label="고객 이름 검색"
         variant="outlined"
         size="small"
         sx={{ flex: 1, minWidth: 180 }}
@@ -694,7 +691,6 @@ const OrderManagementPage = () => {
                   )}
                   <TableCell>주문번호</TableCell>
                   <TableCell>고객명</TableCell>
-                  <TableCell>이메일</TableCell>
                   <TableCell>학회명</TableCell>
                   <TableCell>총 금액</TableCell>
                   <TableCell>주문일시</TableCell>
@@ -747,7 +743,6 @@ const OrderManagementPage = () => {
                         )}
                         <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{formatOrderId(order)}</TableCell>
                         <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{order.customer_name}</TableCell>
-                        <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{order.email}</TableCell>
                         <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{state.events.find(e => e.id === order.event_id)?.name || 'N/A'}</TableCell>
                         <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{(order.final_payment || 0).toLocaleString()}원</TableCell>
                         <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{format(new Date(order.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
@@ -794,7 +789,6 @@ const OrderManagementPage = () => {
             label="현장판매"
           />
           <TextField margin="dense" label="고객명" fullWidth variant="standard" value={state.newOrder.customerName} onChange={(e) => dispatch({ type: 'UPDATE_NEW_ORDER_FIELD', payload: { key: 'customerName', value: e.target.value } })} disabled={state.newOrder.isOnSiteSale} required={!state.newOrder.isOnSiteSale} />
-          <TextField margin="dense" label="이메일" type="email" fullWidth variant="standard" value={state.newOrder.customerEmail} onChange={(e) => dispatch({ type: 'UPDATE_NEW_ORDER_FIELD', payload: { key: 'customerEmail', value: e.target.value } })} disabled={state.newOrder.isOnSiteSale} required={!state.newOrder.isOnSiteSale} />
           <TextField margin="dense" label="연락처" fullWidth variant="standard" value={state.newOrder.contact} onChange={(e) => dispatch({ type: 'UPDATE_NEW_ORDER_FIELD', payload: { key: 'contact', value: e.target.value } })} disabled={state.newOrder.isOnSiteSale} />
           <TextField margin="dense" label="주소" fullWidth variant="standard" value={state.newOrder.address} onChange={(e) => dispatch({ type: 'UPDATE_NEW_ORDER_FIELD', payload: { key: 'address', value: e.target.value } })} disabled={state.newOrder.isOnSiteSale} />
           

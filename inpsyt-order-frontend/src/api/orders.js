@@ -34,7 +34,7 @@ export const getOrders = async (options) => {
     .order('created_at', { ascending: false });
 
   if (searchTerm) {
-    query = query.or(`customer_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
+    query = query.ilike('customer_name', `%${searchTerm}%`);
   }
   if (selectedStatus) {
     query = query.eq('status', selectedStatus);

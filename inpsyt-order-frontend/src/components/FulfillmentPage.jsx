@@ -190,10 +190,6 @@ const OrderDetail = ({ order, viewMode, onShip, canShip }) => {
               </Box>
             </Box>
             <Box>
-              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>이메일</Typography>
-              <Typography sx={{ fontWeight: 500, fontSize: '0.8125rem' }}>{order.email || '-'}</Typography>
-            </Box>
-            <Box>
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>배송지</Typography>
               <Typography sx={{ fontWeight: 500, fontSize: '0.8125rem' }}>{addressText}</Typography>
             </Box>

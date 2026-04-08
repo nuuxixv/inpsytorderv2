@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../supabaseClient';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -24,6 +24,7 @@ import CartBottomSheet from './CartBottomSheet';
 
 const OrderPage = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const eventSlug = searchParams.get('events');
 
   // Step state
@@ -186,7 +187,12 @@ const OrderPage = () => {
       if (invokeError) throw invokeError;
       if (data.error) throw new Error(data.error);
 
-      setShowSuccessDialog(true);
+      const token = data.order?.access_token;
+      if (token) {
+        navigate(`/order/status/${token}`);
+      } else {
+        setShowSuccessDialog(true);
+      }
     } catch (error) {
       setError(`주문 처리 중 오류가 발생했습니다: ${error.message}`);
     } finally {
@@ -196,7 +202,6 @@ const OrderPage = () => {
 
   const handleCloseSuccessDialog = () => {
     setShowSuccessDialog(false);
-    setSubmittedOrderId(null);
     setCustomerInfo({
       name: '', phone: '', postcode: '',
       address: '', detailAddress: '', inpsytId: '', request: '',
@@ -204,6 +209,7 @@ const OrderPage = () => {
     setCart([]);
     setActiveStep(0);
   };
+
 
   // Loading state
   if (loading) {
@@ -236,7 +242,7 @@ const OrderPage = () => {
         showLookup: false,
       },
     };
-    const { emoji, title, desc, showLookup } = messages[accessError] || messages.not_found;
+    const { emoji, title, desc } = messages[accessError] || messages.not_found;
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100dvh', p: 4, textAlign: 'center', gap: 2 }}>
         <Typography sx={{ fontSize: '4rem' }}>{emoji}</Typography>
