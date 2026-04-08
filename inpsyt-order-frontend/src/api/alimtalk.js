@@ -20,7 +20,12 @@ export const sendAlimtalk = async (orderId) => {
       body: JSON.stringify({ order_id: orderId }),
     });
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      return { success: false, error: `서버 응답 파싱 오류 (HTTP ${response.status})` };
+    }
 
     if (!response.ok) {
       return { success: false, error: data?.error ?? `HTTP ${response.status}` };
