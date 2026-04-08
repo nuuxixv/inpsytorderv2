@@ -73,13 +73,6 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     setLoading(true);
-    try {
-      if (user) {
-        await supabase.functions.invoke('log-auth', { body: { action: 'logout' } });
-      }
-    } catch (e) {
-      console.error('Failed to log logout action:', e);
-    }
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error("Error logging out:", error.message);

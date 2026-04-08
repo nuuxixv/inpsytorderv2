@@ -62,14 +62,6 @@ const LoginPage = () => {
 
       if (signInError) throw signInError;
 
-      // Log the auth action using edge function
-      await supabase.functions.invoke('log-auth', {
-        body: { action: 'login' },
-        headers: {
-          Authorization: `Bearer ${data.session.access_token}`
-        }
-      });
-
       navigate('/admin');
     } catch (error) {
       if (error.message.includes('Invalid login credentials')) {

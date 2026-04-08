@@ -84,12 +84,11 @@ serve(async (req) => {
     formData.append('MSG', msg)
     formData.append('SENDER_KEY', SENDER_KEY)
     formData.append('TEMPLATE_CODE', TEMPLATE_CODE)
-    formData.append('BTN_TYPES', 'WL')           // 웹링크 버튼
+    formData.append('BTN_TYPES', '웹링크')
     formData.append('BTN_TXTS', '주문내역 확인하기')
-    formData.append('BTN_URLS1', statusUrl)       // 모바일
-    formData.append('BTN_URLS2', statusUrl)       // PC
-    // 카카오 미사용자 SMS 대체 발송
-    formData.append('FAILED_TYPE', 'SMS')
+    formData.append('BTN_URLS1', statusUrl)
+    formData.append('BTN_URLS2', statusUrl)
+    formData.append('FAILED_TYPE', 'LMS')
     formData.append('FAILED_MSG', `[인싸이트] ${customerName}님, ${eventName} 결제가 완료되었습니다. 주문 조회: ${statusUrl}`)
 
     const apiResponse = await fetch(ENDPOINT, {
