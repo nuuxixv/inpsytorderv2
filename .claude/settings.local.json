@@ -39,7 +39,11 @@
       "Bash([ -f inpsyt-order-frontend/package.json ])",
       "Bash(~/.claude/skills/gstack/bin/gstack-learnings-search --limit 10)",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('scripts:', list\\(d.get\\('scripts',{}\\).keys\\(\\)\\)\\); print\\('devDeps:', list\\(d.get\\('devDependencies',{}\\).keys\\(\\)\\)\\)\")",
-      "Bash(./setup)"
+      "Bash(./setup)",
+      "mcp__claude_ai_Supabase__get_logs",
+      "mcp__claude_ai_Supabase__get_edge_function",
+      "mcp__claude_ai_Supabase__list_edge_functions",
+      "mcp__claude_ai_Supabase__deploy_edge_function"
     ]
   }
 }
