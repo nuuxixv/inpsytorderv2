@@ -12,7 +12,16 @@ export const sendAlimtalk = async (orderId) => {
       body: { order_id: orderId },
     });
 
-    if (error) return { success: false, error: error.message };
+    if (error) {
+      // FunctionsHttpError일 때 실제 응답 바디를 추출
+      let detail = error.message;
+      try {
+        const body = await error.context?.json?.();
+        if (body?.error) detail = body.error;
+      } catch {}
+      console.error('[알림톡] invoke error:', detail, error);
+      return { success: false, error: detail };
+    }
     if (data?.skipped) return { success: true, skipped: true };
     if (!data?.success) return { success: false, error: data?.error ?? '알 수 없는 오류' };
 
