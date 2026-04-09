@@ -38,6 +38,7 @@ import {
   CalendarToday as CalendarTodayIcon,
   ContentCopy as CopyIcon,
   Settings as SettingsIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
@@ -59,6 +60,7 @@ const EventManagementPage = () => {
   const { addNotification } = useNotification();
   const [loading, setLoading] = useState(false);
   const [eventFilter, setEventFilter] = useState('all'); // 'all' | 'active' | 'upcoming' | 'ended'
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
@@ -211,6 +213,35 @@ const EventManagementPage = () => {
       addNotification('성공적으로 저장되었습니다.', 'success');
       fetchEvents();
       handleClose();
+    }
+  };
+
+  const handleDeleteClick = async () => {
+    if (!currentEvent?.id) return;
+    const { count, error } = await supabase
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', currentEvent.id);
+    if (error) {
+      addNotification(`확인 실패: ${error.message}`, 'error');
+      return;
+    }
+    if (count > 0) {
+      addNotification(`이 행사에 연결된 주문 ${count}건이 있어 삭제할 수 없습니다.`, 'warning');
+      return;
+    }
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    const { error } = await supabase.from('events').delete().eq('id', currentEvent.id);
+    if (error) {
+      addNotification(`삭제 실패: ${error.message}`, 'error');
+    } else {
+      addNotification('행사가 삭제되었습니다.', 'success');
+      setDeleteConfirmOpen(false);
+      handleClose();
+      fetchEvents();
     }
   };
 
@@ -631,12 +662,41 @@ const EventManagementPage = () => {
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
+          {isEditing && hasPermission('master') && (
+            <Button
+              onClick={handleDeleteClick}
+              color="error"
+              startIcon={<DeleteIcon />}
+              sx={{ mr: 'auto' }}
+            >
+              삭제
+            </Button>
+          )}
           <Button onClick={handleClose}>취소</Button>
           {hasPermission('events:edit') && (
             <Button onClick={handleSave} variant="contained">
               저장
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirm Dialog */}
+      <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>행사 삭제</DialogTitle>
+        <DialogContent>
+          <Typography>
+            <strong>{currentEvent?.name}</strong> 행사를 삭제합니다.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            이 작업은 되돌릴 수 없습니다.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setDeleteConfirmOpen(false)}>취소</Button>
+          <Button onClick={handleDeleteConfirm} variant="contained" color="error">
+            삭제
+          </Button>
         </DialogActions>
       </Dialog>
 
