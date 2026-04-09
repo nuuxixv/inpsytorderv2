@@ -62,8 +62,8 @@ const FloatingBottomBar = ({
       sx={{
         position: 'fixed',
         bottom: 0,
-        left: 0,
-        right: 0,
+        left: 'max(0px, calc((100vw - 600px) / 2))',
+        right: 'max(0px, calc((100vw - 600px) / 2))',
         zIndex: 1200,
         bgcolor: 'background.paper',
         borderTop: '1px solid',

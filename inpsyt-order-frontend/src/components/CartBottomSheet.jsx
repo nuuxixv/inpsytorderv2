@@ -58,6 +58,8 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
           borderRadius: '16px 16px 0 0',
           maxHeight: '75vh',
           pb: 'env(safe-area-inset-bottom)',
+          left: 'max(0px, calc((100vw - 600px) / 2))',
+          right: 'max(0px, calc((100vw - 600px) / 2))',
         },
       }}
     >

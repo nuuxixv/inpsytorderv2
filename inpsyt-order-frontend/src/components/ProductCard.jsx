@@ -21,6 +21,7 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
         '&:active': !isInCart ? { transform: 'scale(0.97)' } : {},
         overflow: 'visible',
         height: '100%',
+        width: '100%',
       }}
       onClick={!isInCart ? onAdd : undefined}
     >
@@ -37,6 +38,21 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
                 fontWeight: 700,
                 borderRadius: '6px',
                 bgcolor: product.category === '검사' ? 'info.main' : 'grey.400',
+                color: '#fff',
+                '& .MuiChip-label': { px: 0.75 },
+              }}
+            />
+          )}
+          {product.is_popular && (
+            <Chip
+              label="★"
+              size="small"
+              sx={{
+                height: 18,
+                fontSize: '0.625rem',
+                fontWeight: 800,
+                borderRadius: '6px',
+                bgcolor: '#f39c12',
                 color: '#fff',
                 '& .MuiChip-label': { px: 0.75 },
               }}

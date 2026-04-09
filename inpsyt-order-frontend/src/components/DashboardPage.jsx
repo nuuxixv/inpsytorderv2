@@ -496,7 +496,7 @@ const DashboardPage = () => {
         const cat = (prod.category || '').toLowerCase();
 
         if (cat.includes('도서') || cat.includes('book')) bookRevenue += price * qty;
-        else if (cat.includes('검사') || cat.includes('test')) testRevenue += price * qty;
+        else if (cat.includes('검사') || cat.includes('test') || cat.includes('도구') || cat.includes('tool')) testRevenue += price * qty;
 
         if (!productSales[item.product_id]) productSales[item.product_id] = { product_id: item.product_id, name: prod.name, category: prod.category, totalQuantity: 0, totalAmount: 0 };
         productSales[item.product_id].totalQuantity += qty;
@@ -507,7 +507,7 @@ const DashboardPage = () => {
 
     const salesList = Object.values(productSales);
     const bookTop5 = salesList.filter(p => (p.category || '').includes('도서') || (p.category || '').toLowerCase().includes('book')).sort((a, b) => b.totalQuantity - a.totalQuantity);
-    const testTop5 = salesList.filter(p => (p.category || '').includes('검사') || (p.category || '').toLowerCase().includes('test')).sort((a, b) => b.totalQuantity - a.totalQuantity);
+    const testTop5 = salesList.filter(p => (p.category || '').includes('검사') || (p.category || '').toLowerCase().includes('test') || (p.category || '').includes('도구') || (p.category || '').toLowerCase().includes('tool')).sort((a, b) => b.totalQuantity - a.totalQuantity);
 
     setDashboardData({
       eventName: targetEventName, totalRevenue, bookRevenue, testRevenue, shippingRevenue, yoyPct,
