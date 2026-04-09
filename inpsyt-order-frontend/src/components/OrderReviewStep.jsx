@@ -128,7 +128,7 @@ const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoT
       {!isOnsitePurchase && estimatedDeliveryDate && (
         <Box sx={{ mt: 2, bgcolor: 'rgba(43, 57, 143, 0.06)', border: '1px solid rgba(43, 57, 143, 0.18)', borderRadius: '12px', p: 2, textAlign: 'center' }}>
           <Typography variant="body2" sx={{ color: 'primary.main', fontWeight: 600 }}>
-            🚚 지금 주문하면 {format(new Date(estimatedDeliveryDate), 'M월 d일 (E)', { locale: ko })}까지 90% 도착
+            🚚 지금 주문하면 {format(new Date(estimatedDeliveryDate), 'M월 d일 (E)', { locale: ko })} 도착 예정!
           </Typography>
         </Box>
       )}

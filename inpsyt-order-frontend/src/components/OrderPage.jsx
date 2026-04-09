@@ -287,7 +287,7 @@ const OrderPage = () => {
           sx={{ userSelect: 'none' }}
         >
           <Typography variant="subtitle2" sx={{ color: isOnsitePurchase ? 'warning.main' : 'primary.main', fontWeight: 800, letterSpacing: 1 }}>
-            인싸이트 / 학지사{isOnsitePurchase ? ' · 현장구매' : ''}
+            인싸이트 · 학지사 상품 주문하기{isOnsitePurchase ? ' · 현장구매' : ''}
           </Typography>
         </Box>
         <Box sx={{ flex: 1 }} />
