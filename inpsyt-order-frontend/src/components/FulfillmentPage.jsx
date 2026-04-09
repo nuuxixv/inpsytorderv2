@@ -74,22 +74,24 @@ const statusLabel = {
 };
 
 // 클립보드 복사 훅
-const useCopyToClipboard = (addNotification) => {
-  return useCallback((text) => {
-    if (!text || text === '-') return;
-    navigator.clipboard.writeText(text).then(() => {
-      addNotification('복사됐어요', 'info');
-    });
-  }, [addNotification]);
-};
+const useCopyToClipboard = (addNotification) => useCallback(async (text, successMessage = '복사되었습니다.') => {
+  if (!text || text === '-') return;
+
+  try {
+    await navigator.clipboard.writeText(text);
+    addNotification(successMessage, 'info');
+  } catch {
+    addNotification('복사에 실패했습니다.', 'error');
+  }
+}, [addNotification]);
 
 // 복사 가능한 텍스트 컴포넌트
-const CopyableText = ({ value, sx = {} }) => {
+const CopyableText = ({ value, sx = {}, onCopy, tooltip = '클릭하여 복사' }) => {
   if (!value || value === '-') {
     return <Typography sx={{ fontSize: '0.8125rem', color: 'text.disabled', ...sx }}>-</Typography>;
   }
   return (
-    <Tooltip title="클릭하여 복사" placement="top" arrow>
+    <Tooltip title={tooltip} placement="top" arrow>
       <Typography
         sx={{
           fontSize: '0.8125rem',
@@ -105,7 +107,9 @@ const CopyableText = ({ value, sx = {} }) => {
           '&:active': { bgcolor: 'action.selected' },
           ...sx,
         }}
-        onClick={() => navigator.clipboard.writeText(value).then(() => {})}
+        onClick={() => {
+          if (onCopy) onCopy(value);
+        }}
         data-copy={value}
       >
         {value}
@@ -223,19 +227,17 @@ const OrderDetail = ({ order, viewMode, onShip, canShip, addNotification }) => {
   }
 
   const address = order.shipping_address;
+  const roadAddress = address
+    ? address.address || address.roadAddress || address.jibunAddress || '-'
+    : '-';
+  const detailAddress = address
+    ? address.detailAddress || address.detail || '-'
+    : '-';
   const addressParts = address
     ? [
         address.postcode ? `[${address.postcode}]` : '',
-        address.address || address.roadAddress || address.jibunAddress || '',
-        address.detailAddress || address.detail || '',
-      ].filter(Boolean).join(' ') || '-'
-    : '-';
-
-  // 복사용 주소 (우편번호 제외)
-  const addressForCopy = address
-    ? [
-        address.address || address.roadAddress || address.jibunAddress || '',
-        address.detailAddress || address.detail || '',
+        roadAddress !== '-' ? roadAddress : '',
+        detailAddress !== '-' ? detailAddress : '',
       ].filter(Boolean).join(' ') || '-'
     : '-';
 
@@ -286,15 +288,43 @@ const OrderDetail = ({ order, viewMode, onShip, canShip, addNotification }) => {
             </Box>
             <Box>
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>배송지</Typography>
-              <CopyableText value={addressParts !== '-' ? addressParts : '-'} sx={{ fontWeight: 500 }} />
+              {addressParts === '-' ? (
+                <Typography sx={{ fontSize: '0.8125rem', color: 'text.disabled' }}>-</Typography>
+              ) : (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    우편번호는 제외됩니다.
+                  </Typography>
+                  <CopyableText
+                    value={roadAddress}
+                    sx={{ fontWeight: 500 }}
+                    tooltip="도로명주소만 복사"
+                    onCopy={(value) => copyToClipboard(value, '도로명주소를 복사했습니다.')}
+                  />
+                  <CopyableText
+                    value={detailAddress}
+                    sx={{ fontWeight: 500 }}
+                    tooltip="상세주소만 복사"
+                    onCopy={(value) => copyToClipboard(value, '상세주소를 복사했습니다.')}
+                  />
+                </Box>
+              )}
             </Box>
             <Box>
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>요청사항</Typography>
-              <CopyableText value={order.customer_request || '-'} sx={{ color: order.customer_request ? 'text.primary' : 'text.disabled' }} />
+              <CopyableText
+                value={order.customer_request || '-'}
+                sx={{ color: order.customer_request ? 'text.primary' : 'text.disabled' }}
+                onCopy={(value) => copyToClipboard(value, '요청사항을 복사했습니다.')}
+              />
             </Box>
             <Box>
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>관리자 메모</Typography>
-              <CopyableText value={order.admin_memo || '-'} sx={{ color: order.admin_memo ? 'text.primary' : 'text.disabled' }} />
+              <CopyableText
+                value={order.admin_memo || '-'}
+                sx={{ color: order.admin_memo ? 'text.primary' : 'text.disabled' }}
+                onCopy={(value) => copyToClipboard(value, '관리자 메모를 복사했습니다.')}
+              />
             </Box>
           </Box>
         </CardContent>
