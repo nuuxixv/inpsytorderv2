@@ -23,7 +23,7 @@ import { supabase } from '../supabaseClient';
 import EmptyState from './EmptyState';
 import TableSkeleton from './TableSkeleton';
 
-const categories = ['도서', '검사', '기구'];
+const categories = ['도서', '검사', '도구'];
 const DELETE_ALL_CONFIRM_TEXT = '삭제합니다';
 
 const createEmptyProduct = () => ({
@@ -47,6 +47,25 @@ const parseBool = (value) => {
     return ['TRUE', 'Y', 'YES', '1'].includes(normalized);
   }
   return false;
+};
+
+const getRowValue = (row, keys) => {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+      return row[key];
+    }
+  }
+  return undefined;
+};
+
+const parsePrice = (value) => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const normalized = value.replace(/[^\d.-]/g, '');
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
 };
 
 const TriStateToggle = ({ label, value, onChange }) => (
@@ -316,17 +335,17 @@ const ProductManagementPage = () => {
       const rows = XLSX.utils.sheet_to_json(worksheet);
 
       const productsToUpload = rows.map((row) => ({
-        name: row['상품명'],
-        product_code: row['상품코드'],
-        category: row['카테고리'],
-        sub_category: row['하위카테고리'] || null,
-        list_price: parseFloat(row['가격']) || 0,
-        notes: row['비고'] || null,
-        is_discountable: parseBool(row['할인여부']),
-        is_popular: parseBool(row['인기상품']),
-        is_new: parseBool(row['신상품여부']),
-        tags: row['태그']
-          ? String(row['태그']).split(',').map((tag) => tag.trim()).filter(Boolean)
+        name: getRowValue(row, ['상품명', 'name']),
+        product_code: getRowValue(row, ['상품코드', 'product_code']),
+        category: getRowValue(row, ['카테고리', 'category']),
+        sub_category: getRowValue(row, ['하위카테고리', 'sub_category']) || null,
+        list_price: parsePrice(getRowValue(row, ['가격', '정가', 'list_price'])),
+        notes: getRowValue(row, ['비고', 'notes']) || null,
+        is_discountable: parseBool(getRowValue(row, ['할인여부', 'is_discountable'])),
+        is_popular: parseBool(getRowValue(row, ['인기상품', 'is_popular'])),
+        is_new: parseBool(getRowValue(row, ['신상품여부', 'is_new'])),
+        tags: getRowValue(row, ['태그', 'tags'])
+          ? String(getRowValue(row, ['태그', 'tags'])).split(',').map((tag) => tag.trim()).filter(Boolean)
           : [],
       }));
 
