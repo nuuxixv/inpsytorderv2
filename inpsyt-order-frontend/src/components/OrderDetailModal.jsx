@@ -39,6 +39,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import CloseIcon from '@mui/icons-material/Close';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { supabase } from '../supabaseClient';
 import { linkOrders, searchOrdersForLinking } from '../api/orders';
 import { sendAlimtalk } from '../api/alimtalk';
@@ -72,6 +73,8 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
   const [linkSearchResults, setLinkSearchResults] = useState([]);
   const [linkSearchLoading, setLinkSearchLoading] = useState(false);
   const [linkLoading, setLinkLoading] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Settings state
   const [settings, setSettings] = useState({
@@ -259,6 +262,24 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
     }
   };
 
+  const handleDeleteConfirm = async () => {
+    setDeleting(true);
+    try {
+      const { error: itemsError } = await supabase.from('order_items').delete().eq('order_id', order.id);
+      if (itemsError) throw itemsError;
+      const { error: orderError } = await supabase.from('orders').delete().eq('id', order.id);
+      if (orderError) throw orderError;
+      addNotification('주문이 삭제되었습니다.', 'success');
+      setDeleteConfirmOpen(false);
+      onUpdate();
+      onClose();
+    } catch (err) {
+      addNotification(`삭제 실패: ${err.message}`, 'error');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleLinkSearch = async () => {
     if (!linkSearchTerm.trim()) return;
     setLinkSearchLoading(true);
@@ -343,6 +364,11 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
             </Button>
           )}
           {hasPermission('orders:edit') && (isEditing ? (<Button variant="contained" onClick={handleSaveAll} sx={{ borderRadius: '8px' }}>저장</Button>) : (<Button variant="outlined" onClick={() => setIsEditing(true)} sx={{ borderRadius: '8px' }}>편집</Button>))}
+          {hasPermission('master') && !isEditing && (
+            <IconButton size="small" onClick={() => setDeleteConfirmOpen(true)} sx={{ color: 'error.main' }}>
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          )}
           <IconButton aria-label="close" onClick={onClose} sx={{ color: (theme) => theme.palette.grey[500] }}><CloseIcon /></IconButton>
         </Box>
       </Box>
@@ -464,6 +490,26 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
         </DialogContent>
         <DialogActions>
           <Button onClick={() => { setLinkDialogOpen(false); setLinkSearchResults([]); setLinkSearchTerm(''); }} sx={{ borderRadius: '8px' }}>취소</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirm Dialog */}
+      <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>주문 삭제</DialogTitle>
+        <DialogContent>
+          <Typography>
+            주문 <strong>#{order?.id}</strong> ({order?.customer_name})을 삭제합니다.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            이 작업은 되돌릴 수 없습니다.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setDeleteConfirmOpen(false)} disabled={deleting}>취소</Button>
+          <Button onClick={handleDeleteConfirm} variant="contained" color="error" disabled={deleting}
+            startIcon={deleting ? <CircularProgress size={14} /> : null}>
+            삭제
+          </Button>
         </DialogActions>
       </Dialog>
     </>
