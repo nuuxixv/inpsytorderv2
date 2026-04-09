@@ -286,12 +286,7 @@ const OrderDetail = ({ order, viewMode, onShip, canShip, addNotification }) => {
             </Box>
             <Box>
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>배송지</Typography>
-              <CopyableText value={addressForCopy !== '-' ? addressForCopy : '-'} sx={{ fontWeight: 500 }} />
-              {addressParts !== '-' && address?.postcode && (
-                <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }}>
-                  {addressParts}
-                </Typography>
-              )}
+              <CopyableText value={addressParts !== '-' ? addressParts : '-'} sx={{ fontWeight: 500 }} />
             </Box>
             <Box>
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>요청사항</Typography>
