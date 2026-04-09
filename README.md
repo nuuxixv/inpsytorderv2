@@ -1,81 +1,164 @@
-# Inpsyt Order V3
+# Inpsyt Order V2
 
-이 프로젝트는 기관 및 B2B 고객을 위한 심리검사/교구 모바일 주문 시스템(V2/V3)입니다.
-기존 서면 수기 주문과 복잡했던 파편화된 주문 과정을 디지털화하고, 관리자 어드민 및 데이터베이스 연동을 통해 현장 오퍼레이션을 혁신하기 위해 구축되었습니다.
+Inpsyt Order V2는 학회 현장 주문 운영을 위한 고객용 주문 화면과 관리자 어드민을 함께 제공하는 서비스입니다.  
+이 문서는 외부 공개용 README로, 프로젝트의 구조와 실행 방법을 빠르게 이해할 수 있도록 정리한 안내서입니다.
 
-## 🗺️ 서비스 컨텍스트 (AI 작업 시 반드시 참고)
+## 프로젝트 개요
 
-> 이 섹션은 AI 에이전트가 기능 제안이나 개발 방향을 판단할 때 반드시 참고해야 하는 비즈니스 맥락입니다.
+이 저장소는 다음 요소로 구성됩니다.
 
-### 사용 규모
-- **운영 일수:** 연 8일 (학회 개최 기간에만 운영)
-- **최대 주문량:** 하루 100건 × 8일 = **연 800건**
-- **사용자:** 의료 학회(병원, 대학병원 등) 참석 의사/연구자
-  - 구매력 주의: 병원 연구비가 아닌 **개인 비용**으로 구매하는 경우가 대부분 → 고가 상품 주저, 할인 민감
+- 고객 주문용 프론트엔드
+- 관리자 운영용 어드민
+- Supabase 기반 백엔드, 데이터베이스, 인증, 권한 제어
+- Edge Function, 마이그레이션, 유지보수 문서
 
-### 운영 방식
-- **현장 결제:** 고객이 모바일 주문서 작성 → 부스 담당자에게 카드 건넴 → 카드 단말기로 결제
-- **배송 방식:** 주문 접수 후 학회 종료 뒤 일괄 발송 (인싸이트/학지사 자체 처리)
-- **출고 알림 없음:** 고객에게 배송 추적 정보나 출고 안내를 별도로 제공하지 않음
-  - 비유: 여행지에서 맛있는 디저트를 발견해 부모님께 보내드릴 때, 결제하고 영수증만 받을 뿐 운송장 번호를 따로 받지 않는 것과 같음
-- **재주문 고객 극소수:** 같은 고객이 여러 학회에서 반복 구매하는 경우는 드뭄
+이 서비스는 일반적인 범용 커머스 플랫폼보다는, 짧은 기간의 행사/학회 운영에 맞춘 주문 시스템에 가깝습니다.
 
-### 개발 판단 기준
-- 연 800건 규모이므로 복잡한 인프라 오버엔지니어링 불필요
-- 고객 개인정보 자동저장·자동완성 기능은 개인정보 이슈로 신중하게 접근
-- 알림/이메일 기능은 "출고 안내"보다 **"접수 확인"** 용도만 필요
-- 현장 담당자는 갤럭시 탭/아이패드 보유 → 별도 모바일 전용 어드민 뷰 불필요
+## 주요 기능
 
----
+### 고객 화면
 
-## 📌 프로젝트 개요
+- 학회 행사별 주문 페이지 진입
+- 상품 검색 / 필터 / 장바구니
+- 고객 정보 입력 및 주문 접수
+- 토큰 기반 주문 조회 페이지 (알림톡 발송)
 
-*   **목적**: 오프라인 학회, 행사 및 기관 주문의 모바일/웹 디지털 전환
-*   **주요 기능**:
-    *   사용자(회원) 로그인 및 권한별(master, edit, view 등) RBAC 분기
-    *   동적 배송비 및 관리자 설정 (`site_settings`) 실시간 연동
-    *   상품(Products), 행사(Events), 주문(Orders) 관리 및 무한 스크롤 탐색
-    *   모바일 환경에 최적화된 라운지 UX (장바구니 뷰, 다단계 주문 플로우)
-    *   Supabase Edge Functions 기반의 안전한 DB 및 권한 조작
+### 관리자 어드민
 
-## 🛠️ 기술 스택 (Tech Stack)
+- 주문 조회, 수정, 상태 변경
+- 상품 관리
+- 학회 행사 관리
+- 관리자 초대 및 권한 관리
+- 배송비 / 무료배송 기준 등 운영 정책 관리
 
-### Frontend
-*   **프레임워크**: React (Vite)
-*   **패키지 매니저**: npm
-*   **주요 라이브러리**: `@supabase/supabase-js`, `lucide-react` (아이콘)
+### 백엔드 기능
 
-### Backend & Database
-*   **BaaS**: Supabase
-*   **데이터베이스**: PostgreSQL
-*   **보안**: Row Level Security (RLS) 및 커스텀 RBAC(Role-Based Access Control) 정책
-*   **기타**: Supabase Edge Functions (Deno/TypeScript)
+- Supabase Auth 기반 로그인
+- RLS 및 RBAC 기반 권한 제어
+- 주문 생성 / 사용자 관리 / 알림톡 / 상품 업로드용 Edge Function
 
-## 📁 폴더 및 문서 구조
+## 기술 스택
 
-루트 디렉토리에 산재해 있던 관련 마크다운 파일들은 문맥 유지를 위해 `DOCS/` 로 아카이브되었습니다.
-상세한 코드 로직 파악이나 과거 개발 이력은 아래 문서를 참고하세요.
+### 프론트엔드
 
-*   `DOCS/CODE_MANUAL.md`: 각 컴포넌트, API 함수, Edge Function 라인 바이 라인 매뉴얼 (기획자/CTO 인수인계용)
-*   `DOCS/ROADMAP.md`: V3 고도화 및 어드민 개선을 위한 개발 비전 로드맵
-*   `DOCS/archive/`: 이전 버전(V2)의 마일스톤, 진행 상황(PROGRESS_SUMMARY), Gemini/Claude 리뷰 기록 보관소
+- React 19
+- Vite
+- MUI
+- React Router
+- Supabase JS
 
-## 🚀 시작하기 (Getting Started)
+### 백엔드
 
-### 환경 변수 설정
-`inpsyt-order-frontend` 폴더에 `.env.local` 파일을 생성하고 아래 값을 추가합니다.
-```env
-VITE_SUPABASE_URL=당신의_SUPABASE_웹_URL
-VITE_SUPABASE_ANON_KEY=당신의_SUPABASE_ANON_API_KEY
+- Supabase
+- PostgreSQL
+- Row Level Security
+- Edge Functions
+
+### 개발 도구
+
+- ESLint
+- Vitest
+
+## 저장소 구조
+
+```text
+.
+├─ inpsyt-order-frontend/     # 프론트엔드 앱
+├─ supabase/
+│  ├─ functions/              # Edge Functions
+│  ├─ migrations/             # 데이터베이스 마이그레이션
+│  └─ config.toml             # 로컬 Supabase 설정
+├─ DOCS/                      # 프로젝트 문서
+├─ package.json               # 루트: Supabase CLI 용도
+└─ README.md
 ```
 
-### 프론트엔드 실행
+## 주요 라우트
+
+- `/` 또는 `/order` : 고객 주문 페이지
+- `/order/status/:token` : 주문 조회 페이지
+  
+## 환경 변수
+
+`inpsyt-order-frontend/.env.local` 파일을 생성하고 아래 값을 설정합니다.
+
+```env
+VITE_SUPABASE_URL=https://<your-project>.supabase.co
+VITE_SUPABASE_ANON_KEY=<your-anon-key>
+VITE_SUPABASE_FUNCTIONS_URL=https://<your-project>.supabase.co/functions/v1
+VITE_ONESHOT_CALLBACK=<callback-number>
+VITE_APP_URL=<public-app-url>
+```
+
+## 시작하기
+
+### 1. 의존성 설치
+
+루트에서 Supabase CLI 관련 의존성을 설치합니다.
+
+```bash
+npm install
+```
+
+프론트엔드 의존성을 설치합니다.
+
 ```bash
 cd inpsyt-order-frontend
 npm install
+```
+
+### 2. 프론트엔드 실행
+
+```bash
+cd inpsyt-order-frontend
 npm run dev
 ```
 
-### 데이터베이스 마이그레이션 적용
-Supabase CLI를 사용하거나, 웹 대시보드 SQL Editor에 접속하여 `supabase/migrations/` 내의 `.sql` 파일들을 작성된 일자 순서대로 실행합니다.
-(최신 RLS 정책 및 RBAC 함수는 `20251121_apply_rbac_rls.sql` 및 `20260401000000_patch_rls_and_create_site_settings.sql` 파일에 정의되어 있습니다.)
+### 3. 빌드
+
+```bash
+cd inpsyt-order-frontend
+npm run build
+```
+
+### 4. 린트
+
+```bash
+cd inpsyt-order-frontend
+npm run lint
+```
+
+### 5. 테스트
+
+```bash
+cd inpsyt-order-frontend
+npm test
+```
+
+## Supabase 로컬 개발
+
+일반적인 로컬 개발 흐름은 아래와 같습니다.
+
+```bash
+supabase start
+supabase db reset
+supabase functions serve
+```
+
+로컬 개발 전에는 아래 내용을 먼저 확인하는 것이 좋습니다.
+
+- 어떤 Supabase 프로젝트를 기준으로 작업하는지
+- 어떤 마이그레이션까지 적용되어야 하는지
+- 어떤 Edge Function secret이 필요한지
+
+## 배포 메모
+
+- 프론트엔드는 Vercel 배포를 기준으로 사용합니다.
+- Vercel의 Root Directory는 `inpsyt-order-frontend` 이어야 합니다.
+- 일반적인 Build Command는 `vite build` 입니다.
+
+## 참고 문서
+
+- 본 서비스 개발에는 Claude Code, Gemini, Codex의 든든한 지원이 있었습니다.
+- 또한 gstack skills를 활용해 더 높은 완성도를 추구했습니다. 
+- 어드민에서는 UXUI, 오류에 대한 리포트를 할 수 있는 창구가 있습니다.

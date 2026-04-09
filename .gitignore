@@ -27,3 +27,6 @@ Thumbs.db
 supabase/.temp/
 supabase/functions/.debug/
 .gstack/
+DOCS/PROJECT_INTRO_VIBE_PM.md
+MANUAL.md
+DOCS/
