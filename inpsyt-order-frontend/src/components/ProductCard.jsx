@@ -20,10 +20,11 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
         cursor: !isInCart ? 'pointer' : 'default',
         '&:active': !isInCart ? { transform: 'scale(0.97)' } : {},
         overflow: 'visible',
+        height: '100%',
       }}
       onClick={!isInCart ? onAdd : undefined}
     >
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 }, display: 'flex', flexDirection: 'column', height: '100%' }}>
         {/* Category badge */}
         <Box sx={{ display: 'flex', gap: 0.5, mb: 0.75, alignItems: 'center' }}>
           {(product.category === '검사' || product.category === '도서') && (
@@ -63,11 +64,6 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
           sx={{
             fontWeight: 600,
             mb: 1.5,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            minHeight: '2.6em',
             lineHeight: '1.3em',
             fontSize: '0.8125rem',
             color: 'text.primary',
@@ -77,7 +73,7 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
         </Typography>
 
         {/* Price section */}
-        <Box sx={{ mb: 1.5 }}>
+        <Box sx={{ mb: 1.5, mt: 'auto' }}>
           {isDiscounted && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
               <Typography

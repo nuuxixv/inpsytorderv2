@@ -260,7 +260,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
           {products.map((product, index) => {
             const isLast = products.length === index + 1;
             return (
-              <Box key={product.id} ref={isLast ? lastProductElementRef : null}>
+              <Box key={product.id} ref={isLast ? lastProductElementRef : null} sx={{ display: 'flex' }}>
                 <ProductCard
                   product={product}
                   discountRate={discountRate}
