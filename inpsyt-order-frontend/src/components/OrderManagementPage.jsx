@@ -290,19 +290,24 @@ const OrderManagementPage = () => {
       if (bulkStatus === 'paid') {
         let successCount = 0;
         let failCount = 0;
+        let firstFailReason = null;
 
         for (const orderId of state.selectedOrders) {
-          const { success, skipped } = await sendAlimtalk(orderId);
+          const { success, skipped, error: alimtalkError } = await sendAlimtalk(orderId);
           if (skipped) continue;
           if (success) successCount++;
-          else failCount++;
+          else {
+            failCount++;
+            if (!firstFailReason) firstFailReason = alimtalkError;
+          }
         }
 
         if (successCount + failCount > 0) {
           if (failCount === 0) {
             addNotification(`알림톡 ${successCount}건 발송 완료`, 'info');
           } else {
-            addNotification(`알림톡 ${successCount}건 성공, ${failCount}건 실패 — 실패 건은 주문 상세에서 재발송하세요.`, 'warning');
+            const reason = firstFailReason ? ` — ${firstFailReason}` : '';
+            addNotification(`알림톡 ${successCount}건 성공, ${failCount}건 실패${reason} — 실패 건은 모달에서 재발송하세요.`, 'warning');
           }
         }
       }
@@ -410,8 +415,8 @@ const OrderManagementPage = () => {
       if (newStatus === 'paid') {
         sendAlimtalk(orderId).then(({ success, error: alimtalkError, skipped }) => {
           if (skipped) return;
-          if (!success) console.error('알림톡 발송 오류:', alimtalkError);
-          else addNotification('알림톡이 발송되었습니다.', 'info');
+          if (!success) addNotification(`알림톡 발송 실패 — ${alimtalkError}`, 'warning');
+          else addNotification('알림톡 발송 완료', 'info');
         });
       }
     } catch (err) {

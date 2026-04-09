@@ -117,7 +117,7 @@
 
 | 항목 | 세부 내용 |
 |------|-----------|
-| 알림톡 iOS 문제 | iOS Safari에서 result_code 101. msgagent 고객센터 문의 필요. 임시 대응: PC/안드로이드로 재발송. |
+| 알림톡 모바일 문제 | iOS Safari + 갤럭시 탭(Android) 모두 result_code 101. PC Chrome에서만 정상 동작. msgagent 고객센터 문의 필요. 임시 대응: PC Chrome에서 재발송. |
 | 부분 취소 기획 | 특정 상품만 취소 시 퍼널 미정. 기획 후 구현. |
 
 ### 🟡 어드민 미완료

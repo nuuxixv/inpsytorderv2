@@ -25,8 +25,8 @@ const getBannerConfig = (order) => {
         label: '결제대기',
         color: STATUS_COLORS.pending,
         subMessage: edd
-          ? `지금 결제 시 ${fmt(edd)} 도착`
-          : '담당자를 통해 결제를 진행해 주세요.',
+          ? [`지금 결제 시 ${fmt(edd)} 도착`, '담당자를 통해 결제해 주세요.']
+          : ['담당자를 통해 결제해 주세요.'],
       };
     case 'paid':
       return {
@@ -145,9 +145,13 @@ const OrderStatusPage = () => {
         <Typography variant="h6" sx={{ color: '#fff', fontWeight: 800, mb: 0.5 }}>
           {banner.label}
         </Typography>
-        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', mb: 1.5, fontWeight: 500 }}>
-          {banner.subMessage}
-        </Typography>
+        <Box sx={{ mb: 1.5 }}>
+          {(Array.isArray(banner.subMessage) ? banner.subMessage : [banner.subMessage]).map((line, i) => (
+            <Typography key={i} variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
+              {line}
+            </Typography>
+          ))}
+        </Box>
         <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
           {format(new Date(order.created_at), 'yyyy년 M월 d일 HH:mm 접수', { locale: ko })}
           {order.events?.name && ` · ${order.events.name}`}

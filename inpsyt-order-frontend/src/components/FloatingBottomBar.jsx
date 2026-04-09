@@ -79,7 +79,7 @@ const FloatingBottomBar = ({
         <Box sx={{ maxWidth: 600, mx: 'auto', mb: 1 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-              무료배송까지 {(freeShippingThreshold - totalPrice).toLocaleString()}원 남았습니다!
+              무료배송까지 {(freeShippingThreshold - totalPrice).toLocaleString()}원 남았어요.
             </Typography>
           </Box>
           <LinearProgress
@@ -96,8 +96,8 @@ const FloatingBottomBar = ({
       )}
       {!isOnsitePurchase && activeStep === 0 && hasItems && totalPrice >= freeShippingThreshold && (
         <Box sx={{ maxWidth: 600, mx: 'auto', mb: 1 }}>
-          <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 700 }}>
-            🎉 무료배송 조건을 충족했습니다!
+          <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 700 }}>
+            배송비가 무료로 적용됐어요!
           </Typography>
         </Box>
       )}

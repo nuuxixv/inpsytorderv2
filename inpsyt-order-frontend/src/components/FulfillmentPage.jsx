@@ -21,18 +21,27 @@ import {
   Alert,
   Divider,
   Button,
+  Tooltip,
 } from '@mui/material';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { getFulfillmentOrders, groupLinkedOrders } from '../api/orders';
 import { getEvents } from '../api/events';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 
+// '도구' 카테고리를 '검사'로 정규화
+const normalizeCategory = (cat) => {
+  if (!cat) return cat;
+  if (cat === '도구') return '검사';
+  return cat;
+};
+
 // 주문 유형 판별
 const classifyOrder = (orderItems) => {
-  const cats = new Set((orderItems || []).map(i => i.products?.category));
+  const cats = new Set((orderItems || []).map(i => normalizeCategory(i.products?.category)));
   if (cats.has('도서') && cats.has('검사')) return 'mixed';
   if (cats.has('도서')) return 'book';
   if (cats.has('검사')) return 'test';
@@ -64,6 +73,48 @@ const statusLabel = {
   refunded:  '결제취소',
 };
 
+// 클립보드 복사 훅
+const useCopyToClipboard = (addNotification) => {
+  return useCallback((text) => {
+    if (!text || text === '-') return;
+    navigator.clipboard.writeText(text).then(() => {
+      addNotification('복사됐어요', 'info');
+    });
+  }, [addNotification]);
+};
+
+// 복사 가능한 텍스트 컴포넌트
+const CopyableText = ({ value, sx = {} }) => {
+  if (!value || value === '-') {
+    return <Typography sx={{ fontSize: '0.8125rem', color: 'text.disabled', ...sx }}>-</Typography>;
+  }
+  return (
+    <Tooltip title="클릭하여 복사" placement="top" arrow>
+      <Typography
+        sx={{
+          fontSize: '0.8125rem',
+          cursor: 'pointer',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 0.5,
+          borderRadius: 1,
+          px: 0.5,
+          mx: -0.5,
+          transition: 'background 0.15s',
+          '&:hover': { bgcolor: 'action.hover' },
+          '&:active': { bgcolor: 'action.selected' },
+          ...sx,
+        }}
+        onClick={() => navigator.clipboard.writeText(value).then(() => {})}
+        data-copy={value}
+      >
+        {value}
+        <ContentCopyIcon sx={{ fontSize: '0.7rem', color: 'text.disabled', flexShrink: 0 }} />
+      </Typography>
+    </Tooltip>
+  );
+};
+
 // ─── 주문 카드 (좌측 목록) ───────────────────────────────────────────────────
 const OrderCard = ({ order, isSelected, onClick }) => {
   const displayItems = order.mergedItems || order.order_items;
@@ -72,6 +123,7 @@ const OrderCard = ({ order, isSelected, onClick }) => {
   const itemCount = (displayItems || []).length;
   const eventName = order.events?.name || '-';
   const isLinked = order.linkedChildren && order.linkedChildren.length > 0;
+  const isCompleted = order.status === 'completed';
 
   return (
     <Card
@@ -83,11 +135,12 @@ const OrderCard = ({ order, isSelected, onClick }) => {
         borderWidth: isSelected ? 2 : 1,
         boxShadow: isSelected ? '0 0 0 2px rgba(43,57,143,0.12)' : 'none',
         transition: 'all 0.15s ease',
+        opacity: isCompleted ? 0.7 : 1,
       }}
     >
       <CardActionArea onClick={onClick} sx={{ borderRadius: '12px' }}>
         <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75, flexWrap: 'wrap' }}>
             <Chip
               label={badge.label}
               size="small"
@@ -116,6 +169,22 @@ const OrderCard = ({ order, isSelected, onClick }) => {
                 }}
               />
             )}
+            {isCompleted && (
+              <Chip
+                label="출고처리"
+                size="small"
+                icon={<CheckCircleIcon sx={{ fontSize: '0.7rem !important', color: '#fff !important' }} />}
+                sx={{
+                  height: 18,
+                  fontSize: '0.625rem',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  bgcolor: '#10B981',
+                  color: '#fff',
+                  '& .MuiChip-label': { px: 0.75 },
+                }}
+              />
+            )}
           </Box>
           <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', lineHeight: 1.3 }}>
             {order.customer_name}
@@ -133,7 +202,9 @@ const OrderCard = ({ order, isSelected, onClick }) => {
 };
 
 // ─── 주문 상세 (우측 패널) ──────────────────────────────────────────────────
-const OrderDetail = ({ order, viewMode, onShip, canShip }) => {
+const OrderDetail = ({ order, viewMode, onShip, canShip, addNotification }) => {
+  const copyToClipboard = useCopyToClipboard(addNotification);
+
   if (!order) {
     return (
       <Box sx={{
@@ -152,7 +223,16 @@ const OrderDetail = ({ order, viewMode, onShip, canShip }) => {
   }
 
   const address = order.shipping_address;
-  const addressText = address
+  const addressParts = address
+    ? [
+        address.postcode ? `[${address.postcode}]` : '',
+        address.address || address.roadAddress || address.jibunAddress || '',
+        address.detailAddress || address.detail || '',
+      ].filter(Boolean).join(' ') || '-'
+    : '-';
+
+  // 복사용 주소 (우편번호 제외)
+  const addressForCopy = address
     ? [
         address.address || address.roadAddress || address.jibunAddress || '',
         address.detailAddress || address.detail || '',
@@ -165,40 +245,62 @@ const OrderDetail = ({ order, viewMode, onShip, canShip }) => {
       <Card sx={{ borderRadius: '12px', boxShadow: 'none', border: '1px solid', borderColor: 'divider', mb: 2 }}>
         <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-            <Typography sx={{ fontWeight: 700, fontSize: '1rem' }}>
-              {order.customer_name}
-            </Typography>
-            <Chip
-              label={statusLabel[order.status] || order.status}
-              size="small"
-              color={order.status === 'paid' ? 'success' : 'default'}
-              sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+            <CopyableText
+              value={order.customer_name}
+              sx={{ fontWeight: 700, fontSize: '1rem' }}
             />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Chip
+                label={statusLabel[order.status] || order.status}
+                size="small"
+                color={order.status === 'paid' ? 'success' : order.status === 'completed' ? 'default' : 'default'}
+                sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+              />
+              {canShip && order.status === 'paid' && (
+                <Button
+                  variant="contained"
+                  color="success"
+                  size="small"
+                  startIcon={<CheckCircleIcon />}
+                  onClick={() => onShip(order.id)}
+                  sx={{ borderRadius: '10px', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}
+                >
+                  출고 처리
+                </Button>
+              )}
+            </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
             <Box sx={{ display: 'flex', gap: 2 }}>
               <Box sx={{ flex: 1 }}>
-                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>연락처</Typography>
-                <Typography sx={{ fontWeight: 600, fontSize: '0.875rem' }}>{order.phone_number || '-'}</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>연락처</Typography>
+                <CopyableText value={order.phone_number || '-'} sx={{ fontWeight: 600 }} />
               </Box>
               <Box sx={{ flex: 1 }}>
-                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>결제금액</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>결제금액</Typography>
                 <Typography sx={{ fontWeight: 700, fontSize: '0.875rem', color: 'primary.main' }}>
                   {(order.mergedTotal ?? order.final_payment ?? 0).toLocaleString()}원
                 </Typography>
               </Box>
             </Box>
             <Box>
-              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>배송지</Typography>
-              <Typography sx={{ fontWeight: 500, fontSize: '0.8125rem' }}>{addressText}</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>배송지</Typography>
+              <CopyableText value={addressForCopy !== '-' ? addressForCopy : '-'} sx={{ fontWeight: 500 }} />
+              {addressParts !== '-' && address?.postcode && (
+                <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }}>
+                  {addressParts}
+                </Typography>
+              )}
             </Box>
-            {order.customer_request && (
-              <Box>
-                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>요청사항</Typography>
-                <Typography sx={{ fontSize: '0.8125rem', color: 'text.secondary' }}>{order.customer_request}</Typography>
-              </Box>
-            )}
+            <Box>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>요청사항</Typography>
+              <CopyableText value={order.customer_request || '-'} sx={{ color: order.customer_request ? 'text.primary' : 'text.disabled' }} />
+            </Box>
+            <Box>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>관리자 메모</Typography>
+              <CopyableText value={order.admin_memo || '-'} sx={{ color: order.admin_memo ? 'text.primary' : 'text.disabled' }} />
+            </Box>
           </Box>
         </CardContent>
       </Card>
@@ -220,7 +322,8 @@ const OrderDetail = ({ order, viewMode, onShip, canShip }) => {
             </TableHead>
             <TableBody>
               {(order.mergedItems || order.order_items || []).map((item, idx) => {
-                const category = item.products?.category;
+                const rawCategory = item.products?.category;
+                const category = normalizeCategory(rawCategory);
                 const productName = item.products?.name || '-';
                 const isGreyed =
                   viewMode === 'book' ? category === '검사' :
@@ -244,7 +347,7 @@ const OrderDetail = ({ order, viewMode, onShip, canShip }) => {
                     <TableCell align="center" sx={{ px: 1, py: 0.75 }}>
                       {category && (
                         <Chip
-                          label={category}
+                          label={rawCategory}
                           size="small"
                           sx={{
                             height: 16,
@@ -286,18 +389,6 @@ const OrderDetail = ({ order, viewMode, onShip, canShip }) => {
                 합계 {(order.mergedTotal ?? order.final_payment ?? 0).toLocaleString()}원
               </Typography>
             </Box>
-            {canShip && order.status === 'paid' && (
-              <Button
-                variant="contained"
-                color="success"
-                size="small"
-                startIcon={<CheckCircleIcon />}
-                onClick={() => onShip(order.id)}
-                sx={{ borderRadius: '10px', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}
-              >
-                출고 처리
-              </Button>
-            )}
           </Box>
         </CardContent>
       </Card>
@@ -314,20 +405,26 @@ const FulfillmentPage = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [viewMode, setViewMode] = useState('all');
   const [filterEvent, setFilterEvent] = useState('');
-  const [filterStatus] = useState('paid');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const loadOrders = useCallback(async () => {
+  const loadOrders = useCallback(async (preserveSelectedId) => {
     setLoading(true);
     setError(null);
     try {
       const data = await getFulfillmentOrders({
         eventId: filterEvent || undefined,
-        statuses: ['paid'],
+        statuses: ['paid', 'completed'],
       });
-      setOrders(groupLinkedOrders(data || []));
-      setSelectedOrder(null);
+      const grouped = groupLinkedOrders(data || []);
+      setOrders(grouped);
+      // 선택된 주문 유지: 새로운 데이터에서 동일 ID를 찾아 업데이트
+      if (preserveSelectedId) {
+        const updated = grouped.find(o => o.id === preserveSelectedId);
+        setSelectedOrder(updated || null);
+      } else {
+        setSelectedOrder(null);
+      }
     } catch (err) {
       setError(err.message || '주문을 불러오는 중 오류가 발생했습니다.');
     } finally {
@@ -342,7 +439,7 @@ const FulfillmentPage = () => {
       const { error } = await supabase.from('orders').update({ status: 'completed' }).eq('id', orderId);
       if (error) throw error;
       addNotification(`${name}님의 주문이 출고 처리되었습니다.`, 'success');
-      loadOrders();
+      loadOrders(orderId); // 선택 유지
     } catch (err) {
       addNotification(`출고 처리 실패: ${err.message}`, 'error');
     }
@@ -356,9 +453,8 @@ const FulfillmentPage = () => {
     loadOrders();
   }, [loadOrders]);
 
-  // 뷰 모드에 따라 주문 목록 필터링 (자식 주문은 부모에 병합되어 표시하지 않음)
   const filteredOrders = orders.filter(order => {
-    if (order.parent_order_id) return false; // child orders hidden; merged into parent
+    if (order.parent_order_id) return false;
     const orderType = classifyOrder(order.mergedItems || order.order_items);
     return isOrderVisible(orderType, viewMode);
   });
@@ -376,7 +472,6 @@ const FulfillmentPage = () => {
         <LocalShippingIcon sx={{ color: 'primary.main', fontSize: '1.4rem' }} />
         <Typography variant="h6" sx={{ fontWeight: 700 }}>출고 현황</Typography>
 
-        {/* 학회 필터 */}
         <FormControl size="small" sx={{ minWidth: 160 }}>
           <InputLabel>학회</InputLabel>
           <Select
@@ -391,7 +486,6 @@ const FulfillmentPage = () => {
           </Select>
         </FormControl>
 
-        {/* 뷰 모드 토글 */}
         <Box sx={{ ml: 'auto' }}>
           <ToggleButtonGroup
             value={viewMode}
@@ -429,7 +523,7 @@ const FulfillmentPage = () => {
           ) : (
             <>
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
-                {filteredOrders.length}건
+                {filteredOrders.filter(o => o.status === 'paid').length}건 대기 · {filteredOrders.filter(o => o.status === 'completed').length}건 출고완료
               </Typography>
               {filteredOrders.map(order => (
                 <OrderCard
@@ -455,6 +549,7 @@ const FulfillmentPage = () => {
             viewMode={viewMode}
             onShip={handleShip}
             canShip={hasPermission('orders:edit')}
+            addNotification={addNotification}
           />
         </Box>
       </Box>

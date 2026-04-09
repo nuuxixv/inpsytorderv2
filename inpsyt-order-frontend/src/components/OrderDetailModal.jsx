@@ -242,8 +242,8 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
       if (newStatus === 'paid' && !order.is_on_site_sale) {
         sendAlimtalk(order.id).then(({ success, error: alimtalkError, skipped }) => {
           if (skipped) return;
-          if (!success) console.error('알림톡 발송 오류:', alimtalkError);
-          else addNotification('알림톡이 발송되었습니다.', 'info');
+          if (!success) addNotification(`알림톡 발송 실패 — ${alimtalkError}`, 'warning');
+          else addNotification('알림톡 발송 완료', 'info');
         });
       }
     } catch (error) {
@@ -255,10 +255,10 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
   const handleResendAlimtalk = async () => {
     const { success, error: alimtalkError } = await sendAlimtalk(order.id);
     if (success) {
-      addNotification('알림톡이 재발송되었습니다.', 'success');
+      addNotification('알림톡 재발송 완료', 'success');
       onUpdate();
     } else {
-      addNotification(`알림톡 재발송 실패: ${alimtalkError}`, 'error');
+      addNotification(`알림톡 재발송 실패 — ${alimtalkError}`, 'error');
     }
   };
 
