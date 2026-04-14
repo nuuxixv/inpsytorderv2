@@ -1,5 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { AuthProvider } from './AuthContext';
 import { useAuth } from './hooks/useAuth';
 import { NotificationProvider } from './NotificationContext';
@@ -58,6 +60,8 @@ function App() {
       <AuthProvider>
         <NotificationProvider>
           <AppRoutes />
+          <Analytics />
+          <SpeedInsights />
         </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>
