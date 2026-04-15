@@ -48,7 +48,7 @@ const LoginPage = () => {
   }, []);
 
   const handleLogin = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!selectedUser || !password) return;
     
     setLoading(true);
@@ -217,7 +217,15 @@ const LoginPage = () => {
                 '& input': { textAlign: 'center' }
               }}
               value={password}
-              onChange={(e) => setPassword(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onChange={(e) => {
+                const pin = e.target.value.replace(/\D/g, '').slice(0, 6);
+                setPassword(pin);
+                if (pin.length === 6 && selectedUser) {
+                  setTimeout(() => {
+                    document.querySelector('form')?.requestSubmit();
+                  }, 100);
+                }
+              }}
               inputProps={{ maxLength: 6, inputMode: 'numeric' }}
               helperText={
                 <Box component="span" sx={{ display: 'flex', justifyContent: 'flex-end' }}>
