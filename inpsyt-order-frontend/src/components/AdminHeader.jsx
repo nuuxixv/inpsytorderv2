@@ -112,6 +112,7 @@ const AdminHeader = ({ onMenuToggle }) => {
       const { error } = await supabase.from('feedback').insert({
         user_id: user.id,
         user_email: user.email,
+        user_name: profile?.name || user.email,
         location: feedbackLocation || '(미지정)',
         type: feedbackType,
         content: feedbackContent.trim(),

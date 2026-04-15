@@ -5,6 +5,7 @@ import {
   DialogActions, Button, TextField, FormControl, InputLabel, Select,
   MenuItem, CircularProgress, alpha, useTheme,
 } from '@mui/material';
+import RateReviewIcon from '@mui/icons-material/RateReview';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { getFeedback, updateFeedbackStatus } from '../api/feedback';
@@ -104,9 +105,12 @@ const FeedbackManagementPage = () => {
 
   return (
     <Box>
-      <Typography variant="h5" sx={{ fontWeight: 700, mb: 3 }}>
-        피드백 관리
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+        <RateReviewIcon sx={{ color: 'primary.main', fontSize: '1.6rem' }} />
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          피드백 관리
+        </Typography>
+      </Box>
 
       {/* Status filter chips */}
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
@@ -159,7 +163,7 @@ const FeedbackManagementPage = () => {
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>
                       {format(new Date(fb.created_at), 'yyyy-MM-dd HH:mm', { locale: ko })}
                     </TableCell>
-                    <TableCell>{fb.user_email || '-'}</TableCell>
+                    <TableCell>{fb.user_name || fb.user_email || '-'}</TableCell>
                     <TableCell>{fb.location || '-'}</TableCell>
                     <TableCell>
                       <Chip
@@ -195,7 +199,7 @@ const FeedbackManagementPage = () => {
                   제출자
                 </Typography>
                 <Typography variant="body2">
-                  {selectedFeedback.user_email || '-'}
+                  {selectedFeedback.user_name || selectedFeedback.user_email || '-'}
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', gap: 2 }}>

@@ -92,13 +92,25 @@ export const deleteBulletin = async (id) => {
  * @param {string} bulletinId - 게시글 ID
  * @param {string} userId - 사용자 ID
  */
-export const markBulletinRead = async (bulletinId, userId) => {
-  const { error } = await supabase
+export const markBulletinRead = async (bulletinId, userId, userName) => {
+  const now = new Date().toISOString();
+  // 첫 읽음: insert with first_read_at + last_read_at
+  // 재방문: update last_read_at only
+  const { error: insertError } = await supabase
     .from('bulletin_reads')
-    .upsert(
-      { bulletin_id: bulletinId, user_id: userId, read_at: new Date().toISOString() },
-      { onConflict: 'bulletin_id,user_id', ignoreDuplicates: true }
-    );
+    .insert({ bulletin_id: bulletinId, user_id: userId, user_name: userName, first_read_at: now, last_read_at: now });
+
+  if (insertError?.code === '23505') {
+    // 이미 읽음 → last_read_at만 갱신
+    const { error: updateError } = await supabase
+      .from('bulletin_reads')
+      .update({ last_read_at: now })
+      .eq('bulletin_id', bulletinId)
+      .eq('user_id', userId);
+    if (updateError) { console.error('Error updating read:', updateError); }
+    return;
+  }
+  const error = insertError;
 
   if (error) {
     console.error('Error marking bulletin read:', error);
@@ -144,9 +156,9 @@ export const getUnreadCount = async (userId) => {
 export const getBulletinReaders = async (bulletinId) => {
   const { data, error } = await supabase
     .from('bulletin_reads')
-    .select('*')
+    .select('user_id, user_name, first_read_at, last_read_at')
     .eq('bulletin_id', bulletinId)
-    .order('read_at', { ascending: false });
+    .order('first_read_at', { ascending: false });
 
   if (error) {
     console.error('Error fetching bulletin readers:', error);

@@ -690,7 +690,10 @@ const UserManagementPage = () => {
               value={currentRole}
               onChange={(e) => setCurrentRole(e.target.value)}
             >
-              {availableRoles.map((role) => (
+              {(roleTemplates.length > 0
+                ? roleTemplates.map((t) => ({ key: t.name, label: t.name }))
+                : fallbackRoles
+              ).map((role) => (
                 <MenuItem key={role.key} value={role.key}>
                   {role.label}
                 </MenuItem>

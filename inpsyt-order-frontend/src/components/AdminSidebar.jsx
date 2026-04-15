@@ -26,7 +26,7 @@ import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import SettingsIcon from '@mui/icons-material/Settings';
-import FeedbackIcon from '@mui/icons-material/Feedback';
+import RateReviewIcon from '@mui/icons-material/RateReview';
 import AnnouncementIcon from '@mui/icons-material/Announcement';
 import { useAuth } from '../hooks/useAuth';
 import { getUnreadCount } from '../api/bulletins';
@@ -41,7 +41,7 @@ const allMenuItems = [
   { text: '상품 관리', icon: <CategoryIcon />, path: '/admin/products', permissionKey: 'products:view' },
   { text: '출고 현황', icon: <LocalShippingIcon />, path: '/admin/fulfillment', permissionKey: 'orders:view' },
   { text: '사용자 관리', icon: <PeopleIcon />, path: '/admin/users', permissionKey: 'users:manage' },
-  { text: '피드백', icon: <FeedbackIcon />, path: '/admin/feedback', permissionKey: 'master' },
+  { text: '피드백', icon: <RateReviewIcon />, path: '/admin/feedback', permissionKey: 'master' },
   { text: '게시판', icon: <AnnouncementIcon />, path: '/admin/bulletins', permissionKey: null },
   { text: '설정', icon: <SettingsIcon />, path: '/admin/settings', permissionKey: 'master' },
 ];

@@ -26,8 +26,14 @@ import {
   Divider,
   CircularProgress,
   Alert,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
 } from '@mui/material';
 import AnnouncementIcon from '@mui/icons-material/Announcement';
+import SimpleMarkdown from './SimpleMarkdown';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -123,7 +129,7 @@ const BulletinBoardPage = () => {
     // Mark as read
     if (user?.id && !readIds.has(bulletin.id)) {
       try {
-        await markBulletinRead(bulletin.id, user.id);
+        await markBulletinRead(bulletin.id, user.id, profile?.name || user.email);
         setReadIds(prev => new Set([...prev, bulletin.id]));
       } catch {
         // silent fail for read marking
@@ -456,18 +462,8 @@ const BulletinBoardPage = () => {
 
               <Divider sx={{ mb: 2 }} />
 
-              {/* Content */}
-              <Typography
-                sx={{
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  fontSize: '0.95rem',
-                  lineHeight: 1.8,
-                  color: 'text.primary',
-                }}
-              >
-                {selectedBulletin.content}
-              </Typography>
+              {/* Content (마크다운 지원) */}
+              <SimpleMarkdown content={selectedBulletin.content} />
             </Paper>
           )}
         </Box>
@@ -573,20 +569,28 @@ const BulletinBoardPage = () => {
               아직 읽은 사용자가 없습니다.
             </Typography>
           ) : (
-            <List>
-              {readers.map((reader) => (
-                <ListItem key={reader.user_id} sx={{ px: 0 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {reader.user_id}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      {format(new Date(reader.read_at), 'yyyy.MM.dd HH:mm', { locale: ko })}
-                    </Typography>
-                  </Box>
-                </ListItem>
-              ))}
-            </List>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700 }}>이름</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>최초 확인</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>최종 확인</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {readers.map((reader) => (
+                  <TableRow key={reader.user_id}>
+                    <TableCell>{reader.user_name || reader.user_id}</TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      {reader.first_read_at ? format(new Date(reader.first_read_at), 'MM.dd HH:mm', { locale: ko }) : '-'}
+                    </TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      {reader.last_read_at ? format(new Date(reader.last_read_at), 'MM.dd HH:mm', { locale: ko }) : '-'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
