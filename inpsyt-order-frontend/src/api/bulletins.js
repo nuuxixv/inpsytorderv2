@@ -156,13 +156,26 @@ export const getUnreadCount = async (userId) => {
 export const getBulletinReaders = async (bulletinId) => {
   const { data, error } = await supabase
     .from('bulletin_reads')
-    .select('user_id, user_name, first_read_at, last_read_at, user_profiles:user_id(name)')
+    .select('user_id, user_name, first_read_at, last_read_at')
     .eq('bulletin_id', bulletinId)
     .order('first_read_at', { ascending: false });
 
   if (error) {
     console.error('Error fetching bulletin readers:', error);
     throw error;
+  }
+
+  // user_id로 user_profiles에서 이름 매핑
+  if (data && data.length > 0) {
+    const userIds = [...new Set(data.map(r => r.user_id).filter(Boolean))];
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('user_profiles')
+        .select('id, name')
+        .in('id', userIds);
+      const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p.name]));
+      data.forEach(r => { r._userName = profileMap[r.user_id] || null; });
+    }
   }
 
   return data;

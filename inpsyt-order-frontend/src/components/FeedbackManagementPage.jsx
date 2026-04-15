@@ -163,7 +163,7 @@ const FeedbackManagementPage = () => {
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>
                       {format(new Date(fb.created_at), 'yyyy-MM-dd HH:mm', { locale: ko })}
                     </TableCell>
-                    <TableCell>{fb.user_profiles?.name || fb.user_name || fb.user_email || '-'}</TableCell>
+                    <TableCell>{fb._userName ||fb.user_name || fb.user_email || '-'}</TableCell>
                     <TableCell>{fb.location || '-'}</TableCell>
                     <TableCell>
                       <Chip
@@ -199,7 +199,7 @@ const FeedbackManagementPage = () => {
                   제출자
                 </Typography>
                 <Typography variant="body2">
-                  {selectedFeedback.user_profiles?.name || selectedFeedback.user_name || selectedFeedback.user_email || '-'}
+                  {selectedFeedback._userName ||selectedFeedback.user_name || selectedFeedback.user_email || '-'}
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', gap: 2 }}>

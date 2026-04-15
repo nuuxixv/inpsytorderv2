@@ -9,7 +9,7 @@ import { supabase } from '../supabaseClient';
 export const getFeedback = async (filters = {}) => {
   let query = supabase
     .from('feedback')
-    .select('*, user_profiles:user_id(name)')
+    .select('*')
     .order('created_at', { ascending: false });
 
   if (filters.status) {
@@ -21,6 +21,19 @@ export const getFeedback = async (filters = {}) => {
   if (error) {
     console.error('Error fetching feedback:', error);
     throw error;
+  }
+
+  // user_id로 user_profiles에서 이름을 가져와 매핑
+  if (data && data.length > 0) {
+    const userIds = [...new Set(data.map(fb => fb.user_id).filter(Boolean))];
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('user_profiles')
+        .select('id, name')
+        .in('id', userIds);
+      const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p.name]));
+      data.forEach(fb => { fb._userName = profileMap[fb.user_id] || null; });
+    }
   }
 
   return data;
