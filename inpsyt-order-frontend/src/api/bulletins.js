@@ -156,7 +156,7 @@ export const getUnreadCount = async (userId) => {
 export const getBulletinReaders = async (bulletinId) => {
   const { data, error } = await supabase
     .from('bulletin_reads')
-    .select('user_id, user_name, first_read_at, last_read_at')
+    .select('user_id, user_name, first_read_at, last_read_at, user_profiles:user_id(name)')
     .eq('bulletin_id', bulletinId)
     .order('first_read_at', { ascending: false });
 

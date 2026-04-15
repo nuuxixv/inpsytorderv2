@@ -580,7 +580,7 @@ const BulletinBoardPage = () => {
               <TableBody>
                 {readers.map((reader) => (
                   <TableRow key={reader.user_id}>
-                    <TableCell>{reader.user_name || reader.user_id}</TableCell>
+                    <TableCell>{reader.user_profiles?.name || reader.user_name || reader.user_id}</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>
                       {reader.first_read_at ? format(new Date(reader.first_read_at), 'MM.dd HH:mm', { locale: ko }) : '-'}
                     </TableCell>

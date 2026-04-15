@@ -9,7 +9,7 @@ import { supabase } from '../supabaseClient';
 export const getFeedback = async (filters = {}) => {
   let query = supabase
     .from('feedback')
-    .select('*')
+    .select('*, user_profiles:user_id(name)')
     .order('created_at', { ascending: false });
 
   if (filters.status) {
