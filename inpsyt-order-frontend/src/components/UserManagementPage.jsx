@@ -322,9 +322,9 @@ const UserManagementPage = () => {
       const inviteBody = { email: internalEmail, name: inviteName, password: invitePIN };
       if (selectedTemplateId && roleTemplates.length > 0) {
         inviteBody.roleTemplateId = selectedTemplateId;
-        // Also pass role as fallback label
+        // slug를 role로 전달 (LoginPage에서 slug로 필터링)
         const tmpl = getSelectedTemplate();
-        if (tmpl) inviteBody.role = tmpl.name;
+        if (tmpl) inviteBody.role = tmpl.slug || tmpl.name;
       } else {
         inviteBody.role = inviteRole;
       }
