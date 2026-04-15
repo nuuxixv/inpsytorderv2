@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   Drawer,
@@ -12,6 +12,7 @@ import {
   Typography,
   IconButton,
   Tooltip,
+  Badge,
   alpha,
   useMediaQuery,
   useTheme,
@@ -25,7 +26,10 @@ import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import SettingsIcon from '@mui/icons-material/Settings';
+import FeedbackIcon from '@mui/icons-material/Feedback';
+import AnnouncementIcon from '@mui/icons-material/Announcement';
 import { useAuth } from '../hooks/useAuth';
+import { getUnreadCount } from '../api/bulletins';
 
 const DRAWER_WIDTH = 260;
 const COLLAPSED_WIDTH = 72;
@@ -37,13 +41,23 @@ const allMenuItems = [
   { text: '상품 관리', icon: <CategoryIcon />, path: '/admin/products', permissionKey: 'products:view' },
   { text: '출고 현황', icon: <LocalShippingIcon />, path: '/admin/fulfillment', permissionKey: 'orders:view' },
   { text: '사용자 관리', icon: <PeopleIcon />, path: '/admin/users', permissionKey: 'users:manage' },
+  { text: '피드백', icon: <FeedbackIcon />, path: '/admin/feedback', permissionKey: 'master' },
+  { text: '게시판', icon: <AnnouncementIcon />, path: '/admin/bulletins', permissionKey: null },
   { text: '설정', icon: <SettingsIcon />, path: '/admin/settings', permissionKey: 'master' },
 ];
 
 const AdminSidebar = ({ open, onClose, collapsed = false, onToggleCollapse }) => {
-  const { hasPermission, permissions } = useAuth();
+  const { user, hasPermission, permissions } = useAuth();
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+  const [bulletinUnreadCount, setBulletinUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    getUnreadCount(user.id)
+      .then(count => setBulletinUnreadCount(count))
+      .catch(() => {});
+  }, [user?.id]);
 
   const filteredMenuItems = allMenuItems.filter(item => {
     if (permissions.includes('master')) return true;
@@ -110,7 +124,11 @@ const AdminSidebar = ({ open, onClose, collapsed = false, onToggleCollapse }) =>
                       '& svg': { fontSize: 22 },
                       justifyContent: 'center',
                     }}>
-                      {item.icon}
+                      {item.path === '/admin/bulletins' && bulletinUnreadCount > 0 ? (
+                        <Badge badgeContent={bulletinUnreadCount} color="error" max={99}>
+                          {item.icon}
+                        </Badge>
+                      ) : item.icon}
                     </ListItemIcon>
                     {!collapsed && (
                       <ListItemText

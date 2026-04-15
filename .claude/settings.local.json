@@ -45,7 +45,30 @@
       "mcp__claude_ai_Supabase__list_edge_functions",
       "mcp__claude_ai_Supabase__deploy_edge_function",
       "mcp__claude_ai_Supabase__get_project",
-      "mcp__claude_ai_Supabase__list_tables"
+      "mcp__claude_ai_Supabase__list_tables",
+      "Bash(ls vitest.config.* vite.config.* jest.config.* playwright.config.* .rspec pytest.ini)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(node -e ':*)",
+      "Bash(curl -s http://127.0.0.1:5173)",
+      "Bash(curl -s http://127.0.0.1:5174/)",
+      "Bash(curl -s http://127.0.0.1:5174/api/graph)",
+      "Bash(start http://127.0.0.1:5174)",
+      "Bash(cmd.exe /c start http://127.0.0.1:5174)",
+      "Bash(start \"http://127.0.0.1:5173?token=d6ea14dcd8828d39985f241cf41fac48\")",
+      "Bash(grep -l \"CREATE TABLE.*order_items\" \"c:/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations/\"*.sql)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -l \"order_items\" \"c:/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations/\"*.sql)",
+      "Bash(find /c/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations -name \"*.sql\" -exec grep -l \"feedback\" {} \\\\;)",
+      "Bash(grep -h \"CREATE TABLE\" /c/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations/*.sql)",
+      "Bash(find \"c:/Users/김건우/Desktop/VS/inpsytorderv3\" -type f -name \"*.sql\" -exec grep -l \"CREATE TABLE\" {} \\\\;)",
+      "Bash(grep -l \"kv_store\\\\|user_roles\\\\|roles\" /c/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations/*.sql)",
+      "Bash(cat /c/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations/*.sql)",
+      "Bash(find /c/Users/김건우/Desktop/VS/inpsytorderv3 -type f \\\\\\( -name \"*.jsx\" -o -name \"*.js\" -o -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) ! -path \"*/node_modules/*\" ! -path \"*/dist/*\" -exec grep -l \"kv_store\\\\|user_roles\\\\|from.*roles\\\\|table.*roles\" {} \\\\;)",
+      "Bash(find /c/Users/김건우/Desktop/VS/inpsytorderv3/supabase -name \"*.sql\" -type f -exec basename {} \\\\;)",
+      "Bash(grep -l \"user_profiles\" /c/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations/*.sql)",
+      "Bash(grep -c \"user_profiles\" /c/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations/*.sql)",
+      "Bash(npx vite:*)"
     ]
   }
 }

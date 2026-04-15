@@ -21,6 +21,8 @@ const ROUTE_LABELS = {
   '/admin/products':    '상품 관리',
   '/admin/fulfillment': '출고 현황',
   '/admin/users':       '사용자 관리',
+  '/admin/feedback':    '피드백 관리',
+  '/admin/bulletins':   '게시판',
   '/admin/settings':    '설정',
 };
 

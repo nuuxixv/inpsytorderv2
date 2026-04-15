@@ -440,7 +440,7 @@ const DashboardPage = () => {
 
     // Split eventIds into chunks if there are too many, but usually it's fine for REST
     const [ordersRes, recentRes] = await Promise.all([
-      supabase.from('orders').select('id, final_payment, delivery_fee, status, created_at, order_items(product_id, quantity, price_at_purchase)').in('event_id', eventIds),
+      supabase.from('orders').select('id, final_payment, delivery_fee, status, created_at, order_items(product_id, quantity, price_at_purchase, product_name, product_code, category, list_price)').in('event_id', eventIds),
       supabase.from('orders').select('*, events(name), order_items(*, products(*))').in('event_id', eventIds).order('created_at', { ascending: false }).limit(5),
     ]);
 
@@ -490,15 +490,17 @@ const DashboardPage = () => {
 
       (order.order_items || []).forEach(item => {
         const prod = productsMap[item.product_id];
-        if (!prod) return;
+        const itemName = item.product_name || prod?.name;
+        const itemCategory = item.category || prod?.category;
+        if (!itemName && !prod) return;
         const qty = item.quantity || 0;
         const price = item.price_at_purchase || 0;
-        const cat = (prod.category || '').toLowerCase();
+        const cat = (itemCategory || '').toLowerCase();
 
         if (cat.includes('도서') || cat.includes('book')) bookRevenue += price * qty;
         else if (cat.includes('검사') || cat.includes('test') || cat.includes('도구') || cat.includes('tool')) testRevenue += price * qty;
 
-        if (!productSales[item.product_id]) productSales[item.product_id] = { product_id: item.product_id, name: prod.name, category: prod.category, totalQuantity: 0, totalAmount: 0 };
+        if (!productSales[item.product_id]) productSales[item.product_id] = { product_id: item.product_id, name: itemName, category: itemCategory, totalQuantity: 0, totalAmount: 0 };
         productSales[item.product_id].totalQuantity += qty;
         productSales[item.product_id].totalAmount += price * qty;
       });

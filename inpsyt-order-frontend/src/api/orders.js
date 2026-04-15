@@ -30,7 +30,7 @@ export const getOrders = async (options) => {
 
   let query = supabase
     .from('orders')
-    .select(`*, order_items (product_id, quantity, price_at_purchase)`, { count: 'exact' })
+    .select(`*, order_items (product_id, quantity, price_at_purchase, product_name, product_code, category, list_price)`, { count: 'exact' })
     .order('created_at', { ascending: false });
 
   if (searchTerm) {
@@ -69,7 +69,7 @@ export const getFulfillmentOrders = async ({ eventId, statuses, dateFrom, dateTo
       final_payment, delivery_fee, status, created_at,
       customer_request, admin_memo, event_id,
       events(name),
-      order_items(product_id, quantity, price_at_purchase,
+      order_items(product_id, quantity, price_at_purchase, product_name, product_code, category, list_price,
         products(name, category)
       )
     `)

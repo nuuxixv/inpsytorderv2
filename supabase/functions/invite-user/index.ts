@@ -48,20 +48,45 @@ serve(async (req: Request) => {
 
     // Parse request body
     const body = await req.json()
-    const { email, name, role, password } = body
+    const { email, name, role, password, roleTemplateId } = body
 
-    if (!email || !name || !role || !password) {
-      return new Response(JSON.stringify({ error: 'Missing email, name, role, or password in request' }), {
+    if (!email || !name || !password) {
+      return new Response(JSON.stringify({ error: 'Missing email, name, or password in request' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       })
     }
 
-    // Determine initial permissions/role based on selected role
+    if (!role && !roleTemplateId) {
+      return new Response(JSON.stringify({ error: 'Either role or roleTemplateId must be provided' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
+
+    // Determine initial permissions/role
     let appMetadataRole = 'operator';
     let appMetadataPermissions: string[] = [];
-    
-    if (role === 'master') {
+
+    if (roleTemplateId) {
+      // Fetch role template from DB
+      const { data: template, error: templateError } = await supabaseAdmin
+        .from('role_templates')
+        .select('name, permissions')
+        .eq('id', roleTemplateId)
+        .single();
+
+      if (templateError || !template) {
+        return new Response(JSON.stringify({ error: `Role template not found: ${templateError?.message || 'unknown'}` }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        })
+      }
+
+      appMetadataRole = template.name === '마스터' ? 'master' : 'operator';
+      appMetadataPermissions = template.permissions as string[];
+    } else if (role === 'master') {
+      // Legacy fallback: hardcoded role mapping
       appMetadataRole = 'master';
       appMetadataPermissions = ['master'];
     } else if (role === 'onsite') {
@@ -97,7 +122,7 @@ serve(async (req: Request) => {
           id: data.user.id,
           email: email,
           name: name,
-          role: role
+          role: role || appMetadataRole
         }]);
 
       if (profileError) {

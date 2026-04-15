@@ -1,0 +1,5723 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "inpsyt-order-frontend",
+    "languages": [
+      "JavaScript",
+      "JSX",
+      "TypeScript",
+      "SQL",
+      "HTML",
+      "CSS"
+    ],
+    "frameworks": [
+      "React",
+      "Vite",
+      "MUI",
+      "Supabase",
+      "Deno",
+      "Vercel"
+    ],
+    "description": "학회 현장 주문 관리 시스템 — 고객 주문 페이지 + 관리자 어드민",
+    "analyzedAt": "2026-04-14T06:16:28.707Z",
+    "gitCommitHash": "83a4c110be8933d87628f584c62753eb0a97cf0d"
+  },
+  "nodes": [
+    {
+      "id": "pipeline:.github/workflows/deploy-supabase-functions.yml",
+      "type": "pipeline",
+      "name": "Deploy Supabase Functions",
+      "summary": "main 브랜치의 supabase/functions/ 경로에 변경이 푸시되면 Supabase Edge Function을 프로덕션에 배포하는 GitHub Actions 워크플로우.",
+      "filePath": ".github/workflows/deploy-supabase-functions.yml",
+      "tags": [
+        "ci-cd",
+        "github-actions",
+        "supabase",
+        "edge-functions",
+        "deployment"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:.gitignore",
+      "type": "config",
+      "name": ".gitignore (root)",
+      "summary": "빌드 결과물, 환경 변수 파일, AI 도구 디렉토리, 시스템 파일, Supabase 임시 파일, 문서 폴더 등을 제외하는 루트 gitignore 설정.",
+      "filePath": ".gitignore",
+      "tags": [
+        "git",
+        "ignore",
+        "config"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:DOCS/CODE_MANUAL.md",
+      "type": "document",
+      "name": "Code Literacy Manual",
+      "summary": "PM/CTO 대상으로 OrderPage, create-order Edge Function, 컴포넌트 구조, 데이터 흐름을 식당 비유를 활용해 설명하는 비개발자용 코드 매뉴얼.",
+      "filePath": "DOCS/CODE_MANUAL.md",
+      "tags": [
+        "documentation",
+        "code-manual",
+        "onboarding",
+        "non-developer",
+        "architecture"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "document:DOCS/PROJECT_INTRO_VIBE_PM.md",
+      "type": "document",
+      "name": "Project Introduction (PM Portfolio)",
+      "summary": "학회 현장 주문 운영 디지털화에 대한 문제 정의, 접근 방식, 핵심 설계 결정, 기대 효과를 다루는 PM 포트폴리오용 프로젝트 소개 문서.",
+      "filePath": "DOCS/PROJECT_INTRO_VIBE_PM.md",
+      "tags": [
+        "documentation",
+        "pm",
+        "portfolio",
+        "project-intro",
+        "problem-definition"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "document:DOCS/ROADMAP.md",
+      "type": "document",
+      "name": "Development Roadmap",
+      "summary": "시스템 개요, 어드민 페이지, DB/인프라 구조, 미완료 작업(알림톡 모바일 이슈, 부분 취소), 완료 마일스톤, 매뉴얼 작성 할 일 등을 정리한 개발 로드맵.",
+      "filePath": "DOCS/ROADMAP.md",
+      "tags": [
+        "documentation",
+        "roadmap",
+        "planning",
+        "tasks",
+        "admin"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "document:MANUAL.md",
+      "type": "document",
+      "name": "Internal Operations Manual",
+      "summary": "서비스 아키텍처, 주요 파일 경로, 권한 관련 참고사항, 최근 주의사항(엑셀 업로드, 이메일 레거시 정리), 운영 체크리스트를 담은 내부 유지보수 및 인수인계 매뉴얼.",
+      "filePath": "MANUAL.md",
+      "tags": [
+        "documentation",
+        "internal",
+        "operations",
+        "manual",
+        "maintenance"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "document:ONESHOT.md",
+      "type": "document",
+      "name": "Kakao Alimtalk Integration Memo",
+      "summary": "OneShot(msgagent) 카카오 알림톡 API 연동 참고 문서. 계정 정보, 파라미터 스펙, 버튼 설정, 오류 코드, 템플릿 상세, 트러블슈팅 내용 포함.",
+      "filePath": "ONESHOT.md",
+      "tags": [
+        "documentation",
+        "alimtalk",
+        "kakao",
+        "api-reference",
+        "oneshot",
+        "msgagent"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "document:README.md",
+      "type": "document",
+      "name": "README",
+      "summary": "프로젝트 개요, 주요 기능(고객 주문, 어드민 관리, 백엔드), 기술 스택(React 19, Vite, MUI, Supabase), 저장소 구조, 배포 방법을 안내하는 공개용 README.",
+      "filePath": "README.md",
+      "tags": [
+        "documentation",
+        "readme",
+        "overview",
+        "setup"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:_config.yml",
+      "type": "config",
+      "name": "Jekyll Config",
+      "summary": "아카이브 문서, 프론트엔드 앱, Supabase, node_modules, JSON/lock 파일을 Jekyll 빌드에서 제외하는 Jekyll 설정 파일.",
+      "filePath": "_config.yml",
+      "tags": [
+        "config",
+        "jekyll",
+        "exclusion"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:inpsyt-order-frontend/.env.example",
+      "type": "config",
+      "name": ".env.example",
+      "summary": "VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_SUPABASE_FUNCTIONS_URL, VITE_ONESHOT_CALLBACK, VITE_APP_URL 플레이스홀더가 정의된 환경 변수 예시 파일.",
+      "filePath": "inpsyt-order-frontend/.env.example",
+      "tags": [
+        "config",
+        "env",
+        "environment",
+        "supabase",
+        "vite"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:inpsyt-order-frontend/.gitignore",
+      "type": "config",
+      "name": ".gitignore (frontend)",
+      "summary": "로그, node_modules, dist, 에디터 파일, .vercel, .env 파일을 제외하는 프론트엔드 전용 gitignore.",
+      "filePath": "inpsyt-order-frontend/.gitignore",
+      "tags": [
+        "git",
+        "ignore",
+        "config",
+        "frontend"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:inpsyt-order-frontend/README.md",
+      "type": "document",
+      "name": "Frontend README",
+      "summary": "HMR 설정과 ESLint 확장 옵션을 설명하는 Vite + React 기본 템플릿 README.",
+      "filePath": "inpsyt-order-frontend/README.md",
+      "tags": [
+        "documentation",
+        "readme",
+        "vite",
+        "react",
+        "boilerplate"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/api/send-alimtalk.js",
+      "type": "file",
+      "name": "send-alimtalk.js (Vercel Serverless)",
+      "summary": "결제 완료된 주문 데이터를 Supabase에서 조회하고, multipart form data를 구성하여 레거시 TLS로 msgagent API를 호출해 카카오 알림톡을 발송하는 Vercel 서버리스 API 엔드포인트.",
+      "filePath": "inpsyt-order-frontend/api/send-alimtalk.js",
+      "tags": [
+        "api",
+        "serverless",
+        "vercel",
+        "alimtalk",
+        "kakao",
+        "notification",
+        "node"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Node.js serverless function using native https module with legacy TLS agent for msgagent.com compatibility"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/api/send-alimtalk.js:handler",
+      "type": "function",
+      "name": "handler",
+      "summary": "JWT 인증 검증 후 Supabase에서 주문 상세를 조회하고, 카카오 알림톡 메시지를 구성하여 msgagent API로 발송한 뒤 alimtalk_sent_at 타임스탬프를 갱신하는 메인 핸들러.",
+      "filePath": "inpsyt-order-frontend/api/send-alimtalk.js",
+      "tags": [
+        "handler",
+        "serverless",
+        "auth",
+        "alimtalk",
+        "supabase"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/api/send-alimtalk.js:buildMultipart",
+      "type": "function",
+      "name": "buildMultipart",
+      "summary": "키-값 객체를 boundary 포함 multipart/form-data 형식의 요청 본문으로 변환하는 유틸리티 함수.",
+      "filePath": "inpsyt-order-frontend/api/send-alimtalk.js",
+      "tags": [
+        "utility",
+        "multipart",
+        "encoding"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/api/send-alimtalk.js:httpsPost",
+      "type": "function",
+      "name": "httpsPost",
+      "summary": "msgagent.com 호환을 위해 레거시 TLS 에이전트를 사용하는 Node.js 네이티브 https 모듈 기반 Promise HTTPS POST 헬퍼.",
+      "filePath": "inpsyt-order-frontend/api/send-alimtalk.js",
+      "tags": [
+        "utility",
+        "https",
+        "tls",
+        "network"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:inpsyt-order-frontend/eslint.config.js",
+      "type": "config",
+      "name": "ESLint Config",
+      "summary": "JS 권장 규칙, React Hooks, React Refresh 플러그인을 적용하고 JSX를 지원하며 미사용 변수 패턴을 무시하는 ESLint flat config.",
+      "filePath": "inpsyt-order-frontend/eslint.config.js",
+      "tags": [
+        "config",
+        "eslint",
+        "linting",
+        "react"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:inpsyt-order-frontend/index.html",
+      "type": "document",
+      "name": "index.html",
+      "summary": "한국어 타이틀, 파비콘, 뷰포트 메타, main.jsx를 모듈로 로드하는 루트 div를 포함한 SPA 진입점 HTML 파일.",
+      "filePath": "inpsyt-order-frontend/index.html",
+      "tags": [
+        "html",
+        "entry",
+        "spa",
+        "vite"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:inpsyt-order-frontend/package.json",
+      "type": "config",
+      "name": "package.json (frontend)",
+      "summary": "React 19, MUI 7, Supabase JS, react-router-dom 7, xlsx, date-fns 등 의존성과 Vite 7, Vitest, ESLint, Testing Library 등 개발 의존성 및 빌드/개발/테스트 스크립트가 정의된 프론트엔드 패키지 매니페스트.",
+      "filePath": "inpsyt-order-frontend/package.json",
+      "tags": [
+        "config",
+        "package",
+        "npm",
+        "dependencies",
+        "react",
+        "mui",
+        "supabase",
+        "vite"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/App.css",
+      "type": "file",
+      "name": "App.css",
+      "summary": "루트 레이아웃, 로고 애니메이션, 카드 스타일링 등 대부분 사용되지 않는 Vite 기본 템플릿 CSS.",
+      "filePath": "inpsyt-order-frontend/src/App.css",
+      "tags": [
+        "css",
+        "styles",
+        "boilerplate"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/App.jsx",
+      "type": "file",
+      "name": "App.jsx",
+      "summary": "MUI ThemeProvider, AuthProvider, NotificationProvider, React Router 라우트(주문 페이지, 로그인, 어드민), Vercel analytics/speed-insights를 설정하는 루트 애플리케이션 컴포넌트.",
+      "filePath": "inpsyt-order-frontend/src/App.jsx",
+      "tags": [
+        "react",
+        "router",
+        "app",
+        "entry",
+        "theme",
+        "auth",
+        "provider"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/src/App.jsx:AppRoutes",
+      "type": "function",
+      "name": "AppRoutes",
+      "summary": "주문 페이지, 주문 상태, 로그인, ProtectedRoute로 감싼 어드민 레이아웃, smartadmin 리다이렉트 등 전체 라우트를 정의하는 React 컴포넌트.",
+      "filePath": "inpsyt-order-frontend/src/App.jsx",
+      "tags": [
+        "react",
+        "component",
+        "routing",
+        "protected-route"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/src/App.jsx:App",
+      "type": "function",
+      "name": "App",
+      "summary": "ThemeProvider, CssBaseline, AuthProvider, NotificationProvider, AppRoutes, Vercel Analytics/SpeedInsights로 전체 앱을 감싸는 루트 React 컴포넌트.",
+      "filePath": "inpsyt-order-frontend/src/App.jsx",
+      "tags": [
+        "react",
+        "component",
+        "root",
+        "providers"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/AuthContext.jsx",
+      "type": "file",
+      "name": "AuthContext.jsx",
+      "summary": "Supabase Auth와 user_profiles 테이블을 활용하여 사용자 세션, 액세스 토큰, RBAC 권한(master/operator), 프로필 조회를 관리하는 React 인증 컨텍스트 프로바이더.",
+      "filePath": "inpsyt-order-frontend/src/AuthContext.jsx",
+      "tags": [
+        "react",
+        "context",
+        "auth",
+        "rbac",
+        "permissions",
+        "supabase"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/src/AuthContext.jsx:AuthProvider",
+      "type": "function",
+      "name": "AuthProvider",
+      "summary": "Supabase 인증 세션 초기화, 인증 상태 변경 리스너 등록, app_metadata 기반 RBAC 권한 해석, 사용자 프로필 조회, user/permissions/logout을 제공하는 컨텍스트 프로바이더.",
+      "filePath": "inpsyt-order-frontend/src/AuthContext.jsx",
+      "tags": [
+        "react",
+        "provider",
+        "auth",
+        "session",
+        "permissions"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/NotificationContext.jsx",
+      "type": "file",
+      "name": "NotificationContext.jsx",
+      "summary": "심각도 수준별 추가/제거 기능을 갖춘 인앱 토스트 알림용 간단한 React 컨텍스트 프로바이더.",
+      "filePath": "inpsyt-order-frontend/src/NotificationContext.jsx",
+      "tags": [
+        "react",
+        "context",
+        "notification",
+        "toast"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/src/NotificationContext.jsx:NotificationProvider",
+      "type": "function",
+      "name": "NotificationProvider",
+      "summary": "addNotification(메시지 + 심각도)과 removeNotification 콜백으로 알림 목록을 관리하는 컨텍스트 프로바이더.",
+      "filePath": "inpsyt-order-frontend/src/NotificationContext.jsx",
+      "tags": [
+        "react",
+        "provider",
+        "notification"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/api/alimtalk.js",
+      "type": "file",
+      "name": "alimtalk.js (client-side)",
+      "summary": "브라우저에서 직접 Supabase 주문 데이터를 조회하고 FormData로 msgagent API에 요청을 보내 카카오 알림톡을 발송하는 클라이언트 사이드 모듈.",
+      "filePath": "inpsyt-order-frontend/src/api/alimtalk.js",
+      "tags": [
+        "api",
+        "alimtalk",
+        "kakao",
+        "browser",
+        "fetch",
+        "notification"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/src/api/alimtalk.js:sendAlimtalk",
+      "type": "function",
+      "name": "sendAlimtalk",
+      "summary": "Supabase에서 주문 상세를 조회하고, 템플릿 변수로 카카오 알림톡 메시지를 구성하여 브라우저 fetch로 msgagent API에 발송한 뒤, 성공 시 alimtalk_sent_at을 갱신하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/api/alimtalk.js",
+      "tags": [
+        "alimtalk",
+        "kakao",
+        "send",
+        "order"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/api/events.js",
+      "type": "file",
+      "name": "events.js",
+      "summary": "Supabase에서 모든 이벤트(학회)를 이름순으로 조회하는 getEvents 함수를 제공하는 API 모듈.",
+      "filePath": "inpsyt-order-frontend/src/api/events.js",
+      "tags": [
+        "api",
+        "events",
+        "supabase",
+        "query"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/src/api/events.js:getEvents",
+      "type": "function",
+      "name": "getEvents",
+      "summary": "events 테이블에서 id, name, discount_rate, tags를 알파벳순으로 전체 조회하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/api/events.js",
+      "tags": [
+        "api",
+        "events",
+        "fetch"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/api/orders.js",
+      "type": "file",
+      "name": "orders.js",
+      "summary": "필터/페이지네이션 기반 주문 조회, 출고용 주문 조회, 합배송 연결/해제, 연결 주문 그룹핑, 연결 대상 주문 검색 등 주문 관련 전체 API 함수를 제공하는 모듈.",
+      "filePath": "inpsyt-order-frontend/src/api/orders.js",
+      "tags": [
+        "api",
+        "orders",
+        "supabase",
+        "pagination",
+        "fulfillment",
+        "linked-orders"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/src/api/orders.js:getOrders",
+      "type": "function",
+      "name": "getOrders",
+      "summary": "검색어, 상태 배열, 이벤트 배열, 날짜 범위 등 필터를 적용하여 Supabase에서 주문을 페이지네이션 조회하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/api/orders.js",
+      "tags": [
+        "api",
+        "orders",
+        "pagination",
+        "filter"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/src/api/orders.js:getFulfillmentOrders",
+      "type": "function",
+      "name": "getFulfillmentOrders",
+      "summary": "출고 뷰를 위해 order_items -> products 중첩 조인으로 주문을 조회하며, 상태(paid/preparing/completed), 이벤트, 날짜 범위로 필터링하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/api/orders.js",
+      "tags": [
+        "api",
+        "orders",
+        "fulfillment",
+        "nested-join"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/src/api/orders.js:linkOrders",
+      "type": "function",
+      "name": "linkOrders",
+      "summary": "자식 주문을 부모 주문에 합배송 연결하고, 배송비를 0으로 설정한 뒤 부모의 배송비 조정을 반영하여 최종 결제 금액을 재계산하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/api/orders.js",
+      "tags": [
+        "api",
+        "orders",
+        "linked-orders",
+        "shipping"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/src/api/orders.js:unlinkOrders",
+      "type": "function",
+      "name": "unlinkOrders",
+      "summary": "합배송에서 자식 주문을 분리하고, 사이트 설정의 기준 금액에 따라 개별 배송비와 최종 결제 금액을 재계산하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/api/orders.js",
+      "tags": [
+        "api",
+        "orders",
+        "unlink",
+        "shipping"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/src/api/orders.js:groupLinkedOrders",
+      "type": "function",
+      "name": "groupLinkedOrders",
+      "summary": "주문 배열을 parent_order_id 기준으로 그룹핑하여 자식 주문의 항목과 합계를 부모 주문 객체에 병합하는 순수 함수.",
+      "filePath": "inpsyt-order-frontend/src/api/orders.js",
+      "tags": [
+        "utility",
+        "orders",
+        "grouping",
+        "linked-orders"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/src/api/orders.js:searchOrdersForLinking",
+      "type": "function",
+      "name": "searchOrdersForLinking",
+      "summary": "합배송 연결 기능을 위해 고객명 또는 전화번호(하이픈 정규화 포함)로 연결 가능한 부모 주문을 검색하며, 이미 연결된 자식 주문은 제외하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/api/orders.js",
+      "tags": [
+        "api",
+        "orders",
+        "search",
+        "linking"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/api/products.js",
+      "type": "file",
+      "name": "products.js",
+      "summary": "페이지네이션/필터(검색어, 카테고리, 태그, 인기, 신상품) 기반 조회 fetchProducts와 청크 페이지네이션으로 전체 데이터셋을 가져오는 fetchAllProducts를 제공하는 상품 API 모듈.",
+      "filePath": "inpsyt-order-frontend/src/api/products.js",
+      "tags": [
+        "api",
+        "products",
+        "supabase",
+        "pagination",
+        "filter"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/src/api/products.js:fetchProducts",
+      "type": "function",
+      "name": "fetchProducts",
+      "summary": "검색어, 카테고리, 태그, 인기순, 신상품 등 필터를 적용하여 Supabase에서 상품을 페이지네이션 조회하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/api/products.js",
+      "tags": [
+        "api",
+        "products",
+        "fetch",
+        "filter",
+        "pagination"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/src/api/products.js:fetchAllProducts",
+      "type": "function",
+      "name": "fetchAllProducts",
+      "summary": "서버 행 제한을 우회하기 위해 1000건씩 청크 페이지네이션으로 전체 상품을 조회하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/api/products.js",
+      "tags": [
+        "api",
+        "products",
+        "fetch-all",
+        "pagination"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/api/settings.js",
+      "type": "file",
+      "name": "settings.js",
+      "summary": "site_settings 테이블(배송비 기준 금액, 배송 비용)에 대한 getSettings 및 updateSettings 함수를 제공하는 설정 API 모듈.",
+      "filePath": "inpsyt-order-frontend/src/api/settings.js",
+      "tags": [
+        "api",
+        "settings",
+        "supabase",
+        "shipping",
+        "config"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/src/api/settings.js:getSettings",
+      "type": "function",
+      "name": "getSettings",
+      "summary": "배송비 기준 금액과 비용이 포함된 site_settings 단일 행 레코드를 조회하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/api/settings.js",
+      "tags": [
+        "api",
+        "settings",
+        "fetch"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/src/api/settings.js:updateSettings",
+      "type": "function",
+      "name": "updateSettings",
+      "summary": "site_settings 레코드(id=1)를 전달된 필드로 업데이트하고 updated_at 타임스탬프를 갱신하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/api/settings.js",
+      "tags": [
+        "api",
+        "settings",
+        "update"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/components/AdminHeader.jsx",
+      "type": "file",
+      "name": "AdminHeader.jsx",
+      "summary": "모바일 햄버거 메뉴, 알림 팝오버, 사용자 아바타 메뉴(비밀번호 변경, 로그아웃), 버그/UX/제안 유형의 피드백 제출 다이얼로그를 갖춘 어드민 헤더 바 컴포넌트.",
+      "filePath": "inpsyt-order-frontend/src/components/AdminHeader.jsx",
+      "tags": [
+        "react",
+        "component",
+        "admin",
+        "header",
+        "navigation",
+        "feedback",
+        "notification"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:inpsyt-order-frontend/src/components/AdminHeader.jsx:AdminHeader",
+      "type": "function",
+      "name": "AdminHeader",
+      "summary": "햄버거 메뉴 토글, 알림 벨 팝오버, 사용자 아바타 드롭다운(비밀번호 변경, 로그아웃), Supabase feedback 테이블에 제출하는 피드백 다이얼로그를 렌더링하는 어드민 상단 바 컴포넌트.",
+      "filePath": "inpsyt-order-frontend/src/components/AdminHeader.jsx",
+      "tags": [
+        "react",
+        "component",
+        "admin",
+        "header",
+        "ui"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:components/AdminLayout.jsx",
+      "type": "file",
+      "name": "AdminLayout.jsx",
+      "summary": "사이드바, 헤더, 라우팅, Supabase 채널을 통한 실시간 주문 알림을 갖춘 어드민 레이아웃 셸. 대시보드, 주문, 이벤트, 상품, 출고, 사용자, 설정 페이지를 권한 가드와 함께 라우팅.",
+      "filePath": "inpsyt-order-frontend/src/components/AdminLayout.jsx",
+      "tags": [
+        "layout",
+        "routing",
+        "admin",
+        "realtime"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:AdminLayout",
+      "type": "function",
+      "name": "AdminLayout",
+      "summary": "사이드바 내비게이션, 헤더, 권한 가드 라우트, 신규 주문 실시간 알림을 위한 Supabase 구독을 포함하는 어드민 셸 컴포넌트.",
+      "filePath": "inpsyt-order-frontend/src/components/AdminLayout.jsx",
+      "tags": [
+        "component",
+        "layout",
+        "routing"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/AdminSidebar.jsx",
+      "type": "file",
+      "name": "AdminSidebar.jsx",
+      "summary": "상시 고정/임시 모드, 접힘 상태, 권한별 메뉴 필터링을 지원하는 어드민 패널용 반응형 사이드바 내비게이션 드로어.",
+      "filePath": "inpsyt-order-frontend/src/components/AdminSidebar.jsx",
+      "tags": [
+        "navigation",
+        "sidebar",
+        "admin",
+        "responsive"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:AdminSidebar",
+      "type": "function",
+      "name": "AdminSidebar",
+      "summary": "사용자 권한에 따라 메뉴 항목을 필터링하는 MUI Drawer 기반 사이드바. 데스크톱에서는 접힘 모드, 모바일에서는 임시 드로어를 지원.",
+      "filePath": "inpsyt-order-frontend/src/components/AdminSidebar.jsx",
+      "tags": [
+        "component",
+        "navigation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/CartBottomSheet.jsx",
+      "type": "file",
+      "name": "CartBottomSheet.jsx",
+      "summary": "수량 조절, 항목 삭제, 할인가 계산, 배송비 요약을 포함한 장바구니를 표시하는 SwipeableDrawer 바텀 시트.",
+      "filePath": "inpsyt-order-frontend/src/components/CartBottomSheet.jsx",
+      "tags": [
+        "cart",
+        "bottom-sheet",
+        "customer-facing"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:CartBottomSheet",
+      "type": "function",
+      "name": "CartBottomSheet",
+      "summary": "수량 스테퍼, 삭제 기능, 할인가 계산, 배송비 표시, 현장 구매 모드를 지원하는 바텀 시트 장바구니 UI.",
+      "filePath": "inpsyt-order-frontend/src/components/CartBottomSheet.jsx",
+      "tags": [
+        "component",
+        "cart"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/CostSummary.jsx",
+      "type": "file",
+      "name": "CostSummary.jsx",
+      "summary": "상품 합계, 할인, 배송비, 무료배송 진행률 바, 최종 결제 금액을 보여주는 재사용 가능한 비용 요약 컴포넌트. 컴팩트, 임베디드, 독립형 모드 지원.",
+      "filePath": "inpsyt-order-frontend/src/components/CostSummary.jsx",
+      "tags": [
+        "pricing",
+        "summary",
+        "customer-facing"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:CostSummary",
+      "type": "function",
+      "name": "CostSummary",
+      "summary": "할인, 배송비, 무료배송 진행률 바를 포함한 비용 내역을 계산하여 렌더링. 컴팩트 모드(가격만), 임베디드 모드(Card 래퍼 없음), 현장 구매(배송비 없음)를 지원.",
+      "filePath": "inpsyt-order-frontend/src/components/CostSummary.jsx",
+      "tags": [
+        "component",
+        "pricing"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/CustomerInfoStep.jsx",
+      "type": "file",
+      "name": "CustomerInfoStep.jsx",
+      "summary": "주문 마법사 2단계: 이름, 전화번호(자동 포맷), 다음 우편번호 주소 검색, 선택 항목(InPsyT ID, 요청사항) 입력 폼. 현장 구매 모드 대응.",
+      "filePath": "inpsyt-order-frontend/src/components/CustomerInfoStep.jsx",
+      "tags": [
+        "form",
+        "customer-info",
+        "order-wizard",
+        "customer-facing"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:CustomerInfoStep",
+      "type": "function",
+      "name": "CustomerInfoStep",
+      "summary": "필수 항목(이름, 전화번호), 다음 우편번호 API를 통한 배송 주소, 선택 항목(InPsyT ID, 요청사항)을 포함하는 고객 정보 폼 컴포넌트. 현장 모드에서는 주소 섹션을 숨김.",
+      "filePath": "inpsyt-order-frontend/src/components/CustomerInfoStep.jsx",
+      "tags": [
+        "component",
+        "form"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/DashboardPage.jsx",
+      "type": "file",
+      "name": "DashboardPage.jsx",
+      "summary": "KPI 카드(총 주문, 매출, 도서/검사 분류), 상태 바, 이벤트 필터 분석, 전년 대비 비교, 빠른 메모 위젯을 갖춘 어드민 대시보드. Supabase에서 주문/상품 데이터를 조회.",
+      "filePath": "inpsyt-order-frontend/src/components/DashboardPage.jsx",
+      "tags": [
+        "dashboard",
+        "analytics",
+        "admin",
+        "kpi"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:DashboardPage",
+      "type": "function",
+      "name": "DashboardPage",
+      "summary": "벤토 그리드 KPI 레이아웃, 주문 상태 분포 바, 이벤트 필터링, 날짜 범위 컨트롤, 주문 상세 모달을 통합한 어드민 대시보드 메인 컴포넌트.",
+      "filePath": "inpsyt-order-frontend/src/components/DashboardPage.jsx",
+      "tags": [
+        "component",
+        "dashboard",
+        "analytics"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:CompactKpi",
+      "type": "function",
+      "name": "CompactKpi",
+      "summary": "아이콘, 값, 선택적 전년 대비 변동률 칩을 표시하는 컴팩트 KPI 카드.",
+      "filePath": "inpsyt-order-frontend/src/components/DashboardPage.jsx",
+      "tags": [
+        "component",
+        "kpi",
+        "ui"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:StatusBar",
+      "type": "function",
+      "name": "StatusBar",
+      "summary": "주문 상태 분포(대기, 결제완료, 완료, 취소, 환불)를 수평 스택 바로 표시하며, 클릭 시 필터링을 지원.",
+      "filePath": "inpsyt-order-frontend/src/components/DashboardPage.jsx",
+      "tags": [
+        "component",
+        "visualization"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/DashboardPage.test.jsx",
+      "type": "file",
+      "name": "DashboardPage.test.jsx",
+      "summary": "Supabase 클라이언트를 모킹하고 대시보드 제목과 총 매출이 데이터 조회 후 올바르게 렌더링되는지 검증하는 Vitest 테스트.",
+      "filePath": "inpsyt-order-frontend/src/components/DashboardPage.test.jsx",
+      "tags": [
+        "test",
+        "vitest",
+        "dashboard"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:components/EmptyState.jsx",
+      "type": "file",
+      "name": "EmptyState.jsx",
+      "summary": "아이콘, 메시지, 보조 메시지, 선택적 액션 버튼을 커스터마이징할 수 있는 재사용 가능한 빈 상태 플레이스홀더.",
+      "filePath": "inpsyt-order-frontend/src/components/EmptyState.jsx",
+      "tags": [
+        "ui",
+        "empty-state",
+        "reusable"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:EmptyState",
+      "type": "function",
+      "name": "EmptyState",
+      "summary": "아이콘, 주 메시지, 선택적 보조 메시지, 선택적 액션 버튼을 표시하는 범용 빈 상태 컴포넌트.",
+      "filePath": "inpsyt-order-frontend/src/components/EmptyState.jsx",
+      "tags": [
+        "component",
+        "ui"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/EventManagementPage.jsx",
+      "type": "file",
+      "name": "EventManagementPage.jsx",
+      "summary": "학술 학회 이벤트 CRUD 관리 어드민 페이지. 상태 필터링 테이블, URL 슬러그 자동 생성, 학회 관리 다이얼로그, 할인율, 날짜 범위, Supabase 실시간 구독 기능 포함.",
+      "filePath": "inpsyt-order-frontend/src/components/EventManagementPage.jsx",
+      "tags": [
+        "admin",
+        "events",
+        "crud",
+        "realtime"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:EventManagementPage",
+      "type": "function",
+      "name": "EventManagementPage",
+      "summary": "CRUD 다이얼로그, 상태 필터 탭(전체/진행중/예정/종료), 통계 카드, 학회+연도+시즌 기반 슬러그 자동 생성, URL 복사, 주문 건수 확인 후 삭제를 지원하는 이벤트 관리 페이지.",
+      "filePath": "inpsyt-order-frontend/src/components/EventManagementPage.jsx",
+      "tags": [
+        "component",
+        "admin",
+        "events"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/FloatingBottomBar.jsx",
+      "type": "file",
+      "name": "FloatingBottomBar.jsx",
+      "summary": "주문 마법사용 고정 하단 액션 바. 0단계에서 장바구니 뱃지, 나머지 단계에서 뒤로가기 버튼, 무료배송 진행률 표시, 단계별 맥락에 맞는 CTA 버튼(다음/제출)을 제공.",
+      "filePath": "inpsyt-order-frontend/src/components/FloatingBottomBar.jsx",
+      "tags": [
+        "navigation",
+        "bottom-bar",
+        "order-wizard",
+        "customer-facing"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:FloatingBottomBar",
+      "type": "function",
+      "name": "FloatingBottomBar",
+      "summary": "장바구니 아이콘/뱃지(0단계), 뒤로 화살표(나머지 단계), 무료배송 진행률, 로딩 상태를 갖춘 단계별 CTA 버튼이 있는 고정 하단 내비게이션 바.",
+      "filePath": "inpsyt-order-frontend/src/components/FloatingBottomBar.jsx",
+      "tags": [
+        "component",
+        "navigation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/FulfillmentPage.jsx",
+      "type": "file",
+      "name": "FulfillmentPage.jsx",
+      "summary": "마스터-디테일 레이아웃의 어드민 출고 페이지. 좌측 패널에 이벤트/뷰 모드(도서/검사/전체) 필터 주문 카드, 우측 패널에 배송 정보, 상품 테이블, 출고 액션 표시. 합배송 그룹핑 지원.",
+      "filePath": "inpsyt-order-frontend/src/components/FulfillmentPage.jsx",
+      "tags": [
+        "admin",
+        "fulfillment",
+        "shipping",
+        "master-detail"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:FulfillmentPage",
+      "type": "function",
+      "name": "FulfillmentPage",
+      "summary": "이벤트 필터, 도서/검사/전체 토글, 주문 목록, 상세 패널을 갖춘 출고 메인 페이지. API로 주문을 조회하고 연결 주문을 그룹핑하며 출고 완료 상태 전환을 처리.",
+      "filePath": "inpsyt-order-frontend/src/components/FulfillmentPage.jsx",
+      "tags": [
+        "component",
+        "fulfillment"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:OrderCard",
+      "type": "function",
+      "name": "OrderCard",
+      "summary": "출고 목록에서 고객명, 이벤트, 주문 유형 뱃지(도서/검사/혼합), 합배송 표시, 완료 상태, 총액을 보여주는 컴팩트 카드.",
+      "filePath": "inpsyt-order-frontend/src/components/FulfillmentPage.jsx",
+      "tags": [
+        "component",
+        "ui"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:OrderDetail",
+      "type": "function",
+      "name": "OrderDetail",
+      "summary": "고객 정보(복사 가능), 주소, 뷰 모드에 따라 카테고리별로 흐리게 처리되는 상품 테이블, 배송비, 출고 버튼을 갖춘 출고 주문 상세 패널.",
+      "filePath": "inpsyt-order-frontend/src/components/FulfillmentPage.jsx",
+      "tags": [
+        "component",
+        "fulfillment"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:CopyableText",
+      "type": "function",
+      "name": "CopyableText",
+      "summary": "클릭 시 값을 클립보드에 복사하며, 호버 효과와 복사 아이콘을 표시하는 클릭 가능한 텍스트 컴포넌트.",
+      "filePath": "inpsyt-order-frontend/src/components/FulfillmentPage.jsx",
+      "tags": [
+        "component",
+        "utility",
+        "clipboard"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:normalizeCategory",
+      "type": "function",
+      "name": "normalizeCategory",
+      "summary": "상품 카테고리 문자열을 정규화하여 '도구'를 '검사'로 매핑하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/components/FulfillmentPage.jsx",
+      "tags": [
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:classifyOrder",
+      "type": "function",
+      "name": "classifyOrder",
+      "summary": "주문 항목의 상품 카테고리를 기반으로 주문을 'book', 'test', 'mixed', 'other'로 분류하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/components/FulfillmentPage.jsx",
+      "tags": [
+        "utility",
+        "classification"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/LoginPage.jsx",
+      "type": "file",
+      "name": "LoginPage.jsx",
+      "summary": "3단계 어드민 로그인 페이지: (1) 역할 선택(master/onsite/fulfillment), (2) 프로필에서 사용자 선택, (3) PIN 입력 후 Supabase 인증. 이메일/비밀번호가 사용자에게 노출되지 않음.",
+      "filePath": "inpsyt-order-frontend/src/components/LoginPage.jsx",
+      "tags": [
+        "auth",
+        "login",
+        "admin"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:LoginPage",
+      "type": "function",
+      "name": "LoginPage",
+      "summary": "다단계 로그인 플로우: (1) 역할 선택, (2) 사용자 프로필 선택, (3) PIN 입력. 프로필 이메일을 사용하여 supabase.auth.signInWithPassword로 인증.",
+      "filePath": "inpsyt-order-frontend/src/components/LoginPage.jsx",
+      "tags": [
+        "component",
+        "auth"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/NewOrderModal.jsx",
+      "type": "file",
+      "name": "NewOrderModal.jsx",
+      "summary": "어드민 신규 주문 생성 모달. 좌측에 고객 정보, 이벤트 선택, 현장 판매 토글, 주문 요약. 우측에 상품 검색/필터와 장바구니 관리를 분할 패널로 구성.",
+      "filePath": "inpsyt-order-frontend/src/components/NewOrderModal.jsx",
+      "tags": [
+        "admin",
+        "order-creation",
+        "modal"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:NewOrderModal",
+      "type": "function",
+      "name": "NewOrderModal",
+      "summary": "이벤트 선택, 현장 판매 토글, 고객 정보, 상품 검색/카테고리 필터, 수량 조절 장바구니, 할인 계산, Supabase order+order_items 삽입을 갖춘 어드민 신규 주문 다이얼로그.",
+      "filePath": "inpsyt-order-frontend/src/components/NewOrderModal.jsx",
+      "tags": [
+        "component",
+        "admin",
+        "order"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/NotificationsDisplay.jsx",
+      "type": "file",
+      "name": "NotificationsDisplay.jsx",
+      "summary": "useNotification 훅에서 알림을 소비하여 MUI Snackbar+Alert로 표시하는 전역 토스트 알림 컴포넌트.",
+      "filePath": "inpsyt-order-frontend/src/components/NotificationsDisplay.jsx",
+      "tags": [
+        "ui",
+        "notifications",
+        "global"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:NotificationsDisplay",
+      "type": "function",
+      "name": "NotificationsDisplay",
+      "summary": "useNotification 컨텍스트에서 최신 알림을 가져와 자동 숨김 기능의 우하단 Snackbar로 렌더링하는 컴포넌트.",
+      "filePath": "inpsyt-order-frontend/src/components/NotificationsDisplay.jsx",
+      "tags": [
+        "component",
+        "notifications"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/OrderDetailModal.jsx",
+      "type": "file",
+      "name": "OrderDetailModal.jsx",
+      "summary": "보기/편집 모드를 갖춘 어드민 주문 상세 모달/드로어. 주문 정보, 고객 상세, 배송 주소, 가격 재계산이 포함된 주문 항목, 상태 관리, 합배송 지원, 알림톡 발송, 주문 삭제 기능 제공.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderDetailModal.jsx",
+      "tags": [
+        "admin",
+        "order-detail",
+        "modal",
+        "edit"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:OrderDetailModal",
+      "type": "function",
+      "name": "OrderDetailModal",
+      "summary": "보기/편집 전환, 고객 정보 및 주문 항목 인라인 편집, 할인/배송비 포함 가격 재계산, 상태 변경, 합배송 관리, 알림톡 연동, 확인 후 삭제를 지원하는 주문 상세 모달.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderDetailModal.jsx",
+      "tags": [
+        "component",
+        "admin",
+        "order"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/OrderDetailModal.test.jsx",
+      "type": "file",
+      "name": "OrderDetailModal.test.jsx",
+      "summary": "OrderDetailModal의 Vitest 테스트 파일. 배송비 회귀 테스트(무료배송 기준을 할인가가 아닌 정가 기준으로 판단), 초기 렌더링 검증, 수정-저장 RPC 호출 검증을 포함한다.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderDetailModal.test.jsx",
+      "tags": [
+        "test",
+        "vitest",
+        "order-detail",
+        "regression"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:components/OrderForm.jsx",
+      "type": "file",
+      "name": "OrderForm.jsx",
+      "summary": "레거시 고객 정보 입력 폼 컴포넌트. 이름, 전화번호, 이메일, 주소(다음 우편번호 검색), InPsyT ID, 요청사항 필드를 Card로 감싼 단독 폼이다.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderForm.jsx",
+      "tags": [
+        "form",
+        "customer-info",
+        "legacy"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:OrderForm",
+      "type": "function",
+      "name": "OrderForm",
+      "summary": "전화번호 자동 포맷팅, 다음 우편번호 모달 주소 검색, 일반 텍스트 필드를 갖춘 단독 주문 폼. CustomerInfoStep의 레거시 버전이다.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderForm.jsx",
+      "tags": [
+        "component",
+        "form"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/OrderLookupPage.jsx",
+      "type": "file",
+      "name": "OrderLookupPage.jsx",
+      "summary": "고객용 주문 조회 페이지. 이름+전화번호로 검색하며, URL 슬러그를 통해 특정 행사 범위로 한정할 수 있다. 주문 카드에 상태, 행사명, 상품 수를 표시하고 OrderStatusPage로 이동한다.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderLookupPage.jsx",
+      "tags": [
+        "customer-facing",
+        "order-lookup",
+        "search"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:OrderLookupPage",
+      "type": "function",
+      "name": "OrderLookupPage",
+      "summary": "이름+전화번호 검색, 행사 슬러그 컨텍스트, 연결 주문 그룹핑을 지원하는 주문 조회 페이지. access_token을 통해 주문 상태 페이지로 이동한다.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderLookupPage.jsx",
+      "tags": [
+        "component",
+        "customer-facing",
+        "search"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/OrderManagementPage.jsx",
+      "type": "file",
+      "name": "OrderManagementPage.jsx",
+      "summary": "관리자용 주문 관리 메인 페이지. useReducer 상태 관리, 페이지네이션 주문 테이블, 다중 필터(행사/상태/날짜/검색), 알림톡 발송 포함 일괄 상태 변경, Excel 내보내기(도서/검사/전체), 신규 주문 및 주문 상세 모달을 제공한다.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderManagementPage.jsx",
+      "tags": [
+        "admin",
+        "order-management",
+        "crud",
+        "excel",
+        "bulk-actions"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:OrderManagementPage",
+      "type": "function",
+      "name": "OrderManagementPage",
+      "summary": "useReducer로 복잡한 상태를 관리하는 주문 관리 페이지. 페이지네이션 주문 목록, 다중 필터, 순차적 알림톡 발송 일괄 상태 변경, Excel 다운로드(도서/검사/통합), 신규/상세 주문 모달을 포함한다.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderManagementPage.jsx",
+      "tags": [
+        "component",
+        "admin",
+        "order"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/OrderManagementPage.test.jsx",
+      "type": "file",
+      "name": "OrderManagementPage.test.jsx",
+      "summary": "OrderManagementPage의 Vitest 테스트. Supabase를 모킹하고 AuthContext, NotificationContext Provider로 감싸 렌더링한 뒤 초기 주문 목록이 정상 표시되는지 검증한다.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderManagementPage.test.jsx",
+      "tags": [
+        "test",
+        "vitest",
+        "order-management"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:components/OrderPage.jsx",
+      "type": "file",
+      "name": "OrderPage.jsx",
+      "summary": "고객용 다단계 주문 마법사. 0단계: 상품 선택, 1단계: 고객 정보, 2단계: 주문 확인. 행사 슬러그 유효성 검증, 현장 구매 모드(트리플 탭 전환), Supabase Edge Function을 통한 주문 제출, 상태 페이지 리다이렉트를 처리한다.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderPage.jsx",
+      "tags": [
+        "customer-facing",
+        "order-wizard",
+        "multi-step"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:OrderPage",
+      "type": "function",
+      "name": "OrderPage",
+      "summary": "3단계 주문 마법사: 상품 선택, 고객 정보, 주문 확인. 행사 슬러그 검증(not_found/expired/no_slug), 설정 조회, 트리플 탭 현장 모드 전환, create-order Edge Function을 통한 주문 제출을 수행한다.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderPage.jsx",
+      "tags": [
+        "component",
+        "customer-facing",
+        "order"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/OrderReviewStep.jsx",
+      "type": "file",
+      "name": "OrderReviewStep.jsx",
+      "summary": "주문 마법사 3단계: 할인 적용 가격이 포함된 주문 상품, 고객 정보 요약, CostSummary 임베드, 예상 배송일을 표시하는 주문 확인 페이지. 이전 단계로 돌아가는 수정 버튼을 제공한다.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderReviewStep.jsx",
+      "tags": [
+        "order-wizard",
+        "review",
+        "customer-facing"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:OrderReviewStep",
+      "type": "function",
+      "name": "OrderReviewStep",
+      "summary": "상품 목록과 가격, 고객 정보 카드, 비용 요약, 예상 배송일 배너를 보여주는 주문 확인 단계. 수정 버튼으로 상품/정보 단계로 돌아갈 수 있다.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderReviewStep.jsx",
+      "tags": [
+        "component",
+        "review"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:InfoRow",
+      "type": "function",
+      "name": "InfoRow",
+      "summary": "주문 확인 화면의 고객 정보 카드에서 사용하는 단순 라벨-값 행 컴포넌트.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderReviewStep.jsx",
+      "tags": [
+        "component",
+        "ui"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/OrderStatusPage.jsx",
+      "type": "file",
+      "name": "OrderStatusPage.jsx",
+      "summary": "고객용 주문 상태 페이지. access_token으로 접근하며, 아이콘/색상이 포함된 상태 배너, 주문 상품(연결 주문 지원), 결제 요약, 고객 정보, 요청사항을 표시한다. Supabase RPC get_order_by_token으로 데이터를 조회한다.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderStatusPage.jsx",
+      "tags": [
+        "customer-facing",
+        "order-status",
+        "token-access"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:OrderStatusPage",
+      "type": "function",
+      "name": "OrderStatusPage",
+      "summary": "access_token 기반 RPC로 주문을 조회하는 주문 상태 페이지. 상태별 색상 배너, 연결 주문 상품(1차/2차 주문), 결제 요약, 고객 정보, 문의 이메일을 표시한다.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderStatusPage.jsx",
+      "tags": [
+        "component",
+        "customer-facing"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:getBannerConfig",
+      "type": "function",
+      "name": "getBannerConfig",
+      "summary": "주문 상태에 따라 배너 설정(아이콘, 라벨, 색상, 부가 메시지)을 반환하는 함수. 예상 배송일 연동을 포함한다.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderStatusPage.jsx",
+      "tags": [
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:SectionTitle",
+      "type": "function",
+      "name": "SectionTitle",
+      "summary": "주문 상태 페이지에서 사용하는 소문자 섹션 제목 컴포넌트.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderStatusPage.jsx",
+      "tags": [
+        "component",
+        "ui"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ItemsCard",
+      "type": "function",
+      "name": "ItemsCard",
+      "summary": "상품명, 카테고리, 수량, 가격을 보여주는 주문 상품 목록 카드. 취소 상태(취소선) 및 칩 라벨 모드를 지원한다.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderStatusPage.jsx",
+      "tags": [
+        "component",
+        "ui"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/OrderStepIndicator.jsx",
+      "type": "file",
+      "name": "OrderStepIndicator.jsx",
+      "summary": "3단계 주문 마법사용 고정(sticky) 단계 표시기. 번호 원, 완료 체크 아이콘, 연결선을 포함한다.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderStepIndicator.jsx",
+      "tags": [
+        "ui",
+        "stepper",
+        "order-wizard",
+        "customer-facing"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:OrderStepIndicator",
+      "type": "function",
+      "name": "OrderStepIndicator",
+      "summary": "번호 원, 완료 체크 아이콘, 연결선, 라벨(상품 선택, 주문자 정보, 주문 확인)이 있는 3단계 가로 스텝퍼 컴포넌트.",
+      "filePath": "inpsyt-order-frontend/src/components/OrderStepIndicator.jsx",
+      "tags": [
+        "component",
+        "stepper"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/ProductCard.jsx",
+      "type": "file",
+      "name": "ProductCard.jsx",
+      "summary": "고객용 상품 카드. 카테고리/인기/신규 뱃지, 할인가 표시, 장바구니 담기/수량 조절 인터랙션을 제공한다. 장바구니에 없을 때 클릭 가능하다.",
+      "filePath": "inpsyt-order-frontend/src/components/ProductCard.jsx",
+      "tags": [
+        "customer-facing",
+        "product",
+        "card"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:ProductCard",
+      "type": "function",
+      "name": "ProductCard",
+      "summary": "상품명, 카테고리 칩, 인기/신규 뱃지, 정가 및 할인가, 장바구니 인터랙션(담기 버튼 또는 수량 조절기)을 표시하는 상품 카드 컴포넌트.",
+      "filePath": "inpsyt-order-frontend/src/components/ProductCard.jsx",
+      "tags": [
+        "component",
+        "product"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:components/ProductManagementPage.jsx",
+      "type": "file",
+      "name": "ProductManagementPage.jsx",
+      "summary": "관리자용 상품 관리 페이지. 페이지네이션 테이블, 검색/카테고리 필터, 통계 카드, CRUD 다이얼로그, Excel 업로드/다운로드, 일괄 수정(인기/신규/태그), 전체 선택, 삭제 기능을 제공한다.",
+      "filePath": "inpsyt-order-frontend/src/components/ProductManagementPage.jsx",
+      "tags": [
+        "admin",
+        "product-management",
+        "crud",
+        "excel",
+        "bulk-actions"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ProductManagementPage",
+      "type": "function",
+      "name": "ProductManagementPage",
+      "summary": "페이지네이션 상품 테이블, 검색/카테고리 필터, 통계 카드(전체/할인가능/인기), CRUD 다이얼로그, XLSX 기반 Excel 가져오기/내보내기, 일괄 수정 다이얼로그, 다중 선택 삭제, 권한 가드를 포함하는 상품 관리 페이지.",
+      "filePath": "inpsyt-order-frontend/src/components/ProductManagementPage.jsx",
+      "tags": [
+        "component",
+        "admin",
+        "product"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:TriStateToggle",
+      "type": "function",
+      "name": "TriStateToggle",
+      "summary": "일괄 수정 다이얼로그에서 불리언 상품 필드에 사용하는 3상태 토글 버튼 그룹(변경없음/켜기/끄기).",
+      "filePath": "inpsyt-order-frontend/src/components/ProductManagementPage.jsx",
+      "tags": [
+        "component",
+        "ui"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:createEmptyProduct",
+      "type": "function",
+      "name": "createEmptyProduct",
+      "summary": "신규 상품 폼용 빈 상품 객체 템플릿을 반환하는 팩토리 함수.",
+      "filePath": "inpsyt-order-frontend/src/components/ProductManagementPage.jsx",
+      "tags": [
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/components/ProductSelectionStep.jsx",
+      "type": "file",
+      "name": "ProductSelectionStep.jsx",
+      "summary": "모바일 우선 상품 선택 단계 컴포넌트. 무한 스크롤 페이지네이션, 검색, 카테고리/보기 모드 필터(인기/신규/전체), 장바구니 관리를 제공한다. IntersectionObserver로 지연 로딩을 구현한다.",
+      "filePath": "inpsyt-order-frontend/src/components/ProductSelectionStep.jsx",
+      "tags": [
+        "react",
+        "component",
+        "customer-facing",
+        "product-selection",
+        "infinite-scroll",
+        "cart"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:ProductSelectionStep",
+      "type": "function",
+      "name": "ProductSelectionStep",
+      "summary": "검색 바, 보기 모드 칩(인기/신규/전체), 카테고리 필터 칩, 무한 스크롤 상품 카드와 장바구니 수량 조절을 렌더링하는 React 컴포넌트. Props: cart, onCartChange, discountRate, eventTags, eventName.",
+      "filePath": "inpsyt-order-frontend/src/components/ProductSelectionStep.jsx",
+      "tags": [
+        "react-component",
+        "jsx",
+        "customer-facing"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ProductSelectionStep:loadProducts",
+      "type": "function",
+      "name": "loadProducts",
+      "summary": "검색어, 태그, 인기도, 신규 여부, 카테고리 필터를 적용하여 API에서 페이지네이션된 상품을 조회하는 비동기 콜백. 다음 페이지 결과를 기존 목록에 추가한다.",
+      "filePath": "inpsyt-order-frontend/src/components/ProductSelectionStep.jsx",
+      "tags": [
+        "async",
+        "data-fetching",
+        "pagination"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/components/ProductSelector.jsx",
+      "type": "file",
+      "name": "ProductSelector.jsx",
+      "summary": "관리자용 상품 선택기. Autocomplete 검색, 반응형 모바일 카드/데스크톱 테이블 뷰, 수량 조절, 할인 표시, 상품 제거 기능을 포함한다. 주문 생성/수정 플로우에서 사용된다.",
+      "filePath": "inpsyt-order-frontend/src/components/ProductSelector.jsx",
+      "tags": [
+        "react",
+        "component",
+        "admin",
+        "product-selector",
+        "responsive"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:ProductSelector",
+      "type": "function",
+      "name": "ProductSelector",
+      "summary": "MUI Autocomplete 상품 검색, 디바운스된 API 호출, 듀얼 뷰(모바일 카드/데스크톱 테이블)로 선택된 상품의 수량 증감 및 제거를 지원하는 React 컴포넌트. Props: selectedProducts, onProductChange, discountRate, eventTags.",
+      "filePath": "inpsyt-order-frontend/src/components/ProductSelector.jsx",
+      "tags": [
+        "react-component",
+        "jsx",
+        "admin"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:ProductSelector:loadProducts",
+      "type": "function",
+      "name": "loadProducts",
+      "summary": "검색어와 행사 태그를 기반으로 fetchProducts API를 호출하여 상품을 조회하는 비동기 콜백.",
+      "filePath": "inpsyt-order-frontend/src/components/ProductSelector.jsx",
+      "tags": [
+        "async",
+        "data-fetching"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/components/ProtectedRoute.jsx",
+      "type": "file",
+      "name": "ProtectedRoute.jsx",
+      "summary": "인증되지 않은 사용자를 /login으로 리다이렉트하고, 인증된 경우 React.cloneElement로 자식에 user prop을 전달하는 라우트 가드 컴포넌트.",
+      "filePath": "inpsyt-order-frontend/src/components/ProtectedRoute.jsx",
+      "tags": [
+        "react",
+        "component",
+        "auth",
+        "routing",
+        "guard"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:ProtectedRoute",
+      "type": "function",
+      "name": "ProtectedRoute",
+      "summary": "인증 가드: user가 없으면 /login으로 리다이렉트하고, 있으면 자식 컴포넌트에 user prop을 주입하여 렌더링한다.",
+      "filePath": "inpsyt-order-frontend/src/components/ProtectedRoute.jsx",
+      "tags": [
+        "react-component",
+        "auth"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/components/SettingsPage.jsx",
+      "type": "file",
+      "name": "SettingsPage.jsx",
+      "summary": "관리자용 설정 페이지. 무료배송 기준 금액과 배송비를 설정한다. Supabase 'site_settings' 테이블에서 읽고 쓴다.",
+      "filePath": "inpsyt-order-frontend/src/components/SettingsPage.jsx",
+      "tags": [
+        "react",
+        "component",
+        "admin",
+        "settings",
+        "shipping"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:SettingsPage",
+      "type": "function",
+      "name": "SettingsPage",
+      "summary": "무료배송 기준 금액(free_shipping_threshold)과 배송비(shipping_cost) 설정을 Supabase site_settings 테이블에서 조회/저장하는 관리자 페이지 컴포넌트.",
+      "filePath": "inpsyt-order-frontend/src/components/SettingsPage.jsx",
+      "tags": [
+        "react-component",
+        "admin",
+        "settings"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:SettingsPage:fetchSettings",
+      "type": "function",
+      "name": "fetchSettings",
+      "summary": "Supabase site_settings 테이블에서 배송 설정을 단일 행으로 조회하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/components/SettingsPage.jsx",
+      "tags": [
+        "async",
+        "supabase"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:SettingsPage:handleSave",
+      "type": "function",
+      "name": "handleSave",
+      "summary": "수정된 배송 설정을 Supabase site_settings 테이블(id=1)에 저장하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/components/SettingsPage.jsx",
+      "tags": [
+        "async",
+        "supabase"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/components/SocietyManagementDialog.jsx",
+      "type": "file",
+      "name": "SocietyManagementDialog.jsx",
+      "summary": "학회 CRUD 관리 다이얼로그. 이름과 slug_prefix로 신규 학회를 추가하고, 목록 조회 및 삭제가 가능하다. useAuth를 통해 권한을 검사한다.",
+      "filePath": "inpsyt-order-frontend/src/components/SocietyManagementDialog.jsx",
+      "tags": [
+        "react",
+        "component",
+        "admin",
+        "dialog",
+        "society-management"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:SocietyManagementDialog",
+      "type": "function",
+      "name": "SocietyManagementDialog",
+      "summary": "학회 목록 관리(추가/삭제) 다이얼로그 컴포넌트. 슬러그 유효성 검사 및 권한 체크를 수행한다. Props: open, onClose, onUpdated.",
+      "filePath": "inpsyt-order-frontend/src/components/SocietyManagementDialog.jsx",
+      "tags": [
+        "react-component",
+        "admin",
+        "dialog"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:SocietyManagementDialog:fetchSocieties",
+      "type": "function",
+      "name": "fetchSocieties",
+      "summary": "Supabase에서 이름순으로 정렬된 전체 학회 목록을 조회하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/components/SocietyManagementDialog.jsx",
+      "tags": [
+        "async",
+        "supabase"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:SocietyManagementDialog:handleAdd",
+      "type": "function",
+      "name": "handleAdd",
+      "summary": "이름과 slug_prefix를 검증한 뒤 Supabase에 신규 학회를 추가하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/components/SocietyManagementDialog.jsx",
+      "tags": [
+        "async",
+        "supabase"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:SocietyManagementDialog:handleDelete",
+      "type": "function",
+      "name": "handleDelete",
+      "summary": "확인 후 Supabase에서 해당 학회를 ID로 삭제하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/components/SocietyManagementDialog.jsx",
+      "tags": [
+        "async",
+        "supabase"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/components/TableSkeleton.jsx",
+      "type": "file",
+      "name": "TableSkeleton.jsx",
+      "summary": "테이블 행에 대한 재사용 가능한 스켈레톤 로딩 표시기. 설정 가능한 행 x 열 수만큼 MUI Skeleton 애니메이션을 렌더링한다.",
+      "filePath": "inpsyt-order-frontend/src/components/TableSkeleton.jsx",
+      "tags": [
+        "react",
+        "component",
+        "ui",
+        "skeleton",
+        "loading"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:TableSkeleton",
+      "type": "function",
+      "name": "TableSkeleton",
+      "summary": "테이블용 스켈레톤 로딩 행을 렌더링하는 컴포넌트. Props: rows(기본 5), columns(기본 5).",
+      "filePath": "inpsyt-order-frontend/src/components/TableSkeleton.jsx",
+      "tags": [
+        "react-component",
+        "ui"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+      "type": "file",
+      "name": "UserManagementPage.jsx",
+      "summary": "관리자용 사용자 관리 페이지. 통계 대시보드(전체/마스터/최근활동), 역할 관리 사용자 테이블, PIN 기반 초대, 메모 편집, 삭제 확인을 제공한다. Supabase Edge Functions로 사용자 CRUD를 수행한다.",
+      "filePath": "inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+      "tags": [
+        "react",
+        "component",
+        "admin",
+        "user-management",
+        "rbac"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:UserManagementPage",
+      "type": "function",
+      "name": "UserManagementPage",
+      "summary": "사용자 CRUD 전체 관리 페이지. 통계 카드와 함께 사용자 목록을 표시하고, 역할/활동 필터, 이름+PIN+역할 초대, 역할/메모 수정, 사용자 삭제를 지원한다. Supabase Edge Functions(list-users, invite-user, update-user-role, update-user-memo, delete-user)를 호출한다.",
+      "filePath": "inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+      "tags": [
+        "react-component",
+        "admin",
+        "user-management"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:UserManagementPage:fetchUsers",
+      "type": "function",
+      "name": "fetchUsers",
+      "summary": "Supabase Edge Function 'list-users'를 통해 사용자 목록을 조회하는 함수. 인증 오류 시 로그아웃을 처리한다.",
+      "filePath": "inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+      "tags": [
+        "async",
+        "edge-function"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:UserManagementPage:handleInviteUser",
+      "type": "function",
+      "name": "handleInviteUser",
+      "summary": "'invite-user' Edge Function으로 내부 이메일 자동 생성, 이름, PIN 비밀번호, 역할을 지정하여 신규 사용자를 생성하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+      "tags": [
+        "async",
+        "edge-function",
+        "user-creation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:UserManagementPage:handleRoleChange",
+      "type": "function",
+      "name": "handleRoleChange",
+      "summary": "'update-user-role' Edge Function으로 사용자 역할을 변경하는 함수. 마스터 계정의 자기 강등을 방지한다.",
+      "filePath": "inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+      "tags": [
+        "async",
+        "edge-function",
+        "rbac"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:UserManagementPage:handleDeleteUser",
+      "type": "function",
+      "name": "handleDeleteUser",
+      "summary": "사용자 삭제 플로우를 시작하는 함수(확인 다이얼로그 표시). 자기 자신의 삭제를 방지한다.",
+      "filePath": "inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+      "tags": [
+        "user-management"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:UserManagementPage:handleSaveMemo",
+      "type": "function",
+      "name": "handleSaveMemo",
+      "summary": "'update-user-memo' Edge Function으로 사용자 메모를 업데이트하는 함수.",
+      "filePath": "inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+      "tags": [
+        "async",
+        "edge-function"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/constants/orderStatus.js",
+      "type": "file",
+      "name": "orderStatus.js",
+      "summary": "5단계 주문 상태 생명주기 상수 정의: pending, paid, completed, cancelled, refunded. 한국어 라벨, 색상 코드, 매출 포함 상태를 내보낸다.",
+      "filePath": "inpsyt-order-frontend/src/constants/orderStatus.js",
+      "tags": [
+        "constants",
+        "order-status",
+        "business-logic"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:STATUS_TO_KOREAN",
+      "type": "function",
+      "name": "STATUS_TO_KOREAN",
+      "summary": "주문 상태 키를 한국어 표시 라벨로 매핑: pending->결제대기, paid->결제완료, completed->처리완료, cancelled->주문취소, refunded->결제취소.",
+      "filePath": "inpsyt-order-frontend/src/constants/orderStatus.js",
+      "tags": [
+        "constant",
+        "i18n"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:STATUS_COLORS",
+      "type": "function",
+      "name": "STATUS_COLORS",
+      "summary": "주문 상태 키를 UI 표시용 HEX 색상 코드로 매핑하는 객체.",
+      "filePath": "inpsyt-order-frontend/src/constants/orderStatus.js",
+      "tags": [
+        "constant",
+        "ui"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:REVENUE_STATUSES",
+      "type": "function",
+      "name": "REVENUE_STATUSES",
+      "summary": "매출로 집계되는 주문 상태 배열: ['pending', 'paid', 'completed'].",
+      "filePath": "inpsyt-order-frontend/src/constants/orderStatus.js",
+      "tags": [
+        "constant",
+        "business-logic"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/hooks/useAuth.jsx",
+      "type": "file",
+      "name": "useAuth.jsx",
+      "summary": "AuthContext를 감싸는 커스텀 훅. 인증 상태(user, accessToken, hasPermission, logout)에 접근할 수 있다.",
+      "filePath": "inpsyt-order-frontend/src/hooks/useAuth.jsx",
+      "tags": [
+        "react",
+        "hook",
+        "auth",
+        "context"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:useAuth",
+      "type": "function",
+      "name": "useAuth",
+      "summary": "useContext를 통해 AuthContext 값을 반환하는 커스텀 훅.",
+      "filePath": "inpsyt-order-frontend/src/hooks/useAuth.jsx",
+      "tags": [
+        "hook",
+        "auth"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/hooks/useNotification.jsx",
+      "type": "file",
+      "name": "useNotification.jsx",
+      "summary": "NotificationContext를 감싸는 커스텀 훅. 토스트/스낵바 메시지용 addNotification 함수를 제공한다.",
+      "filePath": "inpsyt-order-frontend/src/hooks/useNotification.jsx",
+      "tags": [
+        "react",
+        "hook",
+        "notification",
+        "context"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:useNotification",
+      "type": "function",
+      "name": "useNotification",
+      "summary": "useContext를 통해 NotificationContext 값을 반환하는 커스텀 훅.",
+      "filePath": "inpsyt-order-frontend/src/hooks/useNotification.jsx",
+      "tags": [
+        "hook",
+        "notification"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/index.css",
+      "type": "file",
+      "name": "index.css",
+      "summary": "Pretendard 폰트 임포트, 모던 스크롤바 스타일링, 기본 요소 리셋, 라이트/다크 컬러 스킴을 포함하는 글로벌 CSS.",
+      "filePath": "inpsyt-order-frontend/src/index.css",
+      "tags": [
+        "css",
+        "global-styles",
+        "fonts"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/main.jsx",
+      "type": "file",
+      "name": "main.jsx",
+      "summary": "애플리케이션 진입점. createRoot를 사용하여 React StrictMode 안에서 App 컴포넌트를 렌더링한다.",
+      "filePath": "inpsyt-order-frontend/src/main.jsx",
+      "tags": [
+        "react",
+        "entrypoint"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:main:render",
+      "type": "function",
+      "name": "render",
+      "summary": "#root 요소에 React 루트를 생성하고 <StrictMode><App /></StrictMode>를 렌더링한다.",
+      "filePath": "inpsyt-order-frontend/src/main.jsx",
+      "tags": [
+        "entrypoint",
+        "react-dom"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/setupTests.js",
+      "type": "config",
+      "name": "setupTests.js",
+      "summary": "Vitest에서 확장 DOM 매처를 사용하기 위해 @testing-library/jest-dom을 임포트하는 테스트 설정 파일.",
+      "filePath": "inpsyt-order-frontend/src/setupTests.js",
+      "tags": [
+        "test",
+        "config",
+        "vitest"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/supabaseClient.js",
+      "type": "file",
+      "name": "supabaseClient.js",
+      "summary": "sessionStorage 기반 인증(탭 닫으면 세션 만료)으로 Supabase 클라이언트를 초기화한다. supabase 클라이언트 인스턴스와 supabaseUrl을 내보낸다.",
+      "filePath": "inpsyt-order-frontend/src/supabaseClient.js",
+      "tags": [
+        "supabase",
+        "client",
+        "auth",
+        "config"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:supabaseClient",
+      "type": "function",
+      "name": "supabase",
+      "summary": "createClient로 생성된 Supabase 클라이언트 인스턴스. 인증 지속성을 위해 sessionStorage를 사용하도록 설정되어 있다.",
+      "filePath": "inpsyt-order-frontend/src/supabaseClient.js",
+      "tags": [
+        "supabase",
+        "singleton"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/src/theme.js",
+      "type": "file",
+      "name": "theme.js",
+      "summary": "토스 스타일 디자인 시스템 기반 MUI 테마 설정. 브랜드 색상(#2B398F primary), Pretendard 폰트, 모바일 우선 타이포그래피, 커스텀 그림자, Card/Button/TextField/Chip/Dialog 등의 컴포넌트 오버라이드를 포함한다.",
+      "filePath": "inpsyt-order-frontend/src/theme.js",
+      "tags": [
+        "mui",
+        "theme",
+        "design-system",
+        "config"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:theme",
+      "type": "function",
+      "name": "theme",
+      "summary": "팔레트(primary #2B398F), Pretendard 타이포그래피, 토스 스타일 그림자와 트랜지션, 컴포넌트 스타일 오버라이드가 포함된 MUI createTheme 객체.",
+      "filePath": "inpsyt-order-frontend/src/theme.js",
+      "tags": [
+        "theme",
+        "mui"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/vercel.json",
+      "type": "config",
+      "name": "vercel.json",
+      "summary": "Vercel 배포 설정. 클라이언트 사이드 라우팅을 위해 모든 경로를 /index.html로 리라이트하는 SPA 규칙을 포함한다.",
+      "filePath": "inpsyt-order-frontend/vercel.json",
+      "tags": [
+        "vercel",
+        "deployment",
+        "spa",
+        "routing"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:inpsyt-order-frontend/vite.config.js",
+      "type": "config",
+      "name": "vite.config.js",
+      "summary": "Vite 빌드 설정. React 플러그인, 수동 청크 분리(vendor: react/router, mui), 1500KB 청크 경고 제한, Vitest 설정(jsdom, forked pool)을 포함한다.",
+      "filePath": "inpsyt-order-frontend/vite.config.js",
+      "tags": [
+        "vite",
+        "build",
+        "config",
+        "vitest"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:package.json",
+      "type": "config",
+      "name": "package.json",
+      "summary": "루트 워크스페이스 package.json. Supabase CLI devDependency와 Vercel analytics/speed-insights 의존성을 포함한다.",
+      "filePath": "package.json",
+      "tags": [
+        "npm",
+        "root",
+        "config"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:supabase/.gitignore",
+      "type": "config",
+      "name": "supabase/.gitignore",
+      "summary": "Supabase 디렉터리용 gitignore. .branches, .temp, .env 파일을 무시한다.",
+      "filePath": "supabase/.gitignore",
+      "tags": [
+        "git",
+        "config"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:supabase/.temp/cli-latest",
+      "type": "table",
+      "name": "cli-latest",
+      "summary": "최신 Supabase CLI 버전 참조를 저장하는 임시 파일.",
+      "filePath": "supabase/.temp/cli-latest",
+      "tags": [
+        "supabase",
+        "temp",
+        "metadata"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:supabase/.temp/gotrue-version",
+      "type": "table",
+      "name": "gotrue-version",
+      "summary": "GoTrue 인증 서비스 버전을 저장하는 Supabase 임시 파일.",
+      "filePath": "supabase/.temp/gotrue-version",
+      "tags": [
+        "supabase",
+        "temp",
+        "metadata"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:supabase/.temp/pooler-url",
+      "type": "table",
+      "name": "pooler-url",
+      "summary": "커넥션 풀러 URL을 저장하는 Supabase 임시 파일.",
+      "filePath": "supabase/.temp/pooler-url",
+      "tags": [
+        "supabase",
+        "temp",
+        "metadata"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:supabase/.temp/postgres-version",
+      "type": "table",
+      "name": "postgres-version",
+      "summary": "PostgreSQL 버전을 저장하는 Supabase 임시 파일.",
+      "filePath": "supabase/.temp/postgres-version",
+      "tags": [
+        "supabase",
+        "temp",
+        "metadata"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:supabase/.temp/project-ref",
+      "type": "table",
+      "name": "project-ref",
+      "summary": "프로젝트 참조 ID를 저장하는 Supabase 임시 파일.",
+      "filePath": "supabase/.temp/project-ref",
+      "tags": [
+        "supabase",
+        "temp",
+        "metadata"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:supabase/.temp/rest-version",
+      "type": "table",
+      "name": "rest-version",
+      "summary": "PostgREST 버전을 저장하는 Supabase 임시 파일.",
+      "filePath": "supabase/.temp/rest-version",
+      "tags": [
+        "supabase",
+        "temp",
+        "metadata"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:supabase/config.toml",
+      "type": "config",
+      "name": "config.toml",
+      "summary": "Supabase 로컬 개발 설정(프로젝트: inpsytorderv2). API(포트 54321), DB(Postgres 17, 포트 54322), Auth(세션 기반, 이메일 가입, 6자리 최소 비밀번호, PIN 인증), Edge Runtime(Deno 1), 3개의 Edge Functions(send-order-email, update-order(JWT 미사용), create-order)를 설정한다.",
+      "filePath": "supabase/config.toml",
+      "tags": [
+        "supabase",
+        "config",
+        "infrastructure",
+        "auth",
+        "edge-functions"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:supabase/deno.json",
+      "type": "config",
+      "name": "deno.json (root)",
+      "summary": "Supabase Edge Functions용 루트 Deno 설정. @supabase/supabase-js를 npm 패키지 v2로 매핑한다.",
+      "filePath": "supabase/deno.json",
+      "tags": [
+        "config",
+        "deno",
+        "supabase"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/deployment_notes.md",
+      "type": "document",
+      "name": "deployment_notes.md",
+      "summary": "npx supabase functions deploy를 통한 Supabase Edge Functions 배포 CLI 명령어를 기록한 배포 노트.",
+      "filePath": "supabase/deployment_notes.md",
+      "tags": [
+        "docs",
+        "deployment",
+        "supabase"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/_shared/cors.ts",
+      "type": "file",
+      "name": "cors.ts",
+      "summary": "공유 CORS 헤더 설정. 모든 오리진과 일반적인 Supabase 헤더를 허용하는 corsHeaders 객체를 내보낸다.",
+      "filePath": "supabase/functions/_shared/cors.ts",
+      "tags": [
+        "shared",
+        "cors",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:supabase/functions/_shared/cors.ts:corsHeaders",
+      "type": "function",
+      "name": "corsHeaders",
+      "summary": "Supabase 인증용 허용 헤더와 Access-Control-Allow-Origin: *이 포함된 CORS 헤더 상수를 내보냅니다.",
+      "filePath": "supabase/functions/_shared/cors.ts",
+      "tags": [
+        "cors",
+        "constant",
+        "export"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/create-order/.npmrc",
+      "type": "config",
+      "name": ".npmrc (create-order)",
+      "summary": "create-order Edge Function의 비공개 레지스트리 의존성을 위한 NPM 설정 플레이스홀더입니다.",
+      "filePath": "supabase/functions/create-order/.npmrc",
+      "tags": [
+        "config",
+        "npm"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/create-order/deno.json",
+      "type": "config",
+      "name": "deno.json (create-order)",
+      "summary": "create-order 함수의 Deno 임포트 맵입니다. Deno 표준 HTTP 서버와 Supabase JS 클라이언트를 매핑합니다.",
+      "filePath": "supabase/functions/create-order/deno.json",
+      "tags": [
+        "config",
+        "deno",
+        "import-map"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/create-order/index.ts",
+      "type": "file",
+      "name": "create-order/index.ts",
+      "summary": "주문 생성 Edge Function입니다. 장바구니 항목을 받아 DB에서 상품/행사/설정 정보를 조회하고, 할인율과 배송비를 적용하여 가격을 계산한 뒤 주문과 주문 항목을 Supabase에 삽입합니다.",
+      "filePath": "supabase/functions/create-order/index.ts",
+      "tags": [
+        "edge-function",
+        "order",
+        "create",
+        "supabase",
+        "pricing"
+      ],
+      "complexity": "simple",
+      "languageNotes": "Deno/TypeScript edge function using serve() pattern"
+    },
+    {
+      "id": "function:supabase/functions/create-order/index.ts:serve_handler",
+      "type": "function",
+      "name": "create-order serve handler",
+      "summary": "메인 요청 핸들러: 주문 페이로드(고객 정보, 장바구니, event_id)를 파싱하고, 서버 측에서 site_settings/products/events를 조회하여 할인 및 배송비를 포함한 가격을 계산한 뒤, 주문과 주문 항목을 DB에 삽입합니다.",
+      "filePath": "supabase/functions/create-order/index.ts",
+      "tags": [
+        "handler",
+        "order-creation",
+        "price-calculation",
+        "discount"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/delete-user/deno.json",
+      "type": "config",
+      "name": "deno.json (delete-user)",
+      "summary": "delete-user 함수의 Deno 임포트 맵으로, Supabase 및 표준 라이브러리를 매핑합니다.",
+      "filePath": "supabase/functions/delete-user/deno.json",
+      "tags": [
+        "config",
+        "deno",
+        "import-map"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/delete-user/index.ts",
+      "type": "file",
+      "name": "delete-user/index.ts",
+      "summary": "사용자 삭제 Edge Function입니다. master 역할 권한이 필요하며, Supabase Auth에서 사용자를 삭제합니다(user_profiles에 연쇄 삭제).",
+      "filePath": "supabase/functions/delete-user/index.ts",
+      "tags": [
+        "edge-function",
+        "user-management",
+        "delete",
+        "auth",
+        "master-only"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:supabase/functions/delete-user/index.ts:serve_handler",
+      "type": "function",
+      "name": "delete-user serve handler",
+      "summary": "호출자의 master 역할을 확인한 뒤 supabaseAdmin.auth.admin.deleteUser()로 대상 사용자를 삭제합니다. 성공/오류 응답을 반환합니다.",
+      "filePath": "supabase/functions/delete-user/index.ts",
+      "tags": [
+        "handler",
+        "auth",
+        "admin",
+        "delete"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/invite-user/deno.json",
+      "type": "config",
+      "name": "deno.json (invite-user)",
+      "summary": "invite-user 함수의 Deno 임포트 맵으로, Supabase 및 표준 라이브러리를 매핑합니다.",
+      "filePath": "supabase/functions/invite-user/deno.json",
+      "tags": [
+        "config",
+        "deno",
+        "import-map"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/invite-user/index.ts",
+      "type": "file",
+      "name": "invite-user/index.ts",
+      "summary": "관리자 사용자 생성/초대 Edge Function입니다. master 역할이 필요하며, 이메일/비밀번호로 사용자를 생성하고 역할별 권한(master/onsite/fulfillment)을 부여한 뒤 user_profiles 테이블에 동기화합니다.",
+      "filePath": "supabase/functions/invite-user/index.ts",
+      "tags": [
+        "edge-function",
+        "user-management",
+        "invite",
+        "auth",
+        "rbac"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:supabase/functions/invite-user/index.ts:serve_handler",
+      "type": "function",
+      "name": "invite-user serve handler",
+      "summary": "master 역할을 확인하고, 역할 기반 app_metadata 권한(master, onsite, fulfillment)으로 인증 사용자를 생성한 뒤, user_profiles 레코드를 upsert합니다. 부분 성공 시 207 상태를 처리합니다.",
+      "filePath": "supabase/functions/invite-user/index.ts",
+      "tags": [
+        "handler",
+        "auth",
+        "admin",
+        "create-user",
+        "rbac"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/list-users/deno.json",
+      "type": "config",
+      "name": "deno.json (list-users)",
+      "summary": "list-users 함수의 Deno 임포트 맵으로, Supabase 및 표준 라이브러리를 매핑합니다.",
+      "filePath": "supabase/functions/list-users/deno.json",
+      "tags": [
+        "config",
+        "deno",
+        "import-map"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/list-users/index.ts",
+      "type": "file",
+      "name": "list-users/index.ts",
+      "summary": "전체 사용자 목록 조회 Edge Function입니다. master 역할 또는 users:manage 권한이 필요하며, 인증 사용자를 조회하고 user_profiles와 조인하여 이름과 역할을 가져옵니다.",
+      "filePath": "supabase/functions/list-users/index.ts",
+      "tags": [
+        "edge-function",
+        "user-management",
+        "list",
+        "auth"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:supabase/functions/list-users/index.ts:serve_handler",
+      "type": "function",
+      "name": "list-users serve handler",
+      "summary": "사용자 토큰을 인증하고 master/users:manage 권한을 확인한 뒤, 관리자 API로 모든 인증 사용자를 조회하고 user_profiles와 조인하여 표시 이름과 역할이 포함된 사용자 목록을 반환합니다.",
+      "filePath": "supabase/functions/list-users/index.ts",
+      "tags": [
+        "handler",
+        "auth",
+        "admin",
+        "list-users"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/send-alimtalk/index.ts",
+      "type": "file",
+      "name": "send-alimtalk/index.ts",
+      "summary": "카카오톡 알림톡 발송 Edge Function입니다. OneShot API를 통해 알림톡을 전송합니다. 주문 정보를 조회하고, 현장판매는 건너뛰며, 주문 상태 URL이 포함된 템플릿 메시지를 구성하여 msgagent API에 multipart form으로 전송하고, 발송 시각을 기록합니다.",
+      "filePath": "supabase/functions/send-alimtalk/index.ts",
+      "tags": [
+        "edge-function",
+        "notification",
+        "alimtalk",
+        "kakao",
+        "oneshot"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:supabase/functions/send-alimtalk/index.ts:serve_handler",
+      "type": "function",
+      "name": "send-alimtalk serve handler",
+      "summary": "order_id를 받아 행사 정보가 포함된 주문을 조회하고, 현장판매는 건너뜁니다. OneShot API(multipart form)를 통해 카카오톡 알림톡 메시지를 작성하여 전송하고, 성공 시 alimtalk_sent_at을 기록합니다. 실패 시 LMS로 대체 발송합니다.",
+      "filePath": "supabase/functions/send-alimtalk/index.ts",
+      "tags": [
+        "handler",
+        "alimtalk",
+        "kakao",
+        "notification"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/send-order-email/.npmrc",
+      "type": "config",
+      "name": ".npmrc (send-order-email)",
+      "summary": "send-order-email 함수의 비공개 레지스트리 의존성을 위한 NPM 설정 플레이스홀더입니다.",
+      "filePath": "supabase/functions/send-order-email/.npmrc",
+      "tags": [
+        "config",
+        "npm"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/send-order-email/deno.json",
+      "type": "config",
+      "name": "deno.json (send-order-email)",
+      "summary": "send-order-email 함수의 Deno 임포트 맵입니다. postgres 드라이버를 매핑하고 테스트용으로 Supabase JS를 로컬 mock으로 리맵합니다.",
+      "filePath": "supabase/functions/send-order-email/deno.json",
+      "tags": [
+        "config",
+        "deno",
+        "import-map",
+        "testing"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/send-order-email/index.test.ts",
+      "type": "file",
+      "name": "send-order-email/index.test.ts",
+      "summary": "sendOrderEmail 함수의 단위 테스트입니다. Deno 테스트 프레임워크와 stub을 사용하여 정상 이메일 발송, 누락 주문 처리, Supabase 오류, Resend API 오류를 테스트합니다.",
+      "filePath": "supabase/functions/send-order-email/index.test.ts",
+      "tags": [
+        "test",
+        "email",
+        "deno-test"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:supabase/functions/send-order-email/index.ts",
+      "type": "file",
+      "name": "send-order-email/index.ts",
+      "summary": "Postgres 'order_paid' 채널을 수신하여 Resend API로 주문 확인 이메일을 발송하는 Edge Function입니다. 주문 상세, 항목, 가격 정보가 포함된 HTML 템플릿을 사용하며, 영구 DB 리스너로 동작합니다.",
+      "filePath": "supabase/functions/send-order-email/index.ts",
+      "tags": [
+        "edge-function",
+        "email",
+        "resend",
+        "postgres-listener",
+        "notification"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:supabase/functions/send-order-email/index.ts:sendOrderEmail",
+      "type": "function",
+      "name": "sendOrderEmail",
+      "summary": "Supabase에서 주문 및 주문 항목을 조회하고, 주문 상세(항목, 가격, 주소)가 포함된 HTML 이메일 템플릿을 채워 Resend API로 발송하는 비동기 함수입니다.",
+      "filePath": "supabase/functions/send-order-email/index.ts",
+      "tags": [
+        "email",
+        "resend",
+        "template",
+        "export"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:supabase/functions/send-order-email/index.ts:setupListener",
+      "type": "function",
+      "name": "setupListener",
+      "summary": "Postgres 'order_paid' 채널에 대한 영구 LISTEN을 설정합니다. 알림 페이로드에서 주문 ID를 파싱하여 sendOrderEmail을 트리거합니다.",
+      "filePath": "supabase/functions/send-order-email/index.ts",
+      "tags": [
+        "postgres",
+        "listener",
+        "realtime"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:supabase/functions/send-order-email/index.ts:formatAddress",
+      "type": "function",
+      "name": "formatAddress",
+      "summary": "shipping_address 객체(우편번호, 주소, 상세주소)를 하나의 표시 문자열로 포맷하는 헬퍼 함수입니다.",
+      "filePath": "supabase/functions/send-order-email/index.ts",
+      "tags": [
+        "utility",
+        "formatting"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/send-order-email/mock_supabase_js.ts",
+      "type": "file",
+      "name": "mock_supabase_js.ts",
+      "summary": "send-order-email 테스트용 Supabase 클라이언트 mock입니다. 특정 ID에 대해 미리 정의된 주문 및 주문 항목 데이터를 반환하는 createClient mock을 제공합니다.",
+      "filePath": "supabase/functions/send-order-email/mock_supabase_js.ts",
+      "tags": [
+        "test",
+        "mock",
+        "supabase"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:supabase/functions/send-order-email/mock_supabase_js.ts:createClient",
+      "type": "function",
+      "name": "createClient (mock)",
+      "summary": "주문(id=1, id=999) 및 order_items 쿼리에 대해 미리 정의된 응답을 반환하는 가짜 Supabase 클라이언트를 생성하는 mock createClient입니다. 테스트에서 사용됩니다.",
+      "filePath": "supabase/functions/send-order-email/mock_supabase_js.ts",
+      "tags": [
+        "mock",
+        "test",
+        "export"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/send-order-email/ordermail.html",
+      "type": "document",
+      "name": "ordermail.html",
+      "summary": "주문 확인 이메일용 HTML 템플릿입니다. 주문 상세, 항목 테이블, 가격 내역이 포함된 반응형 레이아웃과 템플릿 플레이스홀더({{customerName}}, {{orderItemsHtml}} 등)를 포함합니다.",
+      "filePath": "supabase/functions/send-order-email/ordermail.html",
+      "tags": [
+        "template",
+        "email",
+        "html",
+        "responsive"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/test-log-function/index.ts",
+      "type": "file",
+      "name": "test-log-function/index.ts",
+      "summary": "호출을 로깅하고 'Hello' 텍스트를 반환하는 간단한 테스트 Edge Function입니다. 배포 검증용으로 사용됩니다.",
+      "filePath": "supabase/functions/test-log-function/index.ts",
+      "tags": [
+        "edge-function",
+        "test",
+        "debug"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:supabase/functions/test-log-function/index.ts:serve_handler",
+      "type": "function",
+      "name": "test-log-function serve handler",
+      "summary": "'Test log function invoked!'를 로깅하고 일반 텍스트 응답을 반환하는 최소 핸들러입니다.",
+      "filePath": "supabase/functions/test-log-function/index.ts",
+      "tags": [
+        "handler",
+        "test"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/update-order/deps.ts",
+      "type": "file",
+      "name": "update-order/deps.ts",
+      "summary": "update-order 함수의 의존성 재내보내기 파일입니다. npm:@supabase/supabase-js@2에서 createClient를 재내보냅니다.",
+      "filePath": "supabase/functions/update-order/deps.ts",
+      "tags": [
+        "deps",
+        "re-export"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:supabase/functions/update-order/index.ts",
+      "type": "file",
+      "name": "update-order/index.ts",
+      "summary": "기존 주문을 수정하는 Edge Function입니다. 주문 ID, 수정사항, 항목 매개변수를 사용하여 'update_order_details' RPC 함수를 호출합니다.",
+      "filePath": "supabase/functions/update-order/index.ts",
+      "tags": [
+        "edge-function",
+        "order",
+        "update",
+        "rpc"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:supabase/functions/update-order/index.ts:serve_handler",
+      "type": "function",
+      "name": "update-order serve handler",
+      "summary": "요청에서 orderId/updates/items를 파싱하고, Supabase RPC 'update_order_details'를 호출하여 주문과 항목을 원자적으로 수정합니다.",
+      "filePath": "supabase/functions/update-order/index.ts",
+      "tags": [
+        "handler",
+        "order",
+        "rpc",
+        "update"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/update-user-memo/deno.json",
+      "type": "config",
+      "name": "deno.json (update-user-memo)",
+      "summary": "update-user-memo 함수의 Deno 임포트 맵으로, Supabase 및 표준 라이브러리를 매핑합니다.",
+      "filePath": "supabase/functions/update-user-memo/deno.json",
+      "tags": [
+        "config",
+        "deno",
+        "import-map"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/update-user-memo/index.ts",
+      "type": "file",
+      "name": "update-user-memo/index.ts",
+      "summary": "사용자 메모 필드를 수정하는 Edge Function입니다. master 역할이 필요하며, user_profiles 테이블의 메모를 업데이트합니다.",
+      "filePath": "supabase/functions/update-user-memo/index.ts",
+      "tags": [
+        "edge-function",
+        "user-management",
+        "memo",
+        "master-only"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:supabase/functions/update-user-memo/index.ts:serve_handler",
+      "type": "function",
+      "name": "update-user-memo serve handler",
+      "summary": "master 역할을 확인한 뒤, 지정된 userId의 user_profiles 테이블에서 메모 필드를 업데이트합니다.",
+      "filePath": "supabase/functions/update-user-memo/index.ts",
+      "tags": [
+        "handler",
+        "auth",
+        "memo",
+        "update"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/update-user-permissions/deno.json",
+      "type": "config",
+      "name": "deno.json (update-user-permissions)",
+      "summary": "update-user-permissions 함수의 Deno 임포트 맵으로, Supabase 및 표준 라이브러리를 매핑합니다.",
+      "filePath": "supabase/functions/update-user-permissions/deno.json",
+      "tags": [
+        "config",
+        "deno",
+        "import-map"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/update-user-permissions/index.ts",
+      "type": "file",
+      "name": "update-user-permissions/index.ts",
+      "summary": "사용자 권한을 수정하는 Edge Function입니다. master 역할 또는 users:manage 권한이 필요하며, Supabase 관리자 API를 통해 app_metadata.permissions를 업데이트합니다.",
+      "filePath": "supabase/functions/update-user-permissions/index.ts",
+      "tags": [
+        "edge-function",
+        "user-management",
+        "permissions",
+        "rbac"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:supabase/functions/update-user-permissions/index.ts:serve_handler",
+      "type": "function",
+      "name": "update-user-permissions serve handler",
+      "summary": "master/users:manage 권한을 확인한 뒤, supabaseAdmin.auth.admin.updateUserById()를 통해 대상 사용자의 app_metadata.permissions 배열을 업데이트합니다.",
+      "filePath": "supabase/functions/update-user-permissions/index.ts",
+      "tags": [
+        "handler",
+        "auth",
+        "permissions",
+        "admin"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "table:orders",
+      "type": "table",
+      "name": "orders",
+      "summary": "학회 행사에서 접수된 고객 주문을 추적하는 핵심 주문 테이블입니다. 고객 정보, 결제, 상태, 배송, 공개 조회용 액세스 토큰, 상태 이력, 알림톡 추적 정보를 포함합니다.",
+      "filePath": "supabase/migrations/20250722070000_create_orders_table.sql",
+      "tags": [
+        "table",
+        "orders",
+        "core-schema"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "table:order_items",
+      "type": "table",
+      "name": "order_items",
+      "summary": "주문과 상품을 수량 및 구매 시점 가격(price_at_purchase)으로 연결하는 주문 항목 테이블입니다.",
+      "filePath": "",
+      "tags": [
+        "database",
+        "table",
+        "order-items"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "table:products",
+      "type": "table",
+      "name": "products",
+      "summary": "심리검사 도구를 저장하는 상품 카탈로그 테이블입니다. product_code, category, sub_category, name, list_price 및 플래그(is_discountable, is_popular, is_new, is_recommend)를 포함합니다.",
+      "filePath": "supabase/migrations/20251022045614_create_products_table.sql",
+      "tags": [
+        "table",
+        "products",
+        "core-schema"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "table:events",
+      "type": "table",
+      "name": "events",
+      "summary": "학술 학회/행사 정보를 저장하는 테이블입니다. 이름, 날짜 범위, URL slug, 구조화된 필드(연도, 주최 학회, 시즌, 상태)를 포함하며, 주문과 연결됩니다.",
+      "filePath": "supabase/migrations/20250722065000_create_events_table.sql",
+      "tags": [
+        "table",
+        "events",
+        "core-schema"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "table:site_settings",
+      "type": "table",
+      "name": "site_settings",
+      "summary": "전역 사이트 설정을 저장하는 싱글톤 설정 테이블(단일 행, id=1)입니다. free_shipping_threshold, shipping_cost, 허용 email_domains를 JSONB로 저장합니다.",
+      "filePath": "supabase/migrations/20260401000000_patch_rls_and_create_site_settings.sql",
+      "tags": [
+        "table",
+        "site-settings",
+        "config"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "table:user_profiles",
+      "type": "table",
+      "name": "user_profiles",
+      "summary": "id, email, name, role, memo 필드를 가진 사용자 프로필 테이블입니다. Supabase Auth 사용자와 연결됩니다.",
+      "filePath": "",
+      "tags": [
+        "database",
+        "table",
+        "users"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/update-user-role/deno.json",
+      "type": "config",
+      "name": "deno.json",
+      "summary": "update-user-role Edge Function의 Deno 설정입니다. Supabase 및 표준 라이브러리의 임포트 별칭을 매핑합니다.",
+      "filePath": "supabase/functions/update-user-role/deno.json",
+      "tags": [
+        "config",
+        "deno",
+        "edge-function"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/update-user-role/index.ts",
+      "type": "file",
+      "name": "update-user-role/index.ts",
+      "summary": "master 역할 사용자가 다른 사용자의 역할을 관리자 API를 통해 변경할 수 있는 Supabase Edge Function입니다. 인가를 검증하고, master 역할을 확인한 뒤, app_metadata.role을 업데이트합니다.",
+      "filePath": "supabase/functions/update-user-role/index.ts",
+      "tags": [
+        "edge-function",
+        "auth",
+        "rbac",
+        "deno",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:supabase/functions/update-user-role/index.ts:serve_handler",
+      "type": "function",
+      "name": "serve handler (update-user-role)",
+      "summary": "호출자가 master 사용자인지 확인한 뒤, 서비스 역할 키를 사용하여 Supabase Auth app_metadata에서 대상 사용자의 역할을 업데이트하는 HTTP 요청 핸들러입니다.",
+      "filePath": "supabase/functions/update-user-role/index.ts",
+      "tags": [
+        "handler",
+        "auth",
+        "admin"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/functions/upload-products-excel/index.ts",
+      "type": "file",
+      "name": "upload-products-excel/index.ts",
+      "summary": "엑셀 업로드에서 받은 상품 객체 배열을 products 테이블에 일괄 upsert(product_code 충돌 시)하는 Supabase Edge Function입니다.",
+      "filePath": "supabase/functions/upload-products-excel/index.ts",
+      "tags": [
+        "edge-function",
+        "products",
+        "excel",
+        "upsert",
+        "deno",
+        "typescript"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:supabase/functions/upload-products-excel/index.ts:serve_handler",
+      "type": "function",
+      "name": "serve handler (upload-products-excel)",
+      "summary": "사용자를 인증하고, 요청 본문에서 상품 JSON 배열을 읽어 Supabase 클라이언트를 통해 products 테이블에 upsert하는 HTTP 핸들러입니다.",
+      "filePath": "supabase/functions/upload-products-excel/index.ts",
+      "tags": [
+        "handler",
+        "products",
+        "upsert"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:supabase/migrations/20250722065000_create_events_table.sql",
+      "type": "file",
+      "name": "20250722065000_create_events_table.sql",
+      "summary": "id, created_at, name, start_date, end_date, order_url_slug 컬럼과 자동 증가 ID 시퀀스를 가진 events 테이블을 생성합니다.",
+      "filePath": "supabase/migrations/20250722065000_create_events_table.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "schema",
+        "events"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20250722070000_create_orders_table.sql",
+      "type": "file",
+      "name": "20250722070000_create_orders_table.sql",
+      "summary": "id, created_at, customer_name, customer_email, status, event_id(events FK), final_payment 컬럼을 가진 orders 테이블을 생성합니다.",
+      "filePath": "supabase/migrations/20250722070000_create_orders_table.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "schema",
+        "orders"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20250722070342_create_paid_order_trigger.sql",
+      "type": "file",
+      "name": "20250722070342_create_paid_order_trigger.sql",
+      "summary": "주문 상태가 'paid'로 변경될 때 'order_paid' 채널에 pg_notify를 보내는 트리거 함수 notify_order_paid()와 트리거 on_order_status_paid를 생성합니다.",
+      "filePath": "supabase/migrations/20250722070342_create_paid_order_trigger.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "trigger",
+        "orders",
+        "notification"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:sql:notify_order_paid",
+      "type": "function",
+      "name": "notify_order_paid()",
+      "summary": "주문 상태가 paid로 변경되면 pg_notify('order_paid', NEW.id)를 전송하는 PL/pgSQL 트리거 함수입니다.",
+      "filePath": "supabase/migrations/20250722070342_create_paid_order_trigger.sql",
+      "tags": [
+        "sql-function",
+        "trigger",
+        "notification"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20250805_add_new_order_fields.sql",
+      "type": "file",
+      "name": "20250805_add_new_order_fields.sql",
+      "summary": "orders 테이블에 contact, address, total_amount, discount_amount, shipping_cost, is_on_site_sale 컬럼을 추가합니다.",
+      "filePath": "supabase/migrations/20250805_add_new_order_fields.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "orders",
+        "alter-table"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20250808040516_add_admin_memo_to_orders.sql",
+      "type": "file",
+      "name": "20250808040516_add_admin_memo_to_orders.sql",
+      "summary": "내부 관리자 메모용으로 orders 테이블에 admin_memo 텍스트 컬럼을 추가합니다.",
+      "filePath": "supabase/migrations/20250808040516_add_admin_memo_to_orders.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "orders",
+        "alter-table"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20250811000000_update_order_with_transaction.sql",
+      "type": "file",
+      "name": "20250811000000_update_order_with_transaction.sql",
+      "summary": "단일 트랜잭션에서 주문 필드 업데이트와 주문 항목 교체를 원자적으로 수행하는 PL/pgSQL 함수 update_order_with_items()를 생성합니다.",
+      "filePath": "supabase/migrations/20250811000000_update_order_with_transaction.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "function",
+        "orders",
+        "transaction"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:sql:update_order_with_items",
+      "type": "function",
+      "name": "update_order_with_items()",
+      "summary": "주문 필드를 업데이트하고 주문 항목을 원자적으로 교체하는 PL/pgSQL 함수입니다. order_id, updates JSONB, items JSONB 배열을 받습니다. 이후 이메일 참조가 제거되었습니다.",
+      "filePath": "supabase/migrations/20250811000000_update_order_with_transaction.sql",
+      "tags": [
+        "sql-function",
+        "transaction",
+        "orders"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20250811010000_create_update_order_details_function.sql",
+      "type": "file",
+      "name": "20250811010000_create_update_order_details_function.sql",
+      "summary": "주문 상세 업데이트용으로 update_order_with_items와 유사하지만 별도 이름의 PL/pgSQL 함수 update_order_details()를 생성합니다.",
+      "filePath": "supabase/migrations/20250811010000_create_update_order_details_function.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "function",
+        "orders",
+        "transaction"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:sql:update_order_details",
+      "type": "function",
+      "name": "update_order_details()",
+      "summary": "주문 필드를 업데이트하고 주문 항목을 원자적으로 교체하는 PL/pgSQL 함수입니다. order_id, updates JSONB, items JSONB 배열을 받습니다. 이후 이메일 참조가 제거되었습니다.",
+      "filePath": "supabase/migrations/20250811010000_create_update_order_details_function.sql",
+      "tags": [
+        "sql-function",
+        "transaction",
+        "orders"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20251022045614_create_products_table.sql",
+      "type": "file",
+      "name": "20251022045614_create_products_table.sql",
+      "summary": "id, created_at, product_code, category, sub_category, name, list_price, notes, is_discountable 컬럼을 가진 products 테이블을 생성합니다.",
+      "filePath": "supabase/migrations/20251022045614_create_products_table.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "schema",
+        "products"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20251022045615_add_is_popular_to_products.sql",
+      "type": "file",
+      "name": "20251022045615_add_is_popular_to_products.sql",
+      "summary": "products 테이블에 is_popular 불리언 컬럼을 추가합니다(빈 마이그레이션 파일로, 컬럼이 인라인으로 추가되었을 수 있음).",
+      "filePath": "supabase/migrations/20251022045615_add_is_popular_to_products.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "products",
+        "alter-table"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20251121_apply_rbac_rls.sql",
+      "type": "file",
+      "name": "20251121_apply_rbac_rls.sql",
+      "summary": "종합 RBAC/RLS 마이그레이션: get_current_user_permissions() 및 has_permission() 함수를 생성하고, events/products/orders/order_items에 RLS를 활성화하며, 역할 기반 정책(공개 조회, 관리자 수정, master 삭제)을 정의합니다.",
+      "filePath": "supabase/migrations/20251121_apply_rbac_rls.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "rls",
+        "rbac",
+        "security",
+        "policies"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:sql:get_current_user_permissions",
+      "type": "function",
+      "name": "get_current_user_permissions()",
+      "summary": "JWT app_metadata 클레임에서 permissions 배열을 추출하는 SQL 함수(SECURITY DEFINER)입니다. 보안 패치로 알 수 없는 사용자에 대해 빈 배열을 반환합니다.",
+      "filePath": "supabase/migrations/20251121_apply_rbac_rls.sql",
+      "tags": [
+        "sql-function",
+        "rbac",
+        "security"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:sql:has_permission",
+      "type": "function",
+      "name": "has_permission(text)",
+      "summary": "현재 사용자가 특정 권한을 보유하는지 확인하는 SQL 함수(SECURITY DEFINER)입니다. master 역할은 모든 권한을 갖습니다. 모든 테이블의 RLS 정책에서 사용됩니다.",
+      "filePath": "supabase/migrations/20251121_apply_rbac_rls.sql",
+      "tags": [
+        "sql-function",
+        "rbac",
+        "security"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20260311_create_field_reports.sql",
+      "type": "file",
+      "name": "20260311_create_field_reports.sql",
+      "summary": "행사 관련 현장 리포트를 내용, 작성자, 일차 번호와 함께 저장하는 field_reports 테이블을 생성합니다. 인증된 사용자만 CRUD 가능한 RLS를 활성화합니다.",
+      "filePath": "supabase/migrations/20260311_create_field_reports.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "schema",
+        "field-reports"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "table:field_reports",
+      "type": "table",
+      "name": "field_reports",
+      "summary": "학회 현장에서 직원이 작성하는 행사별 일일 현장 리포트를 저장합니다. event_id FK, report_date, day_number, content 텍스트, author_name을 포함합니다.",
+      "filePath": "supabase/migrations/20260311_create_field_reports.sql",
+      "tags": [
+        "table",
+        "field-reports"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20260313044014_add_product_flags.sql",
+      "type": "file",
+      "name": "20260313044014_add_product_flags.sql",
+      "summary": "products 테이블에 is_new 및 is_recommend 불리언 플래그 컬럼을 추가합니다.",
+      "filePath": "supabase/migrations/20260313044014_add_product_flags.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "products",
+        "alter-table"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20260313060000_add_event_structured_fields.sql",
+      "type": "file",
+      "name": "20260313060000_add_event_structured_fields.sql",
+      "summary": "events 테이블에 구조화된 필드를 추가합니다: event_year, host_society, event_season, status(기본값 'active'). 컬럼 코멘트를 추가합니다.",
+      "filePath": "supabase/migrations/20260313060000_add_event_structured_fields.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "events",
+        "alter-table"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20260401000000_patch_rls_and_create_site_settings.sql",
+      "type": "file",
+      "name": "20260401000000_patch_rls_and_create_site_settings.sql",
+      "summary": "site_settings 싱글톤 테이블(id=1 제약)을 생성합니다. free_shipping_threshold, shipping_cost, email_domains를 포함하며, 공개 읽기/master 전용 수정 RLS를 활성화하고 초기 행을 삽입합니다.",
+      "filePath": "supabase/migrations/20260401000000_patch_rls_and_create_site_settings.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "schema",
+        "site-settings",
+        "rls"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20260406_add_access_token_to_orders.sql",
+      "type": "file",
+      "name": "20260406_add_access_token_to_orders.sql",
+      "summary": "순차적 ID 열거 공격을 방지하기 위해 orders에 UUID access_token 컬럼을 추가합니다. 고유 인덱스를 생성하고 기존 행을 백필합니다.",
+      "filePath": "supabase/migrations/20260406_add_access_token_to_orders.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "orders",
+        "security",
+        "access-token"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20260406_add_estimated_delivery_date_to_events.sql",
+      "type": "file",
+      "name": "20260406_add_estimated_delivery_date_to_events.sql",
+      "summary": "events 테이블에 estimated_delivery_date 컬럼을 추가합니다.",
+      "filePath": "supabase/migrations/20260406_add_estimated_delivery_date_to_events.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "events",
+        "alter-table"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20260406_add_status_history_to_orders.sql",
+      "type": "file",
+      "name": "20260406_add_status_history_to_orders.sql",
+      "summary": "orders에 status_history JSONB 컬럼을 추가하고, 기존 주문에 초기 상태 항목을 백필하며, 상태 변경 시 자동으로 항목을 추가하는 trg_status_history 트리거를 생성합니다.",
+      "filePath": "supabase/migrations/20260406_add_status_history_to_orders.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "orders",
+        "trigger",
+        "status-history"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:sql:append_status_history",
+      "type": "function",
+      "name": "append_status_history()",
+      "summary": "status 컬럼이 변경될 때마다 orders.status_history JSONB 배열에 {status, changed_at} 항목을 추가하는 PL/pgSQL 트리거 함수입니다.",
+      "filePath": "supabase/migrations/20260406_add_status_history_to_orders.sql",
+      "tags": [
+        "sql-function",
+        "trigger",
+        "status-history"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20260406_allow_public_order_lookup.sql",
+      "type": "file",
+      "name": "20260406_allow_public_order_lookup.sql",
+      "summary": "익명 사용자가 orders 및 order_items를 SELECT할 수 있는 RLS 정책을 생성하여, 고객용 주문 상태 및 조회 페이지를 활성화합니다.",
+      "filePath": "supabase/migrations/20260406_allow_public_order_lookup.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "rls",
+        "orders",
+        "public-access"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20260407_add_alimtalk_fields_to_orders.sql",
+      "type": "file",
+      "name": "20260407_add_alimtalk_fields_to_orders.sql",
+      "summary": "카카오톡 알림 발송 추적을 위해 orders에 alimtalk_sent_at timestamptz 컬럼을 추가합니다.",
+      "filePath": "supabase/migrations/20260407_add_alimtalk_fields_to_orders.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "orders",
+        "alimtalk",
+        "notification"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20260407_make_email_nullable.sql",
+      "type": "file",
+      "name": "20260407_make_email_nullable.sql",
+      "summary": "알림톡이 이메일 기반 알림을 대체함에 따라 orders.email 컬럼의 NOT NULL 제약을 제거합니다.",
+      "filePath": "supabase/migrations/20260407_make_email_nullable.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "orders",
+        "email-removal"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20260407_rls_token_based_access.sql",
+      "type": "file",
+      "name": "20260407_rls_token_based_access.sql",
+      "summary": "보안 강화: orders에 대한 익명 SELECT 정책을 제거하고, 토큰 기반 공개 주문 조회를 위한 SECURITY DEFINER 함수 get_order_by_token(uuid)을 생성합니다. 주문 항목, 행사, 상위/하위 주문 데이터를 중첩 포함합니다.",
+      "filePath": "supabase/migrations/20260407_rls_token_based_access.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "rls",
+        "security",
+        "access-token",
+        "function"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:sql:get_order_by_token",
+      "type": "function",
+      "name": "get_order_by_token(uuid)",
+      "summary": "access_token UUID로 전체 주문 JSON(행사, 주문 항목, 상품, 상위/하위 주문 포함)을 반환하는 SECURITY DEFINER SQL 함수입니다. RLS를 우회하여 정확히 하나의 주문을 반환합니다.",
+      "filePath": "supabase/migrations/20260407_rls_token_based_access.sql",
+      "tags": [
+        "sql-function",
+        "security",
+        "public-api",
+        "access-token"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:supabase/migrations/20260408_drop_email_column.sql",
+      "type": "file",
+      "name": "20260408_drop_email_column.sql",
+      "summary": "orders 테이블에서 email 컬럼을 삭제하여 알림톡 기반 알림으로의 전환을 완료합니다.",
+      "filePath": "supabase/migrations/20260408_drop_email_column.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "orders",
+        "email-removal"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:supabase/migrations/20260409_remove_email_from_order_update_functions.sql",
+      "type": "file",
+      "name": "20260409_remove_email_from_order_update_functions.sql",
+      "summary": "email 컬럼 삭제 후 레거시 이메일 컬럼 참조를 제거하기 위해 update_order_details()와 update_order_with_items() 함수를 교체합니다.",
+      "filePath": "supabase/migrations/20260409_remove_email_from_order_update_functions.sql",
+      "tags": [
+        "migration",
+        "sql",
+        "function",
+        "orders",
+        "email-removal",
+        "cleanup"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:vercel.json",
+      "type": "config",
+      "name": "vercel.json",
+      "summary": "Vercel 배포 설정입니다. 빌드 명령(inpsyt-order-frontend에서 npm install + build), 출력 디렉토리(dist), 클라이언트 사이드 라우팅을 위한 SPA 리라이트 규칙을 설정합니다.",
+      "filePath": "vercel.json",
+      "tags": [
+        "config",
+        "vercel",
+        "deployment",
+        "spa"
+      ],
+      "complexity": "moderate"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:inpsyt-order-frontend/src/App.jsx",
+      "target": "file:inpsyt-order-frontend/src/AuthContext.jsx",
+      "type": "imports",
+      "weight": 0.7,
+      "label": "imports AuthProvider"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/App.jsx",
+      "target": "file:inpsyt-order-frontend/src/NotificationContext.jsx",
+      "type": "imports",
+      "weight": 0.7,
+      "label": "imports NotificationProvider"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/AuthContext.jsx",
+      "target": "file:inpsyt-order-frontend/src/supabaseClient.js",
+      "type": "imports",
+      "weight": 0.7,
+      "label": "imports supabase client"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/alimtalk.js",
+      "target": "file:inpsyt-order-frontend/src/supabaseClient.js",
+      "type": "imports",
+      "weight": 0.7,
+      "label": "imports supabase client"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/events.js",
+      "target": "file:inpsyt-order-frontend/src/supabaseClient.js",
+      "type": "imports",
+      "weight": 0.7,
+      "label": "imports supabase client"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/orders.js",
+      "target": "file:inpsyt-order-frontend/src/supabaseClient.js",
+      "type": "imports",
+      "weight": 0.7,
+      "label": "imports supabase client"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/products.js",
+      "target": "file:inpsyt-order-frontend/src/supabaseClient.js",
+      "type": "imports",
+      "weight": 0.7,
+      "label": "imports supabase client"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/settings.js",
+      "target": "file:inpsyt-order-frontend/src/supabaseClient.js",
+      "type": "imports",
+      "weight": 0.7,
+      "label": "imports supabase client"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/AdminHeader.jsx",
+      "target": "file:inpsyt-order-frontend/src/supabaseClient.js",
+      "type": "imports",
+      "weight": 0.7,
+      "label": "imports supabase client"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/App.jsx",
+      "target": "file:inpsyt-order-frontend/src/hooks/useAuth.jsx",
+      "type": "imports",
+      "weight": 0.7,
+      "label": "imports useAuth hook"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/App.jsx",
+      "target": "file:inpsyt-order-frontend/src/components/ProtectedRoute.jsx",
+      "type": "imports",
+      "weight": 0.7,
+      "label": "imports ProtectedRoute"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/App.jsx",
+      "target": "file:inpsyt-order-frontend/src/theme.js",
+      "type": "imports",
+      "weight": 0.7,
+      "label": "imports theme"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/AdminHeader.jsx",
+      "target": "file:inpsyt-order-frontend/src/hooks/useNotification.jsx",
+      "type": "imports",
+      "weight": 0.7,
+      "label": "imports useNotification hook"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/AdminHeader.jsx",
+      "target": "file:inpsyt-order-frontend/src/hooks/useAuth.jsx",
+      "type": "imports",
+      "weight": 0.7,
+      "label": "imports useAuth hook"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/App.jsx",
+      "target": "function:inpsyt-order-frontend/src/App.jsx:AppRoutes",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/App.jsx",
+      "target": "function:inpsyt-order-frontend/src/App.jsx:App",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/AuthContext.jsx",
+      "target": "function:inpsyt-order-frontend/src/AuthContext.jsx:AuthProvider",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/NotificationContext.jsx",
+      "target": "function:inpsyt-order-frontend/src/NotificationContext.jsx:NotificationProvider",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/alimtalk.js",
+      "target": "function:inpsyt-order-frontend/src/api/alimtalk.js:sendAlimtalk",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/events.js",
+      "target": "function:inpsyt-order-frontend/src/api/events.js:getEvents",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/orders.js",
+      "target": "function:inpsyt-order-frontend/src/api/orders.js:getOrders",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/orders.js",
+      "target": "function:inpsyt-order-frontend/src/api/orders.js:getFulfillmentOrders",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/orders.js",
+      "target": "function:inpsyt-order-frontend/src/api/orders.js:linkOrders",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/orders.js",
+      "target": "function:inpsyt-order-frontend/src/api/orders.js:unlinkOrders",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/orders.js",
+      "target": "function:inpsyt-order-frontend/src/api/orders.js:groupLinkedOrders",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/orders.js",
+      "target": "function:inpsyt-order-frontend/src/api/orders.js:searchOrdersForLinking",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/products.js",
+      "target": "function:inpsyt-order-frontend/src/api/products.js:fetchProducts",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/products.js",
+      "target": "function:inpsyt-order-frontend/src/api/products.js:fetchAllProducts",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/settings.js",
+      "target": "function:inpsyt-order-frontend/src/api/settings.js:getSettings",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/settings.js",
+      "target": "function:inpsyt-order-frontend/src/api/settings.js:updateSettings",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/AdminHeader.jsx",
+      "target": "function:inpsyt-order-frontend/src/components/AdminHeader.jsx:AdminHeader",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/api/send-alimtalk.js",
+      "target": "function:inpsyt-order-frontend/api/send-alimtalk.js:handler",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/api/send-alimtalk.js",
+      "target": "function:inpsyt-order-frontend/api/send-alimtalk.js:buildMultipart",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/api/send-alimtalk.js",
+      "target": "function:inpsyt-order-frontend/api/send-alimtalk.js:httpsPost",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "function:inpsyt-order-frontend/api/send-alimtalk.js:handler",
+      "target": "function:inpsyt-order-frontend/api/send-alimtalk.js:buildMultipart",
+      "type": "calls",
+      "weight": 0.8,
+      "label": "builds multipart form body"
+    },
+    {
+      "source": "function:inpsyt-order-frontend/api/send-alimtalk.js:handler",
+      "target": "function:inpsyt-order-frontend/api/send-alimtalk.js:httpsPost",
+      "type": "calls",
+      "weight": 0.8,
+      "label": "sends HTTPS POST to msgagent"
+    },
+    {
+      "source": "function:inpsyt-order-frontend/src/App.jsx:App",
+      "target": "function:inpsyt-order-frontend/src/App.jsx:AppRoutes",
+      "type": "calls",
+      "weight": 0.8,
+      "label": "renders AppRoutes"
+    },
+    {
+      "source": "function:inpsyt-order-frontend/src/App.jsx:App",
+      "target": "function:inpsyt-order-frontend/src/AuthContext.jsx:AuthProvider",
+      "type": "calls",
+      "weight": 0.8,
+      "label": "wraps with AuthProvider"
+    },
+    {
+      "source": "function:inpsyt-order-frontend/src/App.jsx:App",
+      "target": "function:inpsyt-order-frontend/src/NotificationContext.jsx:NotificationProvider",
+      "type": "calls",
+      "weight": 0.8,
+      "label": "wraps with NotificationProvider"
+    },
+    {
+      "source": "document:DOCS/CODE_MANUAL.md",
+      "target": "file:inpsyt-order-frontend/src/App.jsx",
+      "type": "documents",
+      "weight": 0.5,
+      "label": "documents OrderPage and app architecture"
+    },
+    {
+      "source": "document:DOCS/ROADMAP.md",
+      "target": "file:inpsyt-order-frontend/src/App.jsx",
+      "type": "documents",
+      "weight": 0.5,
+      "label": "documents system routes and features"
+    },
+    {
+      "source": "document:MANUAL.md",
+      "target": "file:inpsyt-order-frontend/src/App.jsx",
+      "type": "documents",
+      "weight": 0.5,
+      "label": "references key files and operational notes"
+    },
+    {
+      "source": "document:ONESHOT.md",
+      "target": "file:inpsyt-order-frontend/src/api/alimtalk.js",
+      "type": "documents",
+      "weight": 0.5,
+      "label": "documents Kakao Alimtalk API integration"
+    },
+    {
+      "source": "document:ONESHOT.md",
+      "target": "file:inpsyt-order-frontend/api/send-alimtalk.js",
+      "type": "documents",
+      "weight": 0.5,
+      "label": "documents server-side Alimtalk API integration"
+    },
+    {
+      "source": "document:README.md",
+      "target": "file:inpsyt-order-frontend/src/App.jsx",
+      "type": "documents",
+      "weight": 0.5,
+      "label": "documents project overview and setup"
+    },
+    {
+      "source": "config:inpsyt-order-frontend/package.json",
+      "target": "file:inpsyt-order-frontend/src/App.jsx",
+      "type": "configures",
+      "weight": 0.6,
+      "label": "defines dependencies and build scripts"
+    },
+    {
+      "source": "config:inpsyt-order-frontend/eslint.config.js",
+      "target": "file:inpsyt-order-frontend/src/App.jsx",
+      "type": "configures",
+      "weight": 0.6,
+      "label": "configures linting rules for JSX files"
+    },
+    {
+      "source": "config:inpsyt-order-frontend/.env.example",
+      "target": "file:inpsyt-order-frontend/src/AuthContext.jsx",
+      "type": "configures",
+      "weight": 0.6,
+      "label": "defines Supabase URL and keys used by supabaseClient"
+    },
+    {
+      "source": "config:inpsyt-order-frontend/.env.example",
+      "target": "file:inpsyt-order-frontend/src/api/alimtalk.js",
+      "type": "configures",
+      "weight": 0.6,
+      "label": "defines VITE_ONESHOT_CALLBACK and VITE_APP_URL"
+    },
+    {
+      "source": "pipeline:.github/workflows/deploy-supabase-functions.yml",
+      "target": "file:inpsyt-order-frontend/api/send-alimtalk.js",
+      "type": "deploys",
+      "weight": 0.6,
+      "label": "deploys Supabase edge functions (separate from Vercel serverless)"
+    },
+    {
+      "source": "document:inpsyt-order-frontend/index.html",
+      "target": "file:inpsyt-order-frontend/src/App.jsx",
+      "type": "calls",
+      "weight": 0.8,
+      "label": "loads main.jsx which mounts App"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/api/alimtalk.js",
+      "target": "file:inpsyt-order-frontend/api/send-alimtalk.js",
+      "type": "calls",
+      "weight": 0.3,
+      "label": "parallel implementation - browser-side vs Vercel serverless alimtalk sending"
+    },
+    {
+      "source": "file:components/AdminLayout.jsx",
+      "target": "file:components/AdminSidebar.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import AdminSidebar"
+    },
+    {
+      "source": "file:components/AdminLayout.jsx",
+      "target": "file:components/DashboardPage.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import DashboardPage"
+    },
+    {
+      "source": "file:components/AdminLayout.jsx",
+      "target": "file:components/OrderManagementPage.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import OrderManagementPage"
+    },
+    {
+      "source": "file:components/AdminLayout.jsx",
+      "target": "file:components/EventManagementPage.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import EventManagementPage"
+    },
+    {
+      "source": "file:components/AdminLayout.jsx",
+      "target": "file:components/ProductManagementPage.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import ProductManagementPage"
+    },
+    {
+      "source": "file:components/AdminLayout.jsx",
+      "target": "file:components/FulfillmentPage.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import FulfillmentPage"
+    },
+    {
+      "source": "file:components/AdminLayout.jsx",
+      "target": "file:components/NotificationsDisplay.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import NotificationsDisplay"
+    },
+    {
+      "source": "file:components/AdminLayout.jsx",
+      "target": "function:AdminLayout",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/AdminSidebar.jsx",
+      "target": "function:AdminSidebar",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/CartBottomSheet.jsx",
+      "target": "function:CartBottomSheet",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/CostSummary.jsx",
+      "target": "function:CostSummary",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/CustomerInfoStep.jsx",
+      "target": "function:CustomerInfoStep",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/DashboardPage.jsx",
+      "target": "file:components/OrderDetailModal.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import OrderDetailModal"
+    },
+    {
+      "source": "file:components/DashboardPage.jsx",
+      "target": "function:DashboardPage",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/DashboardPage.jsx",
+      "target": "function:CompactKpi",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/DashboardPage.jsx",
+      "target": "function:StatusBar",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "function:DashboardPage",
+      "target": "function:CompactKpi",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders CompactKpi"
+    },
+    {
+      "source": "function:DashboardPage",
+      "target": "function:StatusBar",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders StatusBar"
+    },
+    {
+      "source": "file:components/DashboardPage.test.jsx",
+      "target": "file:components/DashboardPage.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "tests DashboardPage"
+    },
+    {
+      "source": "file:components/EmptyState.jsx",
+      "target": "function:EmptyState",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/EventManagementPage.jsx",
+      "target": "file:components/EmptyState.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import EmptyState"
+    },
+    {
+      "source": "file:components/EventManagementPage.jsx",
+      "target": "function:EventManagementPage",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "function:EventManagementPage",
+      "target": "function:EmptyState",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders EmptyState"
+    },
+    {
+      "source": "file:components/FloatingBottomBar.jsx",
+      "target": "function:FloatingBottomBar",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/FulfillmentPage.jsx",
+      "target": "function:FulfillmentPage",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/FulfillmentPage.jsx",
+      "target": "function:OrderCard",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/FulfillmentPage.jsx",
+      "target": "function:OrderDetail",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/FulfillmentPage.jsx",
+      "target": "function:CopyableText",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/FulfillmentPage.jsx",
+      "target": "function:normalizeCategory",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/FulfillmentPage.jsx",
+      "target": "function:classifyOrder",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "function:FulfillmentPage",
+      "target": "function:OrderCard",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders OrderCard"
+    },
+    {
+      "source": "function:FulfillmentPage",
+      "target": "function:OrderDetail",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders OrderDetail"
+    },
+    {
+      "source": "function:OrderDetail",
+      "target": "function:CopyableText",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders CopyableText"
+    },
+    {
+      "source": "function:OrderCard",
+      "target": "function:classifyOrder",
+      "type": "calls",
+      "weight": 1,
+      "label": "classifies order type"
+    },
+    {
+      "source": "file:components/LoginPage.jsx",
+      "target": "function:LoginPage",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/NewOrderModal.jsx",
+      "target": "function:NewOrderModal",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/NotificationsDisplay.jsx",
+      "target": "function:NotificationsDisplay",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/OrderDetailModal.jsx",
+      "target": "function:OrderDetailModal",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/OrderDetailModal.test.jsx",
+      "target": "file:components/OrderDetailModal.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "tests OrderDetailModal"
+    },
+    {
+      "source": "file:components/OrderForm.jsx",
+      "target": "function:OrderForm",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/OrderLookupPage.jsx",
+      "target": "function:OrderLookupPage",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/OrderManagementPage.jsx",
+      "target": "file:components/OrderDetailModal.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import OrderDetailModal"
+    },
+    {
+      "source": "file:components/OrderManagementPage.jsx",
+      "target": "file:components/NewOrderModal.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import NewOrderModal"
+    },
+    {
+      "source": "file:components/OrderManagementPage.jsx",
+      "target": "file:components/EmptyState.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import EmptyState"
+    },
+    {
+      "source": "file:components/OrderManagementPage.jsx",
+      "target": "function:OrderManagementPage",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "function:OrderManagementPage",
+      "target": "function:OrderDetailModal",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders OrderDetailModal"
+    },
+    {
+      "source": "function:OrderManagementPage",
+      "target": "function:NewOrderModal",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders NewOrderModal"
+    },
+    {
+      "source": "function:OrderManagementPage",
+      "target": "function:EmptyState",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders EmptyState"
+    },
+    {
+      "source": "file:components/OrderManagementPage.test.jsx",
+      "target": "file:components/OrderManagementPage.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "tests OrderManagementPage"
+    },
+    {
+      "source": "file:components/OrderPage.jsx",
+      "target": "file:components/OrderStepIndicator.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import OrderStepIndicator"
+    },
+    {
+      "source": "file:components/OrderPage.jsx",
+      "target": "file:components/FloatingBottomBar.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import FloatingBottomBar"
+    },
+    {
+      "source": "file:components/OrderPage.jsx",
+      "target": "file:components/CustomerInfoStep.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import CustomerInfoStep"
+    },
+    {
+      "source": "file:components/OrderPage.jsx",
+      "target": "file:components/OrderReviewStep.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import OrderReviewStep"
+    },
+    {
+      "source": "file:components/OrderPage.jsx",
+      "target": "file:components/CartBottomSheet.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import CartBottomSheet"
+    },
+    {
+      "source": "file:components/OrderPage.jsx",
+      "target": "function:OrderPage",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "function:OrderPage",
+      "target": "function:OrderStepIndicator",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders OrderStepIndicator"
+    },
+    {
+      "source": "function:OrderPage",
+      "target": "function:FloatingBottomBar",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders FloatingBottomBar"
+    },
+    {
+      "source": "function:OrderPage",
+      "target": "function:CustomerInfoStep",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders CustomerInfoStep"
+    },
+    {
+      "source": "function:OrderPage",
+      "target": "function:OrderReviewStep",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders OrderReviewStep"
+    },
+    {
+      "source": "function:OrderPage",
+      "target": "function:CartBottomSheet",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders CartBottomSheet"
+    },
+    {
+      "source": "file:components/OrderReviewStep.jsx",
+      "target": "file:components/CostSummary.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import CostSummary"
+    },
+    {
+      "source": "file:components/OrderReviewStep.jsx",
+      "target": "function:OrderReviewStep",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/OrderReviewStep.jsx",
+      "target": "function:InfoRow",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "function:OrderReviewStep",
+      "target": "function:CostSummary",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders CostSummary embedded"
+    },
+    {
+      "source": "function:OrderReviewStep",
+      "target": "function:InfoRow",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders InfoRow"
+    },
+    {
+      "source": "file:components/OrderStatusPage.jsx",
+      "target": "function:OrderStatusPage",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/OrderStatusPage.jsx",
+      "target": "function:getBannerConfig",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/OrderStatusPage.jsx",
+      "target": "function:SectionTitle",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/OrderStatusPage.jsx",
+      "target": "function:ItemsCard",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "function:OrderStatusPage",
+      "target": "function:getBannerConfig",
+      "type": "calls",
+      "weight": 1,
+      "label": "gets banner config"
+    },
+    {
+      "source": "function:OrderStatusPage",
+      "target": "function:SectionTitle",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders SectionTitle"
+    },
+    {
+      "source": "function:OrderStatusPage",
+      "target": "function:ItemsCard",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders ItemsCard"
+    },
+    {
+      "source": "file:components/OrderStepIndicator.jsx",
+      "target": "function:OrderStepIndicator",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/ProductCard.jsx",
+      "target": "function:ProductCard",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/ProductManagementPage.jsx",
+      "target": "file:components/EmptyState.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "import EmptyState"
+    },
+    {
+      "source": "file:components/ProductManagementPage.jsx",
+      "target": "function:ProductManagementPage",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/ProductManagementPage.jsx",
+      "target": "function:TriStateToggle",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:components/ProductManagementPage.jsx",
+      "target": "function:createEmptyProduct",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "function:ProductManagementPage",
+      "target": "function:EmptyState",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders EmptyState"
+    },
+    {
+      "source": "function:ProductManagementPage",
+      "target": "function:TriStateToggle",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders TriStateToggle"
+    },
+    {
+      "source": "function:ProductManagementPage",
+      "target": "function:createEmptyProduct",
+      "type": "calls",
+      "weight": 1,
+      "label": "creates empty product template"
+    },
+    {
+      "source": "function:AdminLayout",
+      "target": "function:AdminSidebar",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders AdminSidebar"
+    },
+    {
+      "source": "function:AdminLayout",
+      "target": "function:NotificationsDisplay",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders NotificationsDisplay"
+    },
+    {
+      "source": "function:AdminLayout",
+      "target": "function:DashboardPage",
+      "type": "calls",
+      "weight": 1,
+      "label": "routes to DashboardPage"
+    },
+    {
+      "source": "function:AdminLayout",
+      "target": "function:OrderManagementPage",
+      "type": "calls",
+      "weight": 1,
+      "label": "routes to OrderManagementPage"
+    },
+    {
+      "source": "function:AdminLayout",
+      "target": "function:EventManagementPage",
+      "type": "calls",
+      "weight": 1,
+      "label": "routes to EventManagementPage"
+    },
+    {
+      "source": "function:AdminLayout",
+      "target": "function:ProductManagementPage",
+      "type": "calls",
+      "weight": 1,
+      "label": "routes to ProductManagementPage"
+    },
+    {
+      "source": "function:AdminLayout",
+      "target": "function:FulfillmentPage",
+      "type": "calls",
+      "weight": 1,
+      "label": "routes to FulfillmentPage"
+    },
+    {
+      "source": "function:DashboardPage",
+      "target": "function:OrderDetailModal",
+      "type": "calls",
+      "weight": 1,
+      "label": "renders OrderDetailModal"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/ProductSelectionStep.jsx",
+      "target": "file:inpsyt-order-frontend/src/components/ProductSelectionStep.jsx",
+      "type": "contains",
+      "weight": 1,
+      "label": "defines"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/ProductSelectionStep.jsx",
+      "target": "function:ProductSelectionStep",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/ProductSelectionStep.jsx",
+      "target": "function:ProductSelectionStep:loadProducts",
+      "type": "contains",
+      "weight": 0.8
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/ProductSelectionStep.jsx",
+      "target": "file:inpsyt-order-frontend/src/api/products.js",
+      "type": "imports",
+      "weight": 1,
+      "label": "fetchProducts"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/ProductSelectionStep.jsx",
+      "target": "file:inpsyt-order-frontend/src/hooks/useNotification.jsx",
+      "type": "imports",
+      "weight": 0.8,
+      "label": "useNotification"
+    },
+    {
+      "source": "function:ProductSelectionStep:loadProducts",
+      "target": "file:inpsyt-order-frontend/src/api/products.js",
+      "type": "calls",
+      "weight": 1,
+      "label": "fetchProducts()"
+    },
+    {
+      "source": "function:ProductSelectionStep",
+      "target": "function:useNotification",
+      "type": "calls",
+      "weight": 0.7,
+      "label": "useNotification()"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/ProductSelector.jsx",
+      "target": "function:ProductSelector",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/ProductSelector.jsx",
+      "target": "function:ProductSelector:loadProducts",
+      "type": "contains",
+      "weight": 0.8
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/ProductSelector.jsx",
+      "target": "file:inpsyt-order-frontend/src/api/products.js",
+      "type": "imports",
+      "weight": 1,
+      "label": "fetchProducts"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/ProductSelector.jsx",
+      "target": "file:inpsyt-order-frontend/src/hooks/useNotification.jsx",
+      "type": "imports",
+      "weight": 0.8,
+      "label": "useNotification"
+    },
+    {
+      "source": "function:ProductSelector:loadProducts",
+      "target": "file:inpsyt-order-frontend/src/api/products.js",
+      "type": "calls",
+      "weight": 1,
+      "label": "fetchProducts()"
+    },
+    {
+      "source": "function:ProductSelector",
+      "target": "function:useNotification",
+      "type": "calls",
+      "weight": 0.7,
+      "label": "useNotification()"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/ProtectedRoute.jsx",
+      "target": "function:ProtectedRoute",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/SettingsPage.jsx",
+      "target": "function:SettingsPage",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/SettingsPage.jsx",
+      "target": "function:SettingsPage:fetchSettings",
+      "type": "contains",
+      "weight": 0.8
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/SettingsPage.jsx",
+      "target": "function:SettingsPage:handleSave",
+      "type": "contains",
+      "weight": 0.8
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/SettingsPage.jsx",
+      "target": "file:inpsyt-order-frontend/src/supabaseClient.js",
+      "type": "imports",
+      "weight": 1,
+      "label": "supabase"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/SettingsPage.jsx",
+      "target": "file:inpsyt-order-frontend/src/hooks/useNotification.jsx",
+      "type": "imports",
+      "weight": 0.8,
+      "label": "useNotification"
+    },
+    {
+      "source": "function:SettingsPage:fetchSettings",
+      "target": "function:supabaseClient",
+      "type": "calls",
+      "weight": 1,
+      "label": "supabase.from('site_settings').select()"
+    },
+    {
+      "source": "function:SettingsPage:handleSave",
+      "target": "function:supabaseClient",
+      "type": "calls",
+      "weight": 1,
+      "label": "supabase.from('site_settings').update()"
+    },
+    {
+      "source": "function:SettingsPage",
+      "target": "function:useNotification",
+      "type": "calls",
+      "weight": 0.7,
+      "label": "useNotification()"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/SocietyManagementDialog.jsx",
+      "target": "function:SocietyManagementDialog",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/SocietyManagementDialog.jsx",
+      "target": "function:SocietyManagementDialog:fetchSocieties",
+      "type": "contains",
+      "weight": 0.8
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/SocietyManagementDialog.jsx",
+      "target": "function:SocietyManagementDialog:handleAdd",
+      "type": "contains",
+      "weight": 0.8
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/SocietyManagementDialog.jsx",
+      "target": "function:SocietyManagementDialog:handleDelete",
+      "type": "contains",
+      "weight": 0.8
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/SocietyManagementDialog.jsx",
+      "target": "file:inpsyt-order-frontend/src/supabaseClient.js",
+      "type": "imports",
+      "weight": 1,
+      "label": "supabase"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/SocietyManagementDialog.jsx",
+      "target": "file:inpsyt-order-frontend/src/hooks/useAuth.jsx",
+      "type": "imports",
+      "weight": 0.8,
+      "label": "useAuth"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/SocietyManagementDialog.jsx",
+      "target": "file:inpsyt-order-frontend/src/hooks/useNotification.jsx",
+      "type": "imports",
+      "weight": 0.8,
+      "label": "useNotification"
+    },
+    {
+      "source": "function:SocietyManagementDialog:fetchSocieties",
+      "target": "function:supabaseClient",
+      "type": "calls",
+      "weight": 1,
+      "label": "supabase.from('societies').select()"
+    },
+    {
+      "source": "function:SocietyManagementDialog:handleAdd",
+      "target": "function:supabaseClient",
+      "type": "calls",
+      "weight": 1,
+      "label": "supabase.from('societies').insert()"
+    },
+    {
+      "source": "function:SocietyManagementDialog:handleDelete",
+      "target": "function:supabaseClient",
+      "type": "calls",
+      "weight": 1,
+      "label": "supabase.from('societies').delete()"
+    },
+    {
+      "source": "function:SocietyManagementDialog",
+      "target": "function:useAuth",
+      "type": "calls",
+      "weight": 0.7,
+      "label": "useAuth()"
+    },
+    {
+      "source": "function:SocietyManagementDialog",
+      "target": "function:useNotification",
+      "type": "calls",
+      "weight": 0.7,
+      "label": "useNotification()"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/TableSkeleton.jsx",
+      "target": "function:TableSkeleton",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+      "target": "function:UserManagementPage",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+      "target": "function:UserManagementPage:fetchUsers",
+      "type": "contains",
+      "weight": 0.8
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+      "target": "function:UserManagementPage:handleInviteUser",
+      "type": "contains",
+      "weight": 0.8
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+      "target": "function:UserManagementPage:handleRoleChange",
+      "type": "contains",
+      "weight": 0.8
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+      "target": "function:UserManagementPage:handleDeleteUser",
+      "type": "contains",
+      "weight": 0.7
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+      "target": "function:UserManagementPage:handleSaveMemo",
+      "type": "contains",
+      "weight": 0.7
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+      "target": "file:inpsyt-order-frontend/src/hooks/useAuth.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "useAuth"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+      "target": "file:inpsyt-order-frontend/src/hooks/useNotification.jsx",
+      "type": "imports",
+      "weight": 0.8,
+      "label": "useNotification"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+      "target": "file:inpsyt-order-frontend/src/supabaseClient.js",
+      "type": "imports",
+      "weight": 1,
+      "label": "supabase"
+    },
+    {
+      "source": "function:UserManagementPage:fetchUsers",
+      "target": "function:supabaseClient",
+      "type": "calls",
+      "weight": 1,
+      "label": "supabase.functions.invoke('list-users')"
+    },
+    {
+      "source": "function:UserManagementPage:handleInviteUser",
+      "target": "function:supabaseClient",
+      "type": "calls",
+      "weight": 1,
+      "label": "supabase.functions.invoke('invite-user')"
+    },
+    {
+      "source": "function:UserManagementPage:handleRoleChange",
+      "target": "function:supabaseClient",
+      "type": "calls",
+      "weight": 1,
+      "label": "supabase.functions.invoke('update-user-role')"
+    },
+    {
+      "source": "function:UserManagementPage:handleSaveMemo",
+      "target": "function:supabaseClient",
+      "type": "calls",
+      "weight": 1,
+      "label": "supabase.functions.invoke('update-user-memo')"
+    },
+    {
+      "source": "function:UserManagementPage",
+      "target": "function:useAuth",
+      "type": "calls",
+      "weight": 0.8,
+      "label": "useAuth()"
+    },
+    {
+      "source": "function:UserManagementPage",
+      "target": "function:useNotification",
+      "type": "calls",
+      "weight": 0.7,
+      "label": "useNotification()"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/constants/orderStatus.js",
+      "target": "function:STATUS_TO_KOREAN",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/constants/orderStatus.js",
+      "target": "function:STATUS_COLORS",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/constants/orderStatus.js",
+      "target": "function:REVENUE_STATUSES",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/hooks/useAuth.jsx",
+      "target": "function:useAuth",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/hooks/useAuth.jsx",
+      "target": "file:inpsyt-order-frontend/src/AuthContext.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "AuthContext"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/hooks/useNotification.jsx",
+      "target": "function:useNotification",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/hooks/useNotification.jsx",
+      "target": "file:inpsyt-order-frontend/src/NotificationContext.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "NotificationContext"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/main.jsx",
+      "target": "function:main:render",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/main.jsx",
+      "target": "file:inpsyt-order-frontend/src/index.css",
+      "type": "imports",
+      "weight": 0.5,
+      "label": "styles"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/main.jsx",
+      "target": "file:inpsyt-order-frontend/src/App.jsx",
+      "type": "imports",
+      "weight": 1,
+      "label": "App"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/supabaseClient.js",
+      "target": "function:supabaseClient",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/src/theme.js",
+      "target": "function:theme",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:inpsyt-order-frontend/vercel.json",
+      "target": "file:inpsyt-order-frontend/src/main.jsx",
+      "type": "configures",
+      "weight": 0.5,
+      "label": "SPA rewrite to index.html"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/vite.config.js",
+      "target": "file:inpsyt-order-frontend/src/main.jsx",
+      "type": "configures",
+      "weight": 0.8,
+      "label": "build config"
+    },
+    {
+      "source": "file:inpsyt-order-frontend/vite.config.js",
+      "target": "file:inpsyt-order-frontend/src/setupTests.js",
+      "type": "configures",
+      "weight": 0.6,
+      "label": "test setupFiles"
+    },
+    {
+      "source": "file:supabase/config.toml",
+      "target": "file:inpsyt-order-frontend/src/supabaseClient.js",
+      "type": "configures",
+      "weight": 0.7,
+      "label": "Supabase backend config for client"
+    },
+    {
+      "source": "file:supabase/config.toml",
+      "target": "function:UserManagementPage:fetchUsers",
+      "type": "configures",
+      "weight": 0.5,
+      "label": "edge_runtime for Edge Functions"
+    },
+    {
+      "source": "file:supabase/functions/create-order/index.ts",
+      "target": "file:supabase/functions/_shared/cors.ts",
+      "type": "imports",
+      "weight": 1,
+      "label": "imports corsHeaders"
+    },
+    {
+      "source": "file:supabase/functions/send-alimtalk/index.ts",
+      "target": "file:supabase/functions/_shared/cors.ts",
+      "type": "imports",
+      "weight": 1,
+      "label": "imports corsHeaders"
+    },
+    {
+      "source": "file:supabase/functions/update-order/index.ts",
+      "target": "file:supabase/functions/update-order/deps.ts",
+      "type": "imports",
+      "weight": 1,
+      "label": "imports createClient from deps"
+    },
+    {
+      "source": "file:supabase/functions/update-order/index.ts",
+      "target": "file:supabase/functions/_shared/cors.ts",
+      "type": "imports",
+      "weight": 1,
+      "label": "imports corsHeaders"
+    },
+    {
+      "source": "file:supabase/functions/send-order-email/index.test.ts",
+      "target": "file:supabase/functions/send-order-email/index.ts",
+      "type": "imports",
+      "weight": 1,
+      "label": "imports sendOrderEmail"
+    },
+    {
+      "source": "file:supabase/functions/create-order/index.ts",
+      "target": "function:supabase/functions/create-order/index.ts:serve_handler",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/functions/delete-user/index.ts",
+      "target": "function:supabase/functions/delete-user/index.ts:serve_handler",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/functions/invite-user/index.ts",
+      "target": "function:supabase/functions/invite-user/index.ts:serve_handler",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/functions/list-users/index.ts",
+      "target": "function:supabase/functions/list-users/index.ts:serve_handler",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/functions/send-alimtalk/index.ts",
+      "target": "function:supabase/functions/send-alimtalk/index.ts:serve_handler",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/functions/send-order-email/index.ts",
+      "target": "function:supabase/functions/send-order-email/index.ts:sendOrderEmail",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/functions/send-order-email/index.ts",
+      "target": "function:supabase/functions/send-order-email/index.ts:setupListener",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/functions/send-order-email/index.ts",
+      "target": "function:supabase/functions/send-order-email/index.ts:formatAddress",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/functions/send-order-email/mock_supabase_js.ts",
+      "target": "function:supabase/functions/send-order-email/mock_supabase_js.ts:createClient",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/functions/test-log-function/index.ts",
+      "target": "function:supabase/functions/test-log-function/index.ts:serve_handler",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/functions/update-order/index.ts",
+      "target": "function:supabase/functions/update-order/index.ts:serve_handler",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/functions/update-user-memo/index.ts",
+      "target": "function:supabase/functions/update-user-memo/index.ts:serve_handler",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/functions/update-user-permissions/index.ts",
+      "target": "function:supabase/functions/update-user-permissions/index.ts:serve_handler",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/functions/_shared/cors.ts",
+      "target": "function:supabase/functions/_shared/cors.ts:corsHeaders",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "function:supabase/functions/send-order-email/index.ts:setupListener",
+      "target": "function:supabase/functions/send-order-email/index.ts:sendOrderEmail",
+      "type": "calls",
+      "weight": 2,
+      "label": "calls sendOrderEmail on order_paid notification"
+    },
+    {
+      "source": "function:supabase/functions/send-order-email/index.ts:sendOrderEmail",
+      "target": "function:supabase/functions/send-order-email/index.ts:formatAddress",
+      "type": "calls",
+      "weight": 1,
+      "label": "calls formatAddress for shipping address"
+    },
+    {
+      "source": "function:supabase/functions/create-order/index.ts:serve_handler",
+      "target": "table:orders",
+      "type": "calls",
+      "weight": 2,
+      "label": "inserts into orders table"
+    },
+    {
+      "source": "function:supabase/functions/create-order/index.ts:serve_handler",
+      "target": "table:order_items",
+      "type": "calls",
+      "weight": 2,
+      "label": "inserts into order_items table"
+    },
+    {
+      "source": "function:supabase/functions/create-order/index.ts:serve_handler",
+      "target": "table:products",
+      "type": "calls",
+      "weight": 1,
+      "label": "reads products for pricing"
+    },
+    {
+      "source": "function:supabase/functions/create-order/index.ts:serve_handler",
+      "target": "table:events",
+      "type": "calls",
+      "weight": 1,
+      "label": "reads event discount_rate"
+    },
+    {
+      "source": "function:supabase/functions/create-order/index.ts:serve_handler",
+      "target": "table:site_settings",
+      "type": "calls",
+      "weight": 1,
+      "label": "reads shipping settings"
+    },
+    {
+      "source": "function:supabase/functions/send-order-email/index.ts:sendOrderEmail",
+      "target": "table:orders",
+      "type": "calls",
+      "weight": 1,
+      "label": "reads order details"
+    },
+    {
+      "source": "function:supabase/functions/send-order-email/index.ts:sendOrderEmail",
+      "target": "table:order_items",
+      "type": "calls",
+      "weight": 1,
+      "label": "reads order items with products"
+    },
+    {
+      "source": "function:supabase/functions/send-order-email/index.ts:sendOrderEmail",
+      "target": "file:supabase/functions/send-order-email/ordermail.html",
+      "type": "calls",
+      "weight": 1,
+      "label": "reads email template via Deno.readTextFile"
+    },
+    {
+      "source": "function:supabase/functions/send-alimtalk/index.ts:serve_handler",
+      "target": "table:orders",
+      "type": "calls",
+      "weight": 2,
+      "label": "reads order info and updates alimtalk_sent_at"
+    },
+    {
+      "source": "function:supabase/functions/update-order/index.ts:serve_handler",
+      "target": "table:orders",
+      "type": "calls",
+      "weight": 2,
+      "label": "calls update_order_details RPC"
+    },
+    {
+      "source": "function:supabase/functions/invite-user/index.ts:serve_handler",
+      "target": "table:user_profiles",
+      "type": "calls",
+      "weight": 2,
+      "label": "upserts user profile after auth creation"
+    },
+    {
+      "source": "function:supabase/functions/list-users/index.ts:serve_handler",
+      "target": "table:user_profiles",
+      "type": "calls",
+      "weight": 1,
+      "label": "reads user profiles for names/roles"
+    },
+    {
+      "source": "function:supabase/functions/update-user-memo/index.ts:serve_handler",
+      "target": "table:user_profiles",
+      "type": "calls",
+      "weight": 2,
+      "label": "updates memo in user_profiles"
+    },
+    {
+      "source": "function:supabase/functions/delete-user/index.ts:serve_handler",
+      "target": "table:user_profiles",
+      "type": "calls",
+      "weight": 1,
+      "label": "cascading delete via auth.admin.deleteUser"
+    },
+    {
+      "source": "file:supabase/functions/send-order-email/index.test.ts",
+      "target": "function:supabase/functions/send-order-email/index.ts:sendOrderEmail",
+      "type": "calls",
+      "weight": 2,
+      "label": "tests sendOrderEmail with various scenarios"
+    },
+    {
+      "source": "file:supabase/functions/send-order-email/deno.json",
+      "target": "file:supabase/functions/send-order-email/mock_supabase_js.ts",
+      "type": "configures",
+      "weight": 1,
+      "label": "remaps @supabase/supabase-js to mock for testing"
+    },
+    {
+      "source": "file:supabase/functions/create-order/deno.json",
+      "target": "file:supabase/functions/create-order/index.ts",
+      "type": "configures",
+      "weight": 1,
+      "label": "configures import map for create-order"
+    },
+    {
+      "source": "file:supabase/functions/delete-user/deno.json",
+      "target": "file:supabase/functions/delete-user/index.ts",
+      "type": "configures",
+      "weight": 1,
+      "label": "configures import map for delete-user"
+    },
+    {
+      "source": "file:supabase/functions/invite-user/deno.json",
+      "target": "file:supabase/functions/invite-user/index.ts",
+      "type": "configures",
+      "weight": 1,
+      "label": "configures import map for invite-user"
+    },
+    {
+      "source": "file:supabase/functions/list-users/deno.json",
+      "target": "file:supabase/functions/list-users/index.ts",
+      "type": "configures",
+      "weight": 1,
+      "label": "configures import map for list-users"
+    },
+    {
+      "source": "file:supabase/functions/send-order-email/deno.json",
+      "target": "file:supabase/functions/send-order-email/index.ts",
+      "type": "configures",
+      "weight": 1,
+      "label": "configures import map for send-order-email"
+    },
+    {
+      "source": "file:supabase/functions/update-user-memo/deno.json",
+      "target": "file:supabase/functions/update-user-memo/index.ts",
+      "type": "configures",
+      "weight": 1,
+      "label": "configures import map for update-user-memo"
+    },
+    {
+      "source": "file:supabase/functions/update-user-permissions/deno.json",
+      "target": "file:supabase/functions/update-user-permissions/index.ts",
+      "type": "configures",
+      "weight": 1,
+      "label": "configures import map for update-user-permissions"
+    },
+    {
+      "source": "file:supabase/deno.json",
+      "target": "file:supabase/functions/create-order/index.ts",
+      "type": "configures",
+      "weight": 0.5,
+      "label": "root deno config for all edge functions"
+    },
+    {
+      "source": "file:supabase/deployment_notes.md",
+      "target": "file:supabase/functions/create-order/index.ts",
+      "type": "documents",
+      "weight": 0.5,
+      "label": "documents deployment procedure for edge functions"
+    },
+    {
+      "source": "file:supabase/functions/update-user-role/index.ts",
+      "target": "file:supabase/functions/update-user-role/deno.json",
+      "type": "configures",
+      "weight": 0.5,
+      "label": "deno.json configures update-user-role function"
+    },
+    {
+      "source": "file:supabase/functions/update-user-role/index.ts",
+      "target": "function:supabase/functions/update-user-role/index.ts:serve_handler",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/functions/upload-products-excel/index.ts",
+      "target": "function:supabase/functions/upload-products-excel/index.ts:serve_handler",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/functions/upload-products-excel/index.ts",
+      "target": "file:supabase/functions/_shared/cors.ts",
+      "type": "imports",
+      "weight": 0.8,
+      "label": "imports corsHeaders from shared CORS module"
+    },
+    {
+      "source": "function:supabase/functions/upload-products-excel/index.ts:serve_handler",
+      "target": "table:products",
+      "type": "migrates",
+      "weight": 0.9,
+      "label": "upserts products by product_code"
+    },
+    {
+      "source": "file:supabase/migrations/20250722065000_create_events_table.sql",
+      "target": "table:events",
+      "type": "migrates",
+      "weight": 1,
+      "label": "creates events table"
+    },
+    {
+      "source": "file:supabase/migrations/20250722070000_create_orders_table.sql",
+      "target": "table:orders",
+      "type": "migrates",
+      "weight": 1,
+      "label": "creates orders table"
+    },
+    {
+      "source": "table:orders",
+      "target": "table:events",
+      "type": "imports",
+      "weight": 0.9,
+      "label": "orders.event_id FK references events.id"
+    },
+    {
+      "source": "file:supabase/migrations/20250722070342_create_paid_order_trigger.sql",
+      "target": "table:orders",
+      "type": "migrates",
+      "weight": 0.8,
+      "label": "creates paid order trigger on orders table"
+    },
+    {
+      "source": "file:supabase/migrations/20250722070342_create_paid_order_trigger.sql",
+      "target": "function:sql:notify_order_paid",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/migrations/20250805_add_new_order_fields.sql",
+      "target": "table:orders",
+      "type": "migrates",
+      "weight": 0.8,
+      "label": "adds contact, address, amounts, is_on_site_sale columns"
+    },
+    {
+      "source": "file:supabase/migrations/20250808040516_add_admin_memo_to_orders.sql",
+      "target": "table:orders",
+      "type": "migrates",
+      "weight": 0.5,
+      "label": "adds admin_memo column"
+    },
+    {
+      "source": "file:supabase/migrations/20250811000000_update_order_with_transaction.sql",
+      "target": "table:orders",
+      "type": "migrates",
+      "weight": 0.8,
+      "label": "creates update_order_with_items function"
+    },
+    {
+      "source": "file:supabase/migrations/20250811000000_update_order_with_transaction.sql",
+      "target": "function:sql:update_order_with_items",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/migrations/20250811010000_create_update_order_details_function.sql",
+      "target": "table:orders",
+      "type": "migrates",
+      "weight": 0.8,
+      "label": "creates update_order_details function"
+    },
+    {
+      "source": "file:supabase/migrations/20250811010000_create_update_order_details_function.sql",
+      "target": "function:sql:update_order_details",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/migrations/20251022045614_create_products_table.sql",
+      "target": "table:products",
+      "type": "migrates",
+      "weight": 1,
+      "label": "creates products table"
+    },
+    {
+      "source": "file:supabase/migrations/20251022045615_add_is_popular_to_products.sql",
+      "target": "table:products",
+      "type": "migrates",
+      "weight": 0.3,
+      "label": "adds is_popular column (empty migration)"
+    },
+    {
+      "source": "file:supabase/migrations/20251121_apply_rbac_rls.sql",
+      "target": "table:events",
+      "type": "migrates",
+      "weight": 0.9,
+      "label": "enables RLS and creates policies on events"
+    },
+    {
+      "source": "file:supabase/migrations/20251121_apply_rbac_rls.sql",
+      "target": "table:products",
+      "type": "migrates",
+      "weight": 0.9,
+      "label": "enables RLS and creates policies on products"
+    },
+    {
+      "source": "file:supabase/migrations/20251121_apply_rbac_rls.sql",
+      "target": "table:orders",
+      "type": "migrates",
+      "weight": 0.9,
+      "label": "enables RLS and creates policies on orders"
+    },
+    {
+      "source": "file:supabase/migrations/20251121_apply_rbac_rls.sql",
+      "target": "function:sql:get_current_user_permissions",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/migrations/20251121_apply_rbac_rls.sql",
+      "target": "function:sql:has_permission",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "function:sql:has_permission",
+      "target": "function:sql:get_current_user_permissions",
+      "type": "imports",
+      "weight": 0.9,
+      "label": "has_permission calls get_current_user_permissions"
+    },
+    {
+      "source": "file:supabase/migrations/20260311_create_field_reports.sql",
+      "target": "table:field_reports",
+      "type": "migrates",
+      "weight": 1,
+      "label": "creates field_reports table"
+    },
+    {
+      "source": "table:field_reports",
+      "target": "table:events",
+      "type": "imports",
+      "weight": 0.9,
+      "label": "field_reports.event_id FK references events.id"
+    },
+    {
+      "source": "file:supabase/migrations/20260313044014_add_product_flags.sql",
+      "target": "table:products",
+      "type": "migrates",
+      "weight": 0.5,
+      "label": "adds is_new, is_recommend columns"
+    },
+    {
+      "source": "file:supabase/migrations/20260313060000_add_event_structured_fields.sql",
+      "target": "table:events",
+      "type": "migrates",
+      "weight": 0.7,
+      "label": "adds event_year, host_society, event_season, status columns"
+    },
+    {
+      "source": "file:supabase/migrations/20260401000000_patch_rls_and_create_site_settings.sql",
+      "target": "table:site_settings",
+      "type": "migrates",
+      "weight": 1,
+      "label": "creates site_settings singleton table"
+    },
+    {
+      "source": "file:supabase/migrations/20260406_add_access_token_to_orders.sql",
+      "target": "table:orders",
+      "type": "migrates",
+      "weight": 0.8,
+      "label": "adds access_token UUID column with unique index"
+    },
+    {
+      "source": "file:supabase/migrations/20260406_add_estimated_delivery_date_to_events.sql",
+      "target": "table:events",
+      "type": "migrates",
+      "weight": 0.5,
+      "label": "adds estimated_delivery_date column"
+    },
+    {
+      "source": "file:supabase/migrations/20260406_add_status_history_to_orders.sql",
+      "target": "table:orders",
+      "type": "migrates",
+      "weight": 0.8,
+      "label": "adds status_history JSONB column and trigger"
+    },
+    {
+      "source": "file:supabase/migrations/20260406_add_status_history_to_orders.sql",
+      "target": "function:sql:append_status_history",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "file:supabase/migrations/20260406_allow_public_order_lookup.sql",
+      "target": "table:orders",
+      "type": "migrates",
+      "weight": 0.6,
+      "label": "adds anon SELECT policy for public order lookup"
+    },
+    {
+      "source": "file:supabase/migrations/20260407_add_alimtalk_fields_to_orders.sql",
+      "target": "table:orders",
+      "type": "migrates",
+      "weight": 0.5,
+      "label": "adds alimtalk_sent_at column"
+    },
+    {
+      "source": "file:supabase/migrations/20260407_make_email_nullable.sql",
+      "target": "table:orders",
+      "type": "migrates",
+      "weight": 0.4,
+      "label": "drops NOT NULL on email column"
+    },
+    {
+      "source": "file:supabase/migrations/20260407_rls_token_based_access.sql",
+      "target": "table:orders",
+      "type": "migrates",
+      "weight": 0.9,
+      "label": "replaces anon SELECT with token-based SECURITY DEFINER function"
+    },
+    {
+      "source": "file:supabase/migrations/20260407_rls_token_based_access.sql",
+      "target": "function:sql:get_order_by_token",
+      "type": "contains",
+      "weight": 1
+    },
+    {
+      "source": "function:sql:get_order_by_token",
+      "target": "table:orders",
+      "type": "imports",
+      "weight": 1,
+      "label": "queries orders by access_token"
+    },
+    {
+      "source": "function:sql:get_order_by_token",
+      "target": "table:events",
+      "type": "imports",
+      "weight": 0.7,
+      "label": "joins events for order details"
+    },
+    {
+      "source": "function:sql:get_order_by_token",
+      "target": "table:products",
+      "type": "imports",
+      "weight": 0.7,
+      "label": "joins products via order_items"
+    },
+    {
+      "source": "file:supabase/migrations/20260408_drop_email_column.sql",
+      "target": "table:orders",
+      "type": "migrates",
+      "weight": 0.5,
+      "label": "drops email column"
+    },
+    {
+      "source": "file:supabase/migrations/20260409_remove_email_from_order_update_functions.sql",
+      "target": "function:sql:update_order_details",
+      "type": "migrates",
+      "weight": 0.8,
+      "label": "recreates function without email field"
+    },
+    {
+      "source": "file:supabase/migrations/20260409_remove_email_from_order_update_functions.sql",
+      "target": "function:sql:update_order_with_items",
+      "type": "migrates",
+      "weight": 0.8,
+      "label": "recreates function without email field"
+    },
+    {
+      "source": "function:sql:update_order_with_items",
+      "target": "table:orders",
+      "type": "imports",
+      "weight": 1,
+      "label": "updates orders table"
+    },
+    {
+      "source": "function:sql:update_order_details",
+      "target": "table:orders",
+      "type": "imports",
+      "weight": 1,
+      "label": "updates orders table"
+    },
+    {
+      "source": "function:supabase/functions/update-user-role/index.ts:serve_handler",
+      "target": "table:orders",
+      "type": "configures",
+      "weight": 0.3,
+      "label": "manages user roles that govern RBAC on all tables"
+    },
+    {
+      "source": "file:vercel.json",
+      "target": "file:supabase/functions/update-user-role/index.ts",
+      "type": "deploys",
+      "weight": 0.2,
+      "label": "vercel deploys frontend; supabase hosts edge functions separately"
+    }
+  ],
+  "layers": [
+    {
+      "id": "layer:ui-components",
+      "name": "UI 레이어",
+      "description": "고객용 주문 위자드, 관리자 페이지, 재사용 가능한 UI 요소(카드, 모달, 스켈레톤, 단계 인디케이터)를 렌더링하는 React 페이지 컴포넌트와 공유 UI 컴포넌트입니다.",
+      "nodeIds": [
+        "file:inpsyt-order-frontend/src/App.css",
+        "file:inpsyt-order-frontend/src/App.jsx",
+        "file:inpsyt-order-frontend/src/main.jsx",
+        "file:inpsyt-order-frontend/src/index.css",
+        "file:inpsyt-order-frontend/src/theme.js",
+        "file:inpsyt-order-frontend/src/components/AdminHeader.jsx",
+        "file:components/AdminLayout.jsx",
+        "file:components/AdminSidebar.jsx",
+        "file:components/CartBottomSheet.jsx",
+        "file:components/CostSummary.jsx",
+        "file:components/CustomerInfoStep.jsx",
+        "file:components/DashboardPage.jsx",
+        "file:components/EmptyState.jsx",
+        "file:components/EventManagementPage.jsx",
+        "file:components/FloatingBottomBar.jsx",
+        "file:components/FulfillmentPage.jsx",
+        "file:components/LoginPage.jsx",
+        "file:components/NewOrderModal.jsx",
+        "file:components/NotificationsDisplay.jsx",
+        "file:components/OrderDetailModal.jsx",
+        "file:components/OrderForm.jsx",
+        "file:components/OrderLookupPage.jsx",
+        "file:components/OrderManagementPage.jsx",
+        "file:components/OrderPage.jsx",
+        "file:components/OrderReviewStep.jsx",
+        "file:components/OrderStatusPage.jsx",
+        "file:components/OrderStepIndicator.jsx",
+        "file:components/ProductCard.jsx",
+        "file:components/ProductManagementPage.jsx",
+        "file:inpsyt-order-frontend/src/components/ProductSelectionStep.jsx",
+        "file:inpsyt-order-frontend/src/components/ProductSelector.jsx",
+        "file:inpsyt-order-frontend/src/components/ProtectedRoute.jsx",
+        "file:inpsyt-order-frontend/src/components/SettingsPage.jsx",
+        "file:inpsyt-order-frontend/src/components/SocietyManagementDialog.jsx",
+        "file:inpsyt-order-frontend/src/components/TableSkeleton.jsx",
+        "file:inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+        "file:inpsyt-order-frontend/src/constants/orderStatus.js",
+        "document:inpsyt-order-frontend/index.html"
+      ]
+    },
+    {
+      "id": "layer:state-and-context",
+      "name": "상태 및 Context 레이어",
+      "description": "인증(RBAC, 세션 관리)과 알림(토스트/스낵바)을 위한 React Context Provider, 그리고 컴포넌트 트리 전체에서 Context 값을 노출하는 커스텀 훅입니다.",
+      "nodeIds": [
+        "file:inpsyt-order-frontend/src/AuthContext.jsx",
+        "file:inpsyt-order-frontend/src/NotificationContext.jsx",
+        "file:inpsyt-order-frontend/src/hooks/useAuth.jsx",
+        "file:inpsyt-order-frontend/src/hooks/useNotification.jsx"
+      ]
+    },
+    {
+      "id": "layer:api-data",
+      "name": "API / 데이터 레이어",
+      "description": "주문, 상품, 행사, 설정, 알림톡에 대한 Supabase 쿼리를 래핑하는 클라이언트 측 데이터 페칭 모듈입니다. Supabase 클라이언트 싱글톤과 Vercel 서버리스 알림톡 엔드포인트를 포함합니다.",
+      "nodeIds": [
+        "file:inpsyt-order-frontend/src/supabaseClient.js",
+        "file:inpsyt-order-frontend/src/api/alimtalk.js",
+        "file:inpsyt-order-frontend/src/api/events.js",
+        "file:inpsyt-order-frontend/src/api/orders.js",
+        "file:inpsyt-order-frontend/src/api/products.js",
+        "file:inpsyt-order-frontend/src/api/settings.js",
+        "file:inpsyt-order-frontend/api/send-alimtalk.js"
+      ]
+    },
+    {
+      "id": "layer:backend-edge-functions",
+      "name": "백엔드 / Edge Functions",
+      "description": "서버 측 비즈니스 로직을 제공하는 Supabase Deno Edge Functions입니다. 가격 계산이 포함된 주문 생성, 사용자 관리(CRUD, RBAC), 주문 수정, 알림톡 발송, 이메일 발송, 상품 엑셀 업로드를 처리합니다.",
+      "nodeIds": [
+        "file:supabase/functions/_shared/cors.ts",
+        "file:supabase/functions/create-order/index.ts",
+        "file:supabase/functions/delete-user/index.ts",
+        "file:supabase/functions/invite-user/index.ts",
+        "file:supabase/functions/list-users/index.ts",
+        "file:supabase/functions/send-alimtalk/index.ts",
+        "file:supabase/functions/send-order-email/index.ts",
+        "file:supabase/functions/send-order-email/index.test.ts",
+        "file:supabase/functions/send-order-email/mock_supabase_js.ts",
+        "file:supabase/functions/send-order-email/ordermail.html",
+        "file:supabase/functions/test-log-function/index.ts",
+        "file:supabase/functions/update-order/deps.ts",
+        "file:supabase/functions/update-order/index.ts",
+        "file:supabase/functions/update-user-memo/index.ts",
+        "file:supabase/functions/update-user-permissions/index.ts",
+        "file:supabase/functions/update-user-role/index.ts",
+        "file:supabase/functions/upload-products-excel/index.ts"
+      ]
+    },
+    {
+      "id": "layer:database-schema",
+      "name": "데이터베이스 / 스키마 레이어",
+      "description": "PostgreSQL 스키마 변경 이력(테이블, 컬럼, 트리거, RLS 정책, 저장 함수)을 정의하는 SQL 마이그레이션과 주문, 상품, 행사, 사용자, 설정, 현장 리포트에 대한 논리적 테이블 정의입니다.",
+      "nodeIds": [
+        "table:orders",
+        "table:order_items",
+        "table:products",
+        "table:events",
+        "table:site_settings",
+        "table:user_profiles",
+        "table:field_reports",
+        "file:supabase/migrations/20250722065000_create_events_table.sql",
+        "file:supabase/migrations/20250722070000_create_orders_table.sql",
+        "file:supabase/migrations/20250722070342_create_paid_order_trigger.sql",
+        "file:supabase/migrations/20250805_add_new_order_fields.sql",
+        "file:supabase/migrations/20250808040516_add_admin_memo_to_orders.sql",
+        "file:supabase/migrations/20250811000000_update_order_with_transaction.sql",
+        "file:supabase/migrations/20250811010000_create_update_order_details_function.sql",
+        "file:supabase/migrations/20251022045614_create_products_table.sql",
+        "file:supabase/migrations/20251022045615_add_is_popular_to_products.sql",
+        "file:supabase/migrations/20251121_apply_rbac_rls.sql",
+        "file:supabase/migrations/20260311_create_field_reports.sql",
+        "file:supabase/migrations/20260313044014_add_product_flags.sql",
+        "file:supabase/migrations/20260313060000_add_event_structured_fields.sql",
+        "file:supabase/migrations/20260401000000_patch_rls_and_create_site_settings.sql",
+        "file:supabase/migrations/20260406_add_access_token_to_orders.sql",
+        "file:supabase/migrations/20260406_add_estimated_delivery_date_to_events.sql",
+        "file:supabase/migrations/20260406_add_status_history_to_orders.sql",
+        "file:supabase/migrations/20260406_allow_public_order_lookup.sql",
+        "file:supabase/migrations/20260407_add_alimtalk_fields_to_orders.sql",
+        "file:supabase/migrations/20260407_make_email_nullable.sql",
+        "file:supabase/migrations/20260407_rls_token_based_access.sql",
+        "file:supabase/migrations/20260408_drop_email_column.sql",
+        "file:supabase/migrations/20260409_remove_email_from_order_update_functions.sql"
+      ]
+    },
+    {
+      "id": "layer:configuration",
+      "name": "설정 레이어",
+      "description": "빌드 설정(Vite, ESLint), 배포 설정(Vercel, Supabase config.toml), 패키지 매니페스트, Edge Functions용 Deno 임포트 맵, gitignore 파일, 환경 변수 템플릿, CI/CD 파이프라인입니다.",
+      "nodeIds": [
+        "pipeline:.github/workflows/deploy-supabase-functions.yml",
+        "config:.gitignore",
+        "config:_config.yml",
+        "config:inpsyt-order-frontend/.env.example",
+        "config:inpsyt-order-frontend/.gitignore",
+        "config:inpsyt-order-frontend/eslint.config.js",
+        "config:inpsyt-order-frontend/package.json",
+        "file:inpsyt-order-frontend/vercel.json",
+        "file:inpsyt-order-frontend/vite.config.js",
+        "file:package.json",
+        "file:supabase/.gitignore",
+        "file:supabase/config.toml",
+        "file:supabase/deno.json",
+        "file:supabase/functions/create-order/.npmrc",
+        "file:supabase/functions/create-order/deno.json",
+        "file:supabase/functions/delete-user/deno.json",
+        "file:supabase/functions/invite-user/deno.json",
+        "file:supabase/functions/list-users/deno.json",
+        "file:supabase/functions/send-order-email/.npmrc",
+        "file:supabase/functions/send-order-email/deno.json",
+        "file:supabase/functions/update-user-memo/deno.json",
+        "file:supabase/functions/update-user-permissions/deno.json",
+        "file:supabase/functions/update-user-role/deno.json",
+        "file:supabase/.temp/cli-latest",
+        "file:supabase/.temp/gotrue-version",
+        "file:supabase/.temp/pooler-url",
+        "file:supabase/.temp/postgres-version",
+        "file:supabase/.temp/project-ref",
+        "file:supabase/.temp/rest-version",
+        "file:inpsyt-order-frontend/src/setupTests.js",
+        "file:vercel.json"
+      ]
+    },
+    {
+      "id": "layer:documentation",
+      "name": "문서 레이어",
+      "description": "코드 매뉴얼, PM 포트폴리오 소개, 개발 로드맵, 운영 매뉴얼, 카카오 알림톡 API 레퍼런스, README, 배포 노트를 포함하는 프로젝트 문서입니다.",
+      "nodeIds": [
+        "document:DOCS/CODE_MANUAL.md",
+        "document:DOCS/PROJECT_INTRO_VIBE_PM.md",
+        "document:DOCS/ROADMAP.md",
+        "document:MANUAL.md",
+        "document:ONESHOT.md",
+        "document:README.md",
+        "document:inpsyt-order-frontend/README.md",
+        "file:supabase/deployment_notes.md"
+      ]
+    },
+    {
+      "id": "layer:testing",
+      "name": "테스트 레이어",
+      "description": "Vitest와 Testing Library를 사용한 프론트엔드 컴포넌트(DashboardPage, OrderDetailModal, OrderManagementPage)의 단위 테스트 및 통합 테스트입니다.",
+      "nodeIds": [
+        "file:components/DashboardPage.test.jsx",
+        "file:components/OrderDetailModal.test.jsx",
+        "file:components/OrderManagementPage.test.jsx"
+      ]
+    }
+  ],
+  "tour": [
+    {
+      "order": 1,
+      "title": "프로젝트 개요 및 문서",
+      "description": "프로젝트가 무엇인지 파악하려면 여기서 시작하세요. '인싸이트 현장주문'은 심리검사 출판사 인싸이트(INPSYT)의 학회 현장 주문 관리 시스템입니다. 고객이 학술 학회 부스에서 모바일로 주문하고 현장에서 결제하면, 관리자가 행사 후 출고 및 일괄 배송을 관리합니다. README는 기술 스택(React 19, Vite, MUI, Supabase)을 설명하고, 코드 매뉴얼은 비개발자를 위해 레스토랑 비유로 아키텍처를 설명하며, 로드맵은 미완성 기능(알림톡 모바일 이슈, 부분 취소)을 추적하고, 운영 매뉴얼은 유지보수 및 인수인계 사항을 다룹니다.",
+      "nodeIds": [
+        "document:README.md",
+        "document:DOCS/CODE_MANUAL.md",
+        "document:DOCS/ROADMAP.md",
+        "document:MANUAL.md",
+        "document:DOCS/PROJECT_INTRO_VIBE_PM.md"
+      ]
+    },
+    {
+      "order": 2,
+      "title": "앱 진입점, 라우팅, 테마",
+      "description": "앱은 index.html에서 main.jsx를 모듈로 로드하며 시작됩니다. main.jsx는 React 루트를 생성하고 StrictMode 안에서 <App />을 렌더링합니다. App.jsx가 실질적인 오케스트레이터로, MUI ThemeProvider(토스 영감의 디자인, #2B398F 기본 색상, Pretendard 폰트), AuthProvider, NotificationProvider로 감싸고 React Router 라우트를 설정합니다. AppRoutes는 라우트 트리를 정의합니다: 고객용 주문 페이지(/:slug, /order-status), 관리자 로그인(/login), ProtectedRoute 뒤의 관리자 패널(/smartadmin/*). supabaseClient.js는 탭을 닫으면 세션이 만료되도록 sessionStorage 기반 인증으로 Supabase 연결을 초기화합니다.",
+      "nodeIds": [
+        "document:inpsyt-order-frontend/index.html",
+        "file:inpsyt-order-frontend/src/main.jsx",
+        "file:inpsyt-order-frontend/src/App.jsx",
+        "function:inpsyt-order-frontend/src/App.jsx:App",
+        "function:inpsyt-order-frontend/src/App.jsx:AppRoutes",
+        "file:inpsyt-order-frontend/src/theme.js",
+        "file:inpsyt-order-frontend/src/supabaseClient.js"
+      ]
+    },
+    {
+      "order": 3,
+      "title": "인증, 인가, RBAC",
+      "description": "인증은 기존 이메일/비밀번호 대신 고유한 PIN 기반 플로우를 사용합니다. LoginPage는 3단계 위자드를 구현합니다: (1) 역할 선택(master/onsite/fulfillment), (2) 목록에서 사용자 프로필 선택, (3) PIN 입력. 내부적으로는 사용자의 내부 이메일로 supabase.auth.signInWithPassword를 호출합니다. AuthContext/AuthProvider가 세션 생명주기를 관리합니다: Supabase 인증 상태 변경을 수신하고, JWT app_metadata에서 RBAC 권한을 추출하며, user_profiles 테이블에서 사용자 프로필을 가져옵니다. useAuth 훅은 user, accessToken, hasPermission(), logout을 노출합니다. ProtectedRoute는 미인증 사용자를 /login으로 리디렉션하여 관리자 라우트를 보호합니다. 백엔드에서는 Edge Functions가 민감한 작업에 대해 master 전용 접근을 강제합니다.",
+      "nodeIds": [
+        "file:components/LoginPage.jsx",
+        "function:LoginPage",
+        "file:inpsyt-order-frontend/src/AuthContext.jsx",
+        "function:inpsyt-order-frontend/src/AuthContext.jsx:AuthProvider",
+        "file:inpsyt-order-frontend/src/hooks/useAuth.jsx",
+        "file:inpsyt-order-frontend/src/components/ProtectedRoute.jsx",
+        "table:user_profiles"
+      ]
+    },
+    {
+      "order": 4,
+      "title": "고객 주문 플로우 (모바일 주문 위자드)",
+      "description": "핵심 고객용 플로우입니다. OrderPage는 /:slug(행사 URL slug)를 통해 접근하는 3단계 위자드입니다. 0단계: ProductSelectionStep은 무한 스크롤, 검색, 카테고리 필터, 인기/신규 배지가 있는 모바일 우선 상품 그리드를 렌더링합니다. 상품은 OrderPage 상태로 관리되는 장바구니에 추가됩니다. CartBottomSheet는 수량 조절이 가능한 장바구니 내용을 보여줍니다. FloatingBottomBar는 무료배송 진행 인디케이터와 함께 네비게이션을 제공합니다. 1단계: CustomerInfoStep은 이름, 전화번호(자동 포맷), 다음 우편번호 API를 통한 배송지 주소, 선택적 인싸이트 ID를 수집합니다. 현장 모드(트리플 탭으로 전환)는 주소 섹션을 숨깁니다. 2단계: OrderReviewStep은 CostSummary(할인, 배송비, 무료배송 진행 바)와 함께 전체 주문을 보여줍니다. 제출하면 create-order Edge Function을 호출합니다. 성공 후 사용자는 OrderStatusPage로 리디렉션됩니다.",
+      "nodeIds": [
+        "file:components/OrderPage.jsx",
+        "function:OrderPage",
+        "file:inpsyt-order-frontend/src/components/ProductSelectionStep.jsx",
+        "function:ProductSelectionStep",
+        "file:components/ProductCard.jsx",
+        "file:components/CartBottomSheet.jsx",
+        "file:components/FloatingBottomBar.jsx",
+        "file:components/OrderStepIndicator.jsx",
+        "file:components/CustomerInfoStep.jsx",
+        "file:components/OrderReviewStep.jsx",
+        "file:components/CostSummary.jsx"
+      ]
+    },
+    {
+      "order": 5,
+      "title": "주문 생성 백엔드 (Edge Function)",
+      "description": "고객이 주문을 제출하면, create-order Supabase Edge Function이 서버 측 처리를 담당합니다. 장바구니 항목, 고객 정보, event_id를 받습니다. 핸들러는 site_settings(배송 임계값), products(정확한 가격), event(할인율)를 조회합니다. 클라이언트 측 합계를 신뢰하지 않고 서버 측에서 할인과 배송비를 포함한 가격을 계산한 뒤, 주문 레코드와 모든 주문 항목을 DB에 원자적으로 삽입합니다. 주문에는 안전한 공개 상태 조회를 위한 UUID access_token이 부여됩니다. OrderStatusPage와 OrderLookupPage를 통해 고객이 이 토큰이나 이름+전화번호 검색으로 주문을 확인할 수 있습니다.",
+      "nodeIds": [
+        "file:supabase/functions/create-order/index.ts",
+        "function:supabase/functions/create-order/index.ts:serve_handler",
+        "file:inpsyt-order-frontend/src/api/orders.js",
+        "file:inpsyt-order-frontend/src/api/products.js",
+        "file:inpsyt-order-frontend/src/api/settings.js",
+        "file:components/OrderStatusPage.jsx",
+        "file:components/OrderLookupPage.jsx",
+        "file:inpsyt-order-frontend/src/constants/orderStatus.js"
+      ]
+    },
+    {
+      "order": 6,
+      "title": "관리자 대시보드 및 네비게이션 셸",
+      "description": "로그인 후 관리자는 AdminLayout에 진입합니다. 이 레이아웃은 셸을 제공합니다: 반응형 사이드바(권한별 필터링된 메뉴의 AdminSidebar), 헤더 바(알림 팝오버, 사용자 아바타 메뉴, 피드백 다이얼로그가 있는 AdminHeader), 그리고 권한 기반 라우트가 있는 콘텐츠 영역입니다. AdminLayout은 새 주문 알림을 위해 Supabase 실시간 구독도 합니다. DashboardPage가 기본 뷰로, 벤토 그리드 KPI 카드(총 주문, 매출, 도서/검사 내역), 상태 분포 바, 행사 필터링, 전년 대비 비교, 빠른 메모 위젯을 보여줍니다. NotificationsDisplay는 NotificationContext를 통해 전역 토스트 메시지를 렌더링합니다.",
+      "nodeIds": [
+        "file:components/AdminLayout.jsx",
+        "function:AdminLayout",
+        "file:components/AdminSidebar.jsx",
+        "file:inpsyt-order-frontend/src/components/AdminHeader.jsx",
+        "file:components/DashboardPage.jsx",
+        "function:DashboardPage",
+        "function:CompactKpi",
+        "function:StatusBar",
+        "file:components/NotificationsDisplay.jsx",
+        "file:inpsyt-order-frontend/src/NotificationContext.jsx"
+      ]
+    },
+    {
+      "order": 7,
+      "title": "주문 관리 및 상세 편집",
+      "description": "OrderManagementPage는 관리자의 핵심 작업 페이지입니다. useReducer로 복잡한 상태를 관리하며 다음을 제공합니다: 다중 필터(행사/상태/날짜/검색)가 있는 페이지네이션 주문 테이블, 순차적 알림톡 발송이 포함된 일괄 상태 변경, 엑셀 내보내기(도서/검사/통합 시트), 새 주문 생성(NewOrderModal) 및 기존 주문 조회/편집(OrderDetailModal) 모달입니다. OrderDetailModal은 보기 및 편집 모드를 지원하며, 고객 정보와 주문 항목의 인라인 편집, 할인/배송비 가격 재계산, 상태 변경, 연결 주문 관리(합배송), 알림톡 연동, 주문 삭제를 제공합니다. update-order Edge Function은 원자적 업데이트를 위해 update_order_details RPC를 호출합니다.",
+      "nodeIds": [
+        "file:components/OrderManagementPage.jsx",
+        "function:OrderManagementPage",
+        "file:components/OrderDetailModal.jsx",
+        "function:OrderDetailModal",
+        "file:components/NewOrderModal.jsx",
+        "function:NewOrderModal",
+        "file:inpsyt-order-frontend/src/components/ProductSelector.jsx",
+        "file:supabase/functions/update-order/index.ts",
+        "function:inpsyt-order-frontend/src/api/orders.js:getOrders",
+        "function:inpsyt-order-frontend/src/api/orders.js:linkOrders",
+        "function:inpsyt-order-frontend/src/api/orders.js:groupLinkedOrders"
+      ]
+    },
+    {
+      "order": 8,
+      "title": "상품 및 행사 관리",
+      "description": "ProductManagementPage는 전체 상품 카탈로그 CRUD를 제공합니다: 검색/카테고리 필터가 있는 페이지네이션 테이블, 통계 카드(전체/할인대상/인기), 생성/편집 다이얼로그, XLSX 라이브러리를 통한 엑셀 가져오기/내보내기, 플래그 일괄 편집(TriStateToggle로 인기/신규), 다중 선택 삭제, 권한 가드입니다. 상품에는 product_code, category, sub_category, list_price, 불리언 플래그(is_discountable, is_popular, is_new) 등의 필드가 있습니다. EventManagementPage는 학회+연도+시즌으로 자동 생성되는 URL slug, 상태 필터링(active/upcoming/ended), 할인율, 날짜 범위, Supabase 실시간 구독을 통해 학술 학회 행사를 관리합니다. SocietyManagementDialog는 행사에서 사용하는 학회 조회 테이블을 관리합니다.",
+      "nodeIds": [
+        "file:components/ProductManagementPage.jsx",
+        "function:ProductManagementPage",
+        "file:supabase/functions/upload-products-excel/index.ts",
+        "file:components/EventManagementPage.jsx",
+        "function:EventManagementPage",
+        "file:inpsyt-order-frontend/src/components/SocietyManagementDialog.jsx",
+        "table:products",
+        "table:events"
+      ]
+    },
+    {
+      "order": 9,
+      "title": "출고 및 배송 워크플로우",
+      "description": "FulfillmentPage는 마스터-디테일 레이아웃으로 학회 후 일괄 배송을 처리합니다. 왼쪽 패널에는 행사 및 뷰 모드(도서/검사/전체)로 필터링된 주문 카드가 연결 주문 그룹과 함께 표시됩니다. 오른쪽 패널에는 배송 정보, 뷰 모드별 카테고리 기반 하이라이팅이 적용된 상품 테이블, 주문을 'completed' 상태로 전환하는 출고 버튼이 표시됩니다. 헬퍼 함수가 주문을 분류(도서/검사/혼합)하고 카테고리를 정규화합니다. SettingsPage에서는 관리자가 site_settings 싱글톤 테이블에 저장되는 배송 정책(무료배송 기준 금액 및 배송비)을 설정할 수 있습니다.",
+      "nodeIds": [
+        "file:components/FulfillmentPage.jsx",
+        "function:FulfillmentPage",
+        "function:OrderCard",
+        "function:OrderDetail",
+        "function:classifyOrder",
+        "function:inpsyt-order-frontend/src/api/orders.js:getFulfillmentOrders",
+        "file:inpsyt-order-frontend/src/components/SettingsPage.jsx",
+        "table:site_settings"
+      ]
+    },
+    {
+      "order": 10,
+      "title": "알림 시스템 (알림톡 및 이메일)",
+      "description": "이 시스템은 기존 이메일 기반 알림을 대체하여 카카오 알림톡(카카오톡 알림)을 주요 고객 알림 채널로 사용합니다. 세 가지 구현이 있습니다: (1) 주문 정보를 조회하고, 주문 상태 URL이 포함된 템플릿 메시지를 작성하여 msgagent/OneShot API로 발송하는 Supabase Edge Function(send-alimtalk/index.ts), (2) 레거시 TLS를 지원하는 Vercel 서버리스 함수(api/send-alimtalk.js) 대체 수단, (3) 브라우저 기반 발송을 위한 클라이언트 측 모듈(src/api/alimtalk.js). send-order-email Edge Function은 Postgres 'order_paid' 채널을 수신하여 Resend API로 HTML 확인 이메일을 발송하지만, 현재 단계적으로 폐지 중입니다. ONESHOT.md에 API 연동 상세가 문서화되어 있습니다.",
+      "nodeIds": [
+        "file:supabase/functions/send-alimtalk/index.ts",
+        "function:supabase/functions/send-alimtalk/index.ts:serve_handler",
+        "file:inpsyt-order-frontend/api/send-alimtalk.js",
+        "file:inpsyt-order-frontend/src/api/alimtalk.js",
+        "file:supabase/functions/send-order-email/index.ts",
+        "function:supabase/functions/send-order-email/index.ts:sendOrderEmail",
+        "document:ONESHOT.md"
+      ]
+    },
+    {
+      "order": 11,
+      "title": "데이터베이스 스키마, 보안, 마이그레이션",
+      "description": "데이터베이스 스키마는 다섯 개의 핵심 테이블을 중심으로 구성됩니다: orders(고객 정보, 결제, 상태, access_token, 상태 이력), order_items(주문과 상품 연결), products(플래그가 포함된 카탈로그), events(slug과 할인율이 있는 학회), site_settings(싱글톤 설정). 보안은 종합적인 RLS 정책으로 강제됩니다: products/events/settings 공개 읽기, orders 인증 CRUD, 파괴적 작업은 master 전용. 주요 SQL 함수로는 RBAC용 get_current_user_permissions()와 has_permission(), RLS를 우회하는 공개 주문 조회용 get_order_by_token()(SECURITY DEFINER), 원자적 주문 업데이트용 update_order_details(), 감사 로깅용 append_status_history() 트리거가 있습니다. 마이그레이션은 이메일에서 알림톡으로의 전환을 포함한 스키마 변천사를 문서화합니다.",
+      "nodeIds": [
+        "table:orders",
+        "table:order_items",
+        "table:products",
+        "table:events",
+        "table:site_settings",
+        "table:user_profiles",
+        "file:supabase/migrations/20251121_apply_rbac_rls.sql",
+        "function:sql:has_permission",
+        "function:sql:get_order_by_token",
+        "function:sql:update_order_details",
+        "function:sql:append_status_history",
+        "file:supabase/migrations/20260406_add_access_token_to_orders.sql",
+        "file:supabase/migrations/20260407_rls_token_based_access.sql"
+      ]
+    },
+    {
+      "order": 12,
+      "title": "배포, 설정, 사용자 관리",
+      "description": "프론트엔드는 클라이언트 사이드 라우팅을 위한 SPA 리라이트 규칙과 함께 Vercel에 배포됩니다. 루트 vercel.json에서 빌드 명령과 출력 디렉토리를 설정합니다. Supabase Edge Functions는 supabase/functions/ 하위에 변경사항이 main에 푸시되면 GitHub Actions(.github/workflows/deploy-supabase-functions.yml)를 통해 배포됩니다. 환경 변수(Supabase URL, anon key, OneShot 콜백)는 .env.example에 정의되어 있습니다. Supabase config.toml은 PIN 기반 인증(최소 6자 비밀번호)으로 로컬 개발을 설정합니다. 사용자 관리는 Edge Functions 세트로 처리됩니다: invite-user(역할 기반 권한으로 사용자 생성), list-users, update-user-role, update-user-permissions, update-user-memo, delete-user. UserManagementPage에서 이러한 작업에 대한 관리자 UI를 제공합니다.",
+      "nodeIds": [
+        "file:vercel.json",
+        "file:inpsyt-order-frontend/vercel.json",
+        "pipeline:.github/workflows/deploy-supabase-functions.yml",
+        "config:inpsyt-order-frontend/.env.example",
+        "file:supabase/config.toml",
+        "file:inpsyt-order-frontend/vite.config.js",
+        "config:inpsyt-order-frontend/package.json",
+        "file:inpsyt-order-frontend/src/components/UserManagementPage.jsx",
+        "file:supabase/functions/invite-user/index.ts",
+        "file:supabase/functions/list-users/index.ts",
+        "file:supabase/functions/update-user-role/index.ts",
+        "file:supabase/functions/delete-user/index.ts"
+      ]
+    }
+  ]
+}

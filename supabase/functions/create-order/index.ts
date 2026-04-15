@@ -38,7 +38,7 @@ serve(async (req) => {
 
     const { data: products, error: productsError } = await supabaseClient
       .from('products')
-      .select('id, list_price, is_discountable')
+      .select('id, name, product_code, category, list_price, is_discountable')
       .in(
         'id',
         cart.map((item: any) => item.product_id)
@@ -116,6 +116,10 @@ serve(async (req) => {
         product_id: item.product_id,
         quantity: item.quantity,
         price_at_purchase: priceAtPurchase,
+        product_name: product?.name || null,
+        product_code: product?.product_code || null,
+        category: product?.category || null,
+        list_price: product?.list_price || null,
       }
     })
 

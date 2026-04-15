@@ -45,6 +45,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import EmptyState from './EmptyState';
 import { supabase } from '../supabaseClient';
+import { getRoleTemplates } from '../api/roleTemplates';
 
 const UserManagementPage = () => {
   const theme = useTheme();
@@ -64,8 +65,27 @@ const UserManagementPage = () => {
   const [currentRole, setCurrentRole] = useState('');
   const [userFilter, setUserFilter] = useState(null); // null=전체, 'master'=관리자, 'recent'=최근활동
   const [deleteTargetUser, setDeleteTargetUser] = useState(null);
+  const [roleTemplates, setRoleTemplates] = useState([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
-  const availableRoles = [
+  // Permission label mapping for preview chips
+  const permissionLabels = {
+    'master': '모든 권한',
+    'dashboard:view': '대시보드',
+    'orders:view': '주문 조회',
+    'orders:edit': '주문 편집',
+    'fulfillment:view': '출고 현황',
+    'events:view': '학회 조회',
+    'events:edit': '학회 편집',
+    'products:view': '상품 조회',
+    'products:edit': '상품 편집',
+    'users:manage': '사용자 관리',
+    'feedback:view': '피드백',
+    'bulletins:manage': '게시판 관리',
+  };
+
+  // Fallback hardcoded roles (used only if templates fail to load)
+  const fallbackRoles = [
     { key: 'master', label: '마스터' },
     { key: 'onsite', label: '현장 마케팅' },
     { key: 'fulfillment_book', label: '출고 (도서)' },
@@ -102,8 +122,27 @@ const UserManagementPage = () => {
   useEffect(() => {
     if (user && hasPermission('users:manage')) {
       fetchUsers();
+      fetchRoleTemplates();
     }
   }, [user, hasPermission, fetchUsers]);
+
+  const fetchRoleTemplates = async () => {
+    try {
+      const data = await getRoleTemplates();
+      setRoleTemplates(data || []);
+      // Auto-select the first template if available
+      if (data && data.length > 0 && !selectedTemplateId) {
+        setSelectedTemplateId(data[0].id);
+      }
+    } catch (err) {
+      console.error('Error fetching role templates:', err);
+      // Fallback: templates won't be available, hardcoded roles can be used
+    }
+  };
+
+  const getSelectedTemplate = () => {
+    return roleTemplates.find((t) => t.id === selectedTemplateId) || null;
+  };
 
   const handleRoleChange = async (userId, newRole) => {
     if (!hasPermission('users:manage')) {
@@ -152,8 +191,19 @@ const UserManagementPage = () => {
     const internalEmail = `${sanitizedName}_${randomSuffix}@inpsytorder.com`;
 
     try {
+      // Build invite body: prefer roleTemplateId if templates are available
+      const inviteBody = { email: internalEmail, name: inviteName, password: invitePIN };
+      if (selectedTemplateId && roleTemplates.length > 0) {
+        inviteBody.roleTemplateId = selectedTemplateId;
+        // Also pass role as fallback label
+        const tmpl = getSelectedTemplate();
+        if (tmpl) inviteBody.role = tmpl.name;
+      } else {
+        inviteBody.role = inviteRole;
+      }
+
       const { data, error: invokeError } = await supabase.functions.invoke('invite-user', {
-        body: { email: internalEmail, name: inviteName, role: inviteRole, password: invitePIN },
+        body: inviteBody,
       });
 
       if (invokeError) {
@@ -520,19 +570,52 @@ const UserManagementPage = () => {
       <Dialog open={openInviteModal} onClose={() => setOpenInviteModal(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontWeight: 'bold' }}>새 사용자 추가</DialogTitle>
         <DialogContent sx={{ pt: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-          <TextField
-            select
-            fullWidth
-            label="역할"
-            value={inviteRole}
-            onChange={(e) => setInviteRole(e.target.value)}
-          >
-            {availableRoles.map((role) => (
-              <MenuItem key={role.key} value={role.key}>
-                {role.label}
-              </MenuItem>
-            ))}
-          </TextField>
+          {roleTemplates.length > 0 ? (
+            <>
+              <TextField
+                select
+                fullWidth
+                label="역할 템플릿"
+                value={selectedTemplateId}
+                onChange={(e) => setSelectedTemplateId(e.target.value)}
+              >
+                {roleTemplates.map((tmpl) => (
+                  <MenuItem key={tmpl.id} value={tmpl.id}>
+                    {tmpl.name}
+                    {tmpl.is_system ? ' (기본)' : ''}
+                  </MenuItem>
+                ))}
+              </TextField>
+              {/* Permission preview chips */}
+              {getSelectedTemplate() && (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  {(getSelectedTemplate().permissions || []).map((perm) => (
+                    <Chip
+                      key={perm}
+                      label={permissionLabels[perm] || perm}
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                    />
+                  ))}
+                </Box>
+              )}
+            </>
+          ) : (
+            <TextField
+              select
+              fullWidth
+              label="역할"
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value)}
+            >
+              {fallbackRoles.map((role) => (
+                <MenuItem key={role.key} value={role.key}>
+                  {role.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
           <TextField
             autoFocus
             label="이름"

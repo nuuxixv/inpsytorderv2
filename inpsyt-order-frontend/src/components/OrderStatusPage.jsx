@@ -66,7 +66,7 @@ const getBannerConfig = (order) => {
   }
 };
 
-const ORDER_ITEM_SELECT = `quantity, price_at_purchase, products(name, category)`;
+const ORDER_ITEM_SELECT = `quantity, price_at_purchase, product_name, product_code, category, list_price, products(name, category)`;
 
 const OrderStatusPage = () => {
   const { token } = useParams();
@@ -279,10 +279,10 @@ const ItemsCard = ({ items, cancelled = false, chip }) => (
       <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Box sx={{ flex: 1, mr: 2 }}>
           <Typography variant="body2" sx={cancelled ? { color: 'text.disabled', textDecoration: 'line-through' } : { lineHeight: 1.4 }}>
-            {item.products?.name}
+            {item.product_name || item.products?.name || '상품'}
           </Typography>
           <Typography variant="caption" color={cancelled ? 'text.disabled' : 'text.secondary'}>
-            {item.products?.category} · {item.quantity}개
+            {item.category || item.products?.category} · {item.quantity}개
           </Typography>
         </Box>
         <Typography variant="body2" sx={{ fontWeight: cancelled ? 400 : 600, whiteSpace: 'nowrap', ...(cancelled && { color: 'text.disabled', textDecoration: 'line-through' }) }}>

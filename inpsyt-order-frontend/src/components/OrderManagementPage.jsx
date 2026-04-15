@@ -344,11 +344,11 @@ const OrderManagementPage = () => {
         const orderEvent = state.events.find(e => e.id === order.event_id)?.name || 'N/A';
         
         const itemsToExport = order.order_items.filter(item => {
-           const product = state.productsMap[item.product_id];
-           if (!product) return false;
-           
-           if (type === 'book') return product.category === '도서';
-           if (type === 'test') return product.category?.includes('검사') || product.category === '온라인검사';
+           const itemCategory = item.category || state.productsMap[item.product_id]?.category;
+           if (!itemCategory && !state.productsMap[item.product_id]) return false;
+
+           if (type === 'book') return itemCategory === '도서';
+           if (type === 'test') return itemCategory?.includes('검사') || itemCategory === '온라인검사';
            return true;
         });
 
@@ -365,17 +365,17 @@ const OrderManagementPage = () => {
              '고객 요청사항': order.customer_request || '-',
              '관리자 메모': order.admin_memo || '-',
            };
-           
+
            if (!isFilteredByEvent) {
              row['학회명'] = orderEvent;
            }
 
-           row['카테고리'] = product?.category || 'N/A';
-           row['상품명'] = product?.name || 'N/A';
+           row['카테고리'] = item.category || product?.category || 'N/A';
+           row['상품명'] = item.product_name || product?.name || 'N/A';
            row['주문 수량'] = item.quantity;
            row['실결제금액(참고)'] = order.final_payment;
            row['상태'] = statusToKorean[order.status] || order.status;
-           
+
            dataForExcel.push(row);
         });
       });

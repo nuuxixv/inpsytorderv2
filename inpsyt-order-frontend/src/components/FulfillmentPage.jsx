@@ -41,7 +41,7 @@ const normalizeCategory = (cat) => {
 
 // 주문 유형 판별
 const classifyOrder = (orderItems) => {
-  const cats = new Set((orderItems || []).map(i => normalizeCategory(i.products?.category)));
+  const cats = new Set((orderItems || []).map(i => normalizeCategory(i.category || i.products?.category)));
   if (cats.has('도서') && cats.has('검사')) return 'mixed';
   if (cats.has('도서')) return 'book';
   if (cats.has('검사')) return 'test';
@@ -347,9 +347,9 @@ const OrderDetail = ({ order, viewMode, onShip, canShip, addNotification }) => {
             </TableHead>
             <TableBody>
               {(order.mergedItems || order.order_items || []).map((item, idx) => {
-                const rawCategory = item.products?.category;
+                const rawCategory = item.category || item.products?.category;
                 const category = normalizeCategory(rawCategory);
-                const productName = item.products?.name || '-';
+                const productName = item.product_name || item.products?.name || '-';
                 const isGreyed =
                   viewMode === 'book' ? category === '검사' :
                   viewMode === 'test' ? category === '도서' :
