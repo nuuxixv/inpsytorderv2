@@ -5,7 +5,7 @@ import {
   DialogActions, DialogContent, DialogTitle, FormControlLabel, Checkbox,
   FormControl, InputLabel, Select, MenuItem, Autocomplete, Chip,
   Pagination, IconButton, Tooltip, ToggleButton, ToggleButtonGroup,
-  CircularProgress, alpha, useTheme,
+  CircularProgress, LinearProgress, alpha, useTheme,
 } from '@mui/material';
 import {
   Add as AddIcon, FileDownload as DownloadIcon, FileUpload as UploadIcon,
@@ -94,6 +94,12 @@ const ProductManagementPage = () => {
   const { user, hasPermission } = useAuth();
   const { addNotification } = useNotification();
   const fileInputRef = useRef(null);
+
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, phase: 'idle' });
+  const [uploadErrors, setUploadErrors] = useState([]);
+  const [uploadLog, setUploadLog] = useState([]);
+  const [uploadSuccessCount, setUploadSuccessCount] = useState(0);
 
   const [products, setProducts] = useState([]);
   const [totalProducts, setTotalProducts] = useState(0);
@@ -319,22 +325,32 @@ const ProductManagementPage = () => {
     }
   };
 
+  const CHUNK_SIZE = 100;
+
   const handleFileUpload = async (event) => {
     if (!hasPermission('products:edit')) {
       addNotification('엑셀 업로드 권한이 없습니다.', 'error');
       return;
     }
-
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Reset state
+    setUploadErrors([]);
+    setUploadLog([]);
+    setUploadSuccessCount(0);
+    setUploadDialogOpen(true);
+    setUploadProgress({ current: 0, total: 0, phase: 'parsing' });
+
     try {
+      // Phase 1: Parse Excel
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(worksheet);
 
-      const productsToUpload = rows.map((row) => ({
+      const allProducts = rows.map((row, idx) => ({
+        _rowNum: idx + 2, // Excel row number (1-indexed header + 1)
         name: getRowValue(row, ['상품명', 'name']),
         product_code: getRowValue(row, ['상품코드', 'product_code']),
         category: getRowValue(row, ['카테고리', 'category']),
@@ -349,16 +365,109 @@ const ProductManagementPage = () => {
           : [],
       }));
 
-      const { data, error } = await supabase.functions.invoke('upload-products-excel', {
-        body: { products: productsToUpload },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      // Phase 2: Client-side validation
+      const validationErrors = [];
+      const seenCodes = new Map();
+      const validProducts = [];
 
-      addNotification(data?.message || '엑셀 업로드가 완료되었습니다.', 'success');
+      for (const product of allProducts) {
+        const rowNum = product._rowNum;
+        if (!product.product_code) {
+          validationErrors.push({ row: rowNum, product_code: '(빈값)', name: product.name || '-', error: '상품코드 필수' });
+          continue;
+        }
+        if (!product.name) {
+          validationErrors.push({ row: rowNum, product_code: product.product_code, name: '(빈값)', error: '상품명 필수' });
+          continue;
+        }
+        if (seenCodes.has(product.product_code)) {
+          validationErrors.push({ row: rowNum, product_code: product.product_code, name: product.name, error: `엑셀 내 중복 (${seenCodes.get(product.product_code)}행과 동일)` });
+          continue;
+        }
+        seenCodes.set(product.product_code, rowNum);
+        // Remove internal _rowNum before sending to server
+        const { _rowNum, ...cleanProduct } = product;
+        validProducts.push({ ...cleanProduct, _rowNum: rowNum });
+      }
+
+      if (validationErrors.length > 0) {
+        setUploadErrors(prev => [...prev, ...validationErrors]);
+        setUploadLog(prev => [...prev, `사전 검증: ${validationErrors.length}건 오류 발견`]);
+      }
+
+      if (validProducts.length === 0) {
+        setUploadProgress({ current: 0, total: 0, phase: 'error' });
+        setUploadLog(prev => [...prev, '유효한 상품이 없습니다.']);
+        return;
+      }
+
+      // Phase 3: Chunked upload
+      const totalValid = validProducts.length;
+      setUploadProgress({ current: 0, total: totalValid, phase: 'uploading' });
+
+      const chunks = [];
+      for (let i = 0; i < validProducts.length; i += CHUNK_SIZE) {
+        chunks.push(validProducts.slice(i, i + CHUNK_SIZE));
+      }
+
+      let totalSuccess = 0;
+      const serverErrors = [];
+
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const chunkStart = i * CHUNK_SIZE;
+        // Strip _rowNum before sending
+        const payload = chunk.map(({ _rowNum, ...rest }) => rest);
+
+        try {
+          const { data, error } = await supabase.functions.invoke('upload-products-excel', {
+            body: { products: payload },
+          });
+
+          if (error) {
+            // Entire chunk failed
+            chunk.forEach((p) => {
+              serverErrors.push({ row: p._rowNum, product_code: p.product_code, name: p.name, error: error.message });
+            });
+            setUploadLog(prev => [...prev, `청크 ${i + 1}/${chunks.length} 실패: ${error.message}`]);
+          } else if (data?.error_count > 0) {
+            // Partial failure
+            totalSuccess += data.success_count || 0;
+            (data.errors || []).forEach((e) => {
+              const originalProduct = chunk[e.row_index];
+              serverErrors.push({
+                row: originalProduct?._rowNum || chunkStart + e.row_index + 2,
+                product_code: e.product_code,
+                name: e.name,
+                error: e.error,
+              });
+            });
+            setUploadLog(prev => [...prev, `청크 ${i + 1}/${chunks.length}: ${data.success_count}건 성공, ${data.error_count}건 실패`]);
+          } else {
+            totalSuccess += data?.success_count || chunk.length;
+            setUploadLog(prev => [...prev, `청크 ${i + 1}/${chunks.length} 완료 (${chunk.length}건)`]);
+          }
+        } catch (err) {
+          chunk.forEach((p) => {
+            serverErrors.push({ row: p._rowNum, product_code: p.product_code, name: p.name, error: err.message });
+          });
+          setUploadLog(prev => [...prev, `청크 ${i + 1}/${chunks.length} 오류: ${err.message}`]);
+        }
+
+        setUploadProgress({ current: Math.min((i + 1) * CHUNK_SIZE, totalValid), total: totalValid, phase: 'uploading' });
+      }
+
+      // Done
+      setUploadSuccessCount(totalSuccess);
+      if (serverErrors.length > 0) {
+        setUploadErrors(prev => [...prev, ...serverErrors]);
+      }
+      setUploadProgress(prev => ({ ...prev, phase: 'done' }));
       fetchProducts();
+
     } catch (error) {
-      addNotification(`엑셀 업로드 실패: ${error.message}`, 'error');
+      setUploadProgress({ current: 0, total: 0, phase: 'error' });
+      setUploadLog(prev => [...prev, `파싱 오류: ${error.message}`]);
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -853,6 +962,124 @@ const ProductManagementPage = () => {
           <Button onClick={() => setBulkEditOpen(false)} disabled={bulkSaving}>취소</Button>
           <Button onClick={handleBulkSave} variant="contained" disabled={bulkSaving} startIcon={bulkSaving ? <CircularProgress size={14} /> : null}>
             {bulkSaving ? '적용 중...' : '적용'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Upload Progress Dialog */}
+      <Dialog
+        open={uploadDialogOpen}
+        onClose={uploadProgress.phase === 'done' || uploadProgress.phase === 'error' ? () => setUploadDialogOpen(false) : undefined}
+        disableEscapeKeyDown={uploadProgress.phase === 'uploading' || uploadProgress.phase === 'parsing'}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {uploadProgress.phase === 'parsing' && '엑셀 파싱 중...'}
+          {uploadProgress.phase === 'uploading' && '상품 업로드 중'}
+          {uploadProgress.phase === 'done' && '업로드 완료'}
+          {uploadProgress.phase === 'error' && '업로드 오류'}
+        </DialogTitle>
+        <DialogContent>
+          {/* Progress bar */}
+          {(uploadProgress.phase === 'uploading' || uploadProgress.phase === 'parsing') && (
+            <Box sx={{ mb: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="body2" color="text.secondary">
+                  {uploadProgress.phase === 'parsing' ? '파싱 중...' : `${uploadProgress.current.toLocaleString()} / ${uploadProgress.total.toLocaleString()}`}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {uploadProgress.total > 0 ? `${Math.round((uploadProgress.current / uploadProgress.total) * 100)}%` : ''}
+                </Typography>
+              </Box>
+              <LinearProgress
+                variant={uploadProgress.phase === 'parsing' ? 'indeterminate' : 'determinate'}
+                value={uploadProgress.total > 0 ? (uploadProgress.current / uploadProgress.total) * 100 : 0}
+                sx={{ height: 8, borderRadius: 4 }}
+              />
+            </Box>
+          )}
+
+          {/* Summary (done phase) */}
+          {uploadProgress.phase === 'done' && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body1" sx={{ fontWeight: 600, color: 'success.main', mb: 0.5 }}>
+                성공: {uploadSuccessCount.toLocaleString()}건
+              </Typography>
+              {uploadErrors.length > 0 && (
+                <Typography variant="body1" sx={{ fontWeight: 600, color: 'error.main' }}>
+                  실패: {uploadErrors.length}건
+                </Typography>
+              )}
+            </Box>
+          )}
+
+          {/* Log */}
+          {uploadLog.length > 0 && (
+            <Box sx={{ maxHeight: 150, overflow: 'auto', mb: 2, bgcolor: 'grey.50', borderRadius: 1, p: 1.5 }}>
+              {uploadLog.map((line, i) => (
+                <Typography key={i} variant="caption" sx={{ display: 'block', fontFamily: 'monospace', color: line.includes('실패') || line.includes('오류') ? 'error.main' : 'text.secondary' }}>
+                  {line}
+                </Typography>
+              ))}
+            </Box>
+          )}
+
+          {/* Error table */}
+          {uploadErrors.length > 0 && (uploadProgress.phase === 'done' || uploadProgress.phase === 'error') && (
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>오류 내역</Typography>
+              <TableContainer sx={{ maxHeight: 200, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700, py: 0.5 }}>행</TableCell>
+                      <TableCell sx={{ fontWeight: 700, py: 0.5 }}>상품코드</TableCell>
+                      <TableCell sx={{ fontWeight: 700, py: 0.5 }}>상품명</TableCell>
+                      <TableCell sx={{ fontWeight: 700, py: 0.5 }}>사유</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {uploadErrors.map((err, i) => (
+                      <TableRow key={i}>
+                        <TableCell sx={{ py: 0.5 }}>{err.row}</TableCell>
+                        <TableCell sx={{ py: 0.5, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{err.product_code}</TableCell>
+                        <TableCell sx={{ py: 0.5, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{err.name}</TableCell>
+                        <TableCell sx={{ py: 0.5, color: 'error.main' }}>{err.error}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          )}
+
+          {/* Note during upload */}
+          {(uploadProgress.phase === 'uploading' || uploadProgress.phase === 'parsing') && (
+            <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 2, textAlign: 'center' }}>
+              업로드 중에는 창을 닫을 수 없습니다
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          {uploadErrors.length > 0 && (uploadProgress.phase === 'done' || uploadProgress.phase === 'error') && (
+            <Button
+              size="small"
+              onClick={() => {
+                const text = uploadErrors.map(e => `${e.row}행\t${e.product_code}\t${e.name}\t${e.error}`).join('\n');
+                navigator.clipboard.writeText(`행\t상품코드\t상품명\t사유\n${text}`);
+                addNotification('오류 내역이 복사되었습니다.', 'info');
+              }}
+            >
+              오류 내역 복사
+            </Button>
+          )}
+          <Button
+            variant="contained"
+            disabled={uploadProgress.phase === 'uploading' || uploadProgress.phase === 'parsing'}
+            onClick={() => setUploadDialogOpen(false)}
+          >
+            닫기
           </Button>
         </DialogActions>
       </Dialog>
