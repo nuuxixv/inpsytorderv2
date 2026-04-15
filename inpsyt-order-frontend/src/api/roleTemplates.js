@@ -24,10 +24,11 @@ export const getRoleTemplates = async () => {
  * @param {object} data - { name, description, permissions }
  * @returns {Promise<object>} 생성된 역할 템플릿
  */
-export const createRoleTemplate = async ({ name, description, permissions }) => {
+export const createRoleTemplate = async ({ name, description, permissions, slug }) => {
+  const autoSlug = slug || name.toLowerCase().replace(/[^a-z0-9가-힣]+/g, '_').replace(/_+$/, '');
   const { data, error } = await supabase
     .from('role_templates')
-    .insert([{ name, description, permissions }])
+    .insert([{ slug: autoSlug, name, description, permissions }])
     .select()
     .single();
 

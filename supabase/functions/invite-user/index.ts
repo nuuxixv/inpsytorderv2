@@ -68,11 +68,13 @@ serve(async (req: Request) => {
     let appMetadataRole = 'operator';
     let appMetadataPermissions: string[] = [];
 
+    let profileRole = role || 'operator'; // user_profiles.role에 저장될 값
+
     if (roleTemplateId) {
       // Fetch role template from DB
       const { data: template, error: templateError } = await supabaseAdmin
         .from('role_templates')
-        .select('name, permissions')
+        .select('slug, name, permissions')
         .eq('id', roleTemplateId)
         .single();
 
@@ -83,8 +85,9 @@ serve(async (req: Request) => {
         })
       }
 
-      appMetadataRole = template.name === '마스터' ? 'master' : 'operator';
+      appMetadataRole = template.slug === 'master' ? 'master' : 'operator';
       appMetadataPermissions = template.permissions as string[];
+      profileRole = template.slug; // slug를 user_profiles.role에 저장
     } else if (role === 'master') {
       // Legacy fallback: hardcoded role mapping
       appMetadataRole = 'master';
@@ -122,7 +125,7 @@ serve(async (req: Request) => {
           id: data.user.id,
           email: email,
           name: name,
-          role: role || appMetadataRole
+          role: profileRole
         }]);
 
       if (profileError) {

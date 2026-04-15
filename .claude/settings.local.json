@@ -73,7 +73,9 @@
       "Bash(ls /c/Users/김건우/Desktop/VS/inpsytorderv3/inpsyt-order-frontend/src/components/SimpleMarkdown*)",
       "Bash(npx --no-install eslint src/components/SettingsPage.jsx src/components/UserManagementPage.jsx --no-eslintrc --rule '{\"no-undef\":\"error\",\"no-unused-vars\":\"warn\"}' --parser-options=ecmaVersion:2022,ecmaFeatures:{jsx:true},sourceType:module --env browser,es2022)",
       "Bash(ls ~/.claude/skills/gstack/ -d */)",
-      "Bash(npx skills:*)"
+      "Bash(npx skills:*)",
+      "Bash(grep -l \"user_profiles\" c:/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations/*.sql)",
+      "Bash(find c:/Users/김건우/Desktop/VS/inpsytorderv3 -name \"*.sql\" -exec grep -l \"user_profiles\" {} \\\\;)"
     ]
   }
 }

@@ -178,7 +178,7 @@ const UserManagementPage = () => {
   const isMasterTemplate = (template) => template.is_system && template.name === '마스터';
 
   const handleTogglePermission = async (template, permissionKey) => {
-    if (template.is_system) return;
+    if (isMasterTemplate(template)) return;
     const currentPerms = template.permissions || [];
     const newPerms = currentPerms.includes(permissionKey)
       ? currentPerms.filter((p) => p !== permissionKey)
@@ -781,7 +781,7 @@ const UserManagementPage = () => {
                                 <Checkbox
                                   size="small"
                                   checked={hasPermission}
-                                  disabled={template.is_system || roleTemplateSaving}
+                                  disabled={isMasterTemplate(template) || roleTemplateSaving}
                                   onChange={() => handleTogglePermission(template, col.key)}
                                 />
                               </TableCell>
