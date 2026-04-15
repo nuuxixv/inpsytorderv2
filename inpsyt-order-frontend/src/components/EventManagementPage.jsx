@@ -37,9 +37,13 @@ import {
   CalendarMonth as CalendarIcon,
   CalendarToday as CalendarTodayIcon,
   ContentCopy as CopyIcon,
+  OpenInNew as OpenInNewIcon,
   Settings as SettingsIcon,
   Delete as DeleteIcon,
+  QrCode2 as QrCode2Icon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
+import QRCode from 'qrcode';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
@@ -61,6 +65,9 @@ const EventManagementPage = () => {
   const [loading, setLoading] = useState(false);
   const [eventFilter, setEventFilter] = useState('all'); // 'all' | 'active' | 'upcoming' | 'ended'
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const [qrDialogEvent, setQrDialogEvent] = useState(null);
+  const [qrSvg, setQrSvg] = useState('');
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
@@ -249,6 +256,38 @@ const EventManagementPage = () => {
     const url = `${window.location.origin}/order?events=${slug}`;
     navigator.clipboard.writeText(url);
     addNotification('주문 URL이 클립보드에 복사되었습니다.', 'success');
+  };
+
+  const handleOpenQrDialog = async (event) => {
+    const url = `${window.location.origin}/order?events=${event.order_url_slug}`;
+    try {
+      const svgStr = await QRCode.toString(url, {
+        type: 'svg',
+        color: { dark: '#252525', light: '#FFFFFF' },
+        margin: 1,
+        width: 300,
+      });
+      setQrSvg(svgStr);
+      setQrDialogEvent(event);
+      setQrDialogOpen(true);
+    } catch (err) {
+      console.error('QR generation error:', err);
+      addNotification('QR 코드 생성에 실패했습니다.', 'error');
+    }
+  };
+
+  const handleDownloadQrSvg = () => {
+    if (!qrSvg || !qrDialogEvent) return;
+    const blob = new Blob([qrSvg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `qr-${qrDialogEvent.order_url_slug}.svg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    addNotification('QR 코드가 다운로드되었습니다.', 'success');
   };
 
   const getEventStatus = (startDate, endDate) => {
@@ -453,16 +492,40 @@ const EventManagementPage = () => {
                           <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
                             {event.order_url_slug}
                           </Typography>
+                          <Tooltip title="새 창에서 열기">
+                            <IconButton
+                              size="small"
+                              onClick={() => window.open(`${window.location.origin}/order?events=${event.order_url_slug}`, '_blank')}
+                              sx={{
+                                color: 'primary.main',
+                                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
+                              }}
+                            >
+                              <OpenInNewIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                           <Tooltip title="URL 복사">
-                            <IconButton 
-                              size="small" 
+                            <IconButton
+                              size="small"
                               onClick={() => handleCopyUrl(event.order_url_slug)}
-                              sx={{ 
+                              sx={{
                                 color: 'primary.main',
                                 '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
                               }}
                             >
                               <CopyIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="QR 코드">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenQrDialog(event)}
+                              sx={{
+                                color: 'primary.main',
+                                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
+                              }}
+                            >
+                              <QrCode2Icon fontSize="small" />
                             </IconButton>
                           </Tooltip>
                         </Box>
@@ -700,11 +763,56 @@ const EventManagementPage = () => {
         </DialogActions>
       </Dialog>
 
-      <SocietyManagementDialog 
-        open={societyModalOpen} 
-        onClose={() => setSocietyModalOpen(false)} 
-        onUpdated={fetchEvents} 
+      <SocietyManagementDialog
+        open={societyModalOpen}
+        onClose={() => setSocietyModalOpen(false)}
+        onUpdated={fetchEvents}
       />
+
+      {/* QR Code Dialog */}
+      <Dialog
+        open={qrDialogOpen}
+        onClose={() => setQrDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>QR 코드</DialogTitle>
+        <DialogContent>
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              mb: 2,
+              '& svg': { maxWidth: '100%', height: 'auto' },
+            }}
+            dangerouslySetInnerHTML={{ __html: qrSvg }}
+          />
+          {qrDialogEvent && (
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                {qrDialogEvent.name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace', mt: 0.5 }}>
+                {`${window.location.origin}/order?events=${qrDialogEvent.order_url_slug}`}
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={handleDownloadQrSvg}
+            sx={{ borderRadius: '10px' }}
+          >
+            SVG 다운로드
+          </Button>
+          <Button onClick={() => setQrDialogOpen(false)} sx={{ borderRadius: '10px' }}>
+            닫기
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

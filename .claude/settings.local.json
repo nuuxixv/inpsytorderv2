@@ -75,7 +75,16 @@
       "Bash(ls ~/.claude/skills/gstack/ -d */)",
       "Bash(npx skills:*)",
       "Bash(grep -l \"user_profiles\" c:/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations/*.sql)",
-      "Bash(find c:/Users/김건우/Desktop/VS/inpsytorderv3 -name \"*.sql\" -exec grep -l \"user_profiles\" {} \\\\;)"
+      "Bash(find c:/Users/김건우/Desktop/VS/inpsytorderv3 -name \"*.sql\" -exec grep -l \"user_profiles\" {} \\\\;)",
+      "Bash(npm ls:*)",
+      "Bash(grep -r \"qrcode\\\\|qr-code\\\\|QRCode\" package.json)",
+      "Bash(npm install:*)",
+      "Bash(grep -E \"\\\\.sql$\")",
+      "Bash(find \"c:/Users/김건우/Desktop/VS/inpsytorderv3\" -name \"*.sql\" -exec grep -l \"inpsyt_id\" {} \\\\;)",
+      "Bash(grep -l \"ALTER TABLE.*orders\" \"c:/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations\"/*.sql)",
+      "Bash(cat \"c:/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations\"/*.sql)",
+      "Bash(grep -n \"phone_number\\\\|shipping_address\\\\|customer_request\" \"c:/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations\"/*.sql)",
+      "Bash(grep -l \"phone_number\\\\|shipping_address\" \"c:/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations\"/*.sql)"
     ]
   }
 }

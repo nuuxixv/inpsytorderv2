@@ -250,6 +250,8 @@ const OrderDetail = ({ order, viewMode, onShip, canShip, addNotification }) => {
             <CopyableText
               value={order.customer_name}
               sx={{ fontWeight: 700, fontSize: '1rem' }}
+              tooltip="이름 복사"
+              onCopy={(value) => copyToClipboard(value, '이름을 복사했습니다.')}
             />
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Chip
@@ -277,7 +279,12 @@ const OrderDetail = ({ order, viewMode, onShip, canShip, addNotification }) => {
             <Box sx={{ display: 'flex', gap: 2 }}>
               <Box sx={{ flex: 1 }}>
                 <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>연락처</Typography>
-                <CopyableText value={order.phone_number || '-'} sx={{ fontWeight: 600 }} />
+                <CopyableText
+                  value={order.phone_number || '-'}
+                  sx={{ fontWeight: 600 }}
+                  tooltip="연락처 복사"
+                  onCopy={(value) => copyToClipboard(value, '연락처를 복사했습니다.')}
+                />
               </Box>
               <Box sx={{ flex: 1 }}>
                 <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>결제금액</Typography>
@@ -286,25 +293,40 @@ const OrderDetail = ({ order, viewMode, onShip, canShip, addNotification }) => {
                 </Typography>
               </Box>
             </Box>
+            {order.inpsyt_id && (
+              <Box>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>인싸이트 ID</Typography>
+                <CopyableText
+                  value={order.inpsyt_id}
+                  sx={{ fontWeight: 600 }}
+                  tooltip="인싸이트 ID 복사"
+                  onCopy={(value) => copyToClipboard(value, '인싸이트 ID를 복사했습니다.')}
+                />
+              </Box>
+            )}
             <Box>
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>배송지</Typography>
               {addressParts === '-' ? (
                 <Typography sx={{ fontSize: '0.8125rem', color: 'text.disabled' }}>-</Typography>
               ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    우편번호는 제외됩니다.
-                  </Typography>
-                  <CopyableText
-                    value={roadAddress}
-                    sx={{ fontWeight: 500 }}
-                    tooltip="도로명주소만 복사"
-                    onCopy={(value) => copyToClipboard(value, '도로명주소를 복사했습니다.')}
-                  />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    {address?.postcode && (
+                      <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled', fontFamily: 'monospace' }}>
+                        [{address.postcode}]
+                      </Typography>
+                    )}
+                    <CopyableText
+                      value={roadAddress}
+                      sx={{ fontWeight: 500 }}
+                      tooltip="도로명주소 복사 (우편번호 제외)"
+                      onCopy={(value) => copyToClipboard(value, '도로명주소를 복사했습니다.')}
+                    />
+                  </Box>
                   <CopyableText
                     value={detailAddress}
                     sx={{ fontWeight: 500 }}
-                    tooltip="상세주소만 복사"
+                    tooltip="상세주소 복사"
                     onCopy={(value) => copyToClipboard(value, '상세주소를 복사했습니다.')}
                   />
                 </Box>

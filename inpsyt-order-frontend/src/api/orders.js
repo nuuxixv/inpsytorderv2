@@ -67,7 +67,7 @@ export const getFulfillmentOrders = async ({ eventId, statuses, dateFrom, dateTo
     .select(`
       id, parent_order_id, customer_name, phone_number, shipping_address,
       final_payment, delivery_fee, status, created_at,
-      customer_request, admin_memo, event_id,
+      customer_request, admin_memo, event_id, inpsyt_id,
       events(name),
       order_items(product_id, quantity, price_at_purchase, product_name, product_code, category, list_price,
         products(name, category)

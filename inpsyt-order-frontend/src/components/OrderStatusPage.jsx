@@ -228,6 +228,7 @@ const OrderStatusPage = () => {
               {[
                 { label: '이름', value: order.customer_name },
                 { label: '연락처', value: order.phone_number },
+                ...(order.inpsyt_id ? [{ label: '인싸이트 ID', value: order.inpsyt_id }] : []),
                 ...(order.shipping_address?.address
                   ? [{ label: '배송지', value: `${order.shipping_address.address} ${order.shipping_address.detail || ''}`.trim() }]
                   : [{ label: '배송', value: '현장 수령' }]

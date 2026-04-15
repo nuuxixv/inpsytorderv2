@@ -5,6 +5,7 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 import { AuthProvider } from './AuthContext';
 import { useAuth } from './hooks/useAuth';
 import { NotificationProvider } from './NotificationContext';
+import GoRedirect from './components/GoRedirect';
 import OrderPage from './components/OrderPage';
 import OrderStatusPage from './components/OrderStatusPage';
 import AdminLayout from './components/AdminLayout';
@@ -33,6 +34,7 @@ function AppRoutes() {
     <Router>
       <Routes>
         <Route path="/" element={<OrderPage />} />
+        <Route path="/go" element={<GoRedirect />} />
         <Route path="/order" element={<OrderPage />} />
         <Route path="/order/status/:token" element={<OrderStatusPage />} />
         <Route path="/login" element={<LoginPage />} />

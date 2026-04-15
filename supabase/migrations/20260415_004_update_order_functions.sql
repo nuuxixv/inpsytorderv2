@@ -100,7 +100,7 @@ AS $$
     SELECT
       o.id, o.customer_name, o.phone_number, o.shipping_address,
       o.final_payment, o.delivery_fee, o.status, o.created_at,
-      o.customer_request, o.is_on_site_sale, o.status_history,
+      o.customer_request, o.inpsyt_id, o.is_on_site_sale, o.status_history,
       o.parent_order_id,
       (
         SELECT row_to_json(e)

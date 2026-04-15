@@ -136,6 +136,24 @@ const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false
           }}
           sx={inputSx}
         />
+        {hasOnlineCode && (
+          <TextField
+            fullWidth
+            name="inpsytId"
+            label="인싸이트 ID (온라인코드 구매 시 필수)"
+            value={customerInfo.inpsytId}
+            onChange={handleChange}
+            placeholder="인싸이트 홈페이지 ID를 입력해주세요"
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <BadgeIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
+                </InputAdornment>
+              ),
+            }}
+            sx={inputSx}
+          />
+        )}
       </Stack>
 
       {!isOnsitePurchase && (
@@ -225,24 +243,6 @@ const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false
         선택사항
       </Typography>
       <Stack spacing={2}>
-        {hasOnlineCode && (
-          <TextField
-            fullWidth
-            name="inpsytId"
-            label="인싸이트 ID (온라인코드 구매 시 필수)"
-            value={customerInfo.inpsytId}
-            onChange={handleChange}
-            placeholder="인싸이트 홈페이지 ID를 입력해주세요"
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <BadgeIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
-                </InputAdornment>
-              ),
-            }}
-            sx={inputSx}
-          />
-        )}
         <TextField
           fullWidth
           multiline
