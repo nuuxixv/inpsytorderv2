@@ -68,7 +68,8 @@
       "Bash(find /c/Users/김건우/Desktop/VS/inpsytorderv3/supabase -name \"*.sql\" -type f -exec basename {} \\\\;)",
       "Bash(grep -l \"user_profiles\" /c/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations/*.sql)",
       "Bash(grep -c \"user_profiles\" /c/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations/*.sql)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(ls -1 supabase/migrations/20260415_*.sql)"
     ]
   }
 }
