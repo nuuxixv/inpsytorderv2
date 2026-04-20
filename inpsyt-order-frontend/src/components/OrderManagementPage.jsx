@@ -248,6 +248,8 @@ const OrderManagementPage = () => {
         selectedEvents: state.selectedEvents,
         startDate: state.startDate,
         endDate: state.endDate,
+        productCategory: selectedProductCategory,
+        productSearchTerm,
       });
       dispatch({ type: 'SET_STATE', payload: { orders: groupLinkedOrders(data || []), totalOrders: count || 0 } });
     } catch {
@@ -255,7 +257,7 @@ const OrderManagementPage = () => {
       dispatch({ type: 'SET_STATE', payload: { orders: [], totalOrders: 0 } });
     }
     dispatch({ type: 'SET_STATE', payload: { loading: false } });
-  }, [state.currentPage, state.searchTerm, state.selectedStatuses, state.selectedEvents, state.startDate, state.endDate, addNotification]);
+  }, [state.currentPage, state.searchTerm, state.selectedStatuses, state.selectedEvents, state.startDate, state.endDate, selectedProductCategory, productSearchTerm, addNotification]);
 
   const fetchSettings = useCallback(async () => {
     const { data } = await supabase.from('site_settings').select('*').single();
@@ -274,6 +276,9 @@ const OrderManagementPage = () => {
     fetchOrders();
   }, [fetchOrders]);
 
+  useEffect(() => {
+    dispatch({ type: 'SET_FILTER', payload: { key: 'currentPage', value: 1 } });
+  }, [selectedProductCategory, productSearchTerm]);
 
   const handleBulkStatusUpdate = async () => {
     if (!bulkStatus || state.selectedOrders.length === 0) {
@@ -463,23 +468,7 @@ const OrderManagementPage = () => {
 
   const productCategories = ['검사', '도서', '도구'];
 
-  const displayedOrders = React.useMemo(() => {
-    let list = state.orders;
-    if (productSearchTerm.trim()) {
-      const term = productSearchTerm.trim().toLowerCase();
-      list = list.filter(o => {
-        const items = o.order_items || o.linkedChildren?.flatMap(c => c.order_items || []) || [];
-        return items.some(item => (item.product_name || '').toLowerCase().includes(term));
-      });
-    }
-    if (selectedProductCategory) {
-      list = list.filter(o => {
-        const items = o.order_items || o.linkedChildren?.flatMap(c => c.order_items || []) || [];
-        return items.some(item => item.category === selectedProductCategory);
-      });
-    }
-    return list;
-  }, [state.orders, productSearchTerm, selectedProductCategory]);
+  const displayedOrders = state.orders;
 
   const filterControls = (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>

@@ -22,15 +22,23 @@ export const getOrders = async (options) => {
     selectedStatuses,
     selectedEvents,
     startDate,
-    endDate
+    endDate,
+    productCategory,
+    productSearchTerm,
   } = options;
 
   const from = (currentPage - 1) * ordersPerPage;
   const to = from + ordersPerPage - 1;
 
+  // !inner join이 필요한 경우: 해당 조건에 맞는 order_items를 가진 주문만 반환
+  const needsInner = Boolean(productCategory || productSearchTerm?.trim());
+  const itemsJoin = needsInner
+    ? 'order_items!inner(product_id, quantity, price_at_purchase, product_name, product_code, category, list_price)'
+    : 'order_items(product_id, quantity, price_at_purchase, product_name, product_code, category, list_price)';
+
   let query = supabase
     .from('orders')
-    .select(`*, order_items (product_id, quantity, price_at_purchase, product_name, product_code, category, list_price)`, { count: 'exact' })
+    .select(`*, ${itemsJoin}`, { count: 'exact' })
     .order('created_at', { ascending: false });
 
   if (searchTerm) {
@@ -46,6 +54,12 @@ export const getOrders = async (options) => {
     const start = format(startOfDay(startDate), 'yyyy-MM-dd HH:mm:ss');
     const end = format(endOfDay(endDate), 'yyyy-MM-dd HH:mm:ss');
     query = query.gte('created_at', start).lte('created_at', end);
+  }
+  if (productCategory) {
+    query = query.eq('order_items.category', productCategory);
+  }
+  if (productSearchTerm?.trim()) {
+    query = query.ilike('order_items.product_name', `%${productSearchTerm.trim()}%`);
   }
 
   const { data, error, count } = await query.range(from, to);
