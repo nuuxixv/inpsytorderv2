@@ -14,6 +14,20 @@ import { format, startOfDay, endOfDay } from 'date-fns';
  * @returns {Promise<{data: Array, count: number}>} 주문 목록과 전체 개수
  * @throws {Error} 데이터 조회 실패 시 에러 발생
  */
+const ALL_ITEMS_SELECT = 'order_items(product_id, quantity, price_at_purchase, product_name, product_code, category, list_price)';
+
+const applyBaseFilters = (query, { searchTerm, selectedStatuses, selectedEvents, startDate, endDate }) => {
+  if (searchTerm) query = query.ilike('customer_name', `%${searchTerm}%`);
+  if (selectedStatuses?.length > 0) query = query.in('status', selectedStatuses);
+  if (selectedEvents?.length > 0) query = query.in('event_id', selectedEvents);
+  if (startDate && endDate) {
+    const start = format(startOfDay(startDate), 'yyyy-MM-dd HH:mm:ss');
+    const end = format(endOfDay(endDate), 'yyyy-MM-dd HH:mm:ss');
+    query = query.gte('created_at', start).lte('created_at', end);
+  }
+  return query;
+};
+
 export const getOrders = async (options) => {
   const {
     currentPage,
@@ -29,46 +43,51 @@ export const getOrders = async (options) => {
 
   const from = (currentPage - 1) * ordersPerPage;
   const to = from + ordersPerPage - 1;
+  const baseFilters = { searchTerm, selectedStatuses, selectedEvents, startDate, endDate };
 
-  // !inner join이 필요한 경우: 해당 조건에 맞는 order_items를 가진 주문만 반환
-  const needsInner = Boolean(productCategory || productSearchTerm?.trim());
-  const itemsJoin = needsInner
-    ? 'order_items!inner(product_id, quantity, price_at_purchase, product_name, product_code, category, list_price)'
-    : 'order_items(product_id, quantity, price_at_purchase, product_name, product_code, category, list_price)';
+  const needsProductFilter = Boolean(productCategory || productSearchTerm?.trim());
 
+  if (needsProductFilter) {
+    // Step 1: 해당 상품 조건이 있는 주문 ID만 추출 (!inner로 필터링)
+    let idQuery = supabase
+      .from('orders')
+      .select('id, order_items!inner(category, product_name)')
+      .limit(5000);
+    idQuery = applyBaseFilters(idQuery, baseFilters);
+    if (productCategory) idQuery = idQuery.eq('order_items.category', productCategory);
+    if (productSearchTerm?.trim()) idQuery = idQuery.ilike('order_items.product_name', `%${productSearchTerm.trim()}%`);
+
+    const { data: matched, error: idError } = await idQuery;
+    if (idError) throw idError;
+    if (!matched || matched.length === 0) return { data: [], count: 0 };
+
+    const matchedIds = [...new Set(matched.map(o => o.id))];
+
+    // Step 2: 해당 주문들을 전체 아이템 포함해서 재조회 (카테고리 필터 없음)
+    const { data, error, count } = await supabase
+      .from('orders')
+      .select(`*, ${ALL_ITEMS_SELECT}`, { count: 'exact' })
+      .in('id', matchedIds)
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) throw error;
+    return { data, count };
+  }
+
+  // 상품 필터 없음: 단일 쿼리
   let query = supabase
     .from('orders')
-    .select(`*, ${itemsJoin}`, { count: 'exact' })
+    .select(`*, ${ALL_ITEMS_SELECT}`, { count: 'exact' })
     .order('created_at', { ascending: false });
 
-  if (searchTerm) {
-    query = query.ilike('customer_name', `%${searchTerm}%`);
-  }
-  if (selectedStatuses && selectedStatuses.length > 0) {
-    query = query.in('status', selectedStatuses);
-  }
-  if (selectedEvents && selectedEvents.length > 0) {
-    query = query.in('event_id', selectedEvents);
-  }
-  if (startDate && endDate) {
-    const start = format(startOfDay(startDate), 'yyyy-MM-dd HH:mm:ss');
-    const end = format(endOfDay(endDate), 'yyyy-MM-dd HH:mm:ss');
-    query = query.gte('created_at', start).lte('created_at', end);
-  }
-  if (productCategory) {
-    query = query.eq('order_items.category', productCategory);
-  }
-  if (productSearchTerm?.trim()) {
-    query = query.ilike('order_items.product_name', `%${productSearchTerm.trim()}%`);
-  }
+  query = applyBaseFilters(query, baseFilters);
 
   const { data, error, count } = await query.range(from, to);
-
   if (error) {
     console.error('Error fetching orders:', error);
     throw error;
   }
-
   return { data, count };
 };
 
