@@ -84,7 +84,32 @@
       "Bash(grep -l \"ALTER TABLE.*orders\" \"c:/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations\"/*.sql)",
       "Bash(cat \"c:/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations\"/*.sql)",
       "Bash(grep -n \"phone_number\\\\|shipping_address\\\\|customer_request\" \"c:/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations\"/*.sql)",
-      "Bash(grep -l \"phone_number\\\\|shipping_address\" \"c:/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations\"/*.sql)"
+      "Bash(grep -l \"phone_number\\\\|shipping_address\" \"c:/Users/김건우/Desktop/VS/inpsytorderv3/supabase/migrations\"/*.sql)",
+      "Read(//c/Users/김건우/.claude/plugins/**)",
+      "Read(//c/Users/김건우/.claude/skills/**)",
+      "Read(//c/Users/김건우/.claude/**)",
+      "Bash(git -C ~/.claude/skills/gstack log --oneline b73f364..origin/main)",
+      "Bash(git -C \"/c/Users/김건우/.claude/skills/gstack\" log --oneline b73f364..origin/main)",
+      "Bash(git -C __TRACKED_VAR__/.claude/skills/gstack log b73f364..origin/main --oneline)",
+      "Bash(git -C __TRACKED_VAR__/.claude/skills/gstack rev-list --count b73f364..origin/main)",
+      "Bash(git -C __TRACKED_VAR__/.claude/skills/gstack fetch origin main)",
+      "Bash(git -C __TRACKED_VAR__/.claude/skills/gstack rev-parse HEAD)",
+      "Bash(git -C __TRACKED_VAR__/.claude/skills/gstack rev-parse origin/main)",
+      "Bash(git -C __TRACKED_VAR__/.claude/skills/gstack log --oneline b73f364..22a4451)",
+      "Bash(git -C __TRACKED_VAR__/.claude/skills/gstack status --short)",
+      "Bash(git -C __TRACKED_VAR__/.claude/skills/gstack pull origin main)",
+      "Bash(git -C __TRACKED_VAR__/.claude/skills/gstack log -1 --oneline)",
+      "Bash(npm test *)",
+      "Bash(git -C \"c:/Users/김건우/Desktop/VS/inpsytorderv3\" log --oneline -5 -- inpsyt-order-frontend/src/components/OrderDetailModal.test.jsx)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(awk '/^description:/{flag=1; sub\\(/^description: */,\"\"\\); if\\(length\\) print; next} flag && /^[a-z-]+:/{exit} flag{sub\\(/^  */,\"\"\\); print}' ~/.claude/skills/gstack/SKILL.md)",
+      "Bash(command -v bun)",
+      "Bash(bun --version)",
+      "Bash(./setup --host claude --no-prefix)",
+      "Bash(MSYS=winsymlinks:nativestrict ln -snf ~/.claude/skills/gstack/autoplan/SKILL.md ~/.claude/skills/autoplan/SKILL.md)",
+      "Bash(rmdir ~/.claude/skills/autoplan)",
+      "Bash(rm -f ~/.claude/skills/autoplan/SKILL.md)",
+      "Bash(rm -rf ~/.claude/skills/autoplan touch ~/.claude/skills/gstack/browse/dist/browse ~/.claude/skills/gstack/browse/dist/find-browse ~/.claude/skills/gstack/design/dist/design ~/.claude/skills/gstack/bin/gstack-global-discover export MSYS=winsymlinks:nativestrict cd ~/.claude/skills/gstack)"
     ]
   }
 }

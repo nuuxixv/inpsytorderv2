@@ -170,10 +170,14 @@ const OrderManagementPage = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [filterDrawerOpen, setFilterDrawerOpen] = React.useState(false);
   const [searchParams] = useSearchParams();
-  const [state, dispatch] = useReducer(reducer, {
+  // lazy init: 모듈 로드 시점에 한 번 고정되는 것이 아니라, 컴포넌트 마운트 시점에 재평가.
+  // 장기 세션(탭을 며칠간 열어둠)에서 startDate/endDate가 옛날 날짜로 굳는 버그 방지.
+  const [state, dispatch] = useReducer(reducer, null, () => ({
     ...initialState,
+    startDate: subDays(new Date(), 30),
+    endDate: new Date(),
     selectedStatuses: searchParams.get('status') ? [searchParams.get('status')] : [],
-  });
+  }));
   const [bulkStatus, setBulkStatus] = React.useState('');
   const [excelMenuAnchor, setExcelMenuAnchor] = React.useState(null);
 

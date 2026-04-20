@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -8,84 +8,98 @@ import {
   InputAdornment,
 } from '@mui/material';
 import { Search as SearchIcon, Star as StarIcon, FiberNew as NewIcon } from '@mui/icons-material';
-import { fetchProducts } from '../api/products';
+import { fetchAllProducts } from '../api/products';
 import { useNotification } from '../hooks/useNotification';
+import { matchesSearch } from '../utils/search';
 import ProductCard from './ProductCard';
+
+const PAGE_SIZE = 40;
 
 const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags = [], eventName = '' }) => {
   const { addNotification } = useNotification();
-  const [products, setProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState('popular'); // 'all' or 'popular'
-  const [selectedCategory, setSelectedCategory] = useState('all'); // 'all' or specific category name
-  
-  // Pagination state
+  const [viewMode, setViewMode] = useState('popular'); // 'all' | 'popular' | 'new'
+  const [selectedCategory, setSelectedCategory] = useState('all');
+
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
   const observer = useRef();
 
-  const loadProducts = useCallback(async (search = '', mode = 'popular', category = 'all', pageNum = 1) => {
-    if (pageNum === 1) setLoading(true);
-    else setLoadingMore(true);
-
-    try {
-      const productsPerPage = 40;
-      const params = {
-        searchTerm: search,
-        // '전체' 모드가 아닐 때만 학회 태그 필터 적용
-        tags: (mode !== 'all' && eventTags?.length > 0) ? eventTags : undefined,
-        isPopularOnly: mode === 'popular' && !search,
-        isNewOnly: mode === 'new',
-        category: category !== 'all' ? category : undefined,
-        currentPage: pageNum,
-        productsPerPage,
-      };
-      
-      const { data, count } = await fetchProducts(params);
-      
-      if (pageNum === 1) {
-        setProducts(data || []);
-      } else {
-        setProducts(prev => [...prev, ...(data || [])]);
+  // 1회 로드 — 학회 현장 모바일에서도 수백 개 정도면 충분히 감당 가능
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const data = await fetchAllProducts();
+        if (!cancelled) setAllProducts(data || []);
+      } catch (error) {
+        if (!cancelled) addNotification(`상품 목록을 불러오지 못했습니다: ${error.message}`, 'error');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      
-      setHasMore((data || []).length === productsPerPage && (pageNum * productsPerPage) < (count || 0));
-    } catch (error) {
-      addNotification(`상품 검색에 실패했습니다: ${error.message}`, 'error');
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
+    })();
+    return () => { cancelled = true; };
+  }, [addNotification]);
+
+  // 필터·검색·정렬 모두 클라이언트에서 처리
+  const filteredProducts = useMemo(() => {
+    let list = allProducts;
+    const hasSearch = Boolean(searchTerm.trim());
+
+    // 학회 태그 — '전체' 모드가 아닐 때만
+    if (!hasSearch && viewMode !== 'all' && eventTags?.length > 0) {
+      list = list.filter(p => Array.isArray(p.tags) && p.tags.some(t => eventTags.includes(t)));
     }
-  }, [eventTags, addNotification]);
 
-  // Last element ref for Intersection Observer
-  const lastProductElementRef = useCallback(node => {
-    if (loading || loadingMore) return;
-    if (observer.current) observer.current.disconnect();
-    
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
-        setPage(prevPage => prevPage + 1);
-      }
+    // 카테고리
+    if (selectedCategory !== 'all') {
+      list = list.filter(p => p.category === selectedCategory);
+    }
+
+    // 모드 (검색 중에는 무시)
+    if (!hasSearch) {
+      if (viewMode === 'popular') list = list.filter(p => p.is_popular);
+      else if (viewMode === 'new') list = list.filter(p => p.is_new);
+    }
+
+    // 검색
+    if (hasSearch) {
+      list = list.filter(p => matchesSearch(p.name, searchTerm));
+    }
+
+    // 정렬: 인기 우선, 이름순
+    return [...list].sort((a, b) => {
+      const popDiff = (b.is_popular ? 1 : 0) - (a.is_popular ? 1 : 0);
+      if (popDiff !== 0) return popDiff;
+      return (a.name || '').localeCompare(b.name || '');
     });
-    
-    if (node) observer.current.observe(node);
-  }, [loading, loadingMore, hasMore]);
+  }, [allProducts, searchTerm, viewMode, selectedCategory, eventTags]);
 
-  // Reset and load when filters change
+  // 필터 변경 시 페이지 리셋
   useEffect(() => {
     setPage(1);
-    loadProducts(searchTerm, viewMode, selectedCategory, 1);
-  }, [searchTerm, viewMode, selectedCategory, loadProducts]);
+  }, [searchTerm, viewMode, selectedCategory]);
 
-  // Load more when page changes
-  useEffect(() => {
-    if (page > 1) {
-      loadProducts(searchTerm, viewMode, selectedCategory, page);
-    }
-  }, [page, loadProducts, searchTerm, viewMode, selectedCategory]);
+  const displayedProducts = useMemo(
+    () => filteredProducts.slice(0, page * PAGE_SIZE),
+    [filteredProducts, page]
+  );
+  const hasMore = displayedProducts.length < filteredProducts.length;
+
+  const lastProductElementRef = useCallback(node => {
+    if (loading) return;
+    if (observer.current) observer.current.disconnect();
+
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setPage(prev => prev + 1);
+      }
+    });
+
+    if (node) observer.current.observe(node);
+  }, [loading, hasMore]);
 
   const getCartQuantity = (productId) => {
     const item = cart.find(p => p.id === productId);
@@ -117,9 +131,8 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
     }
   };
 
-  // Extract unique categories from loaded products, ensuring '도서' and '검사' are always present
   const knownCategories = ['검사', '도서'];
-  const extractedCategories = products.map(p => p.category).filter(Boolean);
+  const extractedCategories = allProducts.map(p => p.category).filter(Boolean);
   const categories = [...new Set([...knownCategories, ...extractedCategories])];
 
   const viewModes = [
@@ -151,7 +164,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
       {/* Search bar */}
       <TextField
         fullWidth
-        placeholder="상품명으로 검색"
+        placeholder="상품명으로 검색 (띄어쓰기로 여러 키워드)"
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         InputProps={{
@@ -176,7 +189,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
 
       {/* Filters */}
       <Box sx={{ mb: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-        {/* View Mode (Popular vs All) */}
+        {/* View Mode */}
         <Box
           sx={{
             display: 'flex',
@@ -240,7 +253,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
           <CircularProgress size={32} thickness={4} />
         </Box>
-      ) : products.length === 0 ? (
+      ) : displayedProducts.length === 0 ? (
         <Box sx={{ textAlign: 'center', py: 8 }}>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 0.5 }}>
             검색 결과가 없습니다
@@ -257,8 +270,8 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
             gap: 1.5,
           }}
         >
-          {products.map((product, index) => {
-            const isLast = products.length === index + 1;
+          {displayedProducts.map((product, index) => {
+            const isLast = displayedProducts.length === index + 1;
             return (
               <Box key={product.id} ref={isLast ? lastProductElementRef : null} sx={{ display: 'flex' }}>
                 <ProductCard
@@ -275,7 +288,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
         </Box>
       )}
 
-      {loadingMore && (
+      {hasMore && !loading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
           <CircularProgress size={24} thickness={4} />
         </Box>

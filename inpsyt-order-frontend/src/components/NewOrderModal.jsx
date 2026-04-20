@@ -18,6 +18,7 @@ import {
 } from '@mui/icons-material';
 import { supabase } from '../supabaseClient';
 import { useNotification } from '../hooks/useNotification';
+import { matchesSearch } from '../utils/search';
 
 const postcodeModalStyle = {
   position: 'absolute',
@@ -123,8 +124,7 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
   const filteredProducts = useMemo(() => {
     let list = products;
     if (searchTerm.trim()) {
-      const lower = searchTerm.toLowerCase();
-      list = list.filter(p => p.name?.toLowerCase().includes(lower));
+      list = list.filter(p => matchesSearch(p.name, searchTerm));
     } else {
       list = list.filter(p => p.is_popular);
     }

@@ -21,6 +21,7 @@ import ProductSelectionStep from './ProductSelectionStep';
 import CustomerInfoStep from './CustomerInfoStep';
 import OrderReviewStep from './OrderReviewStep';
 import CartBottomSheet from './CartBottomSheet';
+import { getTodayKST } from '../utils/date';
 
 const OrderPage = () => {
   const [searchParams] = useSearchParams();
@@ -95,7 +96,7 @@ const OrderPage = () => {
           return;
         }
 
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayKST();
 
         // 슬러그로 이벤트 조회 (날짜 유효성 포함)
         const { data: eventData, error: eventError } = await supabase

@@ -16,10 +16,11 @@ import {
   RestartAlt as RestartAltIcon, Tune as TuneIcon,
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
-import { fetchProducts as fetchProductsApi, fetchAllProducts } from '../api/products';
+import { fetchAllProducts } from '../api/products';
 import { useNotification } from '../hooks/useNotification';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../supabaseClient';
+import { matchesSearch } from '../utils/search';
 import EmptyState from './EmptyState';
 import TableSkeleton from './TableSkeleton';
 
@@ -101,11 +102,7 @@ const ProductManagementPage = () => {
   const [uploadLog, setUploadLog] = useState([]);
   const [uploadSuccessCount, setUploadSuccessCount] = useState(0);
 
-  const [products, setProducts] = useState([]);
-  const [totalProducts, setTotalProducts] = useState(0);
-  const [totalDiscountableCount, setTotalDiscountableCount] = useState(0);
-  const [totalPopularCount, setTotalPopularCount] = useState(0);
-  const [availableTags, setAvailableTags] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [productQuickFilter, setProductQuickFilter] = useState(null);
@@ -133,42 +130,56 @@ const ProductManagementPage = () => {
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const [pageResult, discountableResult, popularResult] = await Promise.all([
-        fetchProductsApi({ searchTerm, category: selectedCategory, currentPage, productsPerPage }),
-        supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_discountable', true),
-        supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_popular', true),
-      ]);
-
-      setProducts(pageResult.data || []);
-      setTotalProducts(pageResult.count || 0);
-      setTotalDiscountableCount(discountableResult.count || 0);
-      setTotalPopularCount(popularResult.count || 0);
+      const data = await fetchAllProducts();
+      setAllProducts(data || []);
       setSelectedIds(new Set());
-
-      const tags = (pageResult.data || []).flatMap((product) => product.tags || []);
-      setAvailableTags(Array.from(new Set(tags)).sort());
     } catch (error) {
       addNotification(`상품 목록을 불러오지 못했습니다: ${error.message}`, 'error');
     } finally {
       setLoading(false);
     }
-  }, [addNotification, currentPage, productsPerPage, searchTerm, selectedCategory]);
+  }, [addNotification]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => { fetchProducts(); }, 250);
-    return () => clearTimeout(timer);
-  }, [fetchProducts]);
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
+  // 검색어·카테고리 변경 시 1페이지로 리셋
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, selectedCategory, productQuickFilter]);
+
+  // 카드용 집계 — 전체 상품 기준
+  const totalProducts = allProducts.length;
+  const totalDiscountableCount = useMemo(() => allProducts.filter(p => p.is_discountable).length, [allProducts]);
+  const totalPopularCount = useMemo(() => allProducts.filter(p => p.is_popular).length, [allProducts]);
+  const availableTags = useMemo(
+    () => Array.from(new Set(allProducts.flatMap(p => p.tags || []))).sort(),
+    [allProducts]
+  );
+
+  // 필터: 검색 + 카테고리 + 빠른 필터
+  const filteredProducts = useMemo(() => {
+    let list = allProducts;
+    if (searchTerm.trim()) list = list.filter(p => matchesSearch(p.name, searchTerm));
+    if (selectedCategory) list = list.filter(p => p.category === selectedCategory);
+    if (productQuickFilter === 'discountable') list = list.filter(p => p.is_discountable);
+    if (productQuickFilter === 'popular') list = list.filter(p => p.is_popular);
+    return [...list].sort((a, b) => {
+      const popDiff = (b.is_popular ? 1 : 0) - (a.is_popular ? 1 : 0);
+      if (popDiff !== 0) return popDiff;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }, [allProducts, searchTerm, selectedCategory, productQuickFilter]);
+
+  const totalFiltered = filteredProducts.length;
+
+  // 페이지 슬라이싱
   const displayedProducts = useMemo(() => {
-    if (productQuickFilter === 'discountable') return products.filter((product) => product.is_discountable);
-    if (productQuickFilter === 'popular') return products.filter((product) => product.is_popular);
-    return products;
-  }, [productQuickFilter, products]);
+    const start = (currentPage - 1) * productsPerPage;
+    return filteredProducts.slice(start, start + productsPerPage);
+  }, [filteredProducts, currentPage, productsPerPage]);
 
   const allPageSelected = displayedProducts.length > 0 && displayedProducts.every((product) => selectedIds.has(product.id));
   const somePageSelected = displayedProducts.some((product) => selectedIds.has(product.id));
   const selectedCount = selectedIds.size;
-  const hasFilters = Boolean(searchTerm || selectedCategory);
+  const hasFilters = Boolean(searchTerm || selectedCategory || productQuickFilter);
 
   const handleOpen = (product = null) => {
     setIsEditing(Boolean(product));
@@ -845,7 +856,7 @@ const ProductManagementPage = () => {
                 ))}
               </Select>
             </FormControl>
-            <Pagination count={Math.ceil(totalProducts / productsPerPage)} page={currentPage} onChange={(_, page) => setCurrentPage(page)} color="primary" />
+            <Pagination count={Math.max(1, Math.ceil(totalFiltered / productsPerPage))} page={currentPage} onChange={(_, page) => setCurrentPage(page)} color="primary" />
           </Box>
         )}
       </Card>

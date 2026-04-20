@@ -48,9 +48,10 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import EmptyState from './EmptyState';
-import { format, parseISO, isAfter, isBefore } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import TableSkeleton from './TableSkeleton';
 import SocietyManagementDialog from './SocietyManagementDialog';
+import { getTodayKST, getEventStatusKST } from '../utils/date';
 
 const EventManagementPage = () => {
   const theme = useTheme();
@@ -290,36 +291,22 @@ const EventManagementPage = () => {
     addNotification('QR 코드가 다운로드되었습니다.', 'success');
   };
 
-  const getEventStatus = (startDate, endDate) => {
-    const now = new Date();
-    const start = parseISO(startDate);
-    const end = parseISO(endDate);
-
-    if (isBefore(now, start)) {
-      return { label: '예정', color: 'info' };
-    } else if (isAfter(now, end)) {
-      return { label: '종료', color: 'default' };
-    } else {
-      return { label: '진행중', color: 'success' };
-    }
-  };
+  const getEventStatus = (startDate, endDate) => getEventStatusKST(startDate, endDate);
 
   if (!user || !hasPermission('events:view')) {
     return <Box sx={{ p: 3 }}><Typography>학회 관리 페이지 접근 권한이 없습니다.</Typography></Box>;
   }
 
-  const now = new Date();
-  const activeEventsCount = events.filter(e => !isAfter(now, parseISO(e.end_date))).length;
-  const upcomingEventsCount = events.filter(e => isBefore(now, parseISO(e.start_date))).length;
+  const today = getTodayKST();
+  const activeEventsCount = events.filter(e => e.end_date && today <= e.end_date).length;
+  const upcomingEventsCount = events.filter(e => e.start_date && today < e.start_date).length;
 
-  const today = new Date();
   const filteredEvents = events.filter(event => {
     if (eventFilter === 'all') return true;
-    const start = event.start_date ? new Date(event.start_date) : null;
-    const end = event.end_date ? new Date(event.end_date) : null;
-    if (eventFilter === 'active') return start && end && start <= today && end >= today;
-    if (eventFilter === 'upcoming') return start && start > today;
-    if (eventFilter === 'ended') return end && end < today;
+    if (!event.start_date || !event.end_date) return false;
+    if (eventFilter === 'active') return event.start_date <= today && today <= event.end_date;
+    if (eventFilter === 'upcoming') return today < event.start_date;
+    if (eventFilter === 'ended') return today > event.end_date;
     return true;
   });
 
