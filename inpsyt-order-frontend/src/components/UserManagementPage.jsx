@@ -466,11 +466,10 @@ const UserManagementPage = () => {
 
   const displayedUsers = userFilter === 'master'
     ? users.filter(u => u.role === 'master')
-    : userFilter === 'recent'
-    ? users.filter(u => {
-        if (!u.last_sign_in_at) return false;
-        return (new Date() - new Date(u.last_sign_in_at)) / (1000 * 60 * 60 * 24) < 7;
-      })
+    : userFilter === 'onsite'
+    ? users.filter(u => u.role === 'onsite')
+    : userFilter === 'fulfillment'
+    ? users.filter(u => u.role === 'fulfillment_book' || u.role === 'fulfillment_test')
     : users;
 
   const statCardSx = (active) => ({
@@ -490,73 +489,50 @@ const UserManagementPage = () => {
         </Typography>
       </Box>
 
-      <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 3 }}>
-        <Tab label="사용자 목록" />
-        <Tab label="역할 템플릿" />
-      </Tabs>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+        <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)}>
+          <Tab label="사용자 목록" />
+          <Tab label="역할 템플릿" />
+        </Tabs>
+        {activeTab === 0 && (
+          <Button variant="contained" startIcon={<PersonAddIcon />} onClick={() => setOpenInviteModal(true)}>
+            사용자 추가
+          </Button>
+        )}
+      </Box>
 
       {activeTab === 0 && (
       <>
-      {/* Stats and User List */}
-      <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
-          <Button
-            variant="contained"
-            startIcon={<PersonAddIcon />}
-            onClick={() => setOpenInviteModal(true)}
+      {/* Stats Cards — 역할별 현황 */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 3, flexDirection: { xs: 'column', sm: 'row' } }}>
+        {[
+          { key: null, label: '전체 사용자', count: users.length, color: theme.palette.primary.main, icon: <PeopleIcon /> },
+          { key: 'master', label: '마스터', count: masterUsers, color: theme.palette.warning.main, icon: <AdminIcon /> },
+          { key: 'onsite', label: '현장 마케팅', count: users.filter(u => u.role === 'onsite').length, color: theme.palette.info.main, icon: <PeopleIcon /> },
+          { key: 'fulfillment', label: '출고', count: users.filter(u => u.role === 'fulfillment_book' || u.role === 'fulfillment_test').length, color: theme.palette.success.main, icon: <ScheduleIcon /> },
+        ].map(({ key, label, count, color, icon }) => (
+          <Card
+            key={String(key)}
+            onClick={() => setUserFilter(f => f === key ? null : key)}
+            sx={{
+              flex: 1,
+              cursor: 'pointer',
+              background: `linear-gradient(135deg, ${alpha(color, 0.1)} 0%, ${alpha(color, 0.05)} 100%)`,
+              border: `1px solid ${alpha(color, userFilter === key ? 0.6 : 0.2)}`,
+              ...statCardSx(userFilter === key),
+            }}
           >
-            사용자 추가
-          </Button>
-        </Box>
-
-        {/* Stats Cards */}
-        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexDirection: { xs: 'column', sm: 'row' } }}>
-          <Card onClick={() => setUserFilter(null)} sx={{ flex: 1,
-            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
-            border: `1px solid ${alpha(theme.palette.primary.main, userFilter === null ? 0.6 : 0.2)}`,
-            ...statCardSx(userFilter === null),
-          }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>전체 사용자</Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'primary.main' }}>{users.length}</Typography>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>{label}</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color }}>{count}</Typography>
                 </Box>
-                <PeopleIcon sx={{ fontSize: 40, color: alpha(theme.palette.primary.main, 0.5) }} />
+                {React.cloneElement(icon, { sx: { fontSize: 40, color: alpha(color, 0.5) } })}
               </Box>
             </CardContent>
           </Card>
-          <Card onClick={() => setUserFilter(f => f === 'master' ? null : 'master')} sx={{ flex: 1,
-            background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)} 0%, ${alpha(theme.palette.warning.main, 0.05)} 100%)`,
-            border: `1px solid ${alpha(theme.palette.warning.main, userFilter === 'master' ? 0.6 : 0.2)}`,
-            ...statCardSx(userFilter === 'master'),
-          }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>관리자</Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'warning.main' }}>{masterUsers}</Typography>
-                </Box>
-                <AdminIcon sx={{ fontSize: 40, color: alpha(theme.palette.warning.main, 0.5) }} />
-              </Box>
-            </CardContent>
-          </Card>
-          <Card onClick={() => setUserFilter(f => f === 'recent' ? null : 'recent')} sx={{ flex: 1,
-            background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.main, 0.05)} 100%)`,
-            border: `1px solid ${alpha(theme.palette.success.main, userFilter === 'recent' ? 0.6 : 0.2)}`,
-            ...statCardSx(userFilter === 'recent'),
-          }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>최근 활동 (7일)</Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.main' }}>{recentlyActiveCount}</Typography>
-                </Box>
-                <ScheduleIcon sx={{ fontSize: 40, color: alpha(theme.palette.success.main, 0.5) }} />
-              </Box>
-            </CardContent>
-          </Card>
-        </Box>
+        ))}
       </Box>
 
       {/* Users Table */}

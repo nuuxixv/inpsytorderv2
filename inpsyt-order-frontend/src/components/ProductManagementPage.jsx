@@ -14,6 +14,10 @@ import {
   TrendingUp as TrendingUpIcon, Delete as DeleteIcon,
   DeleteForever as DeleteForeverIcon, CheckBox as CheckBoxIcon,
   RestartAlt as RestartAltIcon, Tune as TuneIcon,
+  Description as DescriptionIcon,
+  MenuBook as MenuBookIcon,
+  Science as ScienceIcon,
+  Build as BuildIcon,
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import { fetchAllProducts } from '../api/products';
@@ -106,6 +110,7 @@ const ProductManagementPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [productQuickFilter, setProductQuickFilter] = useState(null);
+  const [selectedTags, setSelectedTags] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [productsPerPage, setProductsPerPage] = useState(50);
   const [loading, setLoading] = useState(false);
@@ -142,13 +147,18 @@ const ProductManagementPage = () => {
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
-  // 검색어·카테고리 변경 시 1페이지로 리셋
-  useEffect(() => { setCurrentPage(1); }, [searchTerm, selectedCategory, productQuickFilter]);
+  // 검색어·카테고리·태그 변경 시 1페이지로 리셋
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, selectedCategory, productQuickFilter, selectedTags]);
 
   // 카드용 집계 — 전체 상품 기준
   const totalProducts = allProducts.length;
   const totalDiscountableCount = useMemo(() => allProducts.filter(p => p.is_discountable).length, [allProducts]);
   const totalPopularCount = useMemo(() => allProducts.filter(p => p.is_popular).length, [allProducts]);
+  const categoryCounts = useMemo(() => {
+    const result = {};
+    categories.forEach(cat => { result[cat] = allProducts.filter(p => p.category === cat).length; });
+    return result;
+  }, [allProducts]);
   const availableTags = useMemo(
     () => Array.from(new Set(allProducts.flatMap(p => p.tags || []))).sort(),
     [allProducts]
@@ -161,12 +171,13 @@ const ProductManagementPage = () => {
     if (selectedCategory) list = list.filter(p => p.category === selectedCategory);
     if (productQuickFilter === 'discountable') list = list.filter(p => p.is_discountable);
     if (productQuickFilter === 'popular') list = list.filter(p => p.is_popular);
+    if (selectedTags.length > 0) list = list.filter(p => selectedTags.some(tag => p.tags?.includes(tag)));
     return [...list].sort((a, b) => {
       const popDiff = (b.is_popular ? 1 : 0) - (a.is_popular ? 1 : 0);
       if (popDiff !== 0) return popDiff;
       return (a.name || '').localeCompare(b.name || '');
     });
-  }, [allProducts, searchTerm, selectedCategory, productQuickFilter]);
+  }, [allProducts, searchTerm, selectedCategory, productQuickFilter, selectedTags]);
 
   const totalFiltered = filteredProducts.length;
 
@@ -179,7 +190,7 @@ const ProductManagementPage = () => {
   const allPageSelected = displayedProducts.length > 0 && displayedProducts.every((product) => selectedIds.has(product.id));
   const somePageSelected = displayedProducts.some((product) => selectedIds.has(product.id));
   const selectedCount = selectedIds.size;
-  const hasFilters = Boolean(searchTerm || selectedCategory || productQuickFilter);
+  const hasFilters = Boolean(searchTerm || selectedCategory || productQuickFilter || selectedTags.length > 0);
 
   const handleOpen = (product = null) => {
     setIsEditing(Boolean(product));
@@ -536,6 +547,7 @@ const ProductManagementPage = () => {
     setSelectedCategory('');
     setCurrentPage(1);
     setProductQuickFilter(null);
+    setSelectedTags([]);
   };
 
   if (!user || !hasPermission('products:view')) {
@@ -553,7 +565,7 @@ const ProductManagementPage = () => {
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             <Tooltip title="엑셀 양식 다운로드">
               <IconButton onClick={handleDownloadTemplate} sx={{ bgcolor: alpha(theme.palette.info.main, 0.1) }}>
-                <DownloadIcon />
+                <DescriptionIcon />
               </IconButton>
             </Tooltip>
             <Tooltip title="상품 목록 다운로드">
@@ -646,23 +658,38 @@ const ProductManagementPage = () => {
               </Box>
             </CardContent>
           </Card>
-          <Card sx={{ flex: '1 1 180px' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>카테고리 수</Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'info.main' }}>{categories.length}</Typography>
+          {[
+            { key: '도서', icon: <MenuBookIcon />, color: theme.palette.info.main },
+            { key: '검사', icon: <ScienceIcon />, color: theme.palette.secondary.main },
+            { key: '도구', icon: <BuildIcon />, color: theme.palette.grey[600] },
+          ].map(({ key, icon, color }) => (
+            <Card
+              key={key}
+              onClick={() => setSelectedCategory(prev => prev === key ? '' : key)}
+              sx={{
+                flex: '1 1 120px',
+                cursor: 'pointer',
+                background: `linear-gradient(135deg, ${alpha(color, 0.1)} 0%, ${alpha(color, 0.05)} 100%)`,
+                border: `1px solid ${alpha(color, selectedCategory === key ? 0.6 : 0.2)}`,
+              }}
+            >
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>{key}</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold', color }}>{categoryCounts[key] ?? 0}</Typography>
+                  </Box>
+                  {React.cloneElement(icon, { sx: { fontSize: 40, color: alpha(color, 0.5) } })}
                 </Box>
-                <SearchIcon sx={{ fontSize: 40, color: alpha(theme.palette.info.main, 0.5) }} />
-              </Box>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ))}
         </Box>
       </Box>
 
       <Card sx={{ mb: 2 }}>
         <CardContent>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: availableTags.length > 0 ? 1.5 : 0 }}>
             <TextField
               label="상품명 검색"
               value={searchTerm}
@@ -674,28 +701,37 @@ const ProductManagementPage = () => {
               sx={{ flexGrow: 1, minWidth: 200 }}
               InputProps={{ startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} /> }}
             />
-            <FormControl size="small" sx={{ minWidth: 160 }}>
-              <InputLabel>카테고리</InputLabel>
-              <Select
-                value={selectedCategory}
-                label="카테고리"
-                onChange={(event) => {
-                  setSelectedCategory(event.target.value);
-                  setCurrentPage(1);
-                }}
-              >
-                <MenuItem value=""><em>전체</em></MenuItem>
-                {categories.map((category) => (
-                  <MenuItem key={category} value={category}>{category}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            {hasFilters && (
+              <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                {totalFiltered}개 표시 중
+              </Typography>
+            )}
             {hasFilters && (
               <Button variant="outlined" onClick={handleResetFilters} size="small" startIcon={<RestartAltIcon />}>
                 초기화
               </Button>
             )}
           </Box>
+          {availableTags.length > 0 && (
+            <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+              {availableTags.map(tag => (
+                <Chip
+                  key={tag}
+                  label={tag}
+                  size="small"
+                  variant={selectedTags.includes(tag) ? 'filled' : 'outlined'}
+                  color={selectedTags.includes(tag) ? 'primary' : 'default'}
+                  onClick={() => {
+                    setSelectedTags(prev =>
+                      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+                    );
+                    setCurrentPage(1);
+                  }}
+                  sx={{ borderRadius: '8px', fontWeight: selectedTags.includes(tag) ? 700 : 400 }}
+                />
+              ))}
+            </Box>
+          )}
         </CardContent>
       </Card>
 

@@ -298,8 +298,9 @@ const EventManagementPage = () => {
   }
 
   const today = getTodayKST();
-  const activeEventsCount = events.filter(e => e.end_date && today <= e.end_date).length;
+  const activeEventsCount = events.filter(e => e.start_date && e.end_date && e.start_date <= today && today <= e.end_date).length;
   const upcomingEventsCount = events.filter(e => e.start_date && today < e.start_date).length;
+  const endedEventsCount = events.filter(e => e.end_date && today > e.end_date).length;
 
   const filteredEvents = events.filter(event => {
     if (eventFilter === 'all') return true;
@@ -390,37 +391,29 @@ const EventManagementPage = () => {
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                      예정 학회
-                    </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'info.main' }}>
-                      {upcomingEventsCount}
-                    </Typography>
-                  </Box>
-                  <CalendarTodayIcon sx={{ fontSize: 40, color: alpha(theme.palette.info.main, 0.5) }} />
+                  <Typography variant="body2" color="text.secondary" gutterBottom>예정 학회</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'info.main' }}>{upcomingEventsCount}</Typography>
                 </Box>
-              </CardContent>
+                <CalendarTodayIcon sx={{ fontSize: 40, color: alpha(theme.palette.info.main, 0.5) }} />
+              </Box>
+            </CardContent>
+          </Card>
+          <Card onClick={() => setEventFilter(f => f === 'ended' ? 'all' : 'ended')} sx={{ flex: 1,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.1)} 0%, ${alpha(theme.palette.error.main, 0.05)} 100%)`,
+            border: `1px solid ${alpha(theme.palette.error.main, eventFilter === 'ended' ? 0.6 : 0.2)}`,
+            ...statCardSx(eventFilter === 'ended'),
+          }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>종료 학회</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'error.main' }}>{endedEventsCount}</Typography>
+                </Box>
+                <EventIcon sx={{ fontSize: 40, color: alpha(theme.palette.error.main, 0.5) }} />
+              </Box>
+            </CardContent>
           </Card>
         </Box>
-      </Box>
-
-      {/* Status Filter Tabs */}
-      <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-        {[
-          { key: 'all', label: '전체' },
-          { key: 'active', label: '진행중' },
-          { key: 'upcoming', label: '예정' },
-          { key: 'ended', label: '종료' },
-        ].map(({ key, label }) => (
-          <Chip
-            key={key}
-            label={label}
-            onClick={() => setEventFilter(key)}
-            color={eventFilter === key ? 'primary' : 'default'}
-            variant={eventFilter === key ? 'filled' : 'outlined'}
-            sx={{ cursor: 'pointer', fontWeight: eventFilter === key ? 700 : 400 }}
-          />
-        ))}
       </Box>
 
       {/* Events Table */}

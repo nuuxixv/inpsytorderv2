@@ -169,6 +169,8 @@ const OrderManagementPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [filterDrawerOpen, setFilterDrawerOpen] = React.useState(false);
+  const [productSearchTerm, setProductSearchTerm] = React.useState('');
+  const [selectedProductCategory, setSelectedProductCategory] = React.useState('');
   const [searchParams] = useSearchParams();
   // lazy init: 모듈 로드 시점에 한 번 고정되는 것이 아니라, 컴포넌트 마운트 시점에 재평가.
   // 장기 세션(탭을 며칠간 열어둠)에서 startDate/endDate가 옛날 날짜로 굳는 버그 방지.
@@ -438,8 +440,63 @@ const OrderManagementPage = () => {
     return `#${order.id}`;
   };
 
+  const handleDatePreset = (days) => {
+    const now = new Date();
+    dispatch({ type: 'SET_FILTER', payload: { key: 'startDate', value: days === 0 ? new Date(now.getFullYear(), now.getMonth(), now.getDate()) : subDays(now, days) } });
+    dispatch({ type: 'SET_FILTER', payload: { key: 'endDate', value: now } });
+  };
+
+  const activeFilterCount = [
+    state.selectedEvents.length > 0,
+    state.selectedStatuses.length > 0,
+    Boolean(state.searchTerm),
+    Boolean(productSearchTerm),
+    Boolean(selectedProductCategory),
+  ].filter(Boolean).length;
+
+  const DATE_PRESETS = [
+    { label: '오늘', days: 0 },
+    { label: '최근 2일', days: 2 },
+    { label: '최근 7일', days: 7 },
+    { label: '최근 30일', days: 30 },
+  ];
+
+  const productCategories = ['검사', '도서', '도구'];
+
+  const displayedOrders = React.useMemo(() => {
+    let list = state.orders;
+    if (productSearchTerm.trim()) {
+      const term = productSearchTerm.trim().toLowerCase();
+      list = list.filter(o => {
+        const items = o.order_items || o.linkedChildren?.flatMap(c => c.order_items || []) || [];
+        return items.some(item => (item.product_name || '').toLowerCase().includes(term));
+      });
+    }
+    if (selectedProductCategory) {
+      list = list.filter(o => {
+        const items = o.order_items || o.linkedChildren?.flatMap(c => c.order_items || []) || [];
+        return items.some(item => item.category === selectedProductCategory);
+      });
+    }
+    return list;
+  }, [state.orders, productSearchTerm, selectedProductCategory]);
+
   const filterControls = (
-    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+      {/* 날짜 프리셋 */}
+      <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+        {DATE_PRESETS.map(({ label, days }) => (
+          <Chip
+            key={label}
+            label={label}
+            size="small"
+            variant="outlined"
+            onClick={() => handleDatePreset(days)}
+            sx={{ borderRadius: '8px', fontWeight: 500, cursor: 'pointer' }}
+          />
+        ))}
+      </Box>
+      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
       {/* 학회 멀티 선택 */}
       <FormControl size="small" sx={{ minWidth: 200 }}>
         <InputLabel>학회 선택</InputLabel>
@@ -521,10 +578,43 @@ const OrderManagementPage = () => {
       <Button
         variant="outlined"
         startIcon={<RestartAltIcon />}
-        onClick={() => { dispatch({ type: 'CLEAR_FILTERS' }); if (isMobile) setFilterDrawerOpen(false); }}
+        onClick={() => { dispatch({ type: 'CLEAR_FILTERS' }); setProductSearchTerm(''); setSelectedProductCategory(''); if (isMobile) setFilterDrawerOpen(false); }}
       >
         초기화
       </Button>
+    </Box>
+    {/* 상품 검색 + 카테고리 필터 */}
+    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+      <TextField
+        label="상품명 검색"
+        variant="outlined"
+        size="small"
+        sx={{ flex: 1, minWidth: 160 }}
+        value={productSearchTerm}
+        onChange={(e) => setProductSearchTerm(e.target.value)}
+      />
+      <Box sx={{ display: 'flex', gap: 0.75 }}>
+        <Chip
+          label="전체"
+          size="small"
+          variant={selectedProductCategory === '' ? 'filled' : 'outlined'}
+          color={selectedProductCategory === '' ? 'secondary' : 'default'}
+          onClick={() => setSelectedProductCategory('')}
+          sx={{ borderRadius: '8px', fontWeight: selectedProductCategory === '' ? 700 : 400 }}
+        />
+        {productCategories.map(cat => (
+          <Chip
+            key={cat}
+            label={`${cat} 구매`}
+            size="small"
+            variant={selectedProductCategory === cat ? 'filled' : 'outlined'}
+            color={selectedProductCategory === cat ? 'secondary' : 'default'}
+            onClick={() => setSelectedProductCategory(prev => prev === cat ? '' : cat)}
+            sx={{ borderRadius: '8px', fontWeight: selectedProductCategory === cat ? 700 : 400 }}
+          />
+        ))}
+      </Box>
+    </Box>
     </Box>
   );
 
@@ -540,9 +630,9 @@ const OrderManagementPage = () => {
       </Box>
 
       {isMobile ? (
-        <Box sx={{ px: 1, mb: 2, display: 'flex', justifyContent: 'flex-start' }}>
+        <Box sx={{ px: 1, mb: 2, display: 'flex', justifyContent: 'flex-start', gap: 1, alignItems: 'center' }}>
           <Button startIcon={<FilterListIcon />} variant="outlined" onClick={() => setFilterDrawerOpen(true)} sx={{ borderRadius: '8px' }}>
-            필터
+            필터{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
           </Button>
           <SwipeableDrawer 
             anchor="bottom" 
@@ -613,16 +703,16 @@ const OrderManagementPage = () => {
           <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 1 }}>
             {state.loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
-            ) : state.orders.length === 0 ? (
+            ) : displayedOrders.length === 0 ? (
               <Box sx={{ py: 4 }}>
-                <EmptyState 
-                  message={state.searchTerm || state.selectedStatuses.length > 0 || state.selectedEvents.length > 0 ? "조건에 맞는 주문이 없습니다." : "아직 접수된 주문이 없습니다."}
-                  subMessage={state.searchTerm || state.selectedStatuses.length > 0 || state.selectedEvents.length > 0 ? "검색 조건이나 필터를 변경해보세요." : "새로운 주문이 들어오면 여기에 표시됩니다."}
+                <EmptyState
+                  message={activeFilterCount > 0 ? "조건에 맞는 주문이 없습니다." : "아직 접수된 주문이 없습니다."}
+                  subMessage={activeFilterCount > 0 ? "검색 조건이나 필터를 변경해보세요." : "새로운 주문이 들어오면 여기에 표시됩니다."}
                 />
               </Box>
             ) : (
               <Stack spacing={2} sx={{ pb: 2 }}>
-                {state.orders.map((order) => {
+                {displayedOrders.map((order) => {
                   const isSelected = state.selectedOrders.indexOf(order.id) !== -1;
                   return (
                     <Card 
@@ -692,20 +782,20 @@ const OrderManagementPage = () => {
               <TableBody>
                 {state.loading ? (
                   <TableSkeleton rows={ordersPerPage} columns={hasPermission('orders:edit') ? 8 : 7} />
-                ) : state.orders.length === 0 ? (
+                ) : displayedOrders.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={hasPermission('orders:edit') ? 8 : 7}>
                       <Box sx={{ py: 4 }}>
-                        {state.searchTerm || state.selectedStatuses.length > 0 || state.selectedEvents.length > 0 ? (
-                          <EmptyState 
-                            message="조건에 맞는 주문이 없습니다." 
+                        {activeFilterCount > 0 ? (
+                          <EmptyState
+                            message="조건에 맞는 주문이 없습니다."
                             subMessage="검색 조건이나 필터를 변경해보세요."
                             icon={<SearchOffIcon sx={{ fontSize: 64 }} />}
-                            action={{ label: "필터 초기화", onClick: () => dispatch({ type: 'CLEAR_FILTERS' }) }}
+                            action={{ label: "필터 초기화", onClick: () => { dispatch({ type: 'CLEAR_FILTERS' }); setProductSearchTerm(''); setSelectedProductCategory(''); } }}
                           />
                         ) : (
-                          <EmptyState 
-                            message="아직 접수된 주문이 없습니다." 
+                          <EmptyState
+                            message="아직 접수된 주문이 없습니다."
                             subMessage="새로운 주문이 들어오면 여기에 표시됩니다."
                           />
                         )}
@@ -713,7 +803,7 @@ const OrderManagementPage = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  state.orders.map((order) => {
+                  displayedOrders.map((order) => {
                     const isSelected = state.selectedOrders.indexOf(order.id) !== -1;
                     return (
                       <TableRow 

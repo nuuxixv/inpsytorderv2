@@ -18,6 +18,7 @@ import {
 import {
   ContentCopy as CopyIcon,
   Download as DownloadIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import QRCode from 'qrcode';
 import { supabase } from '../supabaseClient';
@@ -109,9 +110,10 @@ const SettingsPage = () => {
 
   return (
     <Box sx={{ maxWidth: 600, mx: 'auto', p: 2 }}>
-      <Typography variant="h4" sx={{ fontWeight: 800, mb: 3 }}>
-        설정
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+        <SettingsIcon sx={{ color: 'primary.main', fontSize: '1.4rem' }} />
+        <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>설정</Typography>
+      </Box>
 
       <Paper sx={{ p: 4, borderRadius: '16px' }}>
         <Stack spacing={4}>

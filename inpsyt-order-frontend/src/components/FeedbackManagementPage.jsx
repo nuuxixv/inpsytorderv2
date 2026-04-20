@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box, Typography, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Card, Chip, Dialog, DialogTitle, DialogContent,
@@ -46,6 +46,7 @@ const FeedbackManagementPage = () => {
   const [feedbackList, setFeedbackList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState(null);
+  const [typeFilter, setTypeFilter] = useState(null);
 
   // Detail dialog state
   const [selectedFeedback, setSelectedFeedback] = useState(null);
@@ -98,6 +99,11 @@ const FeedbackManagementPage = () => {
     setSelectedFeedback(null);
   };
 
+  const displayedFeedback = useMemo(() => {
+    if (!typeFilter) return feedbackList;
+    return feedbackList.filter(fb => fb.type === typeFilter);
+  }, [feedbackList, typeFilter]);
+
   const truncate = (text, maxLen = 50) => {
     if (!text) return '';
     return text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
@@ -107,9 +113,30 @@ const FeedbackManagementPage = () => {
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
         <RateReviewIcon sx={{ color: 'primary.main', fontSize: '1.6rem' }} />
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700 }}>
           피드백 관리
         </Typography>
+      </Box>
+
+      {/* Type filter chips */}
+      <Box sx={{ display: 'flex', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
+        <Chip
+          label="전체 유형"
+          variant={typeFilter === null ? 'filled' : 'outlined'}
+          color={typeFilter === null ? 'secondary' : 'default'}
+          onClick={() => setTypeFilter(null)}
+          sx={{ fontWeight: typeFilter === null ? 700 : 400, borderRadius: '10px' }}
+        />
+        {Object.entries(TYPE_LABELS).map(([key, label]) => (
+          <Chip
+            key={key}
+            label={label}
+            variant={typeFilter === key ? 'filled' : 'outlined'}
+            color={typeFilter === key ? 'secondary' : 'default'}
+            onClick={() => setTypeFilter(key)}
+            sx={{ fontWeight: typeFilter === key ? 700 : 400, borderRadius: '10px' }}
+          />
+        ))}
       </Box>
 
       {/* Status filter chips */}
@@ -137,7 +164,7 @@ const FeedbackManagementPage = () => {
       <Card sx={{ borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
         {loading ? (
           <TableSkeleton columns={6} rows={5} />
-        ) : feedbackList.length === 0 ? (
+        ) : displayedFeedback.length === 0 ? (
           <EmptyState message="피드백이 없습니다." />
         ) : (
           <TableContainer>
@@ -153,7 +180,7 @@ const FeedbackManagementPage = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {feedbackList.map((fb) => (
+                {displayedFeedback.map((fb) => (
                   <TableRow
                     key={fb.id}
                     hover

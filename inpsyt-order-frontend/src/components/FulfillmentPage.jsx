@@ -505,6 +505,8 @@ const FulfillmentPage = () => {
     const orderType = classifyOrder(order.mergedItems || order.order_items);
     return isOrderVisible(orderType, viewMode);
   });
+  const pendingCount = filteredOrders.filter(o => o.status === 'paid').length;
+  const completedCount = filteredOrders.filter(o => o.status === 'completed').length;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -532,6 +534,13 @@ const FulfillmentPage = () => {
             ))}
           </Select>
         </FormControl>
+
+        {!loading && (
+          <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center' }}>
+            <Chip label={`${pendingCount}건 대기`} size="small" color={pendingCount > 0 ? 'warning' : 'default'} variant={pendingCount > 0 ? 'filled' : 'outlined'} sx={{ fontWeight: 700 }} />
+            <Chip label={`${completedCount}건 완료`} size="small" color="success" variant="outlined" sx={{ fontWeight: 600 }} />
+          </Box>
+        )}
 
         <Box sx={{ ml: 'auto' }}>
           <ToggleButtonGroup
@@ -569,9 +578,6 @@ const FulfillmentPage = () => {
             </Box>
           ) : (
             <>
-              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
-                {filteredOrders.filter(o => o.status === 'paid').length}건 대기 · {filteredOrders.filter(o => o.status === 'completed').length}건 출고완료
-              </Typography>
               {filteredOrders.map(order => (
                 <OrderCard
                   key={order.id}
@@ -584,10 +590,14 @@ const FulfillmentPage = () => {
           )}
         </Box>
 
-        {/* 우측: 주문 상세 */}
+        {/* 우측: 주문 상세 — 독립 스크롤 */}
         <Box sx={{
           flexGrow: 1,
           minWidth: 0,
+          position: 'sticky',
+          top: 0,
+          alignSelf: 'flex-start',
+          maxHeight: 'calc(100vh - 160px)',
           overflow: 'auto',
           display: { xs: selectedOrder ? 'block' : 'none', md: 'block' },
         }}>

@@ -37,6 +37,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
+  ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 import { supabase } from '../supabaseClient';
 import { formatISO, startOfToday, format } from 'date-fns';
@@ -353,6 +354,7 @@ const DashboardPage = () => {
   const [selectedYear, setSelectedYear] = useState('all');
   const [selectedSociety, setSelectedSociety] = useState('all');
   const [selectedEventIds, setSelectedEventIds] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(null);
 
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -426,7 +428,29 @@ const DashboardPage = () => {
   }, [events, selectedYear, selectedSociety]);
 
   // Handle cascading dropdown resets
-  useEffect(() => { setSelectedEventIds([]); }, [selectedYear, selectedSociety]);
+  useEffect(() => { setSelectedEventIds([]); setSelectedDate(null); }, [selectedYear, selectedSociety]);
+  useEffect(() => { setSelectedDate(null); }, [selectedEventIds]);
+
+  // Available dates for day-by-day filtering
+  const availableDates = useMemo(() => {
+    const relevantEvents = selectedEventIds.length > 0
+      ? events.filter(e => selectedEventIds.includes(e.id))
+      : filteredEventsForDropdown;
+    if (relevantEvents.length === 0) return [];
+    const starts = relevantEvents.map(e => e.start_date).filter(Boolean);
+    const ends = relevantEvents.map(e => e.end_date).filter(Boolean);
+    if (!starts.length || !ends.length) return [];
+    const minStart = [...starts].sort()[0];
+    const maxEnd = [...ends].sort().reverse()[0];
+    const dates = [];
+    let cur = new Date(minStart + 'T12:00:00Z');
+    const last = new Date(maxEnd + 'T12:00:00Z');
+    while (cur <= last) {
+      dates.push(cur.toISOString().slice(0, 10));
+      cur = new Date(cur.getTime() + 86400000);
+    }
+    return dates;
+  }, [selectedEventIds, events, filteredEventsForDropdown]);
 
   // ─── Aggregate Data Fetching ───
   const fetchDataForEventIds = async (eventIds, targetEventName = '전체(합계)') => {
@@ -438,11 +462,13 @@ const DashboardPage = () => {
       return;
     }
 
-    // Split eventIds into chunks if there are too many, but usually it's fine for REST
-    const [ordersRes, recentRes] = await Promise.all([
-      supabase.from('orders').select('id, final_payment, delivery_fee, status, created_at, order_items(product_id, quantity, price_at_purchase, product_name, product_code, category, list_price)').in('event_id', eventIds),
-      supabase.from('orders').select('*, events(name), order_items(*, products(*))').in('event_id', eventIds).order('created_at', { ascending: false }).limit(5),
-    ]);
+    const dateFrom = selectedDate ? new Date(selectedDate + 'T00:00:00+09:00').toISOString() : null;
+    const dateTo = selectedDate ? new Date(selectedDate + 'T23:59:59.999+09:00').toISOString() : null;
+
+    let ordersQ = supabase.from('orders').select('id, final_payment, delivery_fee, status, created_at, order_items(product_id, quantity, price_at_purchase, product_name, product_code, category, list_price)').in('event_id', eventIds);
+    let recentQ = supabase.from('orders').select('*, events(name), order_items(*, products(*))').in('event_id', eventIds).order('created_at', { ascending: false }).limit(5);
+    if (dateFrom) { ordersQ = ordersQ.gte('created_at', dateFrom).lte('created_at', dateTo); recentQ = recentQ.gte('created_at', dateFrom).lte('created_at', dateTo); }
+    const [ordersRes, recentRes] = await Promise.all([ordersQ, recentQ]);
 
     if (ordersRes.error) throw ordersRes.error;
     
@@ -541,7 +567,7 @@ const DashboardPage = () => {
     setLoading(false); setRefreshing(false);
   };
 
-  useEffect(() => { fetchData(); }, [selectedEventIds, selectedYear, selectedSociety, productsMap]);
+  useEffect(() => { fetchData(); }, [selectedEventIds, selectedYear, selectedSociety, productsMap, selectedDate]);
 
   // ─── Handlers ───
   const handleRefresh = () => { setRefreshing(true); fetchData(); };
@@ -571,7 +597,7 @@ const DashboardPage = () => {
 
       <Card sx={{ mb: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.03)', borderRadius: 3 }}>
         <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+          <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'center' } }}>
             <FormControl fullWidth size="small">
               <InputLabel>연도 보기</InputLabel>
               <Select value={selectedYear} label="연도 보기" onChange={e => setSelectedYear(e.target.value)}>
@@ -579,6 +605,7 @@ const DashboardPage = () => {
                 {years.map(y => <MenuItem key={y} value={y}>{y}년</MenuItem>)}
               </Select>
             </FormControl>
+            <ChevronRightIcon sx={{ color: 'text.disabled', flexShrink: 0, display: { xs: 'none', sm: 'block' } }} />
             <FormControl fullWidth size="small">
               <InputLabel>학회</InputLabel>
               <Select value={selectedSociety} label="학회" onChange={e => setSelectedSociety(e.target.value)}>
@@ -586,6 +613,7 @@ const DashboardPage = () => {
                 {societies.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
               </Select>
             </FormControl>
+            <ChevronRightIcon sx={{ color: 'text.disabled', flexShrink: 0, display: { xs: 'none', sm: 'block' } }} />
             <FormControl fullWidth size="small">
               <InputLabel>상세 행사</InputLabel>
               <Select
@@ -620,6 +648,29 @@ const DashboardPage = () => {
               </Select>
             </FormControl>
           </Box>
+          {availableDates.length > 1 && (
+            <Box sx={{ display: 'flex', gap: 0.75, mt: 1.5, flexWrap: 'wrap' }}>
+              <Chip
+                label="전체 기간"
+                size="small"
+                variant={selectedDate === null ? 'filled' : 'outlined'}
+                color={selectedDate === null ? 'primary' : 'default'}
+                onClick={() => setSelectedDate(null)}
+                sx={{ borderRadius: '8px', fontWeight: selectedDate === null ? 700 : 400 }}
+              />
+              {availableDates.map((date, idx) => (
+                <Chip
+                  key={date}
+                  label={`${idx + 1}일차 (${date.slice(5)})`}
+                  size="small"
+                  variant={selectedDate === date ? 'filled' : 'outlined'}
+                  color={selectedDate === date ? 'primary' : 'default'}
+                  onClick={() => setSelectedDate(prev => prev === date ? null : date)}
+                  sx={{ borderRadius: '8px', fontWeight: selectedDate === date ? 700 : 400 }}
+                />
+              ))}
+            </Box>
+          )}
         </CardContent>
       </Card>
 

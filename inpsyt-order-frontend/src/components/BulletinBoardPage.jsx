@@ -224,10 +224,28 @@ const BulletinBoardPage = () => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5, flexWrap: 'wrap' }}>
         <AnnouncementIcon sx={{ color: 'primary.main', fontSize: '1.4rem' }} />
         <Typography variant="h6" sx={{ fontWeight: 700 }}>게시판</Typography>
       </Box>
+
+      {/* Category filter tabs — page level */}
+      <Tabs
+        value={categoryFilter}
+        onChange={(_, val) => setCategoryFilter(val)}
+        variant="scrollable"
+        scrollButtons="auto"
+        sx={{
+          minHeight: 36,
+          mb: 2,
+          '& .MuiTab-root': { minHeight: 36, py: 0.5, fontSize: '0.85rem', fontWeight: 600 },
+        }}
+      >
+        <Tab label="전체" value="all" />
+        <Tab label="매뉴얼" value="manual" />
+        <Tab label="패치노트" value="patch_note" />
+        <Tab label="공지사항" value="notice" />
+      </Tabs>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
@@ -242,24 +260,6 @@ const BulletinBoardPage = () => {
           overflow: 'hidden',
           ...(selectedBulletin ? { display: { xs: 'none', md: 'flex' } } : {}),
         }}>
-          {/* Category filter tabs */}
-          <Tabs
-            value={categoryFilter}
-            onChange={(_, val) => setCategoryFilter(val)}
-            variant="scrollable"
-            scrollButtons="auto"
-            sx={{
-              minHeight: 36,
-              mb: 1.5,
-              '& .MuiTab-root': { minHeight: 36, py: 0.5, fontSize: '0.85rem', fontWeight: 600 },
-            }}
-          >
-            <Tab label="전체" value="all" />
-            <Tab label="매뉴얼" value="manual" />
-            <Tab label="패치노트" value="patch_note" />
-            <Tab label="공지사항" value="notice" />
-          </Tabs>
-
           {/* Bulletin list */}
           <Paper variant="outlined" sx={{ flexGrow: 1, overflow: 'auto', borderRadius: '12px' }}>
             {loading ? (
