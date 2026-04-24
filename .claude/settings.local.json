@@ -109,7 +109,15 @@
       "Bash(MSYS=winsymlinks:nativestrict ln -snf ~/.claude/skills/gstack/autoplan/SKILL.md ~/.claude/skills/autoplan/SKILL.md)",
       "Bash(rmdir ~/.claude/skills/autoplan)",
       "Bash(rm -f ~/.claude/skills/autoplan/SKILL.md)",
-      "Bash(rm -rf ~/.claude/skills/autoplan touch ~/.claude/skills/gstack/browse/dist/browse ~/.claude/skills/gstack/browse/dist/find-browse ~/.claude/skills/gstack/design/dist/design ~/.claude/skills/gstack/bin/gstack-global-discover export MSYS=winsymlinks:nativestrict cd ~/.claude/skills/gstack)"
+      "Bash(rm -rf ~/.claude/skills/autoplan touch ~/.claude/skills/gstack/browse/dist/browse ~/.claude/skills/gstack/browse/dist/find-browse ~/.claude/skills/gstack/design/dist/design ~/.claude/skills/gstack/bin/gstack-global-discover export MSYS=winsymlinks:nativestrict cd ~/.claude/skills/gstack)",
+      "Bash(grep -E \"\\\\.jsx$\")",
+      "Skill(design-shotgun)",
+      "Skill(design-shotgun:*)",
+      "Read(//c/Users/김건우/.gstack/projects/nuuxixv-inpsytorderv2/designs/order-management-20260420//**)",
+      "Bash(mkdir -p \"/c/Users/김건우/.gstack/projects/nuuxixv-inpsytorderv2/designs/order-management-20260420/\")",
+      "Bash(/c/Users/김건우/.claude/skills/gstack/design/dist/design generate *)",
+      "Bash(\"/c/Users/김건우/.claude/skills/gstack/design/dist/design\" setup *)",
+      "Bash(awk 'END{print NR}' \"C:/Users/김건우/Desktop/VS/inpsytorderv3/.claude/worktrees/heuristic-agnesi-c39a75/inpsyt-order-frontend/src/components/OrderManagementPreviewC2.jsx\")"
     ]
   }
 }
