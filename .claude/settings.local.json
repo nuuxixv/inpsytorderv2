@@ -115,7 +115,12 @@
       "Bash(findstr \"CORS\")",
       "Bash(cd \"/c/Users/김건우/Desktop/VS/inpsytorderv3\" && grep -n \"DOCS\" .gitignore)",
       "Bash(cd \"/c/Users/김건우/Desktop/VS/inpsytorderv3\" && mv DOCS/design design-system && echo \"---design-system 폴더 내용---\" && ls design-system/ && echo \"---DOCS 원상태---\" && ls DOCS/ 2>/dev/null | head -5)",
-      "Bash(grep -rln \"DOCS/design\\\\|DOCS\\\\\\\\\\\\\\\\design\" CLAUDE.md MILESTONES.md .claude/agents/ design-system/)"
+      "Bash(grep -rln \"DOCS/design\\\\|DOCS\\\\\\\\\\\\\\\\design\" CLAUDE.md MILESTONES.md .claude/agents/ design-system/)",
+      "Bash(echo \"test bash\"; ls /tmp/ 2>&1 | head -3)",
+      "Bash(rm -f /tmp/04_content.md)",
+      "Bash(cat)",
+      "Read(//tmp/**)",
+      "Bash(cat >> *)"
     ]
   }
 }
