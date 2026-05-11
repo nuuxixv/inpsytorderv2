@@ -1,6 +1,55 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
 
+/* ============================================================
+ * Design Tokens — M1 (Appendix_Spec.md §1·§3·§4·§7·§11)
+ * 단일 진실 소스: design-system/Appendix_Spec.md
+ * 다크/고대비/forced-colors 보정은 별도 다크 테마가 아닌
+ * 동일 변수의 값 재할당. (09_ACCESSIBILITY.md 참조)
+ * ============================================================ */
 :root {
+  /* brand */
+  --brand-900: #1a237e;
+  --brand-700: #2B398F;
+  --brand-500: #3d4db0;
+  --brand-300: #A8B0DC;
+  --brand-100: #E8EAF6;
+  --brand-on: #FFFFFF;
+
+  /* surface */
+  --surface-0: #FFFFFF;
+  --surface-1: #F8F9FA;
+  --surface-2: #E9ECEF;
+  --surface-3: #CED4DA;
+  --surface-4: #6C757D;
+
+  /* text */
+  --text-primary: #111111;
+  --text-secondary: #444444;
+  --text-tertiary: #666666;
+  --text-on-brand: #FFFFFF;
+  --text-disabled: #9CA3AF;
+
+  /* border */
+  --border-default: var(--surface-2);
+  --border-strong: var(--surface-3);
+  --border-width-default: 1px;
+
+  /* status (Appendix §2) */
+  --status-paid: #16A34A;
+  --status-paid-soft: #DCFCE7;
+  --status-paid-bold: #15803D;
+  --status-pending: #D97706;
+  --status-pending-soft: #FEF3C7;
+  --status-cancelled: #B91C1C;
+  --status-cancelled-soft: #FEE2E2;
+  --status-completed: #6C757D;
+
+  /* radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-button: 8px;
+
   font-family:
     "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
     system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo",
@@ -9,14 +58,30 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: #333d4b;
-  background-color: #f3f6f9;
+  color: var(--text-primary);
+  background-color: var(--surface-1);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================================
+ * 가시성 세이프가드 §11.1 — color-scheme 강제 라이트
+ * iOS Smart Invert / Android Force Dark / OS 다크 강제로부터
+ * 폼 요소를 보호 (검색 박스 흰 글씨 사고 방지)
+ * ============================================================ */
+html,
+body {
+  color-scheme: light;
+}
+
+input,
+select,
+textarea,
+button {
+  color-scheme: light;
 }
 
 /* Modern Scrollbar */
@@ -30,21 +95,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--surface-3);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+  background: var(--surface-4);
 }
 
 body {
@@ -53,39 +109,91 @@ body {
   min-height: 100vh;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
+/* ============================================================
+ * 가시성 세이프가드 §11.2 — prefers-color-scheme: dark
+ * 별도 다크 테마 아님. 동일 변수의 값만 재할당해 OS 다크 강제 시
+ * 화면이 깨지지 않게 자동 보정. brand-700 → #5E6CC8 (다크 surface 위
+ * 텍스트로 사용 시 대비 약 7.6:1, AA 통과).
+ * ============================================================ */
+@media (prefers-color-scheme: dark) {
   :root {
-    color: #213547;
-    background-color: #ffffff;
+    --surface-0: #0B0F14;
+    --surface-1: #111720;
+    --surface-2: #1C2430;
+    --surface-3: #2B3645;
+    --surface-4: #94A3B8;
+
+    --text-primary: #F1F5F9;
+    --text-secondary: #CBD5E1;
+    --text-tertiary: #94A3B8;
+    --text-disabled: #64748B;
+
+    --brand-900: #3d4db0;
+    --brand-700: #5E6CC8;
+    --brand-500: #7C89D6;
+    --brand-300: #A8B0DC;
+    --brand-100: #1C2430;
+
+    --status-paid-soft: #14532D;
+    --status-pending-soft: #78350F;
+    --status-cancelled-soft: #7F1D1D;
+
+    --border-default: var(--surface-2);
+    --border-strong: var(--surface-3);
   }
-  a:hover {
-    color: #747bff;
+}
+
+/* ============================================================
+ * 가시성 세이프가드 §11.3 — prefers-contrast: more
+ * 옅은 회색 두 단계를 다음 단계로 끌어올림. 본문 대비 7:1+ 목표.
+ * ============================================================ */
+@media (prefers-contrast: more) {
+  :root {
+    --surface-2: var(--surface-3);
+    --text-tertiary: var(--text-secondary);
+    --border-default: var(--surface-3);
+    --border-width-default: 1.5px;
   }
+}
+
+/* ============================================================
+ * 가시성 세이프가드 §11.4 — forced-colors: active (Windows 고대비)
+ * 우리 브랜드 색을 고집하지 않음. 요소의 경계·아이콘이
+ * 사라지지 않게 시스템 키워드로 fallback.
+ * ============================================================ */
+@media (forced-colors: active) {
+  .MuiCard-root,
+  .MuiPaper-root,
+  .MuiOutlinedInput-root,
+  .MuiButton-root,
+  input,
+  select,
+  textarea,
   button {
-    background-color: #f9f9f9;
+    border-color: CanvasText;
+    forced-color-adjust: auto;
+  }
+
+  .MuiSvgIcon-root {
+    color: CanvasText;
+  }
+
+  :focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+}
+
+/* ============================================================
+ * prefers-reduced-motion (Appendix §12)
+ * ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

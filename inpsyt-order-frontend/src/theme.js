@@ -53,7 +53,7 @@ const theme = createTheme({
   typography: {
     fontFamily: '"Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif',
     // Mobile-first typography scale
-    h1: { fontWeight: 800, fontSize: '1.75rem', lineHeight: 1.2, letterSpacing: '-0.02em' },
+    h1: { fontWeight: 800, fontSize: '1.5rem', lineHeight: 1.2, letterSpacing: '-0.02em' },
     h2: { fontWeight: 800, fontSize: '1.5rem', lineHeight: 1.25, letterSpacing: '-0.02em' },
     h3: { fontWeight: 700, fontSize: '1.25rem', lineHeight: 1.3, letterSpacing: '-0.01em' },
     h4: { fontWeight: 700, fontSize: '1.125rem', lineHeight: 1.35, letterSpacing: '-0.01em' },
@@ -61,8 +61,8 @@ const theme = createTheme({
     h6: { fontWeight: 600, fontSize: '0.9375rem', lineHeight: 1.4, letterSpacing: '-0.01em' },
     subtitle1: { fontWeight: 600, fontSize: '1rem', lineHeight: 1.5, letterSpacing: '-0.01em' },
     subtitle2: { fontWeight: 600, fontSize: '0.875rem', lineHeight: 1.5, letterSpacing: '-0.01em' },
-    body1: { fontSize: '0.9375rem', lineHeight: 1.6, letterSpacing: '-0.01em' },
-    body2: { fontSize: '0.8125rem', lineHeight: 1.6, letterSpacing: '-0.01em' },
+    body1: { fontSize: '1rem', lineHeight: 1.6, letterSpacing: '-0.01em' },
+    body2: { fontSize: '0.875rem', lineHeight: 1.6, letterSpacing: '-0.01em' },
     caption: { fontSize: '0.75rem', lineHeight: 1.5, letterSpacing: '-0.005em' },
     overline: { fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' },
     button: { fontWeight: 600, textTransform: 'none', fontSize: '0.9375rem', letterSpacing: '-0.01em' },
