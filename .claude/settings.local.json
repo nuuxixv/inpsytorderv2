@@ -109,7 +109,18 @@
       "Bash(MSYS=winsymlinks:nativestrict ln -snf ~/.claude/skills/gstack/autoplan/SKILL.md ~/.claude/skills/autoplan/SKILL.md)",
       "Bash(rmdir ~/.claude/skills/autoplan)",
       "Bash(rm -f ~/.claude/skills/autoplan/SKILL.md)",
-      "Bash(rm -rf ~/.claude/skills/autoplan touch ~/.claude/skills/gstack/browse/dist/browse ~/.claude/skills/gstack/browse/dist/find-browse ~/.claude/skills/gstack/design/dist/design ~/.claude/skills/gstack/bin/gstack-global-discover export MSYS=winsymlinks:nativestrict cd ~/.claude/skills/gstack)"
+      "Bash(rm -rf ~/.claude/skills/autoplan touch ~/.claude/skills/gstack/browse/dist/browse ~/.claude/skills/gstack/browse/dist/find-browse ~/.claude/skills/gstack/design/dist/design ~/.claude/skills/gstack/bin/gstack-global-discover export MSYS=winsymlinks:nativestrict cd ~/.claude/skills/gstack)",
+      "Bash(powershell -NoProfile -Command '@ *)",
+      "Bash(findstr 8bd4ee3)",
+      "Bash(findstr \"CORS\")",
+      "Bash(cd \"/c/Users/김건우/Desktop/VS/inpsytorderv3\" && grep -n \"DOCS\" .gitignore)",
+      "Bash(cd \"/c/Users/김건우/Desktop/VS/inpsytorderv3\" && mv DOCS/design design-system && echo \"---design-system 폴더 내용---\" && ls design-system/ && echo \"---DOCS 원상태---\" && ls DOCS/ 2>/dev/null | head -5)",
+      "Bash(grep -rln \"DOCS/design\\\\|DOCS\\\\\\\\\\\\\\\\design\" CLAUDE.md MILESTONES.md .claude/agents/ design-system/)",
+      "Bash(echo \"test bash\"; ls /tmp/ 2>&1 | head -3)",
+      "Bash(rm -f /tmp/04_content.md)",
+      "Bash(cat)",
+      "Read(//tmp/**)",
+      "Bash(cat >> *)"
     ]
   }
 }
