@@ -110,7 +110,7 @@ const Sidebar = ({ collapsed, onToggleCollapse, activePath }) => {
         {MENU.map((item) => {
           const active = item.path === activePath;
           return (
-            <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+            <ListItem key={item.text} disablePadding sx={{ mb: 0.5, minHeight: 44 }}>
               <Tooltip title={collapsed ? item.text : ''} placement="right" arrow>
                 <ListItemButton
                   disableRipple

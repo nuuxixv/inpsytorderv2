@@ -95,7 +95,7 @@ const AdminSidebar = ({ open, onClose, collapsed = false, onToggleCollapse }) =>
       {/* Menu items */}
       <List sx={{ px: collapsed ? 1 : 2, flexGrow: 1 }}>
         {filteredMenuItems.map((item) => (
-          <ListItem key={item.text} disablePadding sx={{ my: 0.5 }}>
+          <ListItem key={item.text} disablePadding sx={{ my: 0.5, minHeight: 52 }}>
             <NavLink to={item.path} style={navLinkStyles} onClick={!isDesktop ? onClose : undefined}>
               {({ isActive }) => (
                 <Tooltip title={collapsed ? item.text : ''} placement="right" arrow>
