@@ -58,10 +58,10 @@ const PageHeader = ({ theme }) => (
   <Box sx={{ mb: 5 }}>
     <Typography
       component="h1"
+      variant="h1"
       sx={{
         fontFamily: FONT,
         fontWeight: 700,
-        fontSize: 40,
         letterSpacing: '-0.02em',
         color: theme.gray[900],
         lineHeight: 1.1,
@@ -82,7 +82,7 @@ const HeaderActions = ({ theme, onExcelClick, excelAnchor, onExcelClose }) => (
       sx={{
         fontFamily: FONT,
         fontWeight: 600,
-        fontSize: 14,
+        fontSize: '0.875rem',
         px: 2,
         height: 40,
         borderRadius: '8px',
@@ -109,7 +109,7 @@ const HeaderActions = ({ theme, onExcelClick, excelAnchor, onExcelClose }) => (
           mt: 0.5,
           '& .MuiMenuItem-root': {
             fontFamily: FONT,
-            fontSize: 14,
+            fontSize: '0.875rem',
             color: theme.gray[900],
             '&:hover': { bgcolor: theme.gray[50] },
           },
@@ -126,7 +126,7 @@ const HeaderActions = ({ theme, onExcelClick, excelAnchor, onExcelClose }) => (
       sx={{
         fontFamily: FONT,
         fontWeight: 600,
-        fontSize: 14,
+        fontSize: '0.875rem',
         px: 2.25,
         height: 40,
         borderRadius: '8px',
@@ -160,7 +160,7 @@ const PresetPill = ({ theme, active, children, onClick }) => (
       bgcolor: active ? theme.gray[900] : '#FFFFFF',
       color: active ? '#FFFFFF' : theme.gray[700],
       fontFamily: FONT,
-      fontSize: 14,
+      fontSize: '0.875rem',
       fontWeight: active ? 600 : 500,
       letterSpacing: '-0.005em',
       transition: 'all 0.15s ease',
@@ -197,7 +197,7 @@ const MonoTextField = ({ theme, value, onChange, placeholder, width }) => (
       sx={{
         flex: 1,
         fontFamily: FONT,
-        fontSize: 14,
+        fontSize: '0.875rem',
         color: theme.gray[900],
         '& input::placeholder': { color: theme.gray[500], opacity: 1 },
       }}
@@ -220,7 +220,7 @@ const CategoryPill = ({ theme, active, children, onClick }) => (
       bgcolor: active ? theme.gray[900] : '#FFFFFF',
       color: active ? '#FFFFFF' : theme.gray[700],
       fontFamily: FONT,
-      fontSize: 13,
+      fontSize: '0.875rem',
       fontWeight: active ? 600 : 500,
       letterSpacing: 0,
       transition: 'all 0.15s ease',
@@ -250,7 +250,7 @@ const EventPill = ({ theme, active, children, onClick }) => (
       bgcolor: active ? theme.gray[900] : '#FFFFFF',
       color: active ? '#FFFFFF' : theme.gray[700],
       fontFamily: FONT,
-      fontSize: 14,
+      fontSize: '0.875rem',
       fontWeight: active ? 600 : 500,
       letterSpacing: '-0.005em',
       whiteSpace: 'nowrap',
@@ -292,7 +292,7 @@ const DatePresetSegment = ({ theme, value, onChange }) => (
             display: 'inline-flex',
             alignItems: 'center',
             fontFamily: FONT,
-            fontSize: 14,
+            fontSize: '0.875rem',
             fontWeight: active ? 600 : 500,
             letterSpacing: '-0.005em',
             color: active ? '#FFFFFF' : theme.gray[700],
@@ -335,7 +335,7 @@ const SearchField = ({ theme, value, onChange, placeholder }) => (
       sx={{
         flex: 1,
         fontFamily: FONT,
-        fontSize: 14,
+        fontSize: '0.875rem',
         color: theme.gray[900],
         '& input::placeholder': { color: theme.gray[500], opacity: 1 },
       }}
@@ -360,7 +360,7 @@ const ExpandToggle = ({ theme, expanded, activeCount, onClick }) => (
       bgcolor: expanded ? theme.gray[50] : '#FFFFFF',
       color: theme.gray[900],
       fontFamily: FONT,
-      fontSize: 14,
+      fontSize: '0.875rem',
       fontWeight: 600,
       letterSpacing: '-0.005em',
       whiteSpace: 'nowrap',
@@ -379,7 +379,7 @@ const ExpandToggle = ({ theme, expanded, activeCount, onClick }) => (
           borderRadius: '10px',
           bgcolor: theme.gray[900],
           color: '#FFFFFF',
-          fontSize: 11,
+          fontSize: '0.75rem',
           fontWeight: 700,
           display: 'inline-flex',
           alignItems: 'center',
@@ -415,7 +415,7 @@ const ActiveChip = ({ theme, children, onClear }) => (
       bgcolor: theme.gray[100],
       color: theme.gray[900],
       fontFamily: FONT,
-      fontSize: 13,
+      fontSize: '0.875rem',
       fontWeight: 500,
       letterSpacing: '-0.005em',
       maxWidth: 280,
@@ -456,7 +456,7 @@ const PanelLabel = ({ theme, children }) => (
   <Typography
     sx={{
       fontFamily: FONT,
-      fontSize: 13,
+      fontSize: '0.875rem',
       fontWeight: 600,
       color: theme.gray[600],
       letterSpacing: '0.01em',
@@ -538,7 +538,7 @@ const Filters = ({
           <Typography
             sx={{
               fontFamily: FONT,
-              fontSize: 12.5,
+              fontSize: '0.75rem',
               fontWeight: 600,
               color: theme.gray[500],
               letterSpacing: '0.04em',
@@ -586,7 +586,7 @@ const Filters = ({
               border: 'none',
               color: theme.gray[600],
               fontFamily: FONT,
-              fontSize: 13,
+              fontSize: '0.875rem',
               fontWeight: 500,
               textDecoration: 'underline',
               textUnderlineOffset: '3px',
@@ -623,7 +623,7 @@ const Filters = ({
                 placeholder="시작일"
                 width={148}
               />
-              <Typography sx={{ color: theme.gray[400], fontFamily: FONT, fontSize: 14 }}>~</Typography>
+              <Typography sx={{ color: theme.gray[400], fontFamily: FONT, fontSize: '0.875rem' }}>~</Typography>
               <MonoTextField
                 theme={theme}
                 value={endDate}
@@ -728,7 +728,7 @@ const Toolbar = ({ theme, total, selectedCount, onClearSelection }) => {
         <Typography
           sx={{
             fontFamily: FONT,
-            fontSize: 14.5,
+            fontSize: '0.875rem',
             color: theme.gray[900],
             fontWeight: 600,
             letterSpacing: '-0.005em',
@@ -747,7 +747,7 @@ const Toolbar = ({ theme, total, selectedCount, onClearSelection }) => {
             sx={{
               cursor: 'pointer',
               fontFamily: FONT,
-              fontSize: 13,
+              fontSize: '0.875rem',
               fontWeight: 600,
               color: theme.gray[900],
               px: 1.5,
@@ -766,7 +766,7 @@ const Toolbar = ({ theme, total, selectedCount, onClearSelection }) => {
           sx={{
             cursor: 'pointer',
             fontFamily: FONT,
-            fontSize: 13,
+            fontSize: '0.875rem',
             fontStyle: 'italic',
             color: theme.gray[600],
             '&:hover': { color: theme.gray[900] },
@@ -791,7 +791,7 @@ const Toolbar = ({ theme, total, selectedCount, onClearSelection }) => {
       <Typography
         sx={{
           fontFamily: FONT,
-          fontSize: 15,
+          fontSize: '1rem',
           color: theme.gray[900],
           fontWeight: 500,
           letterSpacing: '-0.005em',
@@ -834,7 +834,7 @@ const StatusDot = ({ theme, status }) => {
       <Typography
         sx={{
           fontFamily: FONT,
-          fontSize: 13,
+          fontSize: '0.875rem',
           fontWeight: 500,
           color: theme.gray[700],
           letterSpacing: '-0.005em',
@@ -883,7 +883,7 @@ const OrderRow = ({ theme, order, event, selected, onSelectToggle, index }) => {
         sx={{
           ...numText,
           fontFamily: FONT,
-          fontSize: 13,
+          fontSize: '0.875rem',
           fontWeight: 500,
           color: theme.gray[500],
           letterSpacing: 0,
@@ -895,7 +895,7 @@ const OrderRow = ({ theme, order, event, selected, onSelectToggle, index }) => {
         <Typography
           sx={{
             fontFamily: FONT,
-            fontSize: 15,
+            fontSize: '1rem',
             fontWeight: 600,
             color: theme.gray[900],
             letterSpacing: '-0.005em',
@@ -909,7 +909,7 @@ const OrderRow = ({ theme, order, event, selected, onSelectToggle, index }) => {
         <Typography
           sx={{
             fontFamily: FONT,
-            fontSize: 12.5,
+            fontSize: '0.75rem',
             color: theme.gray[500],
             mt: 0.25,
             fontStyle: 'italic',
@@ -921,7 +921,7 @@ const OrderRow = ({ theme, order, event, selected, onSelectToggle, index }) => {
       <Typography
         sx={{
           fontFamily: FONT,
-          fontSize: 13.5,
+          fontSize: '0.875rem',
           color: theme.gray[600],
           lineHeight: 1.5,
           overflow: 'hidden',
@@ -936,7 +936,7 @@ const OrderRow = ({ theme, order, event, selected, onSelectToggle, index }) => {
         sx={{
           ...numText,
           fontFamily: FONT,
-          fontSize: 15,
+          fontSize: '1rem',
           fontWeight: 600,
           color: theme.gray[900],
           textAlign: 'right',
@@ -944,13 +944,13 @@ const OrderRow = ({ theme, order, event, selected, onSelectToggle, index }) => {
         }}
       >
         {order.final_payment.toLocaleString()}
-        <Box component="span" sx={{ fontSize: 12, color: theme.gray[500], ml: 0.5, fontWeight: 400 }}>원</Box>
+        <Box component="span" sx={{ fontSize: '0.75rem', color: theme.gray[500], ml: 0.5, fontWeight: 400 }}>원</Box>
       </Typography>
       <Typography
         sx={{
           ...numText,
           fontFamily: FONT,
-          fontSize: 12.5,
+          fontSize: '0.75rem',
           color: theme.gray[500],
           letterSpacing: 0,
         }}
@@ -970,7 +970,7 @@ const OrderRow = ({ theme, order, event, selected, onSelectToggle, index }) => {
 const OrdersList = ({ theme, orders, selectedIds, toggleOne, allSelected, someSelected, toggleAll }) => {
   const sectionLabel = {
     fontFamily: FONT,
-    fontSize: 12,
+    fontSize: '0.75rem',
     fontWeight: 500,
     color: theme.gray[500],
     letterSpacing: '0.06em',
@@ -1037,7 +1037,7 @@ const Pager = ({ theme, page, setPage, total }) => {
       <Typography
         sx={{
           fontFamily: FONT,
-          fontSize: 13,
+          fontSize: '0.875rem',
           color: theme.gray[500],
           fontStyle: 'italic',
           letterSpacing: 0,
@@ -1049,7 +1049,7 @@ const Pager = ({ theme, page, setPage, total }) => {
       </Typography>
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-        <Typography sx={{ fontFamily: FONT, color: theme.gray[500], fontSize: 14, fontStyle: 'italic' }}>—</Typography>
+        <Typography sx={{ fontFamily: FONT, color: theme.gray[500], fontSize: '0.875rem', fontStyle: 'italic' }}>—</Typography>
         {Array.from({ length: pageCount }, (_, i) => i + 1).map((n, idx) => {
           const active = page === n;
           return (
@@ -1070,7 +1070,7 @@ const Pager = ({ theme, page, setPage, total }) => {
                   bgcolor: active ? theme.gray[100] : 'transparent',
                   color: active ? theme.gray[900] : theme.gray[500],
                   fontFamily: FONT,
-                  fontSize: 14,
+                  fontSize: '0.875rem',
                   fontWeight: active ? 600 : 500,
                   fontStyle: 'italic',
                   letterSpacing: 0,
@@ -1082,12 +1082,12 @@ const Pager = ({ theme, page, setPage, total }) => {
                 {n}
               </Box>
               {idx < pageCount - 1 && (
-                <Typography sx={{ fontFamily: FONT, color: theme.gray[400], fontSize: 13 }}>·</Typography>
+                <Typography sx={{ fontFamily: FONT, color: theme.gray[400], fontSize: '0.875rem' }}>·</Typography>
               )}
             </React.Fragment>
           );
         })}
-        <Typography sx={{ fontFamily: FONT, color: theme.gray[500], fontSize: 14, fontStyle: 'italic' }}>—</Typography>
+        <Typography sx={{ fontFamily: FONT, color: theme.gray[500], fontSize: '0.875rem', fontStyle: 'italic' }}>—</Typography>
       </Box>
     </Box>
   );

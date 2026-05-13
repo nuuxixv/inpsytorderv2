@@ -58,7 +58,7 @@ const PageHeader = ({ onExcelClick, excelAnchor, onExcelClose }) => {
       <Box sx={{ minWidth: 0 }}>
         <Typography
           sx={{
-            fontSize: '11px',
+            fontSize: '0.75rem',
             fontWeight: 500,
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
@@ -70,8 +70,8 @@ const PageHeader = ({ onExcelClick, excelAnchor, onExcelClose }) => {
         </Typography>
         <Typography
           component="h1"
+          variant="h1"
           sx={{
-            fontSize: '36px',
             fontWeight: 600,
             letterSpacing: '-0.03em',
             lineHeight: 1.1,
@@ -83,7 +83,7 @@ const PageHeader = ({ onExcelClick, excelAnchor, onExcelClose }) => {
         <Typography
           sx={{
             mt: 1.5,
-            fontSize: '13px',
+            fontSize: '0.875rem',
             fontWeight: 400,
             color: theme.gray[500],
             fontFeatureSettings: '"tnum" 1',
@@ -104,7 +104,7 @@ const PageHeader = ({ onExcelClick, excelAnchor, onExcelClose }) => {
             px: 1,
             bgcolor: 'transparent',
             color: theme.gray[700],
-            fontSize: '13px',
+            fontSize: '0.875rem',
             fontWeight: 500,
             border: 'none',
             borderRadius: '6px',
@@ -128,10 +128,10 @@ const PageHeader = ({ onExcelClick, excelAnchor, onExcelClose }) => {
             },
           }}
         >
-          <MenuItem onClick={onExcelClose} sx={{ fontSize: '13px', color: theme.gray[800] }}>도서 출고 전용</MenuItem>
-          <MenuItem onClick={onExcelClose} sx={{ fontSize: '13px', color: theme.gray[800] }}>검사 출고 전용</MenuItem>
+          <MenuItem onClick={onExcelClose} sx={{ fontSize: '0.875rem', color: theme.gray[800] }}>도서 출고 전용</MenuItem>
+          <MenuItem onClick={onExcelClose} sx={{ fontSize: '0.875rem', color: theme.gray[800] }}>검사 출고 전용</MenuItem>
           <Divider sx={{ my: 0.5 }} />
-          <MenuItem onClick={onExcelClose} sx={{ fontSize: '13px', color: theme.gray[800] }}>전체 통합 (백업용)</MenuItem>
+          <MenuItem onClick={onExcelClose} sx={{ fontSize: '0.875rem', color: theme.gray[800] }}>전체 통합 (백업용)</MenuItem>
         </Menu>
 
         <Button
@@ -142,7 +142,7 @@ const PageHeader = ({ onExcelClick, excelAnchor, onExcelClose }) => {
             px: 2,
             bgcolor: theme.gray[900],
             color: '#ffffff',
-            fontSize: '13px',
+            fontSize: '0.875rem',
             fontWeight: 500,
             letterSpacing: '-0.005em',
             borderRadius: '6px',
@@ -185,7 +185,7 @@ const FilterSummary = ({
             px: 0,
             bgcolor: 'transparent',
             color: theme.gray[700],
-            fontSize: '13px',
+            fontSize: '0.875rem',
             fontWeight: 500,
             '&:hover': { bgcolor: 'transparent', color: theme.gray[900] },
           }}
@@ -196,7 +196,7 @@ const FilterSummary = ({
               component="span"
               sx={{
                 ml: 0.75,
-                fontSize: '12px',
+                fontSize: '0.75rem',
                 color: theme.gray[500],
                 fontFeatureSettings: '"tnum" 1',
               }}
@@ -218,7 +218,7 @@ const FilterSummary = ({
               border: `1px solid ${theme.gray[300]}`,
               borderRadius: '4px',
               bgcolor: 'transparent',
-              fontSize: '12px',
+              fontSize: '0.75rem',
               color: theme.gray[700],
             }}
           >
@@ -258,7 +258,7 @@ const FilterSummary = ({
               ml: 'auto',
               bgcolor: 'transparent',
               color: theme.gray[500],
-              fontSize: '12px',
+              fontSize: '0.75rem',
               fontWeight: 400,
               '&:hover': { bgcolor: 'transparent', color: theme.gray[900] },
             }}
@@ -293,7 +293,7 @@ const FilterSummary = ({
                     : `학회 — ${sel.length}개`
               }
               sx={{
-                fontSize: '13px',
+                fontSize: '0.875rem',
                 bgcolor: 'transparent',
                 '& .MuiOutlinedInput-notchedOutline': { borderColor: theme.gray[200] },
                 '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: theme.gray[300] },
@@ -302,9 +302,9 @@ const FilterSummary = ({
               }}
             >
               {MOCK_EVENTS.map((ev) => (
-                <MenuItem key={ev.id} value={ev.id} sx={{ fontSize: '13px' }}>
+                <MenuItem key={ev.id} value={ev.id} sx={{ fontSize: '0.875rem' }}>
                   <Checkbox checked={selectedEvents.includes(ev.id)} size="small" sx={{ p: 0.5 }} />
-                  <ListItemText primary={ev.name} primaryTypographyProps={{ fontSize: '13px' }} />
+                  <ListItemText primary={ev.name} primaryTypographyProps={{ fontSize: '0.875rem' }} />
                 </MenuItem>
               ))}
             </Select>
@@ -323,7 +323,7 @@ const FilterSummary = ({
                   : `상태 — ${sel.map((s) => STATUS_TO_KOREAN[s]).join(', ')}`
               }
               sx={{
-                fontSize: '13px',
+                fontSize: '0.875rem',
                 bgcolor: 'transparent',
                 '& .MuiOutlinedInput-notchedOutline': { borderColor: theme.gray[200] },
                 '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: theme.gray[300] },
@@ -332,9 +332,9 @@ const FilterSummary = ({
               }}
             >
               {Object.entries(STATUS_TO_KOREAN).map(([key, value]) => (
-                <MenuItem key={key} value={key} sx={{ fontSize: '13px' }}>
+                <MenuItem key={key} value={key} sx={{ fontSize: '0.875rem' }}>
                   <Checkbox checked={selectedStatuses.includes(key)} size="small" sx={{ p: 0.5 }} />
-                  <ListItemText primary={value} primaryTypographyProps={{ fontSize: '13px' }} />
+                  <ListItemText primary={value} primaryTypographyProps={{ fontSize: '0.875rem' }} />
                 </MenuItem>
               ))}
             </Select>
@@ -349,7 +349,7 @@ const FilterSummary = ({
               minWidth: 200,
               '& .MuiOutlinedInput-root': {
                 bgcolor: 'transparent',
-                fontSize: '13px',
+                fontSize: '0.875rem',
                 minHeight: 36,
                 '& fieldset': { borderColor: theme.gray[200] },
                 '&:hover fieldset': { borderColor: theme.gray[300] },
@@ -381,7 +381,7 @@ const BulkToolbar = ({ count, onClear }) => {
     >
       <Typography
         sx={{
-          fontSize: '13px',
+          fontSize: '0.875rem',
           fontWeight: 500,
           color: theme.gray[900],
           fontFeatureSettings: '"tnum" 1',
@@ -389,7 +389,7 @@ const BulkToolbar = ({ count, onClear }) => {
       >
         {count} selected
       </Typography>
-      <Typography sx={{ fontSize: '13px', color: theme.gray[400] }}>—</Typography>
+      <Typography sx={{ fontSize: '0.875rem', color: theme.gray[400] }}>—</Typography>
       {['상태 변경', '삭제'].map((label) => (
         <Button
           key={label}
@@ -400,7 +400,7 @@ const BulkToolbar = ({ count, onClear }) => {
             px: 0,
             bgcolor: 'transparent',
             color: theme.gray[700],
-            fontSize: '13px',
+            fontSize: '0.875rem',
             fontWeight: 500,
             '&:hover': { bgcolor: 'transparent', color: theme.gray[900] },
           }}
@@ -418,7 +418,7 @@ const BulkToolbar = ({ count, onClear }) => {
           ml: 'auto',
           bgcolor: 'transparent',
           color: theme.gray[500],
-          fontSize: '13px',
+          fontSize: '0.875rem',
           fontWeight: 400,
           '&:hover': { bgcolor: 'transparent', color: theme.gray[900] },
         }}
@@ -435,7 +435,7 @@ const GRID_COLUMNS = '36px 110px minmax(140px, 1.1fr) minmax(180px, 1.6fr) 140px
 const ListHeader = ({ allSelected, someSelected, onToggleAll }) => {
   const theme = useTheme();
   const cell = {
-    fontSize: '11px',
+    fontSize: '0.75rem',
     fontWeight: 500,
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
@@ -503,7 +503,7 @@ const OrderRow = ({ order, event, selected, onSelectToggle }) => {
       </Box>
       <Typography
         sx={{
-          fontSize: '13px',
+          fontSize: '0.875rem',
           fontWeight: 400,
           color: theme.gray[500],
           fontFeatureSettings: '"tnum" 1',
@@ -514,7 +514,7 @@ const OrderRow = ({ order, event, selected, onSelectToggle }) => {
       <Box sx={{ minWidth: 0 }}>
         <Typography
           sx={{
-            fontSize: '14px',
+            fontSize: '0.875rem',
             fontWeight: 500,
             color: theme.gray[900],
             letterSpacing: '-0.005em',
@@ -528,7 +528,7 @@ const OrderRow = ({ order, event, selected, onSelectToggle }) => {
         <Typography
           sx={{
             mt: 0.25,
-            fontSize: '12px',
+            fontSize: '0.75rem',
             fontWeight: 400,
             color: theme.gray[500],
             fontFeatureSettings: '"tnum" 1',
@@ -539,7 +539,7 @@ const OrderRow = ({ order, event, selected, onSelectToggle }) => {
       </Box>
       <Typography
         sx={{
-          fontSize: '13px',
+          fontSize: '0.875rem',
           fontWeight: 400,
           color: theme.gray[600],
           overflow: 'hidden',
@@ -551,7 +551,7 @@ const OrderRow = ({ order, event, selected, onSelectToggle }) => {
       </Typography>
       <Typography
         sx={{
-          fontSize: '14px',
+          fontSize: '0.875rem',
           fontWeight: 500,
           color: theme.gray[900],
           textAlign: 'right',
@@ -560,13 +560,13 @@ const OrderRow = ({ order, event, selected, onSelectToggle }) => {
         }}
       >
         {order.final_payment.toLocaleString()}
-        <Box component="span" sx={{ ml: 0.5, fontSize: '12px', fontWeight: 400, color: theme.gray[500] }}>
+        <Box component="span" sx={{ ml: 0.5, fontSize: '0.75rem', fontWeight: 400, color: theme.gray[500] }}>
           KRW
         </Box>
       </Typography>
       <Typography
         sx={{
-          fontSize: '12px',
+          fontSize: '0.75rem',
           fontWeight: 400,
           color: theme.gray[500],
           fontFeatureSettings: '"tnum" 1',
@@ -584,7 +584,7 @@ const OrderRow = ({ order, event, selected, onSelectToggle }) => {
             flexShrink: 0,
           }}
         />
-        <Typography sx={{ fontSize: '13px', fontWeight: 400, color: theme.gray[700] }}>
+        <Typography sx={{ fontSize: '0.875rem', fontWeight: 400, color: theme.gray[700] }}>
           {STATUS_TO_KOREAN[order.status]}
         </Typography>
       </Box>
@@ -649,7 +649,7 @@ const PaginationRow = ({ page, total, onChange }) => {
       {chevronBtn(page === 1, () => onChange(Math.max(1, page - 1)), <ChevronLeftIcon sx={{ fontSize: 16 }} />)}
       <Typography
         sx={{
-          fontSize: '13px',
+          fontSize: '0.875rem',
           color: theme.gray[600],
           fontFeatureSettings: '"tnum" 1',
           minWidth: 40,
@@ -745,7 +745,7 @@ const OrderManagementPreviewC2 = () => {
         <Box sx={{ pb: 2 }}>
           <Typography
             sx={{
-              fontSize: '12px',
+              fontSize: '0.75rem',
               fontWeight: 400,
               color: theme.gray[500],
               fontFeatureSettings: '"tnum" 1',

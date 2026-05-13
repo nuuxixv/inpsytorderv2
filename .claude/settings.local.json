@@ -124,7 +124,10 @@
       "Bash(python -c ' *)",
       "Bash(python)",
       "Bash(python /tmp/update_roadmap.py)",
-      "Bash(powershell -Command \"Select-String -Path 'dist/assets/index-*.css' -Pattern 'color-scheme|prefers-color-scheme|forced-colors|prefers-contrast|--brand-700' | Select-Object -First 20\")"
+      "Bash(powershell -Command \"Select-String -Path 'dist/assets/index-*.css' -Pattern 'color-scheme|prefers-color-scheme|forced-colors|prefers-contrast|--brand-700' | Select-Object -First 20\")",
+      "Bash(git stash *)",
+      "Bash(findstr /i \"Fulfill Product Event User Feedback Bulletin\")",
+      "Bash(npx eslint *)"
     ]
   }
 }
