@@ -31,8 +31,8 @@ import AnnouncementIcon from '@mui/icons-material/Announcement';
 import { useAuth } from '../hooks/useAuth';
 import { getUnreadCount } from '../api/bulletins';
 
-const DRAWER_WIDTH = 260;
-const COLLAPSED_WIDTH = 72;
+const DRAWER_WIDTH = 240;
+const COLLAPSED_WIDTH = 64;
 
 const allMenuItems = [
   { text: '대시보드', icon: <DashboardIcon />, path: '/admin/dashboard', permissionKey: 'dashboard:view' },
@@ -95,16 +95,18 @@ const AdminSidebar = ({ open, onClose, collapsed = false, onToggleCollapse }) =>
       {/* Menu items */}
       <List sx={{ px: collapsed ? 1 : 2, flexGrow: 1 }}>
         {filteredMenuItems.map((item) => (
-          <ListItem key={item.text} disablePadding sx={{ my: 0.5 }}>
+          <ListItem key={item.text} disablePadding sx={{ my: 0.5, minHeight: 52 }}>
             <NavLink to={item.path} style={navLinkStyles} onClick={!isDesktop ? onClose : undefined}>
               {({ isActive }) => (
                 <Tooltip title={collapsed ? item.text : ''} placement="right" arrow>
                   <ListItemButton
                     sx={(t) => ({
+                      // hit-area 52px 강제 (specificity issue 대비 height 명시)
                       minHeight: 52,
+                      height: 52,
                       borderRadius: '12px',
                       mb: 0.5,
-                      py: 2,
+                      py: 0,
                       px: collapsed ? 1.5 : 2,
                       justifyContent: collapsed ? 'center' : 'flex-start',
                       borderLeft: isActive ? `4px solid ${t.palette.primary.main}` : '4px solid transparent',
