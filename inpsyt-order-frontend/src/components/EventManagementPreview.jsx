@@ -55,8 +55,6 @@ const MOCK_EVENTS = [
     discountPercent: 15,
     urlSlug: 'kpsy-2026-fall',
     stateKey: 'upcoming',
-    orderCount: 0,
-    revenue: 0,
     year: 2026,
   },
   {
@@ -67,8 +65,6 @@ const MOCK_EVENTS = [
     discountPercent: 10,
     urlSlug: 'kyc-2026-summer',
     stateKey: 'upcoming',
-    orderCount: 0,
-    revenue: 0,
     year: 2026,
   },
   {
@@ -79,8 +75,6 @@ const MOCK_EVENTS = [
     discountPercent: 20,
     urlSlug: 'kcp-2026-spring',
     stateKey: 'active',
-    orderCount: 87,
-    revenue: 4250000,
     year: 2026,
   },
   {
@@ -91,8 +85,6 @@ const MOCK_EVENTS = [
     discountPercent: 0,
     urlSlug: 'kca-2026-edu',
     stateKey: 'ended',
-    orderCount: 42,
-    revenue: 1620000,
     year: 2026,
   },
   {
@@ -103,8 +95,6 @@ const MOCK_EVENTS = [
     discountPercent: 15,
     urlSlug: 'kpsy-2025-fall',
     stateKey: 'ended',
-    orderCount: 134,
-    revenue: 8920000,
     year: 2025,
   },
   {
@@ -115,8 +105,6 @@ const MOCK_EVENTS = [
     discountPercent: 20,
     urlSlug: 'kcp-2025-spring',
     stateKey: 'ended',
-    orderCount: 96,
-    revenue: 5740000,
     year: 2025,
   },
 ];
@@ -141,9 +129,6 @@ const formatDateRange = (start, end) => {
   const fmt = (iso) => iso.replaceAll('-', '.');
   return start === end ? fmt(start) : `${fmt(start)} ~ ${fmt(end)}`;
 };
-
-const formatCurrency = (value) =>
-  value === 0 ? '₩0' : `₩${value.toLocaleString()}`;
 
 const EventStateChip = ({ stateKey }) => {
   const theme = useTheme();
@@ -207,7 +192,6 @@ const CardIconButton = ({ tooltip, icon, onClick }) => {
 
 const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
   const theme = useTheme();
-  const hasOrders = event.orderCount > 0;
   return (
     <Box
       sx={{
@@ -328,58 +312,8 @@ const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
         </Typography>
       </Box>
 
-      {/* 통계 */}
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 2,
-          py: 1.25,
-          mt: 0.5,
-          borderTop: `1px solid ${theme.gray[100]}`,
-          borderBottom: `1px solid ${theme.gray[100]}`,
-        }}
-      >
-        <Box sx={{ flex: 1 }}>
-          <Typography
-            sx={{ fontSize: '0.6875rem', color: 'text.disabled', fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', mb: 0.25 }}
-          >
-            접수
-          </Typography>
-          <Typography
-            sx={{
-              fontSize: '1rem',
-              fontWeight: 800,
-              color: hasOrders ? 'text.primary' : 'text.disabled',
-              fontFeatureSettings: '"tnum" 1',
-              letterSpacing: '-0.02em',
-            }}
-          >
-            {event.orderCount.toLocaleString()}건
-          </Typography>
-        </Box>
-        <Box sx={{ width: 1, bgcolor: theme.gray[100] }} />
-        <Box sx={{ flex: 1.4 }}>
-          <Typography
-            sx={{ fontSize: '0.6875rem', color: 'text.disabled', fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', mb: 0.25 }}
-          >
-            매출
-          </Typography>
-          <Typography
-            sx={{
-              fontSize: '1rem',
-              fontWeight: 800,
-              color: hasOrders ? 'text.primary' : 'text.disabled',
-              fontFeatureSettings: '"tnum" 1',
-              letterSpacing: '-0.02em',
-            }}
-          >
-            {formatCurrency(event.revenue)}
-          </Typography>
-        </Box>
-      </Box>
-
       {/* 액션 4종 */}
-      <Box sx={{ display: 'flex', gap: 0.75, mt: 0.25 }}>
+      <Box sx={{ display: 'flex', gap: 0.75, mt: 'auto', pt: 0.5 }}>
         <CardIconButton
           tooltip="구매 페이지 열기"
           icon={<OpenInNewIcon sx={{ fontSize: 18 }} />}

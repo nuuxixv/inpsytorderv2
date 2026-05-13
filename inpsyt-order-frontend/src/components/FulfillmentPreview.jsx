@@ -16,6 +16,7 @@ import {
   Phone as PhoneIcon,
   BadgeOutlined as BadgeIcon,
   LocationOn as LocationIcon,
+  ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material';
 import { PageHeader, SectionCard, StatusChip } from './ui';
 import PreviewShell from './preview/PreviewShell';
@@ -41,9 +42,9 @@ const MOCK_GROUPS = [
     id: 'g1',
     customer_name: '김현수',
     phone: '010-2341-1234',
-    phone_masked: '010-****-1234',
     insight_id: 'IPS-29481',
     address: '서울특별시 서초구 반포대로 222, 강남빌딩 7층 701호',
+    request_note: '부재 시 경비실에 맡겨주세요',
     event_id: 'e1',
     orders: [
       { id: 20264107, insight_id: 'IPS-29481', summary: 'MMPI-2 검사지 외 2건', total: 245000, status: 'paid', category: 'test' },
@@ -53,9 +54,9 @@ const MOCK_GROUPS = [
     id: 'g2',
     customer_name: '이정민',
     phone: '010-8842-7610',
-    phone_masked: '010-****-7610',
     insight_id: 'IPS-30188',
     address: '경기도 성남시 분당구 판교역로 235, 미래에셋플레이스 12층',
+    request_note: '평일 오전 10시 이후 배송 부탁드립니다',
     event_id: 'e1',
     orders: [
       { id: 20264106, insight_id: 'IPS-30188', summary: 'K-WAIS-IV 채점판', total: 89000, status: 'paid', category: 'test' },
@@ -66,9 +67,9 @@ const MOCK_GROUPS = [
     id: 'g3',
     customer_name: '박지훈',
     phone: '010-5512-9087',
-    phone_masked: '010-****-9087',
     insight_id: 'IPS-28774',
     address: '부산광역시 해운대구 센텀남대로 35, 센텀그린타워 9층 905호',
+    request_note: '현관 앞 놓아주세요',
     event_id: 'e2',
     orders: [
       { id: 20264105, insight_id: 'IPS-28774', summary: '아동·청소년 임상총서 (전 4권)', total: 178000, status: 'paid', category: 'book' },
@@ -80,9 +81,9 @@ const MOCK_GROUPS = [
     id: 'g4',
     customer_name: '최서연',
     phone: '010-3320-4815',
-    phone_masked: '010-****-4815',
     insight_id: 'IPS-30421',
     address: '대구광역시 수성구 동대구로 348, 메디컬센터 5층',
+    request_note: '',
     event_id: 'e3',
     orders: [
       { id: 20264104, insight_id: 'IPS-30421', summary: '심리치료의 기초 외 1권', total: 64000, status: 'completed', category: 'book' },
@@ -138,17 +139,81 @@ const CopyIconButton = ({ tooltip, icon, onClick }) => {
   );
 };
 
+// 데이터 라인 (라벨 + 값 + 인라인 복사 버튼)
+const DataLine = ({ label, value, onCopy, mono = false, multiline = false, muted = false }) => {
+  const theme = useTheme();
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: multiline ? 'flex-start' : 'center',
+        gap: 1,
+        py: 0.5,
+        minHeight: 28,
+      }}
+    >
+      <Typography
+        sx={{
+          flex: '0 0 64px',
+          fontSize: '0.6875rem',
+          fontWeight: 700,
+          color: 'text.disabled',
+          letterSpacing: '0.03em',
+          textTransform: 'uppercase',
+          pt: multiline ? '2px' : 0,
+        }}
+      >
+        {label}
+      </Typography>
+      <Typography
+        sx={{
+          flex: 1,
+          fontSize: '0.875rem',
+          fontWeight: 500,
+          color: muted ? 'text.secondary' : 'text.primary',
+          letterSpacing: '-0.01em',
+          fontFamily: mono
+            ? 'ui-monospace, SFMono-Regular, Menlo, monospace'
+            : undefined,
+          fontFeatureSettings: mono ? '"tnum" 1' : undefined,
+          wordBreak: 'break-all',
+        }}
+      >
+        {value}
+      </Typography>
+      {onCopy && (
+        <IconButton
+          size="small"
+          onClick={onCopy}
+          sx={{
+            width: 28,
+            height: 28,
+            color: theme.gray[400],
+            cursor: 'copy',
+            '&:hover': {
+              color: theme.palette.primary.main,
+              bgcolor: alpha(theme.palette.primary.main, 0.06),
+            },
+          }}
+        >
+          <ContentCopyIcon sx={{ fontSize: 14 }} />
+        </IconButton>
+      )}
+    </Box>
+  );
+};
+
 const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onComplete }) => {
   const theme = useTheme();
   const totalAmount = group.orders.reduce((sum, o) => sum + o.total, 0);
   const orderCount = group.orders.length;
+  const requestNote = group.request_note?.trim();
 
   return (
     <SectionCard
       padding={0}
       sx={{
         mb: 2,
-        borderLeft: `3px solid ${theme.palette.primary.main}`,
         position: 'relative',
       }}
     >
@@ -182,14 +247,6 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
           >
             {group.customer_name}
           </Typography>
-          <Typography
-            sx={{
-              fontSize: '0.8125rem', color: 'text.secondary',
-              fontFeatureSettings: '"tnum" 1',
-            }}
-          >
-            {group.phone_masked}
-          </Typography>
           <Chip
             label={`묶음 ${orderCount}건`}
             size="small"
@@ -214,18 +271,47 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
         </Box>
       </Box>
 
-      {/* 복사 액션 행 */}
+      {/* 데이터 라인 (주소·연락처·인싸이트 ID·요청사항) */}
+      <Box sx={{ px: 3, py: 1.5, borderBottom: `1px solid ${theme.gray[100]}` }}>
+        <DataLine
+          label="주소"
+          value={group.address}
+          onCopy={() => onCopy('주소', group.address)}
+          multiline
+        />
+        <DataLine
+          label="연락처"
+          value={group.phone}
+          onCopy={() => onCopy('연락처', group.phone)}
+          mono
+        />
+        <DataLine
+          label="ID"
+          value={group.insight_id}
+          onCopy={() => onCopy('인싸이트 ID', group.insight_id)}
+          mono
+        />
+        <DataLine
+          label="요청"
+          value={requestNote || '없음'}
+          onCopy={requestNote ? () => onCopy('요청사항', requestNote) : undefined}
+          muted={!requestNote}
+          multiline
+        />
+      </Box>
+
+      {/* 액션 행 (복사 단축 + 출고 완료) */}
       <Box
         sx={{
-          px: 3, py: 1.5,
-          display: 'flex', alignItems: 'center', gap: 1.5,
+          px: 3, py: 1.25,
+          display: 'flex', alignItems: 'center', gap: 1,
           bgcolor: theme.gray[50],
           borderBottom: `1px solid ${theme.gray[100]}`,
           flexWrap: 'wrap',
         }}
       >
-        <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary', fontWeight: 700, mr: 0.5 }}>
-          복사
+        <Typography sx={{ fontSize: '0.6875rem', color: 'text.disabled', fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', mr: 0.5 }}>
+          단축 복사
         </Typography>
         <CopyIconButton
           tooltip={`이름 복사 — ${group.customer_name}`}
