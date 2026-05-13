@@ -12,6 +12,7 @@ import AdminLayout from './components/AdminLayout';
 import LoginPage from './components/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import DashboardDesignPreview from './components/DashboardDesignPreview';
+import FulfillmentPreview from './components/FulfillmentPreview';
 import OrderManagementPreview from './components/OrderManagementPreview';
 import OrderManagementPreviewC1 from './components/OrderManagementPreviewC1';
 import OrderManagementPreviewC2 from './components/OrderManagementPreviewC2';
@@ -46,6 +47,7 @@ function AppRoutes() {
         <Route path="/login" element={<LoginPage />} />
         {/* DEV-ONLY: design preview without auth */}
         <Route path="/preview/dashboard" element={<DashboardDesignPreview />} />
+        <Route path="/preview/fulfillment" element={<FulfillmentPreview />} />
         <Route path="/preview/orders" element={<OrderManagementPreview />} />
         <Route path="/preview/orders-c1" element={<OrderManagementPreviewC1 />} />
         <Route path="/preview/orders-c2" element={<OrderManagementPreviewC2 />} />
