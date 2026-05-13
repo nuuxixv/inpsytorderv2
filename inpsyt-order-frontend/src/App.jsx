@@ -19,6 +19,7 @@ import OrderManagementPreviewC2 from './components/OrderManagementPreviewC2';
 import OrderManagementPreviewC3 from './components/OrderManagementPreviewC3';
 import OrderManagementPreviewC4 from './components/OrderManagementPreviewC4';
 import ProductManagementPreview from './components/ProductManagementPreview';
+import EventManagementPreview from './components/EventManagementPreview';
 import theme from './theme'; // theme.js 파일 임포트
 import {
   CssBaseline,
@@ -50,6 +51,7 @@ function AppRoutes() {
         <Route path="/preview/dashboard" element={<DashboardDesignPreview />} />
         <Route path="/preview/fulfillment" element={<FulfillmentPreview />} />
         <Route path="/preview/products" element={<ProductManagementPreview />} />
+        <Route path="/preview/events" element={<EventManagementPreview />} />
         <Route path="/preview/orders" element={<OrderManagementPreview />} />
         <Route path="/preview/orders-c1" element={<OrderManagementPreviewC1 />} />
         <Route path="/preview/orders-c2" element={<OrderManagementPreviewC2 />} />
