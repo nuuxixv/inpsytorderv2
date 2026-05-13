@@ -4,7 +4,7 @@ import {
   Chip, IconButton, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions,
   Snackbar, useTheme,
-  InputAdornment,
+  InputAdornment, Divider, Autocomplete,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
@@ -44,14 +44,37 @@ const STATUS_TOGGLES = [
 
 const YEAR_OPTIONS = [2024, 2025, 2026];
 
+// 사양 A5 Step 1 (line 84-87): 행사 구분 6종
+const EVENT_SEASONS = [
+  { value: '춘계학술대회', slug: 'spring' },
+  { value: '추계학술대회', slug: 'fall' },
+  { value: '연수강좌', slug: 'training' },
+  { value: '보수교육', slug: 'edu' },
+  { value: '세미나', slug: 'seminar' },
+  { value: '기타', slug: 'etc' },
+];
+
+// 주최 학회 목록 (societies 테이블 모킹)
+const HOST_SOCIETIES = [
+  '한국심리학회',
+  '한국임상심리학회',
+  '한국상담심리학회',
+  '한국청소년상담학회',
+  '한국상담학회',
+];
+
 // 학회 6개 — 예정 2 / 진행중 1 / 종료 3
 // stateKey: 카드 상태 매핑 (upcoming/active/ended) — StatusChip 'paid|preparing|completed' 로 매핑
+// estimatedDeliveryDate: 사양 A5 line 96 (배송 예정일)
 const MOCK_EVENTS = [
   {
     id: 'ev-2026-fall-kpsy',
-    name: '한국심리학회 2026 추계학술대회',
+    name: '2026 한국심리학회 추계학술대회',
+    hostSociety: '한국심리학회',
+    season: '추계학술대회',
     startDate: '2026-09-13',
     endDate: '2026-09-15',
+    estimatedDeliveryDate: '2026-09-30',
     discountPercent: 15,
     urlSlug: 'kpsy-2026-fall',
     stateKey: 'upcoming',
@@ -59,9 +82,12 @@ const MOCK_EVENTS = [
   },
   {
     id: 'ev-2026-summer-kyc',
-    name: '한국청소년상담학회 2026 워크숍',
+    name: '2026 한국청소년상담학회 세미나',
+    hostSociety: '한국청소년상담학회',
+    season: '세미나',
     startDate: '2026-07-04',
     endDate: '2026-07-05',
+    estimatedDeliveryDate: '',
     discountPercent: 10,
     urlSlug: 'kyc-2026-summer',
     stateKey: 'upcoming',
@@ -69,9 +95,12 @@ const MOCK_EVENTS = [
   },
   {
     id: 'ev-2026-spring-kcp',
-    name: '한국임상심리학회 2026 봄학술대회',
+    name: '2026 한국임상심리학회 춘계학술대회',
+    hostSociety: '한국임상심리학회',
+    season: '춘계학술대회',
     startDate: '2026-05-08',
     endDate: '2026-05-10',
+    estimatedDeliveryDate: '2026-05-25',
     discountPercent: 20,
     urlSlug: 'kcp-2026-spring',
     stateKey: 'active',
@@ -79,9 +108,12 @@ const MOCK_EVENTS = [
   },
   {
     id: 'ev-2026-edu-kca',
-    name: '한국상담학회 2026 보수교육',
+    name: '2026 한국상담학회 보수교육',
+    hostSociety: '한국상담학회',
+    season: '보수교육',
     startDate: '2026-03-21',
     endDate: '2026-03-21',
+    estimatedDeliveryDate: '',
     discountPercent: 0,
     urlSlug: 'kca-2026-edu',
     stateKey: 'ended',
@@ -89,9 +121,12 @@ const MOCK_EVENTS = [
   },
   {
     id: 'ev-2025-fall-kpsy',
-    name: '한국심리학회 2025 추계학술대회',
+    name: '2025 한국심리학회 추계학술대회',
+    hostSociety: '한국심리학회',
+    season: '추계학술대회',
     startDate: '2025-09-25',
     endDate: '2025-09-27',
+    estimatedDeliveryDate: '2025-10-10',
     discountPercent: 15,
     urlSlug: 'kpsy-2025-fall',
     stateKey: 'ended',
@@ -99,9 +134,12 @@ const MOCK_EVENTS = [
   },
   {
     id: 'ev-2025-spring-kcp',
-    name: '한국임상심리학회 2025 봄학술대회',
+    name: '2025 한국임상심리학회 춘계학술대회',
+    hostSociety: '한국임상심리학회',
+    season: '춘계학술대회',
     startDate: '2025-05-09',
     endDate: '2025-05-11',
+    estimatedDeliveryDate: '2025-05-25',
     discountPercent: 20,
     urlSlug: 'kcp-2025-spring',
     stateKey: 'ended',
@@ -213,6 +251,7 @@ const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
       {/* 상단: 상태 + 할인 배지 */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
         <EventStateChip stateKey={event.stateKey} />
+        {/* 사양 A5 핵심 발견 #5: 할인율 UI 0~100% 표시 (DB 0~1 변환은 저장 시) */}
         {event.discountPercent > 0 && (
           <Box
             sx={{
@@ -260,19 +299,65 @@ const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
         {event.name}
       </Typography>
 
-      {/* 기간 */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
-        <CalendarTodayIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-        <Typography
-          sx={{
-            fontSize: '0.8125rem',
-            color: 'text.secondary',
-            fontFeatureSettings: '"tnum" 1',
-            fontWeight: 500,
-          }}
-        >
-          {formatDateRange(event.startDate, event.endDate)}
-        </Typography>
+      {/* 주최 학회 칩 — 사양 A5 line 55 */}
+      {event.hostSociety && (
+        <Box>
+          <Chip
+            label={event.hostSociety}
+            size="small"
+            variant="outlined"
+            sx={{
+              height: 22,
+              fontSize: '0.6875rem',
+              fontWeight: 600,
+              borderColor: theme.gray[200],
+              color: 'text.secondary',
+            }}
+          />
+        </Box>
+      )}
+
+      {/* 기간 + 배송 예정일 — 사양 A5 line 95-96 (별도 줄) */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
+          <CalendarTodayIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+          <Typography
+            sx={{
+              fontSize: '0.8125rem',
+              color: 'text.secondary',
+              fontFeatureSettings: '"tnum" 1',
+              fontWeight: 500,
+            }}
+          >
+            {formatDateRange(event.startDate, event.endDate)}
+          </Typography>
+        </Box>
+        {event.estimatedDeliveryDate && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
+            <Typography
+              sx={{
+                fontSize: '0.6875rem',
+                fontWeight: 700,
+                color: 'text.disabled',
+                letterSpacing: '0.03em',
+                textTransform: 'uppercase',
+                minWidth: 14 + 4,
+              }}
+            >
+              배송
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: '0.75rem',
+                color: 'text.secondary',
+                fontFeatureSettings: '"tnum" 1',
+                fontWeight: 500,
+              }}
+            >
+              {event.estimatedDeliveryDate.replaceAll('-', '.')} 예정
+            </Typography>
+          </Box>
+        )}
       </Box>
 
       {/* URL slug */}
@@ -344,14 +429,40 @@ const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
 
 const NewEventDialog = ({ open, onClose, onSubmit }) => {
   const theme = useTheme();
+  // Step 1 — 행사명 형식 블록 (사양 A5 line 83-87)
+  const [eventYear, setEventYear] = useState('');
+  const [eventSeason, setEventSeason] = useState('');
+  const [hostSociety, setHostSociety] = useState('');
+  // Step 2 — 자동 생성 + 추가 정보 (사양 A5 line 91-96)
   const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [discount, setDiscount] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [discount, setDiscount] = useState('');
-  const [slug, setSlug] = useState('');
+  const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState('');
+
+  // 자동 채우기 (사양 A5 line 103-109)
+  // 세 필드 모두 채워지면 name/slug 제안
+  React.useEffect(() => {
+    if (!eventYear || !eventSeason || !hostSociety) return;
+    const seasonMeta = EVENT_SEASONS.find(s => s.value === eventSeason);
+    const proposedName = `${eventYear} ${hostSociety} ${eventSeason}`;
+    const slugPrefix = hostSociety
+      .replace(/한국/g, '')
+      .replace(/학회/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+      .slice(0, 6) || 'event';
+    const random4 = Math.random().toString(36).slice(2, 6);
+    const proposedSlug = `${slugPrefix}-${eventYear}-${seasonMeta?.slug || 'etc'}-${random4}`;
+    setName(proposedName);
+    setSlug(proposedSlug);
+  }, [eventYear, eventSeason, hostSociety]);
 
   const reset = () => {
-    setName(''); setStartDate(''); setEndDate(''); setDiscount(''); setSlug('');
+    setEventYear(''); setEventSeason(''); setHostSociety('');
+    setName(''); setSlug(''); setDiscount('');
+    setStartDate(''); setEndDate(''); setEstimatedDeliveryDate('');
   };
   const handleClose = () => { reset(); onClose(); };
   const handleSubmit = () => { onSubmit(name || '새 학회'); reset(); };
@@ -363,7 +474,7 @@ const NewEventDialog = ({ open, onClose, onSubmit }) => {
       PaperProps={{
         sx: {
           borderRadius: `${theme.radii.lg}px`,
-          maxWidth: 480,
+          maxWidth: 520,
           width: '100%',
         },
       }}
@@ -385,15 +496,130 @@ const NewEventDialog = ({ open, onClose, onSubmit }) => {
         </Typography>
       </DialogTitle>
       <DialogContent sx={{ pb: 2 }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+        {/* ─── Step 1 — 행사명 형식 블록 ─── */}
+        {/* 사양 A5 핵심 발견 #2: "행사명 형식" 블록은 별도 카드, primary 옅은 배경 */}
+        <Box
+          sx={{
+            mt: 1,
+            p: 2,
+            borderRadius: `${theme.radii.md}px`,
+            bgcolor: alpha(theme.palette.primary.main, 0.04),
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1.5,
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              color: theme.palette.primary.main,
+              letterSpacing: '0.03em',
+              textTransform: 'uppercase',
+            }}
+          >
+            ✦ 행사명 형식
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+            <FormControl size="small" sx={{ flex: '1 1 100px', minWidth: 100 }}>
+              <InputLabel shrink>연도</InputLabel>
+              <Select
+                label="연도"
+                value={eventYear}
+                onChange={(e) => setEventYear(e.target.value)}
+                displayEmpty
+              >
+                <MenuItem value=""><em>선택</em></MenuItem>
+                {YEAR_OPTIONS.map(y => <MenuItem key={y} value={y}>{y}년</MenuItem>)}
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ flex: '1 1 140px', minWidth: 140 }}>
+              <InputLabel shrink>행사 구분</InputLabel>
+              <Select
+                label="행사 구분"
+                value={eventSeason}
+                onChange={(e) => setEventSeason(e.target.value)}
+                displayEmpty
+              >
+                <MenuItem value=""><em>선택</em></MenuItem>
+                {EVENT_SEASONS.map(s => <MenuItem key={s.value} value={s.value}>{s.value}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Box>
+          <Autocomplete
+            freeSolo
+            size="small"
+            options={HOST_SOCIETIES}
+            value={hostSociety}
+            onChange={(_, v) => setHostSociety(v || '')}
+            onInputChange={(_, v) => setHostSociety(v)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="주최 학회"
+                placeholder="예) 한국심리학회"
+                InputLabelProps={{ shrink: true }}
+              />
+            )}
+          />
+        </Box>
+
+        <Divider sx={{ my: 2 }} />
+
+        {/* ─── Step 2 — 자동 생성 및 추가 정보 ─── */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Typography
+            sx={{
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              color: 'text.secondary',
+              letterSpacing: '0.03em',
+              textTransform: 'uppercase',
+            }}
+          >
+            자동 생성 및 추가 정보
+          </Typography>
           <TextField
-            label="학회명"
+            label="행사명"
             size="small"
             fullWidth
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="예) 한국심리학회 2026 추계학술대회"
+            placeholder="예) 2026 한국심리학회 추계학술대회"
             InputLabelProps={{ shrink: true }}
+            helperText="위에서 입력한 정보로 자동 생성됩니다."
+          />
+          <TextField
+            label="주문 URL"
+            size="small"
+            fullWidth
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            placeholder="kpsy-2026-fall"
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Typography sx={{ fontSize: '0.8125rem', color: 'text.disabled' }}>
+                    /order?events=
+                  </Typography>
+                </InputAdornment>
+              ),
+            }}
+            InputLabelProps={{ shrink: true }}
+            helperText="주문 페이지 주소로 사용됩니다. 영문, 숫자, 하이픈만 가능"
+          />
+          <TextField
+            label="할인율 (%)"
+            size="small"
+            type="number"
+            fullWidth
+            value={discount}
+            onChange={(e) => setDiscount(e.target.value)}
+            placeholder="0"
+            InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
+            InputLabelProps={{ shrink: true }}
+            helperText="UI는 0~100 정수, 저장 시 0~1 소수로 변환 · 예: 15 = 15% 할인"
           />
           <Box sx={{ display: 'flex', gap: 1.5 }}>
             <TextField
@@ -416,27 +642,14 @@ const NewEventDialog = ({ open, onClose, onSubmit }) => {
             />
           </Box>
           <TextField
-            label="할인율"
+            label="배송 예정일"
             size="small"
-            type="number"
+            type="date"
             fullWidth
-            value={discount}
-            onChange={(e) => setDiscount(e.target.value)}
-            placeholder="0"
-            InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
+            value={estimatedDeliveryDate}
+            onChange={(e) => setEstimatedDeliveryDate(e.target.value)}
             InputLabelProps={{ shrink: true }}
-            helperText="예: 15 = 15% 할인"
-          />
-          <TextField
-            label="구매 URL slug"
-            size="small"
-            fullWidth
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            placeholder="kpsy-2026-fall"
-            InputProps={{ startAdornment: <InputAdornment position="start"><Typography sx={{ fontSize: '0.8125rem', color: 'text.disabled' }}>/order?events=</Typography></InputAdornment> }}
-            InputLabelProps={{ shrink: true }}
-            helperText="영문 소문자, 숫자, 하이픈만 사용"
+            helperText="입력 시 고객 주문 조회 페이지에 도착 예정일이 표시됩니다."
           />
         </Box>
       </DialogContent>
