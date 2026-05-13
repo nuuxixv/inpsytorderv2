@@ -69,7 +69,7 @@ const STATUS_TONES = {
 // ── Typography helpers ──────────────────────────────────────────
 const sectionLabel = {
   fontFamily: FONT,
-  fontSize: 12,
+  fontSize: '0.75rem',
   fontWeight: 500,
   color: WARM.inkSubtle,
   letterSpacing: '0.06em',
@@ -77,7 +77,7 @@ const sectionLabel = {
 
 const bodyText = {
   fontFamily: FONT,
-  fontSize: 15,
+  fontSize: '1rem',
   fontWeight: 400,
   color: WARM.ink,
   lineHeight: 1.6,
@@ -95,10 +95,10 @@ const PageHeader = ({ total, today }) => (
   <Box sx={{ mb: 5 }}>
     <Typography
       component="h1"
+      variant="h1"
       sx={{
         fontFamily: FONT,
         fontWeight: 700,
-        fontSize: 40,
         letterSpacing: '-0.02em',
         color: WARM.ink,
         lineHeight: 1.1,
@@ -108,7 +108,7 @@ const PageHeader = ({ total, today }) => (
       주문 관리
     </Typography>
     <Box sx={{ height: '2px', width: 40, bgcolor: WARM.accent, mb: 2, borderRadius: 1 }} />
-    <Typography sx={{ ...bodyText, color: WARM.inkMuted, fontSize: 14.5 }}>
+    <Typography sx={{ ...bodyText, color: WARM.inkMuted, fontSize: '0.875rem' }}>
       <Box component="span" sx={{ ...numText }}>총 {total}건</Box>
       <Box component="span" sx={{ mx: 1, color: WARM.inkSubtle }}>—</Box>
       오늘 접수 <Box component="span" sx={{ ...numText }}>{today}</Box>건
@@ -124,7 +124,7 @@ const HeaderActions = ({ onExcelClick, excelAnchor, onExcelClose }) => (
       sx={{
         fontFamily: FONT,
         fontWeight: 600,
-        fontSize: 14,
+        fontSize: '0.875rem',
         px: 2,
         height: 40,
         borderRadius: '8px',
@@ -151,7 +151,7 @@ const HeaderActions = ({ onExcelClick, excelAnchor, onExcelClose }) => (
           mt: 0.5,
           '& .MuiMenuItem-root': {
             fontFamily: FONT,
-            fontSize: 14,
+            fontSize: '0.875rem',
             color: WARM.ink,
             '&:hover': { bgcolor: `${WARM.accent}0A` },
           },
@@ -168,7 +168,7 @@ const HeaderActions = ({ onExcelClick, excelAnchor, onExcelClose }) => (
       sx={{
         fontFamily: FONT,
         fontWeight: 600,
-        fontSize: 14,
+        fontSize: '0.875rem',
         px: 2.25,
         height: 40,
         borderRadius: '8px',
@@ -200,7 +200,7 @@ const PresetPill = ({ active, children, onClick }) => (
       bgcolor: active ? WARM.accentSoft : 'transparent',
       color: active ? WARM.accent : WARM.inkMuted,
       fontFamily: FONT,
-      fontSize: 13,
+      fontSize: '0.875rem',
       fontWeight: active ? 600 : 500,
       letterSpacing: '-0.005em',
       transition: 'all 0.2s ease',
@@ -234,7 +234,7 @@ const WarmTextField = ({ value, onChange, placeholder, width }) => (
       sx={{
         flex: 1,
         fontFamily: FONT,
-        fontSize: 14,
+        fontSize: '0.875rem',
         color: WARM.ink,
         '& input::placeholder': { color: WARM.inkSubtle, opacity: 1 },
       }}
@@ -257,7 +257,7 @@ const CategoryPill = ({ active, children, onClick }) => (
       bgcolor: active ? WARM.accentSoft : 'transparent',
       color: active ? WARM.accent : WARM.inkMuted,
       fontFamily: FONT,
-      fontSize: 12.5,
+      fontSize: '0.75rem',
       fontWeight: active ? 600 : 500,
       letterSpacing: 0,
       transition: 'all 0.2s ease',
@@ -293,7 +293,7 @@ const Filters = ({
         sx={{
           cursor: 'pointer',
           fontFamily: FONT,
-          fontSize: 12.5,
+          fontSize: '0.75rem',
           fontStyle: 'italic',
           color: WARM.inkMuted,
           letterSpacing: 0,
@@ -340,7 +340,7 @@ const Filters = ({
                 bgcolor: active ? WARM.accentSoft : 'transparent',
                 color: active ? WARM.accent : WARM.inkMuted,
                 fontFamily: FONT,
-                fontSize: 13.5,
+                fontSize: '0.875rem',
                 fontWeight: active ? 600 : 500,
                 letterSpacing: '-0.005em',
                 transition: 'all 0.2s ease',
@@ -426,7 +426,7 @@ const Toolbar = ({ total, selectedCount, onClearSelection }) => {
         <Typography
           sx={{
             fontFamily: FONT,
-            fontSize: 14.5,
+            fontSize: '0.875rem',
             color: WARM.accent,
             fontWeight: 600,
             letterSpacing: '-0.005em',
@@ -445,7 +445,7 @@ const Toolbar = ({ total, selectedCount, onClearSelection }) => {
             sx={{
               cursor: 'pointer',
               fontFamily: FONT,
-              fontSize: 13,
+              fontSize: '0.875rem',
               fontWeight: 600,
               color: WARM.accent,
               px: 1.5,
@@ -464,7 +464,7 @@ const Toolbar = ({ total, selectedCount, onClearSelection }) => {
           sx={{
             cursor: 'pointer',
             fontFamily: FONT,
-            fontSize: 13,
+            fontSize: '0.875rem',
             fontStyle: 'italic',
             color: WARM.inkMuted,
             '&:hover': { color: WARM.accent },
@@ -489,7 +489,7 @@ const Toolbar = ({ total, selectedCount, onClearSelection }) => {
       <Typography
         sx={{
           fontFamily: FONT,
-          fontSize: 15,
+          fontSize: '1rem',
           color: WARM.ink,
           fontWeight: 500,
           letterSpacing: '-0.005em',
@@ -518,7 +518,7 @@ const StatusTag = ({ status }) => {
         color: tone.fg,
         border: `1px solid ${tone.fg}33`,
         fontFamily: FONT,
-        fontSize: 12,
+        fontSize: '0.75rem',
         fontWeight: 600,
         letterSpacing: '-0.005em',
       }}
@@ -564,7 +564,7 @@ const OrderRow = ({ order, event, selected, onSelectToggle, index }) => {
         sx={{
           ...numText,
           fontFamily: FONT,
-          fontSize: 13,
+          fontSize: '0.875rem',
           fontWeight: 500,
           color: WARM.inkSubtle,
           letterSpacing: 0,
@@ -576,7 +576,7 @@ const OrderRow = ({ order, event, selected, onSelectToggle, index }) => {
         <Typography
           sx={{
             fontFamily: FONT,
-            fontSize: 15,
+            fontSize: '1rem',
             fontWeight: 600,
             color: WARM.ink,
             letterSpacing: '-0.005em',
@@ -590,7 +590,7 @@ const OrderRow = ({ order, event, selected, onSelectToggle, index }) => {
         <Typography
           sx={{
             fontFamily: FONT,
-            fontSize: 12.5,
+            fontSize: '0.75rem',
             color: WARM.inkSubtle,
             mt: 0.25,
             fontStyle: 'italic',
@@ -602,7 +602,7 @@ const OrderRow = ({ order, event, selected, onSelectToggle, index }) => {
       <Typography
         sx={{
           fontFamily: FONT,
-          fontSize: 13.5,
+          fontSize: '0.875rem',
           color: WARM.inkMuted,
           lineHeight: 1.5,
           overflow: 'hidden',
@@ -617,7 +617,7 @@ const OrderRow = ({ order, event, selected, onSelectToggle, index }) => {
         sx={{
           ...numText,
           fontFamily: FONT,
-          fontSize: 15,
+          fontSize: '1rem',
           fontWeight: 600,
           color: WARM.ink,
           textAlign: 'right',
@@ -625,13 +625,13 @@ const OrderRow = ({ order, event, selected, onSelectToggle, index }) => {
         }}
       >
         {order.final_payment.toLocaleString()}
-        <Box component="span" sx={{ fontSize: 12, color: WARM.inkSubtle, ml: 0.5, fontWeight: 400 }}>원</Box>
+        <Box component="span" sx={{ fontSize: '0.75rem', color: WARM.inkSubtle, ml: 0.5, fontWeight: 400 }}>원</Box>
       </Typography>
       <Typography
         sx={{
           ...numText,
           fontFamily: FONT,
-          fontSize: 12.5,
+          fontSize: '0.75rem',
           color: WARM.inkSubtle,
           letterSpacing: 0,
         }}
@@ -707,7 +707,7 @@ const Pager = ({ page, setPage, total }) => {
       <Typography
         sx={{
           fontFamily: FONT,
-          fontSize: 13,
+          fontSize: '0.875rem',
           color: WARM.inkSubtle,
           fontStyle: 'italic',
           letterSpacing: 0,
@@ -719,7 +719,7 @@ const Pager = ({ page, setPage, total }) => {
       </Typography>
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-        <Typography sx={{ fontFamily: FONT, color: WARM.inkSubtle, fontSize: 14, fontStyle: 'italic' }}>—</Typography>
+        <Typography sx={{ fontFamily: FONT, color: WARM.inkSubtle, fontSize: '0.875rem', fontStyle: 'italic' }}>—</Typography>
         {Array.from({ length: pageCount }, (_, i) => i + 1).map((n, idx) => {
           const active = page === n;
           return (
@@ -740,7 +740,7 @@ const Pager = ({ page, setPage, total }) => {
                   bgcolor: active ? WARM.accentSoft : 'transparent',
                   color: active ? WARM.accent : WARM.inkMuted,
                   fontFamily: FONT,
-                  fontSize: 14,
+                  fontSize: '0.875rem',
                   fontWeight: 500,
                   fontStyle: 'italic',
                   letterSpacing: 0,
@@ -752,12 +752,12 @@ const Pager = ({ page, setPage, total }) => {
                 {n}
               </Box>
               {idx < pageCount - 1 && (
-                <Typography sx={{ fontFamily: FONT, color: WARM.inkSubtle, fontSize: 13 }}>·</Typography>
+                <Typography sx={{ fontFamily: FONT, color: WARM.inkSubtle, fontSize: '0.875rem' }}>·</Typography>
               )}
             </React.Fragment>
           );
         })}
-        <Typography sx={{ fontFamily: FONT, color: WARM.inkSubtle, fontSize: 14, fontStyle: 'italic' }}>—</Typography>
+        <Typography sx={{ fontFamily: FONT, color: WARM.inkSubtle, fontSize: '0.875rem', fontStyle: 'italic' }}>—</Typography>
       </Box>
     </Box>
   );
@@ -853,7 +853,7 @@ const OrderManagementPreviewC3 = () => {
             <Typography
               sx={{
                 fontFamily: FONT,
-                fontSize: 12,
+                fontSize: '0.75rem',
                 color: WARM.inkSubtle,
                 fontStyle: 'italic',
                 letterSpacing: '0.03em',

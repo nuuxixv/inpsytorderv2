@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import {
-  Box, Typography, IconButton, Avatar, Badge, Tooltip, Chip, useTheme, useMediaQuery,
+  Box, Typography, IconButton, Avatar, Tooltip, Chip, useTheme,
   List, ListItem, ListItemButton, ListItemIcon, ListItemText,
 } from '@mui/material';
-import { alpha } from '@mui/material/styles';
 import {
   Dashboard as DashboardIcon,
   ShoppingCart as CartIcon,
@@ -81,7 +80,7 @@ const Sidebar = ({ collapsed, onToggleCollapse, activePath }) => {
             alignItems: 'center',
             justifyContent: 'center',
             fontWeight: 700,
-            fontSize: '0.8125rem',
+            fontSize: '0.875rem',
             letterSpacing: '-0.02em',
             flexShrink: 0,
           }}
@@ -90,10 +89,10 @@ const Sidebar = ({ collapsed, onToggleCollapse, activePath }) => {
         </Box>
         {!collapsed && (
           <Typography
+            variant="body1"
             sx={{
               fontWeight: 600,
               color: theme.gray[900],
-              fontSize: '0.9375rem',
               letterSpacing: '-0.015em',
               whiteSpace: 'nowrap',
             }}
@@ -145,8 +144,8 @@ const Sidebar = ({ collapsed, onToggleCollapse, activePath }) => {
                       <ListItemText
                         primary={item.text}
                         primaryTypographyProps={{
+                          variant: 'body1',
                           fontWeight: active ? 600 : 500,
-                          fontSize: '0.9375rem',
                           whiteSpace: 'nowrap',
                           letterSpacing: '-0.01em',
                         }}
@@ -235,7 +234,7 @@ const Header = ({ onMenuToggle }) => {
             sx={{
               fontWeight: 700,
               letterSpacing: '0.06em',
-              fontSize: '0.6875rem',
+              fontSize: '0.75rem',
               height: 24,
               bgcolor: theme.gray[100],
               color: theme.gray[700],
@@ -273,7 +272,7 @@ const Header = ({ onMenuToggle }) => {
               width: 30, height: 30,
               bgcolor: theme.gray[900],
               color: '#fff',
-              fontSize: '0.8125rem',
+              fontSize: '0.875rem',
               fontWeight: 600,
               letterSpacing: '-0.02em',
             }}
