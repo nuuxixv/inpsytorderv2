@@ -26,6 +26,7 @@
 
 ## 현재 보유한 시트
 
+- `C1_OrderPage.md` — 고객 주문서 (3-step)
 - `A3_FulfillmentPage.md` — 출고 현황
 - `A5_EventManagementPage.md` — 학회 관리
 - `A6_ProductManagementPage.md` — 상품 관리

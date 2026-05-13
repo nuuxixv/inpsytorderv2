@@ -180,9 +180,9 @@ const DataLine = ({ label, value, onCopy, mono = false, multiline = false, muted
       }}
     >
       <Typography
+        variant="caption"
         sx={{
           flex: '0 0 64px',
-          fontSize: '0.6875rem',
           fontWeight: 700,
           color: 'text.disabled',
           letterSpacing: '0.03em',
@@ -193,9 +193,9 @@ const DataLine = ({ label, value, onCopy, mono = false, multiline = false, muted
         {label}
       </Typography>
       <Typography
+        variant="body2"
         sx={{
           flex: 1,
-          fontSize: '0.875rem',
           fontWeight: 500,
           color: muted ? 'text.secondary' : 'text.primary',
           letterSpacing: '-0.01em',
@@ -272,8 +272,9 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
         <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, gap: 0.25 }}>
           <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, flexWrap: 'wrap' }}>
             <Typography
+              variant="body1"
               sx={{
-                fontSize: '1rem', fontWeight: 700,
+                fontWeight: 700,
                 color: 'text.primary', letterSpacing: '-0.015em',
               }}
             >
@@ -284,7 +285,7 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
               size="small"
               sx={{
                 height: 22,
-                fontSize: '0.6875rem',
+                fontSize: '0.75rem',
                 fontWeight: 700,
                 bgcolor: alpha(theme.palette.primary.main, 0.08),
                 color: theme.palette.primary.main,
@@ -298,7 +299,7 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
                 size="small"
                 sx={{
                   height: 22,
-                  fontSize: '0.6875rem',
+                  fontSize: '0.75rem',
                   fontWeight: 700,
                   bgcolor: alpha(theme.status.completed, 0.1),
                   color: theme.status.completed,
@@ -308,8 +309,9 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
               />
             )}
             <Typography
+              variant="caption"
               sx={{
-                fontSize: '0.75rem', color: 'text.disabled',
+                color: 'text.disabled',
                 fontFeatureSettings: '"tnum" 1',
                 ml: 'auto',
               }}
@@ -320,8 +322,8 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
           {/* 사양 A3 line 32: 학회명 + 상품 개수 보조 라인 */}
           {eventName && (
             <Typography
+              variant="caption"
               sx={{
-                fontSize: '0.75rem',
                 color: 'text.secondary',
                 letterSpacing: '-0.005em',
               }}
@@ -360,12 +362,12 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
             <Box component="span" sx={{ display: 'inline-flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
               <Box
                 component="span"
-                sx={{
+                sx={(t) => ({
+                  ...t.typography.caption,
                   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                  fontSize: '0.75rem',
-                  color: 'text.disabled',
+                  color: t.palette.text.disabled,
                   fontFeatureSettings: '"tnum" 1',
-                }}
+                })}
               >
                 [{group.address.postcode}]
               </Box>
@@ -407,7 +409,7 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
           flexWrap: 'wrap',
         }}
       >
-        <Typography sx={{ fontSize: '0.6875rem', color: 'text.disabled', fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', mr: 0.5 }}>
+        <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', mr: 0.5 }}>
           단축 복사
         </Typography>
         <CopyIconButton
@@ -463,8 +465,9 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
               }}
             >
               <Typography
+                variant="body2"
                 sx={{
-                  fontSize: '0.8125rem', color: 'text.disabled',
+                  color: 'text.disabled',
                   fontWeight: 700, letterSpacing: '-0.01em',
                   fontFeatureSettings: '"tnum" 1',
                 }}
@@ -472,8 +475,9 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
                 #{order.id}
               </Typography>
               <Typography
+                variant="body2"
                 sx={{
-                  fontSize: '0.8125rem', color: 'text.secondary',
+                  color: 'text.secondary',
                   fontFeatureSettings: '"tnum" 1',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}
@@ -487,7 +491,7 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
                     size="small"
                     sx={{
                       height: 20,
-                      fontSize: '0.6875rem',
+                      fontSize: '0.75rem',
                       fontWeight: 700,
                       bgcolor: alpha(cat.color, 0.08),
                       color: cat.color,
@@ -497,8 +501,9 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
                 )}
               </Box>
               <Typography
+                variant="body2"
                 sx={{
-                  fontSize: '0.875rem', color: 'text.primary',
+                  color: 'text.primary',
                   fontWeight: 500,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}
@@ -506,8 +511,9 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
                 {order.summary}
               </Typography>
               <Typography
+                variant="body1"
                 sx={{
-                  fontSize: '0.9375rem', fontWeight: 800,
+                  fontWeight: 800,
                   textAlign: 'right', letterSpacing: '-0.025em',
                   color: 'text.primary',
                   fontFeatureSettings: '"tnum" 1',
@@ -615,8 +621,9 @@ const FulfillmentPreview = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
           <FilterListIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
           <Typography
+            variant="body2"
             sx={{
-              fontSize: '0.8125rem', fontWeight: 800,
+              fontWeight: 800,
               color: 'text.primary', letterSpacing: '-0.01em',
             }}
           >
@@ -627,7 +634,7 @@ const FulfillmentPreview = () => {
               label={activeFilterCount}
               size="small"
               sx={{
-                height: 18, fontSize: '0.6875rem', fontWeight: 800,
+                height: 18, fontSize: '0.75rem', fontWeight: 800,
                 bgcolor: theme.palette.primary.main, color: '#fff',
               }}
             />
@@ -636,7 +643,7 @@ const FulfillmentPreview = () => {
 
         {/* Row 1 — 카테고리 토글 */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
-          <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary', fontWeight: 700, mr: 0.5 }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, mr: 0.5 }}>
             카테고리
           </Typography>
           {PRODUCT_CATEGORIES.map(({ key, label }) => (
@@ -687,7 +694,7 @@ const FulfillmentPreview = () => {
           </FormControl>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary', fontWeight: 700 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>
               출고 상태
             </Typography>
             {FULFILLMENT_STATUS_OPTIONS.map(({ key, label }) => (
@@ -751,11 +758,12 @@ const FulfillmentPreview = () => {
       {MOCK_GROUPS.length === 0 ? (
         <SectionCard sx={{ textAlign: 'center', py: 6 }}>
           <Typography
-            sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'text.primary', mb: 0.5 }}
+            variant="body1"
+            sx={{ fontWeight: 700, color: 'text.primary', mb: 0.5 }}
           >
             출고 대기 주문이 없습니다
           </Typography>
-          <Typography sx={{ fontSize: '0.8125rem', color: 'text.secondary' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             필터를 조정해 주세요
           </Typography>
         </SectionCard>

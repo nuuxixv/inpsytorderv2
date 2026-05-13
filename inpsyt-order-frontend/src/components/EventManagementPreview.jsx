@@ -187,8 +187,8 @@ const EventStateChip = ({ stateKey }) => {
     >
       <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: color }} />
       <Typography
+        variant="caption"
         sx={{
-          fontSize: '0.75rem',
           fontWeight: 700,
           letterSpacing: '-0.01em',
           color,
@@ -267,8 +267,8 @@ const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
           >
             <LocalOfferIcon sx={{ fontSize: 12, color: theme.accent.revenue }} />
             <Typography
+              variant="caption"
               sx={{
-                fontSize: '0.6875rem',
                 fontWeight: 800,
                 color: theme.accent.revenue,
                 lineHeight: 1,
@@ -283,8 +283,8 @@ const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
 
       {/* 학회명 */}
       <Typography
+        variant="h4"
         sx={{
-          fontSize: '1.125rem',
           fontWeight: 700,
           letterSpacing: '-0.02em',
           color: 'text.primary',
@@ -308,7 +308,7 @@ const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
             variant="outlined"
             sx={{
               height: 22,
-              fontSize: '0.6875rem',
+              fontSize: '0.75rem',
               fontWeight: 600,
               borderColor: theme.gray[200],
               color: 'text.secondary',
@@ -322,8 +322,8 @@ const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
           <CalendarTodayIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
           <Typography
+            variant="body2"
             sx={{
-              fontSize: '0.8125rem',
               color: 'text.secondary',
               fontFeatureSettings: '"tnum" 1',
               fontWeight: 500,
@@ -335,8 +335,8 @@ const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
         {event.estimatedDeliveryDate && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
             <Typography
+              variant="caption"
               sx={{
-                fontSize: '0.6875rem',
                 fontWeight: 700,
                 color: 'text.disabled',
                 letterSpacing: '0.03em',
@@ -347,8 +347,8 @@ const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
               배송
             </Typography>
             <Typography
+              variant="caption"
               sx={{
-                fontSize: '0.75rem',
                 color: 'text.secondary',
                 fontFeatureSettings: '"tnum" 1',
                 fontWeight: 500,
@@ -374,8 +374,8 @@ const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
         }}
       >
         <Typography
+          variant="caption"
           sx={{
-            fontSize: '0.75rem',
             color: 'text.disabled',
             fontWeight: 500,
           }}
@@ -383,8 +383,8 @@ const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
           /order?events=
         </Typography>
         <Typography
+          variant="caption"
           sx={{
-            fontSize: '0.75rem',
             color: 'text.primary',
             fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
             fontWeight: 600,
@@ -491,7 +491,7 @@ const NewEventDialog = ({ open, onClose, onSubmit }) => {
         >
           <AddIcon sx={{ fontSize: 20, color: theme.palette.primary.main }} />
         </Box>
-        <Typography sx={{ fontSize: '1.125rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
           신규 학회 등록
         </Typography>
       </DialogTitle>
@@ -511,8 +511,8 @@ const NewEventDialog = ({ open, onClose, onSubmit }) => {
           }}
         >
           <Typography
+            variant="caption"
             sx={{
-              fontSize: '0.75rem',
               fontWeight: 800,
               color: theme.palette.primary.main,
               letterSpacing: '0.03em',
@@ -570,8 +570,8 @@ const NewEventDialog = ({ open, onClose, onSubmit }) => {
         {/* ─── Step 2 — 자동 생성 및 추가 정보 ─── */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Typography
+            variant="caption"
             sx={{
-              fontSize: '0.75rem',
               fontWeight: 800,
               color: 'text.secondary',
               letterSpacing: '0.03em',
@@ -600,7 +600,7 @@ const NewEventDialog = ({ open, onClose, onSubmit }) => {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <Typography sx={{ fontSize: '0.8125rem', color: 'text.disabled' }}>
+                  <Typography variant="body2" sx={{ color: 'text.disabled' }}>
                     /order?events=
                   </Typography>
                 </InputAdornment>
@@ -698,7 +698,7 @@ const QrDialog = ({ open, event, onClose, onCopy }) => {
         >
           <QrCode2Icon sx={{ fontSize: 20, color: theme.palette.primary.main }} />
         </Box>
-        <Typography sx={{ fontSize: '1.125rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
           QR 코드
         </Typography>
       </DialogTitle>
@@ -706,8 +706,8 @@ const QrDialog = ({ open, event, onClose, onCopy }) => {
         {event && (
           <>
             <Typography
+              variant="body1"
               sx={{
-                fontSize: '0.9375rem',
                 fontWeight: 700,
                 color: 'text.primary',
                 mb: 1.5,
@@ -733,7 +733,7 @@ const QrDialog = ({ open, event, onClose, onCopy }) => {
               }}
             >
               <QrCode2Icon sx={{ fontSize: 64, color: theme.gray[400] }} />
-              <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled', fontWeight: 600 }}>
+              <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 600 }}>
                 QR 미리보기
               </Typography>
             </Box>
@@ -748,8 +748,8 @@ const QrDialog = ({ open, event, onClose, onCopy }) => {
               }}
             >
               <Typography
+                variant="caption"
                 sx={{
-                  fontSize: '0.75rem',
                   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
                   color: 'text.secondary',
                   overflow: 'hidden',
@@ -863,21 +863,21 @@ const EventManagementPreview = () => {
       <SectionCard sx={{ mb: 3 }} padding={20}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
           <FilterListIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 800, color: 'text.primary', letterSpacing: '-0.01em' }}>
+          <Typography variant="body2" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.01em' }}>
             필터
           </Typography>
           {activeFilterCount > 0 && (
             <Chip
               label={activeFilterCount}
               size="small"
-              sx={{ height: 18, fontSize: '0.6875rem', fontWeight: 800, bgcolor: theme.palette.primary.main, color: '#fff' }}
+              sx={{ height: 18, fontSize: '0.75rem', fontWeight: 800, bgcolor: theme.palette.primary.main, color: '#fff' }}
             />
           )}
         </Box>
 
         {/* Row 1 — 상태 토글 */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
-          <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary', fontWeight: 700, mr: 0.5 }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, mr: 0.5 }}>
             상태
           </Typography>
           {STATUS_TOGGLES.map(({ key, label }) => (
@@ -925,13 +925,13 @@ const EventManagementPreview = () => {
       <SectionCard padding={20}>
         <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mb: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-            <Typography sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               <Box component="span" sx={{ fontWeight: 800, color: 'text.primary', fontFeatureSettings: '"tnum" 1' }}>
                 {filteredEvents.length}
               </Box>
               개 학회
             </Typography>
-            <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled' }}>
+            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
               · 최근 등록순
             </Typography>
           </Box>
@@ -949,10 +949,10 @@ const EventManagementPreview = () => {
             }}
           >
             <EventNoteIcon sx={{ fontSize: 48 }} />
-            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
               조건에 맞는 학회가 없습니다
             </Typography>
-            <Typography sx={{ fontSize: '0.75rem' }}>
+            <Typography variant="caption">
               필터를 해제하거나 신규 학회를 등록하세요
             </Typography>
           </Box>

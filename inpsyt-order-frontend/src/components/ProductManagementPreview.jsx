@@ -84,9 +84,9 @@ const TriStateToggle = ({ label, value, onChange }) => (
         onChange(next === 'none' ? null : next === 'on');
       }}
     >
-      <ToggleButton value="none" sx={{ px: 1.5, fontSize: '0.75rem' }}>변경 없음</ToggleButton>
-      <ToggleButton value="on" sx={{ px: 1.5, fontSize: '0.75rem' }}>ON</ToggleButton>
-      <ToggleButton value="off" sx={{ px: 1.5, fontSize: '0.75rem' }}>OFF</ToggleButton>
+      <ToggleButton value="none" sx={{ px: 1.5, fontSize: '0.875rem' }}>변경 없음</ToggleButton>
+      <ToggleButton value="on" sx={{ px: 1.5, fontSize: '0.875rem' }}>ON</ToggleButton>
+      <ToggleButton value="off" sx={{ px: 1.5, fontSize: '0.875rem' }}>OFF</ToggleButton>
     </ToggleButtonGroup>
   </Box>
 );
@@ -165,12 +165,12 @@ const QuickFilterCard = (props) => {
       }}
     >
       <Box sx={{ minWidth: 0 }}>
-        <Typography sx={{ fontSize: '0.6875rem', color: 'text.disabled', fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase' }}>
+        <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase' }}>
           {label}
         </Typography>
         <Typography
+          variant="h1"
           sx={{
-            fontSize: '1.5rem',
             fontWeight: 800,
             color: active ? baseColor : 'text.primary',
             letterSpacing: '-0.02em',
@@ -215,19 +215,20 @@ const ProductRow = ({ product, selected, onSelectToggle, onEdit, canEdit }) => {
       </Box>
       <Box sx={{ minWidth: 0 }}>
         <Typography
+          variant="body1"
           sx={{
-            fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.015em',
+            fontWeight: 700, letterSpacing: '-0.015em',
             color: 'text.primary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}
         >
           {product.name}
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
-          <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled', fontFeatureSettings: '"tnum" 1', fontWeight: 600 }}>
+          <Typography variant="caption" sx={{ color: 'text.disabled', fontFeatureSettings: '"tnum" 1', fontWeight: 600 }}>
             {product.product_code}
           </Typography>
-          <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled' }}>·</Typography>
-          <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <Typography variant="caption" sx={{ color: 'text.disabled' }}>·</Typography>
+          <Typography variant="caption" sx={{ color: 'text.disabled', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {product.sub_category || '-'}
           </Typography>
         </Box>
@@ -238,7 +239,7 @@ const ProductRow = ({ product, selected, onSelectToggle, onEdit, canEdit }) => {
           size="small"
           sx={{
             height: 22,
-            fontSize: '0.6875rem',
+            fontSize: '0.75rem',
             fontWeight: 700,
             bgcolor: alpha(palette, 0.08),
             color: palette,
@@ -247,8 +248,9 @@ const ProductRow = ({ product, selected, onSelectToggle, onEdit, canEdit }) => {
         />
       </Box>
       <Typography
+        variant="body1"
         sx={{
-          fontSize: '0.9375rem', fontWeight: 800, textAlign: 'right',
+          fontWeight: 800, textAlign: 'right',
           letterSpacing: '-0.025em', color: 'text.primary',
           fontFeatureSettings: '"tnum" 1',
         }}
@@ -256,8 +258,9 @@ const ProductRow = ({ product, selected, onSelectToggle, onEdit, canEdit }) => {
         {product.list_price.toLocaleString()}원
       </Typography>
       <Typography
+        variant="caption"
         sx={{
-          fontSize: '0.75rem', color: 'text.secondary',
+          color: 'text.secondary',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}
       >
@@ -265,16 +268,16 @@ const ProductRow = ({ product, selected, onSelectToggle, onEdit, canEdit }) => {
       </Typography>
       <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
         {product.is_popular && (
-          <Chip label="인기" size="small" color="warning" sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 700 }} />
+          <Chip label="인기" size="small" color="warning" sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }} />
         )}
         {product.is_new && (
-          <Chip label="신상품" size="small" color="primary" sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 700 }} />
+          <Chip label="신상품" size="small" color="primary" sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }} />
         )}
         {product.is_discountable && (
           <Chip
             label="할인"
             size="small"
-            sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 700, bgcolor: alpha(theme.status.completed, 0.1), color: theme.status.completed }}
+            sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700, bgcolor: alpha(theme.status.completed, 0.1), color: theme.status.completed }}
           />
         )}
         {!product.is_popular && !product.is_new && !product.is_discountable && (
@@ -288,12 +291,12 @@ const ProductRow = ({ product, selected, onSelectToggle, onEdit, canEdit }) => {
             label={tag}
             size="small"
             variant="outlined"
-            sx={{ height: 20, fontSize: '0.6875rem' }}
+            sx={{ height: 20, fontSize: '0.75rem' }}
           />
         ))}
         {(product.tags || []).length > 2 && (
           <Tooltip title={product.tags.slice(2).join(', ')} arrow>
-            <Chip label={`+${product.tags.length - 2}`} size="small" sx={{ height: 20, fontSize: '0.6875rem', cursor: 'pointer' }} />
+            <Chip label={`+${product.tags.length - 2}`} size="small" sx={{ height: 20, fontSize: '0.75rem', cursor: 'pointer' }} />
           </Tooltip>
         )}
       </Box>
@@ -348,7 +351,7 @@ const ProductEditDialog = ({ open, product, onClose, onSave, canEdit }) => {
         >
           {isEditing ? <EditIcon sx={{ fontSize: 20, color: theme.palette.primary.main }} /> : <AddIcon sx={{ fontSize: 20, color: theme.palette.primary.main }} />}
         </Box>
-        <Typography sx={{ fontSize: '1.125rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
           {isEditing ? '상품 수정' : '새 상품 추가'}
         </Typography>
       </DialogTitle>
@@ -405,7 +408,7 @@ const ProductEditDialog = ({ open, product, onClose, onSave, canEdit }) => {
                   onChange={(e) => setField(key, e.target.checked)}
                   disabled={!canEdit}
                 />
-                <Typography sx={{ fontSize: '0.8125rem', color: 'text.primary' }}>{label}</Typography>
+                <Typography variant="body2" sx={{ color: 'text.primary' }}>{label}</Typography>
               </Box>
             ))}
           </Box>
@@ -440,15 +443,15 @@ const DeleteSelectedDialog = ({ open, count, onClose, onConfirm }) => {
   return (
     <Dialog open={open} onClose={onClose} PaperProps={{ sx: { borderRadius: `${theme.radii.lg}px`, maxWidth: 420, width: '100%' } }}>
       <DialogTitle sx={{ pb: 1.5 }}>
-        <Typography sx={{ fontSize: '1.125rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
           선택 상품 삭제
         </Typography>
       </DialogTitle>
       <DialogContent>
-        <Typography sx={{ fontSize: '0.9375rem', mb: 0.5 }}>
+        <Typography variant="body1" sx={{ mb: 0.5 }}>
           선택한 <strong style={{ fontFeatureSettings: '"tnum" 1' }}>{count}개</strong> 상품을 삭제합니다.
         </Typography>
-        <Typography sx={{ fontSize: '0.8125rem', color: 'text.secondary' }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
           이 작업은 되돌릴 수 없습니다.
         </Typography>
       </DialogContent>
@@ -504,7 +507,7 @@ const DeleteAllConfirmDialog = ({ open, onClose, onConfirm }) => {
         >
           <WarningIcon sx={{ fontSize: 20, color: theme.palette.error.main }} />
         </Box>
-        <Typography sx={{ fontSize: '1.125rem', fontWeight: 800, letterSpacing: '-0.02em', color: 'text.primary' }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em', color: 'text.primary' }}>
           전체 상품 삭제
         </Typography>
       </DialogTitle>
@@ -517,12 +520,12 @@ const DeleteAllConfirmDialog = ({ open, onClose, onConfirm }) => {
             border: `1px solid ${alpha(theme.palette.error.main, 0.15)}`,
           }}
         >
-          <Typography sx={{ fontSize: '0.8125rem', color: theme.palette.error.dark, fontWeight: 600, lineHeight: 1.5 }}>
+          <Typography variant="body2" sx={{ color: theme.palette.error.dark, fontWeight: 600, lineHeight: 1.5 }}>
             등록된 <strong>모든 상품</strong>이 카탈로그에서 제거됩니다.
             이 작업은 <strong>되돌릴 수 없습니다.</strong>
           </Typography>
         </Box>
-        <Typography sx={{ fontSize: '0.875rem', color: 'text.secondary', mb: 1 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
           계속하시려면 아래에 <strong style={{ color: theme.palette.error.main }}>&quot;{DELETE_ALL_CONFIRM_TEXT}&quot;</strong>를 정확히 입력하세요.
         </Typography>
         <TextField
@@ -576,10 +579,10 @@ const BulkEditDialog = ({ open, count, onClose, onConfirm }) => {
   return (
     <Dialog open={open} onClose={handleClose} PaperProps={{ sx: { borderRadius: `${theme.radii.lg}px`, maxWidth: 440, width: '100%' } }}>
       <DialogTitle sx={{ pb: 1.5 }}>
-        <Typography sx={{ fontSize: '1.125rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
           선택 항목 편집
         </Typography>
-        <Typography sx={{ fontSize: '0.8125rem', color: 'text.secondary', fontWeight: 400, mt: 0.25 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 400, mt: 0.25 }}>
           선택한 {count}개 상품에 적용됩니다
         </Typography>
       </DialogTitle>
@@ -595,8 +598,8 @@ const BulkEditDialog = ({ open, count, onClose, onConfirm }) => {
               size="small"
               onChange={(_, v) => { if (v) setTagsMode(v); }}
             >
-              <ToggleButton value="append" sx={{ px: 1.25, fontSize: '0.7rem' }}>추가</ToggleButton>
-              <ToggleButton value="replace" sx={{ px: 1.25, fontSize: '0.7rem' }}>덮어쓰기</ToggleButton>
+              <ToggleButton value="append" sx={{ px: 1.25, fontSize: '0.75rem' }}>추가</ToggleButton>
+              <ToggleButton value="replace" sx={{ px: 1.25, fontSize: '0.75rem' }}>덮어쓰기</ToggleButton>
             </ToggleButtonGroup>
           </Box>
           <Autocomplete
@@ -647,12 +650,12 @@ const UploadProgressDialog = ({ open, progress, onClose }) => {
         >
           <UploadIcon sx={{ fontSize: 20, color: theme.palette.primary.main }} />
         </Box>
-        <Typography sx={{ fontSize: '1.125rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
           엑셀 업로드 {isDone ? '완료' : '중'}
         </Typography>
       </DialogTitle>
       <DialogContent sx={{ pb: 2 }}>
-        <Typography sx={{ fontSize: '0.8125rem', color: 'text.secondary', mb: 1.5 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
           products_2026Q2.xlsx · 청크 {Math.min(4, Math.ceil(progress / 25))}/4 처리 중
         </Typography>
         <LinearProgress
@@ -666,10 +669,10 @@ const UploadProgressDialog = ({ open, progress, onClose }) => {
           }}
         />
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-          <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled' }}>
+          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
             {isDone ? '124행 / 124행 (오류 0건)' : `${Math.floor(progress * 1.24)}행 / 124행`}
           </Typography>
-          <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'text.primary', fontFeatureSettings: '"tnum" 1' }}>
+          <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary', fontFeatureSettings: '"tnum" 1' }}>
             {progress}%
           </Typography>
         </Box>
@@ -841,7 +844,7 @@ const ProductManagementPreview = () => {
                   borderRadius: `${theme.radii.sm}px`,
                   border: `1px dashed ${theme.gray[300]}`,
                   cursor: 'pointer',
-                  fontSize: '0.6875rem',
+                  fontSize: '0.75rem',
                   color: canEdit ? theme.palette.primary.main : 'text.disabled',
                   fontWeight: 700,
                   letterSpacing: '0.03em',
@@ -976,14 +979,14 @@ const ProductManagementPreview = () => {
       <SectionCard sx={{ mb: 3 }} padding={20}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
           <FilterListIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 800, color: 'text.primary', letterSpacing: '-0.01em' }}>
+          <Typography variant="body2" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.01em' }}>
             필터
           </Typography>
           {activeFilterCount > 0 && (
             <Chip
               label={activeFilterCount}
               size="small"
-              sx={{ height: 18, fontSize: '0.6875rem', fontWeight: 800, bgcolor: theme.palette.primary.main, color: '#fff' }}
+              sx={{ height: 18, fontSize: '0.75rem', fontWeight: 800, bgcolor: theme.palette.primary.main, color: '#fff' }}
             />
           )}
           {hasFilters && (
@@ -1011,7 +1014,7 @@ const ProductManagementPreview = () => {
             sx={{ flex: '1 1 240px', minWidth: 240 }}
           />
           {hasFilters && (
-            <Typography sx={{ fontSize: '0.8125rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>
               {totalFiltered}개 표시 중
             </Typography>
           )}
@@ -1019,7 +1022,7 @@ const ProductManagementPreview = () => {
 
         {availableTags.length > 0 && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
-            <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary', fontWeight: 700, mr: 0.5 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, mr: 0.5 }}>
               태그
             </Typography>
             {availableTags.map(tag => (
@@ -1062,8 +1065,9 @@ const ProductManagementPreview = () => {
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography
+                variant="body1"
                 sx={{
-                  fontSize: '0.9375rem', fontWeight: 800,
+                  fontWeight: 800,
                   color: theme.palette.primary.main, letterSpacing: '-0.015em',
                   fontFeatureSettings: '"tnum" 1',
                 }}
@@ -1136,13 +1140,13 @@ const ProductManagementPreview = () => {
             sx={{ p: 0, ml: 0.5 }}
           />
           <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-            <Typography sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               <Box component="span" sx={{ fontWeight: 800, color: 'text.primary', fontFeatureSettings: '"tnum" 1' }}>
                 {totalFiltered}
               </Box>
               개 상품
             </Typography>
-            <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled' }}>
+            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
               · 인기순 → 이름순
             </Typography>
           </Box>
@@ -1160,7 +1164,7 @@ const ProductManagementPreview = () => {
             borderBottom: `1px solid ${theme.gray[200]}`,
             bgcolor: theme.gray[50],
             '& > *': {
-              fontSize: '0.6875rem', fontWeight: 700, color: 'text.secondary',
+              fontSize: '0.75rem', fontWeight: 700, color: 'text.secondary',
               letterSpacing: '0.03em', textTransform: 'uppercase',
             },
           }}
@@ -1180,7 +1184,7 @@ const ProductManagementPreview = () => {
           {displayedProducts.length === 0 ? (
             <Box sx={{ py: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, color: 'text.disabled' }}>
               <InventoryIcon sx={{ fontSize: 48 }} />
-              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700 }}>
+              <Typography variant="body1" sx={{ fontWeight: 700 }}>
                 {hasFilters ? '검색 결과가 없습니다' : '등록된 상품이 없습니다'}
               </Typography>
               {hasFilters && (
@@ -1225,7 +1229,7 @@ const ProductManagementPreview = () => {
                   {[10, 25, 50, 100].map(n => <MenuItem key={n} value={n}>{n}개</MenuItem>)}
                 </Select>
               </FormControl>
-              <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled', fontFeatureSettings: '"tnum" 1' }}>
+              <Typography variant="caption" sx={{ color: 'text.disabled', fontFeatureSettings: '"tnum" 1' }}>
                 {(currentPage - 1) * perPage + 1}-{Math.min(currentPage * perPage, totalFiltered)} / {totalFiltered}개
               </Typography>
             </Box>

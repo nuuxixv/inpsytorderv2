@@ -62,7 +62,7 @@ const FilterSummary = ({ activeFilters, onClearOne, onClearAll }) => {
   if (activeFilters.length === 0) return null;
   return (
     <Box sx={{ mt: 1.5, pt: 1.5, borderTop: `1px dashed ${theme.gray[200]}`, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-      <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary', fontWeight: 700 }}>활성 필터</Typography>
+      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>활성 필터</Typography>
       {activeFilters.map((f) => (
         <Chip
           key={f.key}
@@ -110,25 +110,25 @@ const OrderRow = ({ order, event, selected, onSelectToggle, onRowClick }) => {
         <Checkbox checked={selected} size="small" sx={{ p: 0 }} />
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: '0.8125rem', color: 'text.disabled', fontWeight: 700, letterSpacing: '-0.01em', fontFeatureSettings: '"tnum" 1' }}>
+        <Typography variant="body2" sx={{ color: 'text.disabled', fontWeight: 700, letterSpacing: '-0.01em', fontFeatureSettings: '"tnum" 1' }}>
           #{order.id}
         </Typography>
       </Box>
       <Box sx={{ minWidth: 0 }}>
-        <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.015em', color: 'text.primary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <Typography variant="body1" sx={{ fontWeight: 700, letterSpacing: '-0.015em', color: 'text.primary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {order.customer_name}
         </Typography>
-        <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled', mt: 0.25 }}>
+        <Typography variant="caption" sx={{ color: 'text.disabled', mt: 0.25, display: 'block' }}>
           상품 {order.item_count}개
         </Typography>
       </Box>
-      <Typography sx={{ fontSize: '0.8125rem', color: 'text.secondary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <Typography variant="body2" sx={{ color: 'text.secondary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {event?.name || 'N/A'}
       </Typography>
-      <Typography sx={{ fontSize: '0.9375rem', fontWeight: 800, textAlign: 'right', letterSpacing: '-0.025em', color: 'text.primary', fontFeatureSettings: '"tnum" 1' }}>
+      <Typography variant="body1" sx={{ fontWeight: 800, textAlign: 'right', letterSpacing: '-0.025em', color: 'text.primary', fontFeatureSettings: '"tnum" 1' }}>
         {order.final_payment.toLocaleString()}원
       </Typography>
-      <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled', fontFeatureSettings: '"tnum" 1' }}>
+      <Typography variant="caption" sx={{ color: 'text.disabled', fontFeatureSettings: '"tnum" 1' }}>
         {order.created_at.slice(5, 16).replace('T', ' ')}
       </Typography>
       <Box onClick={(e) => e.stopPropagation()}>
@@ -218,14 +218,14 @@ const OrderManagementPreview = () => {
       <SectionCard sx={{ mb: 3 }} padding={20}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
           <FilterListIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 800, color: 'text.primary', letterSpacing: '-0.01em' }}>
+          <Typography variant="body2" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.01em' }}>
             필터
           </Typography>
           {activeFilters.length > 0 && (
             <Chip
               label={activeFilters.length}
               size="small"
-              sx={{ height: 18, fontSize: '0.6875rem', fontWeight: 800, bgcolor: theme.palette.primary.main, color: '#fff' }}
+              sx={{ height: 18, fontSize: '0.75rem', fontWeight: 800, bgcolor: theme.palette.primary.main, color: '#fff' }}
             />
           )}
         </Box>
@@ -234,7 +234,7 @@ const OrderManagementPreview = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mr: 0.5 }}>
             <CalendarIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-            <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary', fontWeight: 700 }}>기간</Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>기간</Typography>
           </Box>
           {DATE_PRESETS.map(({ label, days }) => (
             <Chip
@@ -366,7 +366,7 @@ const OrderManagementPreview = () => {
           />
           {selectedOrderIds.length > 0 ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
-              <Typography sx={{ fontSize: '0.875rem', fontWeight: 800, color: theme.palette.primary.main, letterSpacing: '-0.01em' }}>
+              <Typography variant="body2" sx={{ fontWeight: 800, color: theme.palette.primary.main, letterSpacing: '-0.01em' }}>
                 {selectedOrderIds.length}개 선택됨
               </Typography>
               <FormControl size="small" sx={{ minWidth: 140 }}>
@@ -386,10 +386,10 @@ const OrderManagementPreview = () => {
             </Box>
           ) : (
             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-              <Typography sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 <Box component="span" sx={{ fontWeight: 800, color: 'text.primary', fontFeatureSettings: '"tnum" 1' }}>{MOCK_ORDERS.length}</Box>건의 주문
               </Typography>
-              <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled' }}>
+              <Typography variant="caption" sx={{ color: 'text.disabled' }}>
                 · 최신순
               </Typography>
             </Box>
@@ -406,7 +406,7 @@ const OrderManagementPreview = () => {
           py: 1,
           borderBottom: `1px solid ${theme.gray[200]}`,
           bgcolor: theme.gray[50],
-          '& > *': { fontSize: '0.6875rem', fontWeight: 700, color: 'text.secondary', letterSpacing: '0.03em', textTransform: 'uppercase' },
+          '& > *': { fontSize: '0.75rem', fontWeight: 700, color: 'text.secondary', letterSpacing: '0.03em', textTransform: 'uppercase' },
         }}>
           <span />
           <span>주문번호</span>
@@ -433,7 +433,7 @@ const OrderManagementPreview = () => {
 
         {/* Pagination */}
         <Box sx={{ px: 2, py: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${theme.gray[100]}` }}>
-          <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled' }}>
+          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
             1-10 / 총 {MOCK_ORDERS.length}건
           </Typography>
           <Pagination
