@@ -244,7 +244,14 @@ const OrderManagementPreview = () => {
               variant={datePreset === days ? 'filled' : 'outlined'}
               color={datePreset === days ? 'primary' : 'default'}
               onClick={() => setDatePreset(days)}
-              sx={{ fontWeight: datePreset === days ? 700 : 500, cursor: 'pointer' }}
+              sx={{
+                height: 44,
+                fontSize: '0.875rem',
+                paddingX: 1.5,
+                fontWeight: datePreset === days ? 700 : 500,
+                cursor: 'pointer',
+                '& .MuiChip-label': { paddingLeft: 0, paddingRight: 0 },
+              }}
             />
           ))}
           <Box sx={{ display: 'flex', gap: 1, ml: 1 }}>
