@@ -245,12 +245,9 @@ const OrderManagementPreview = () => {
               color={datePreset === days ? 'primary' : 'default'}
               onClick={() => setDatePreset(days)}
               sx={{
-                height: 44,
-                fontSize: '0.875rem',
                 paddingX: 1.5,
                 fontWeight: datePreset === days ? 700 : 500,
                 cursor: 'pointer',
-                '& .MuiChip-label': { paddingLeft: 0, paddingRight: 0 },
               }}
             />
           ))}

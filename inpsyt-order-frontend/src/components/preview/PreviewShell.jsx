@@ -115,10 +115,12 @@ const Sidebar = ({ collapsed, onToggleCollapse, activePath }) => {
                 <ListItemButton
                   disableRipple
                   sx={{
+                    // hit-area 44px 강제 (caching/specificity issue 대비 height 명시)
                     minHeight: 44,
+                    height: 44,
                     borderRadius: '8px',
                     px: collapsed ? 1.25 : 1.5,
-                    py: 1,
+                    py: 0,
                     justifyContent: collapsed ? 'center' : 'flex-start',
                     backgroundColor: active ? theme.gray[100] : 'transparent',
                     color: active ? theme.gray[900] : theme.gray[600],

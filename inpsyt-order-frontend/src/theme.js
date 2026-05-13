@@ -305,6 +305,18 @@ const theme = createTheme({
         sizeSmall: { height: 22, fontSize: '0.75rem' },
         filled: { border: 'none' },
         outlined: { border: `1px solid ${GRAY[200]}`, backgroundColor: 'transparent' },
+        // Clickable/Deletable Chip 은 터치 hit-area 44px 강제 (size 상관없이)
+        // 단순 상태 표시 Chip(onClick/onDelete 없음)은 그대로 작게 유지
+        clickable: {
+          minHeight: 44,
+          height: 'auto',
+          '& .MuiChip-label': { fontSize: '0.875rem' },
+        },
+        deletable: {
+          minHeight: 44,
+          height: 'auto',
+          '& .MuiChip-label': { fontSize: '0.875rem' },
+        },
       },
     },
     MuiDialog: {
