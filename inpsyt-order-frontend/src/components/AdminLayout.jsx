@@ -65,7 +65,8 @@ const AdminLayout = () => {
         }}
       >
         <AdminHeader onMenuToggle={() => setMobileOpen(prev => !prev)} />
-        <Box sx={{ flexGrow: 1, width: '100%', p: { xs: 2, md: 3 } }}>
+        <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', width: '100%' }}>
+          <Box sx={{ width: '100%', maxWidth: 1280, px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}>
           <Routes>
             <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/dashboard" element={hasPermission('dashboard:view') ? <DashboardPage /> : <Navigate to="/admin" replace />} />
@@ -110,6 +111,7 @@ const AdminLayout = () => {
               element={permissions.includes('master') ? <SettingsPage /> : <Navigate to="/admin" replace />}
             />
           </Routes>
+          </Box>
         </Box>
         <NotificationsDisplay />
       </Box>

@@ -718,7 +718,7 @@ const OrderManagementPreviewC1 = () => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   return (
-    <PreviewShell activePath="/admin/orders" maxWidth={1200}>
+    <PreviewShell activePath="/admin/orders">
       <Box
         sx={{
           backgroundColor: '#FFFFFF',

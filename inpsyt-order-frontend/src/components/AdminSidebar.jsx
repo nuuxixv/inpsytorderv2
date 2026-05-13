@@ -31,8 +31,8 @@ import AnnouncementIcon from '@mui/icons-material/Announcement';
 import { useAuth } from '../hooks/useAuth';
 import { getUnreadCount } from '../api/bulletins';
 
-const DRAWER_WIDTH = 260;
-const COLLAPSED_WIDTH = 72;
+const DRAWER_WIDTH = 240;
+const COLLAPSED_WIDTH = 64;
 
 const allMenuItems = [
   { text: '대시보드', icon: <DashboardIcon />, path: '/admin/dashboard', permissionKey: 'dashboard:view' },

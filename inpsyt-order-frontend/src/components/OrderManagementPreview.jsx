@@ -185,7 +185,7 @@ const OrderManagementPreview = () => {
   const toggleSelectOne = (id) => setSelectedOrderIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   return (
-    <PreviewShell activePath="/admin/orders" maxWidth={1320}>
+    <PreviewShell activePath="/admin/orders">
       <PageHeader
         title="주문 관리"
         subtitle={`총 ${MOCK_ORDERS.length}건 · 오늘 접수 8건`}

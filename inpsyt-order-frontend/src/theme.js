@@ -219,8 +219,8 @@ const theme = createTheme({
           '&:hover': { backgroundColor: GRAY[100] },
         },
         sizeSmall: {
-          minHeight: 34,
-          padding: '6px 12px',
+          minHeight: 44,
+          padding: '8px 14px',
           fontSize: '0.8125rem',
           borderRadius: RADII.sm,
         },
@@ -237,6 +237,8 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: RADII.md,
+          minWidth: 44,
+          minHeight: 44,
           transition: `all 0.2s ${EASING_TOSS}`,
           '&:active': { transform: 'scale(0.94)' },
         },

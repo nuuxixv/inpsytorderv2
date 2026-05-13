@@ -794,7 +794,7 @@ const OrderManagementPreviewC3 = () => {
   const totalCount = useMemo(() => MOCK_ORDERS.length, []);
 
   return (
-    <PreviewShell activePath="/admin/orders" maxWidth={1200}>
+    <PreviewShell activePath="/admin/orders">
       {/* Full-bleed warm bg override */}
       <Box
         sx={{

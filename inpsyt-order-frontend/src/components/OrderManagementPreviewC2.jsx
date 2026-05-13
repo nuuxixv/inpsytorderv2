@@ -719,7 +719,7 @@ const OrderManagementPreviewC2 = () => {
     );
 
   return (
-    <PreviewShell activePath="/admin/orders" maxWidth={1200}>
+    <PreviewShell activePath="/admin/orders">
       <Box sx={{ bgcolor: '#ffffff', px: { xs: 3, md: 5 } }}>
         <PageHeader
           excelAnchor={excelAnchor}

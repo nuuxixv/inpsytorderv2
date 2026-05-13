@@ -26,8 +26,8 @@ import {
  * 실제 AdminLayout + AdminSidebar + AdminHeader 의 시각적 구조를 Supabase/Auth 의존성 없이 재현.
  */
 
-const DRAWER_WIDTH = 264;
-const COLLAPSED_WIDTH = 72;
+const DRAWER_WIDTH = 240;
+const COLLAPSED_WIDTH = 64;
 
 const MENU = [
   { text: '대시보드', icon: <DashboardIcon />, path: '/admin/dashboard' },
@@ -284,7 +284,7 @@ const Header = ({ onMenuToggle }) => {
   );
 };
 
-const PreviewShell = ({ activePath, children, maxWidth = 1200 }) => {
+const PreviewShell = ({ activePath, children }) => {
   const theme = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   return (
@@ -292,8 +292,8 @@ const PreviewShell = ({ activePath, children, maxWidth = 1200 }) => {
       <Sidebar collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(c => !c)} activePath={activePath} />
       <Box component="main" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', width: '100%', minWidth: 0 }}>
         <Header onMenuToggle={() => {}} />
-        <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 }, pb: 6 }}>
-          <Box sx={{ maxWidth, mx: 'auto' }}>
+        <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', width: '100%' }}>
+          <Box sx={{ width: '100%', maxWidth: 1280, px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 }, pb: 6 }}>
             {children}
           </Box>
         </Box>

@@ -1128,7 +1128,7 @@ const OrderManagementPreviewC4 = () => {
   const totalCount = useMemo(() => MOCK_ORDERS.length, []);
 
   return (
-    <PreviewShell activePath="/admin/orders" maxWidth={1400}>
+    <PreviewShell activePath="/admin/orders">
       <Box sx={{ fontFamily: FONT, color: theme.gray[900] }}>
         {/* Header row: title block + actions */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 3, flexWrap: 'wrap', mb: 3 }}>
