@@ -127,7 +127,32 @@
       "Bash(powershell -Command \"Select-String -Path 'dist/assets/index-*.css' -Pattern 'color-scheme|prefers-color-scheme|forced-colors|prefers-contrast|--brand-700' | Select-Object -First 20\")",
       "Bash(git stash *)",
       "Bash(findstr /i \"Fulfill Product Event User Feedback Bulletin\")",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(cd \"/c/Users/김건우/Desktop/VS/inpsytorderv3/inpsyt-order-frontend/src\" && echo \"=== 1. 실 페이지 구조 추출 가능성 ===\" && echo \"[CustomerInfoStep — 주소 입력 폼 구조]\" && grep -n -E \"주소|address|zonecode|roadAddress|jibun|상세\" components/CustomerInfoStep.jsx 2>/dev/null | head -15 && echo \"\" && echo \"[FulfillmentPage — 표시 필드]\" && grep -n -E \"address|phone|customer_name|inpsyt|request\" components/FulfillmentPage.jsx 2>/dev/null | head -10 && echo \"\" && echo \"=== 2. DB 스키마 정보 ===\" && ls ../../supabase/migrations/ 2>/dev/null | head -5 && echo \"\" && echo \"=== 3. 실 페이지 컴포넌트 라인 수 ===\" && wc -l components/*Page.jsx 2>/dev/null | sort -rn | head -15)",
+      "Bash(python /tmp/gate15_patch.py)",
+      "Bash(head -n 79 design-system/02_DESIGN_TOKENS.md)",
+      "Bash(tail -n +80 design-system/02_DESIGN_TOKENS.md)",
+      "Bash(cat > *)",
+      "Bash(sed -i 's/^# 08\\\\. 결정 사항 — D1부터 D13까지/# 08. 결정 사항 — D1부터 D14까지/' design-system/08_OPEN_DECISIONS.md)",
+      "Bash(sed -i 's/^## 확정된 결정 13건/## 확정된 결정 14건/' design-system/08_OPEN_DECISIONS.md)",
+      "Bash(powershell -Command \"\\(Get-Content src/components/CustomerOrderPreview.jsx | Measure-Object -Line\\).Lines\")",
+      "Bash(powershell -Command \"\\(Get-Content src/components/CustomerOrderPreview.jsx\\).Count\")",
+      "Bash(python3 -c \"print\\('python ok'\\)\")",
+      "Bash(bash /tmp/spec_gen/test2.sh)",
+      "Bash(findstr /i preview)",
+      "Bash(findstr /i \"CustomerOrderStatusPreview App.jsx\")",
+      "Bash(findstr /v \"no-undef\")",
+      "WebFetch(domain:moduclass-design-guide.vercel.app)",
+      "Bash(grep -nE \"#[0-9A-Fa-f]{3,6}\" FulfillmentPreview.jsx)",
+      "Bash(grep -nE \"#[0-9A-Fa-f]{3,6}\" OrderManagementPreviewC1.jsx)",
+      "Bash(grep -nE \"#[0-9A-Fa-f]{3,6}\" CustomerOrderPreview.jsx)",
+      "Bash(grep -c fontSize: __TRACKED_VAR__.jsx)",
+      "Bash(grep -cE '#[0-9a-fA-F]{6}' __TRACKED_VAR__.jsx)",
+      "Bash(grep -c 'fontWeight: 800\\\\|fontWeight:800\\\\|fontWeight: '\\\\''800'\\\\''' __TRACKED_VAR__.jsx)",
+      "Bash(sort -t: -k2)",
+      "Bash(uniq -c -f1)",
+      "Bash(grep -ohE \"#[0-9a-fA-F]{3,6}\" CustomerOrderStatusPreview.jsx CustomerOrderPreview.jsx OrderManagementPreviewC1.jsx OrderManagementPreviewC2.jsx OrderManagementPreviewC3.jsx OrderManagementPreviewC4.jsx DashboardDesignPreview.jsx FulfillmentPreview.jsx EventManagementPreview.jsx ProductManagementPreview.jsx)"
     ]
   }
 }
