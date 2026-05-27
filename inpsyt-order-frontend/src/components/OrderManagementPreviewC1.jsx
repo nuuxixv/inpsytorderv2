@@ -49,7 +49,7 @@ const DATE_PRESETS = [
 const SERIF = '"IBM Plex Serif", "Noto Serif KR", Georgia, serif';
 
 const LABEL_SX = {
-  fontSize: '11px',
+  fontSize: '0.75rem',
   fontWeight: 600,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
@@ -89,10 +89,10 @@ const PageHeader = () => {
         <Box>
           <Typography
             component="h1"
+            variant="h1"
             sx={{
               fontFamily: SERIF,
               fontWeight: 500,
-              fontSize: { xs: '32px', md: '42px' },
               letterSpacing: '-0.02em',
               lineHeight: 1.1,
               color: theme.gray[900],
@@ -106,7 +106,7 @@ const PageHeader = () => {
               mt: 1.5,
               fontFamily: SERIF,
               fontStyle: 'italic',
-              fontSize: '16px',
+              fontSize: '1rem',
               color: theme.gray[600],
               letterSpacing: '-0.005em',
             }}
@@ -121,7 +121,7 @@ const PageHeader = () => {
               minHeight: 0,
               p: 0,
               color: theme.gray[900],
-              fontSize: '13px',
+              fontSize: '0.875rem',
               fontWeight: 500,
               letterSpacing: '-0.005em',
               textTransform: 'none',
@@ -144,7 +144,7 @@ const PageHeader = () => {
               py: 1,
               minHeight: 0,
               boxShadow: 'none',
-              fontSize: '12px',
+              fontSize: '0.75rem',
               fontWeight: 600,
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
@@ -201,7 +201,7 @@ const Filters = ({
                   sx={{
                     cursor: 'pointer',
                     pb: 0.25,
-                    fontSize: '13px',
+                    fontSize: '0.875rem',
                     fontWeight: active ? 600 : 400,
                     color: active ? theme.gray[900] : theme.gray[700],
                     letterSpacing: '-0.005em',
@@ -266,7 +266,7 @@ const Filters = ({
               placeholder="고객명"
               sx={{
                 flex: 1,
-                fontSize: '13px',
+                fontSize: '0.875rem',
                 color: theme.gray[900],
                 '& input': { p: 0, py: 0.75 },
                 '& input::placeholder': { color: theme.gray[500], opacity: 1, fontStyle: 'italic' },
@@ -291,7 +291,7 @@ const InlineSelect = ({ label, value, onChange, options, width = 160 }) => {
           disableUnderline
           IconComponent={ArrowDownIcon}
           sx={{
-            fontSize: '13px',
+            fontSize: '0.875rem',
             color: theme.gray[900],
             letterSpacing: '-0.005em',
             borderBottom: `1px solid ${theme.gray[300]}`,
@@ -317,7 +317,7 @@ const InlineSelect = ({ label, value, onChange, options, width = 160 }) => {
             <MenuItem
               key={opt.value}
               value={opt.value}
-              sx={{ fontSize: '13px', letterSpacing: '-0.005em' }}
+              sx={{ fontSize: '0.875rem', letterSpacing: '-0.005em' }}
             >
               {opt.label}
             </MenuItem>
@@ -350,7 +350,7 @@ const Toolbar = ({ selectedCount, totalCount, onClearSelection }) => {
             display: 'flex',
             alignItems: 'center',
             gap: 0,
-            fontSize: '13px',
+            fontSize: '0.875rem',
             color: theme.gray[900],
             letterSpacing: '-0.005em',
           }}
@@ -368,7 +368,7 @@ const Toolbar = ({ selectedCount, totalCount, onClearSelection }) => {
       ) : (
         <Typography
           sx={{
-            fontSize: '12px',
+            fontSize: '0.75rem',
             fontStyle: 'italic',
             color: theme.gray[600],
             fontFamily: SERIF,
@@ -384,7 +384,7 @@ const Toolbar = ({ selectedCount, totalCount, onClearSelection }) => {
 const Separator = () => {
   const theme = useTheme();
   return (
-    <Box component="span" sx={{ mx: 1.5, color: theme.gray[400], fontSize: '13px' }}>
+    <Box component="span" sx={{ mx: 1.5, color: theme.gray[400], fontSize: '0.875rem' }}>
       —
     </Box>
   );
@@ -469,7 +469,7 @@ const StatusDot = ({ status }) => {
           flexShrink: 0,
         }}
       />
-      <Typography sx={{ fontSize: '13px', color: theme.gray[700], letterSpacing: '-0.005em' }}>
+      <Typography sx={{ fontSize: '0.875rem', color: theme.gray[700], letterSpacing: '-0.005em' }}>
         {STATUS_TO_KOREAN[status]}
       </Typography>
     </Box>
@@ -523,7 +523,7 @@ const OrderRow = ({ order, event, selected, onSelectToggle }) => {
         sx={{
           fontFamily: SERIF,
           fontWeight: 500,
-          fontSize: '16px',
+          fontSize: '1rem',
           color: theme.gray[900],
           letterSpacing: '-0.01em',
           overflow: 'hidden',
@@ -537,7 +537,7 @@ const OrderRow = ({ order, event, selected, onSelectToggle }) => {
       <Typography
         sx={{
           fontFamily: SERIF,
-          fontSize: '14px',
+          fontSize: '0.875rem',
           color: theme.gray[700],
           letterSpacing: '-0.005em',
           overflow: 'hidden',
@@ -550,7 +550,7 @@ const OrderRow = ({ order, event, selected, onSelectToggle }) => {
 
       <Typography
         sx={{
-          fontSize: '13px',
+          fontSize: '0.875rem',
           color: theme.gray[700],
           fontVariantNumeric: 'tabular-nums',
         }}
@@ -560,7 +560,7 @@ const OrderRow = ({ order, event, selected, onSelectToggle }) => {
 
       <Typography
         sx={{
-          fontSize: '14px',
+          fontSize: '0.875rem',
           fontWeight: 500,
           color: theme.gray[900],
           textAlign: 'right',
@@ -576,7 +576,7 @@ const OrderRow = ({ order, event, selected, onSelectToggle }) => {
       <Box>
         <Typography
           sx={{
-            fontSize: '13px',
+            fontSize: '0.875rem',
             color: theme.gray[700],
             letterSpacing: '-0.005em',
             fontVariantNumeric: 'tabular-nums',
@@ -586,7 +586,7 @@ const OrderRow = ({ order, event, selected, onSelectToggle }) => {
         </Typography>
         <Typography
           sx={{
-            fontSize: '11px',
+            fontSize: '0.75rem',
             color: theme.gray[500],
             fontVariantNumeric: 'tabular-nums',
             mt: 0.25,
@@ -638,7 +638,7 @@ const Pagination = ({ page, setPage, totalPages = 5 }) => {
         gap: 2,
         fontFamily: SERIF,
         fontStyle: 'italic',
-        fontSize: '15px',
+        fontSize: '1rem',
         color: theme.gray[700],
       }}
     >
@@ -663,7 +663,7 @@ const Pagination = ({ page, setPage, totalPages = 5 }) => {
               cursor: 'pointer',
               fontStyle: 'normal',
               fontFamily: SERIF,
-              fontSize: '15px',
+              fontSize: '1rem',
               fontVariantNumeric: 'tabular-nums',
               color: page === n ? theme.gray[900] : theme.gray[700],
               fontWeight: page === n ? 500 : 400,
@@ -760,7 +760,7 @@ const OrderManagementPreviewC1 = () => {
             sx={{
               fontFamily: SERIF,
               fontStyle: 'italic',
-              fontSize: '12px',
+              fontSize: '0.75rem',
               color: theme.gray[600],
             }}
           >

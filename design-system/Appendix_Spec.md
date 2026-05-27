@@ -33,6 +33,18 @@
 | `status-shipped` | brand 톤 안의 진행 색 | 배송중·발송완료 |
 | `status-completed` | 회색 계열 (#6C757D 톤) | 종료. 의미적으로 강조하지 않음 |
 
+## 2-1. 색 — Category (카테고리 구분 칩 전용)
+
+| 토큰 | 값 | 용도 |
+|---|---|---|
+| `category-book` | `#3B82F6` | 도서 카테고리 구분 칩 |
+| `category-test` | `#6366F1` | 검사 카테고리 구분 칩 |
+
+- 출고 시안(A3·FulfillmentPreview)에서 채택·사용 중인 값을 정식 토큰으로 승격(08 D17).
+- **status 색과 의미 분리.** `category-test`(`#6366F1`)는 `status-completed`와 헥사가 같으니, 같은 화면 공존 시 칩=outlined / status=filled로 형태 분리.
+- 도구(tool) 카테고리는 출고가 도서·검사만 분리하므로 이번 등재 제외. 상품관리엔 도구가 있으나 단일색 미확정(현재 `grey[600]`) — 회색 계열, 추후 확정.
+- 상품관리 화면(ProductManagementPage)은 현재 `info.main`/`secondary.main`으로 다른 색을 써서 코드 정합이 후속으로 남음(08 D17).
+
 ## 3. 색 — Surface (회색 5단계)
 
 | 토큰 | 값 | 용도 |
@@ -69,6 +81,9 @@
 | `title-section` | 20 / 1.3 / 700 | 섹션 제목 |
 | `title-page` | 24 / 1.2 / 700 | 페이지 제목 (M1 확정) |
 | `button-label` | 16 / 1.2 / 600 | 버튼 라벨 |
+| `number` | 20 / 1.3 / 700 | 가격·합계·인원 등 핵심 수치 전용 (본문 16/400보다 한 단계 위) |
+
+`number`는 모두클래스의 거대 가격 강조(24~30/800)를 형식만 참고하되, 안경 너머로 보는 50대 사용자 기준에서 위계만 만들 만큼으로 눌렀다. title-section(20/1.3/700)과 같은 크기지만 의미가 다르다 — title은 제목, number는 값. variant는 분리해 둔다.
 
 폰트 스택: `Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", system-ui, sans-serif`
 
@@ -108,6 +123,9 @@
 | `shadow-card` | `0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)` | 일반 카드 |
 | `shadow-pop` | `0 4px 12px rgba(0,0,0,0.10)` | 드로어·드롭다운·플로팅 |
 | `shadow-modal` | `0 16px 32px rgba(0,0,0,0.14)` | 모달·바텀시트 |
+| `shadow-focus` | `0 0 0 3px rgba(43, 57, 143, 0.16)` (= brand-700 알파 16%) | 포커스 링 — 키보드 탭·입력 포커스 시 |
+
+검정 그림자가 아니라 brand-700(`#2B398F`) 알파다. 깊이가 아니라 포커스 신호이기 때문. 이미 `theme.js`에 `shadows.focus`로 존재하던 값을 토큰으로 명시 등재. `forced-colors: active` 시 `outline-color: Highlight`로 fallback(§11.4).
 
 색은 모두 검정 알파. 보라·파랑 그림자 금지.
 
