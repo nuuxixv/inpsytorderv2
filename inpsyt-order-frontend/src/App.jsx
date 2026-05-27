@@ -21,6 +21,7 @@ import OrderManagementPreviewC4 from './components/OrderManagementPreviewC4';
 import ProductManagementPreview from './components/ProductManagementPreview';
 import EventManagementPreview from './components/EventManagementPreview';
 import CustomerOrderPreview from './components/CustomerOrderPreview';
+import CustomerOrderStatusPreview from './components/CustomerOrderStatusPreview';
 import theme from './theme'; // theme.js 파일 임포트
 import {
   CssBaseline,
@@ -59,6 +60,7 @@ function AppRoutes() {
         <Route path="/preview/orders-c3" element={<OrderManagementPreviewC3 />} />
         <Route path="/preview/orders-c4" element={<OrderManagementPreviewC4 />} />
         <Route path="/preview/order" element={<CustomerOrderPreview />} />
+        <Route path="/preview/order-status" element={<CustomerOrderStatusPreview />} />
         {/* Redirect /smartadmin to /admin */}
           <Route path="/smartadmin" element={<Navigate to="/admin" replace />} />
 
