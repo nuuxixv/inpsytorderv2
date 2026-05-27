@@ -66,12 +66,7 @@ const SectionCard = ({
             {title && (
               <Typography
                 variant="subtitle1"
-                sx={{
-                  fontWeight: 700,
-                  color: 'text.primary',
-                  letterSpacing: '-0.015em',
-                  lineHeight: 1.3,
-                }}
+                sx={{ color: 'text.primary', lineHeight: 1.3 }}
               >
                 {title}
               </Typography>

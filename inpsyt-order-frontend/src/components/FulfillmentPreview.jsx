@@ -16,9 +16,8 @@ import {
   Phone as PhoneIcon,
   BadgeOutlined as BadgeIcon,
   LocationOn as LocationIcon,
-  ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material';
-import { PageHeader, SectionCard, StatusChip } from './ui';
+import { PageHeader, SectionCard, StatusBadge, InfoRow, ActionSlot, EmptyState } from './ui';
 import PreviewShell from './preview/PreviewShell';
 import { STATUS_TO_KOREAN } from '../constants/orderStatus';
 
@@ -119,11 +118,8 @@ const PRODUCT_CATEGORIES = [
   { key: 'test', label: '검사' },
 ];
 
-// 주문 행 카테고리 칩 색 (사양 A3 line 57: 검사=#6366F1 / 도서=#3B82F6)
-const CATEGORY_CHIP = {
-  book: { label: '도서', color: '#3B82F6' },
-  test: { label: '검사', color: '#6366F1' },
-};
+// 주문 행 카테고리 칩(도서/검사)은 StatusBadge kind="category"로 표시한다.
+// 색은 constants/categoryColors.js의 CATEGORY_COLORS 토큰(사양 A3 line 57, 08 D17).
 
 const PAYMENT_STATUS_OPTIONS = ['paid', 'preparing', 'completed'];
 const FULFILLMENT_STATUS_OPTIONS = [
@@ -138,6 +134,7 @@ const PAYMENT_STATUS_LABEL = {
 
 // ─── 그룹 카드 ─────────────────────────────────────────────────
 
+// 단축 복사 버튼(44×44 터치 영역). 라인 인라인 복사는 InfoRow의 onCopy 사용.
 const CopyIconButton = ({ tooltip, icon, onClick }) => {
   const theme = useTheme();
   return (
@@ -150,7 +147,7 @@ const CopyIconButton = ({ tooltip, icon, onClick }) => {
           borderRadius: `${theme.radii.sm}px`,
           color: theme.gray[600],
           border: `1px solid ${theme.gray[200]}`,
-          bgcolor: '#fff',
+          bgcolor: 'background.paper',
           cursor: 'copy',
           transition: `all 0.15s ${theme.easing.toss}`,
           '&:hover': {
@@ -163,70 +160,6 @@ const CopyIconButton = ({ tooltip, icon, onClick }) => {
         {icon}
       </IconButton>
     </Tooltip>
-  );
-};
-
-// 데이터 라인 (라벨 + 값 + 인라인 복사 버튼)
-const DataLine = ({ label, value, onCopy, mono = false, multiline = false, muted = false }) => {
-  const theme = useTheme();
-  return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: multiline ? 'flex-start' : 'center',
-        gap: 1,
-        py: 0.5,
-        minHeight: 28,
-      }}
-    >
-      <Typography
-        variant="caption"
-        sx={{
-          flex: '0 0 64px',
-          fontWeight: 700,
-          color: 'text.disabled',
-          letterSpacing: '0.03em',
-          textTransform: 'uppercase',
-          pt: multiline ? '2px' : 0,
-        }}
-      >
-        {label}
-      </Typography>
-      <Typography
-        variant="body2"
-        sx={{
-          flex: 1,
-          fontWeight: 500,
-          color: muted ? 'text.secondary' : 'text.primary',
-          letterSpacing: '-0.01em',
-          fontFamily: mono
-            ? 'ui-monospace, SFMono-Regular, Menlo, monospace'
-            : undefined,
-          fontFeatureSettings: mono ? '"tnum" 1' : undefined,
-          wordBreak: 'break-all',
-        }}
-      >
-        {value}
-      </Typography>
-      {onCopy && (
-        <IconButton
-          size="small"
-          onClick={onCopy}
-          sx={{
-            width: 28,
-            height: 28,
-            color: theme.gray[400],
-            cursor: 'copy',
-            '&:hover': {
-              color: theme.palette.primary.main,
-              bgcolor: alpha(theme.palette.primary.main, 0.06),
-            },
-          }}
-        >
-          <ContentCopyIcon sx={{ fontSize: 14 }} />
-        </IconButton>
-      )}
-    </Box>
   );
 };
 
@@ -271,13 +204,7 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
         </Box>
         <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, gap: 0.25 }}>
           <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, flexWrap: 'wrap' }}>
-            <Typography
-              variant="body1"
-              sx={{
-                fontWeight: 700,
-                color: 'text.primary', letterSpacing: '-0.015em',
-              }}
-            >
+            <Typography variant="subtitle1" sx={{ color: 'text.primary' }}>
               {group.customer_name}
             </Typography>
             <Chip
@@ -285,8 +212,6 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
               size="small"
               sx={{
                 height: 22,
-                fontSize: '0.75rem',
-                fontWeight: 700,
                 bgcolor: alpha(theme.palette.primary.main, 0.08),
                 color: theme.palette.primary.main,
                 border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
@@ -299,8 +224,6 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
                 size="small"
                 sx={{
                   height: 22,
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
                   bgcolor: alpha(theme.status.completed, 0.1),
                   color: theme.status.completed,
                   border: `1px solid ${alpha(theme.status.completed, 0.25)}`,
@@ -311,7 +234,7 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
             <Typography
               variant="caption"
               sx={{
-                color: 'text.disabled',
+                color: 'text.secondary',
                 fontFeatureSettings: '"tnum" 1',
                 ml: 'auto',
               }}
@@ -337,26 +260,26 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
       {/* 데이터 라인 — 사양 A3 핵심 발견 #1: 도로명·상세·우편번호 3줄 분리 */}
       {/* 사양 A3 line 36-50: 결제금액·연락처·ID·주소(3줄)·요청·관리자 메모 동일 서식 */}
       <Box sx={{ px: 3, py: 1.5, borderBottom: `1px solid ${theme.gray[100]}` }}>
-        <DataLine
+        <InfoRow
           label="결제"
           value={`${totalAmount.toLocaleString()}원`}
           onCopy={() => onCopy('결제금액', `${totalAmount.toLocaleString()}원`)}
           mono
         />
-        <DataLine
+        <InfoRow
           label="연락처"
           value={group.phone}
           onCopy={() => onCopy('연락처', group.phone)}
           mono
         />
-        <DataLine
+        <InfoRow
           label="ID"
           value={group.insight_id}
           onCopy={() => onCopy('인싸이트 ID', group.insight_id)}
           mono
         />
         {/* 주소 — 도로명(우편번호 옆) / 상세 / 분리 표시 */}
-        <DataLine
+        <InfoRow
           label="도로명"
           value={
             <Box component="span" sx={{ display: 'inline-flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
@@ -365,7 +288,7 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
                 sx={(t) => ({
                   ...t.typography.caption,
                   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                  color: t.palette.text.disabled,
+                  color: t.palette.text.secondary,
                   fontFeatureSettings: '"tnum" 1',
                 })}
               >
@@ -377,20 +300,20 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
           onCopy={() => onCopy('도로명주소', group.address.road)}
           multiline
         />
-        <DataLine
+        <InfoRow
           label="상세"
           value={group.address.detail}
           onCopy={() => onCopy('상세주소', group.address.detail)}
           multiline
         />
-        <DataLine
+        <InfoRow
           label="요청"
           value={requestNote || '-'}
           onCopy={requestNote ? () => onCopy('요청사항', requestNote) : undefined}
           muted={!requestNote}
           multiline
         />
-        <DataLine
+        <InfoRow
           label="메모"
           value={adminMemo || '-'}
           onCopy={adminMemo ? () => onCopy('관리자 메모', adminMemo) : undefined}
@@ -399,134 +322,116 @@ const FulfillmentGroupCard = ({ group, selected, onSelectToggle, onCopy, onCompl
         />
       </Box>
 
-      {/* 액션 행 (복사 단축 + 출고 완료) */}
-      <Box
+      {/* 액션 행 (복사 단축 + 출고 완료) — ActionSlot 의미 단위 */}
+      <ActionSlot
         sx={{
           px: 3, py: 1.25,
-          display: 'flex', alignItems: 'center', gap: 1,
           bgcolor: theme.gray[50],
           borderBottom: `1px solid ${theme.gray[100]}`,
-          flexWrap: 'wrap',
         }}
+        leading={
+          <>
+            <Typography variant="subtitle2" sx={{ color: 'text.secondary', mr: 0.5 }}>
+              단축 복사
+            </Typography>
+            <CopyIconButton
+              tooltip={`이름 복사 — ${group.customer_name}`}
+              icon={<PersonIcon sx={{ fontSize: 18 }} />}
+              onClick={() => onCopy('이름', group.customer_name)}
+            />
+            <CopyIconButton
+              tooltip={`연락처 복사 — ${group.phone}`}
+              icon={<PhoneIcon sx={{ fontSize: 18 }} />}
+              onClick={() => onCopy('연락처', group.phone)}
+            />
+            <CopyIconButton
+              tooltip={`인싸이트 ID 복사 — ${group.insight_id}`}
+              icon={<BadgeIcon sx={{ fontSize: 18 }} />}
+              onClick={() => onCopy('인싸이트 ID', group.insight_id)}
+            />
+            <CopyIconButton
+              tooltip={`도로명주소 복사 (우편번호 제외) — ${group.address.road}`}
+              icon={<LocationIcon sx={{ fontSize: 18 }} />}
+              onClick={() => onCopy('도로명주소', group.address.road)}
+            />
+          </>
+        }
       >
-        <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', mr: 0.5 }}>
-          단축 복사
-        </Typography>
-        <CopyIconButton
-          tooltip={`이름 복사 — ${group.customer_name}`}
-          icon={<PersonIcon sx={{ fontSize: 18 }} />}
-          onClick={() => onCopy('이름', group.customer_name)}
-        />
-        <CopyIconButton
-          tooltip={`연락처 복사 — ${group.phone}`}
-          icon={<PhoneIcon sx={{ fontSize: 18 }} />}
-          onClick={() => onCopy('연락처', group.phone)}
-        />
-        <CopyIconButton
-          tooltip={`인싸이트 ID 복사 — ${group.insight_id}`}
-          icon={<BadgeIcon sx={{ fontSize: 18 }} />}
-          onClick={() => onCopy('인싸이트 ID', group.insight_id)}
-        />
-        <CopyIconButton
-          tooltip={`도로명주소 복사 (우편번호 제외) — ${group.address.road}`}
-          icon={<LocationIcon sx={{ fontSize: 18 }} />}
-          onClick={() => onCopy('도로명주소', group.address.road)}
-        />
-        <Box sx={{ ml: 'auto' }}>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
-            onClick={onComplete}
-            sx={{ minHeight: 36 }}
-          >
-            출고 완료 처리
-          </Button>
-        </Box>
-      </Box>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
+          onClick={onComplete}
+          sx={{ minHeight: 36 }}
+        >
+          출고 완료 처리
+        </Button>
+      </ActionSlot>
 
       {/* 주문 행 리스트 — 사양 A3 핵심 발견 #2: 분류 칩(도서/검사) 필수 */}
       <Box>
-        {group.orders.map((order, idx) => {
-          const cat = CATEGORY_CHIP[order.category];
-          return (
-            <Box
-              key={order.id}
+        {group.orders.map((order, idx) => (
+          <Box
+            key={order.id}
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(110px, 1fr) minmax(100px, 1fr) 60px minmax(180px, 2.5fr) 120px 100px',
+              alignItems: 'center',
+              gap: 2,
+              px: 3, py: 1.5,
+              minHeight: 56,
+              borderBottom: idx === group.orders.length - 1 ? 'none' : `1px solid ${theme.gray[50]}`,
+              transition: `background-color 0.15s ${theme.easing.toss}`,
+              '&:hover': { bgcolor: theme.gray[50] },
+            }}
+          >
+            <Typography
+              variant="subtitle2"
               sx={{
-                display: 'grid',
-                gridTemplateColumns: 'minmax(110px, 1fr) minmax(100px, 1fr) 60px minmax(180px, 2.5fr) 120px 100px',
-                alignItems: 'center',
-                gap: 2,
-                px: 3, py: 1.5,
-                minHeight: 56,
-                borderBottom: idx === group.orders.length - 1 ? 'none' : `1px solid ${theme.gray[50]}`,
-                transition: `background-color 0.15s ${theme.easing.toss}`,
-                '&:hover': { bgcolor: theme.gray[50] },
+                color: 'text.secondary',
+                fontFeatureSettings: '"tnum" 1',
               }}
             >
-              <Typography
-                variant="body2"
-                sx={{
-                  color: 'text.disabled',
-                  fontWeight: 700, letterSpacing: '-0.01em',
-                  fontFeatureSettings: '"tnum" 1',
-                }}
-              >
-                #{order.id}
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: 'text.secondary',
-                  fontFeatureSettings: '"tnum" 1',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}
-              >
-                {order.insight_id}
-              </Typography>
-              <Box>
-                {cat && (
-                  <Chip
-                    label={cat.label}
-                    size="small"
-                    sx={{
-                      height: 20,
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      bgcolor: alpha(cat.color, 0.08),
-                      color: cat.color,
-                      border: `1px solid ${alpha(cat.color, 0.2)}`,
-                    }}
-                  />
-                )}
-              </Box>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: 'text.primary',
-                  fontWeight: 500,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}
-              >
-                {order.summary}
-              </Typography>
-              <Typography
-                variant="body1"
-                sx={{
-                  fontWeight: 800,
-                  textAlign: 'right', letterSpacing: '-0.025em',
-                  color: 'text.primary',
-                  fontFeatureSettings: '"tnum" 1',
-                }}
-              >
-                {order.total.toLocaleString()}원
-              </Typography>
-              <Box>
-                <StatusChip status={order.status === 'preparing' ? 'paid' : order.status} size="sm" />
-              </Box>
+              #{order.id}
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: 'text.secondary',
+                fontFeatureSettings: '"tnum" 1',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}
+            >
+              {order.insight_id}
+            </Typography>
+            <Box>
+              <StatusBadge kind="category" value={order.category} size="sm" />
             </Box>
-          );
-        })}
+            <Typography
+              variant="subtitle2"
+              sx={{
+                color: 'text.primary',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}
+            >
+              {order.summary}
+            </Typography>
+            {/* 금액 — number 토큰 위계(subtitle1 = 16/700), 값을 읽는 자리 */}
+            <Typography
+              variant="subtitle1"
+              sx={{
+                textAlign: 'right',
+                color: 'text.primary',
+                fontFeatureSettings: '"tnum" 1',
+              }}
+            >
+              {order.total.toLocaleString()}원
+            </Typography>
+            <Box>
+              <StatusBadge value={order.status === 'preparing' ? 'paid' : order.status} size="sm" />
+            </Box>
+          </Box>
+        ))}
       </Box>
     </SectionCard>
   );
@@ -620,13 +525,7 @@ const FulfillmentPreview = () => {
       <SectionCard sx={{ mb: 3 }} padding={20}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
           <FilterListIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-          <Typography
-            variant="body2"
-            sx={{
-              fontWeight: 800,
-              color: 'text.primary', letterSpacing: '-0.01em',
-            }}
-          >
+          <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
             필터
           </Typography>
           {activeFilterCount > 0 && (
@@ -634,8 +533,9 @@ const FulfillmentPreview = () => {
               label={activeFilterCount}
               size="small"
               sx={{
-                height: 18, fontSize: '0.75rem', fontWeight: 800,
-                bgcolor: theme.palette.primary.main, color: '#fff',
+                height: 18,
+                bgcolor: theme.palette.primary.main,
+                color: theme.palette.primary.contrastText,
               }}
             />
           )}
@@ -643,7 +543,7 @@ const FulfillmentPreview = () => {
 
         {/* Row 1 — 카테고리 토글 */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, mr: 0.5 }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             카테고리
           </Typography>
           {PRODUCT_CATEGORIES.map(({ key, label }) => (
@@ -654,11 +554,7 @@ const FulfillmentPreview = () => {
               variant={productCategory === key ? 'filled' : 'outlined'}
               color={productCategory === key ? 'primary' : 'default'}
               onClick={() => setProductCategory(key)}
-              sx={{
-                paddingX: 1.5,
-                fontWeight: productCategory === key ? 700 : 500,
-                cursor: 'pointer',
-              }}
+              sx={{ paddingX: 1.5, cursor: 'pointer' }}
             />
           ))}
         </Box>
@@ -694,7 +590,7 @@ const FulfillmentPreview = () => {
           </FormControl>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               출고 상태
             </Typography>
             {FULFILLMENT_STATUS_OPTIONS.map(({ key, label }) => (
@@ -705,11 +601,7 @@ const FulfillmentPreview = () => {
                 variant={fulfillmentStatus === key ? 'filled' : 'outlined'}
                 color={fulfillmentStatus === key ? 'primary' : 'default'}
                 onClick={() => setFulfillmentStatus(key)}
-                sx={{
-                  paddingX: 1.5,
-                  fontWeight: fulfillmentStatus === key ? 700 : 500,
-                  cursor: 'pointer',
-                }}
+                sx={{ paddingX: 1.5, cursor: 'pointer' }}
               />
             ))}
           </Box>
@@ -756,16 +648,12 @@ const FulfillmentPreview = () => {
 
       {/* ─── 그룹 카드 리스트 ─── */}
       {MOCK_GROUPS.length === 0 ? (
-        <SectionCard sx={{ textAlign: 'center', py: 6 }}>
-          <Typography
-            variant="body1"
-            sx={{ fontWeight: 700, color: 'text.primary', mb: 0.5 }}
-          >
-            출고 대기 주문이 없습니다
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            필터를 조정해 주세요
-          </Typography>
+        <SectionCard padding={0}>
+          <EmptyState
+            icon={LocalShippingIcon}
+            title="출고 대기 주문이 없습니다"
+            description="필터를 조정해 주세요"
+          />
         </SectionCard>
       ) : (
         <Box>
