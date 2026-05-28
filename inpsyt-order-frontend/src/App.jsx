@@ -20,6 +20,11 @@ import OrderManagementPreviewC3 from './components/OrderManagementPreviewC3';
 import OrderManagementPreviewC4 from './components/OrderManagementPreviewC4';
 import ProductManagementPreview from './components/ProductManagementPreview';
 import EventManagementPreview from './components/EventManagementPreview';
+import UserManagementPreview from './components/UserManagementPreview';
+import BulletinBoardPreview from './components/BulletinBoardPreview';
+import FeedbackManagementPreview from './components/FeedbackManagementPreview';
+import SettingsPreview from './components/SettingsPreview';
+import LoginPreview from './components/LoginPreview';
 import CustomerOrderPreview from './components/CustomerOrderPreview';
 import CustomerOrderStatusPreview from './components/CustomerOrderStatusPreview';
 import theme from './theme'; // theme.js 파일 임포트
@@ -54,6 +59,11 @@ function AppRoutes() {
         <Route path="/preview/fulfillment" element={<FulfillmentPreview />} />
         <Route path="/preview/products" element={<ProductManagementPreview />} />
         <Route path="/preview/events" element={<EventManagementPreview />} />
+        <Route path="/preview/users" element={<UserManagementPreview />} />
+        <Route path="/preview/bulletins" element={<BulletinBoardPreview />} />
+        <Route path="/preview/feedback" element={<FeedbackManagementPreview />} />
+        <Route path="/preview/settings" element={<SettingsPreview />} />
+        <Route path="/preview/login" element={<LoginPreview />} />
         <Route path="/preview/orders" element={<OrderManagementPreview />} />
         <Route path="/preview/orders-c1" element={<OrderManagementPreviewC1 />} />
         <Route path="/preview/orders-c2" element={<OrderManagementPreviewC2 />} />
