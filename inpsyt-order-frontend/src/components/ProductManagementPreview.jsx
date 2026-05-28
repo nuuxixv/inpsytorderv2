@@ -30,7 +30,7 @@ import {
   RestartAlt as RestartAltIcon,
   Lock as LockIcon,
 } from '@mui/icons-material';
-import { PageHeader, SectionCard } from './ui';
+import { PageHeader, SectionCard, ActionSlot, EmptyState } from './ui';
 import PreviewShell from './preview/PreviewShell';
 
 /**
@@ -70,26 +70,29 @@ const CATEGORY_META = {
   '도구': { icon: BuildIcon, color: 'gray' },
 };
 
-const TriStateToggle = ({ label, value, onChange }) => (
-  <Box>
-    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
-      {label}
-    </Typography>
-    <ToggleButtonGroup
-      value={value === null ? 'none' : value ? 'on' : 'off'}
-      exclusive
-      size="small"
-      onChange={(_, next) => {
-        if (!next) return;
-        onChange(next === 'none' ? null : next === 'on');
-      }}
-    >
-      <ToggleButton value="none" sx={{ px: 1.5, fontSize: '0.875rem' }}>변경 없음</ToggleButton>
-      <ToggleButton value="on" sx={{ px: 1.5, fontSize: '0.875rem' }}>ON</ToggleButton>
-      <ToggleButton value="off" sx={{ px: 1.5, fontSize: '0.875rem' }}>OFF</ToggleButton>
-    </ToggleButtonGroup>
-  </Box>
-);
+const TriStateToggle = ({ label, value, onChange }) => {
+  const theme = useTheme();
+  return (
+    <Box>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
+        {label}
+      </Typography>
+      <ToggleButtonGroup
+        value={value === null ? 'none' : value ? 'on' : 'off'}
+        exclusive
+        size="small"
+        onChange={(_, next) => {
+          if (!next) return;
+          onChange(next === 'none' ? null : next === 'on');
+        }}
+      >
+        <ToggleButton value="none" sx={{ px: 1.5, ...theme.typography.body2 }}>변경 없음</ToggleButton>
+        <ToggleButton value="on" sx={{ px: 1.5, ...theme.typography.body2 }}>ON</ToggleButton>
+        <ToggleButton value="off" sx={{ px: 1.5, ...theme.typography.body2 }}>OFF</ToggleButton>
+      </ToggleButtonGroup>
+    </Box>
+  );
+};
 
 const RowIconButton = ({ tooltip, icon, onClick, danger = false, disabled = false }) => {
   const theme = useTheme();
@@ -105,7 +108,7 @@ const RowIconButton = ({ tooltip, icon, onClick, danger = false, disabled = fals
             borderRadius: `${theme.radii.sm}px`,
             color: danger ? theme.palette.error.main : theme.gray[600],
             border: `1px solid ${theme.gray[200]}`,
-            bgcolor: '#fff',
+            bgcolor: 'background.paper',
             transition: `all 0.15s ${theme.easing.toss}`,
             '&:hover': danger
               ? {
@@ -171,7 +174,6 @@ const QuickFilterCard = (props) => {
         <Typography
           variant="h1"
           sx={{
-            fontWeight: 800,
             color: active ? baseColor : 'text.primary',
             letterSpacing: '-0.02em',
             fontFeatureSettings: '"tnum" 1',
@@ -239,18 +241,18 @@ const ProductRow = ({ product, selected, onSelectToggle, onEdit, canEdit }) => {
           size="small"
           sx={{
             height: 22,
-            fontSize: '0.75rem',
             fontWeight: 700,
             bgcolor: alpha(palette, 0.08),
             color: palette,
             border: `1px solid ${alpha(palette, 0.2)}`,
+            '& .MuiChip-label': { ...theme.typography.caption },
           }}
         />
       </Box>
       <Typography
         variant="body1"
         sx={{
-          fontWeight: 800, textAlign: 'right',
+          fontWeight: 700, textAlign: 'right',
           letterSpacing: '-0.025em', color: 'text.primary',
           fontFeatureSettings: '"tnum" 1',
         }}
@@ -268,16 +270,16 @@ const ProductRow = ({ product, selected, onSelectToggle, onEdit, canEdit }) => {
       </Typography>
       <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
         {product.is_popular && (
-          <Chip label="인기" size="small" color="warning" sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }} />
+          <Chip label="인기" size="small" color="warning" sx={{ height: 20, fontWeight: 700, '& .MuiChip-label': { ...theme.typography.caption } }} />
         )}
         {product.is_new && (
-          <Chip label="신상품" size="small" color="primary" sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }} />
+          <Chip label="신상품" size="small" color="primary" sx={{ height: 20, fontWeight: 700, '& .MuiChip-label': { ...theme.typography.caption } }} />
         )}
         {product.is_discountable && (
           <Chip
             label="할인"
             size="small"
-            sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700, bgcolor: alpha(theme.status.completed, 0.1), color: theme.status.completed }}
+            sx={{ height: 20, fontWeight: 700, bgcolor: alpha(theme.status.completed, 0.1), color: theme.status.completed, '& .MuiChip-label': { ...theme.typography.caption } }}
           />
         )}
         {!product.is_popular && !product.is_new && !product.is_discountable && (
@@ -291,12 +293,12 @@ const ProductRow = ({ product, selected, onSelectToggle, onEdit, canEdit }) => {
             label={tag}
             size="small"
             variant="outlined"
-            sx={{ height: 20, fontSize: '0.75rem' }}
+            sx={{ height: 20, '& .MuiChip-label': { ...theme.typography.caption } }}
           />
         ))}
         {(product.tags || []).length > 2 && (
           <Tooltip title={product.tags.slice(2).join(', ')} arrow>
-            <Chip label={`+${product.tags.length - 2}`} size="small" sx={{ height: 20, fontSize: '0.75rem', cursor: 'pointer' }} />
+            <Chip label={`+${product.tags.length - 2}`} size="small" sx={{ height: 20, cursor: 'pointer', '& .MuiChip-label': { ...theme.typography.caption } }} />
           </Tooltip>
         )}
       </Box>
@@ -351,7 +353,7 @@ const ProductEditDialog = ({ open, product, onClose, onSave, canEdit }) => {
         >
           {isEditing ? <EditIcon sx={{ fontSize: 20, color: theme.palette.primary.main }} /> : <AddIcon sx={{ fontSize: 20, color: theme.palette.primary.main }} />}
         </Box>
-        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
+        <Typography variant="h4" sx={{ letterSpacing: '-0.02em' }}>
           {isEditing ? '상품 수정' : '새 상품 추가'}
         </Typography>
       </DialogTitle>
@@ -443,7 +445,7 @@ const DeleteSelectedDialog = ({ open, count, onClose, onConfirm }) => {
   return (
     <Dialog open={open} onClose={onClose} PaperProps={{ sx: { borderRadius: `${theme.radii.lg}px`, maxWidth: 420, width: '100%' } }}>
       <DialogTitle sx={{ pb: 1.5 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
+        <Typography variant="h4" sx={{ letterSpacing: '-0.02em' }}>
           선택 상품 삭제
         </Typography>
       </DialogTitle>
@@ -507,7 +509,7 @@ const DeleteAllConfirmDialog = ({ open, onClose, onConfirm }) => {
         >
           <WarningIcon sx={{ fontSize: 20, color: theme.palette.error.main }} />
         </Box>
-        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em', color: 'text.primary' }}>
+        <Typography variant="h4" sx={{ letterSpacing: '-0.02em', color: 'text.primary' }}>
           전체 상품 삭제
         </Typography>
       </DialogTitle>
@@ -579,7 +581,7 @@ const BulkEditDialog = ({ open, count, onClose, onConfirm }) => {
   return (
     <Dialog open={open} onClose={handleClose} PaperProps={{ sx: { borderRadius: `${theme.radii.lg}px`, maxWidth: 440, width: '100%' } }}>
       <DialogTitle sx={{ pb: 1.5 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
+        <Typography variant="h4" sx={{ letterSpacing: '-0.02em' }}>
           선택 항목 편집
         </Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 400, mt: 0.25 }}>
@@ -598,8 +600,8 @@ const BulkEditDialog = ({ open, count, onClose, onConfirm }) => {
               size="small"
               onChange={(_, v) => { if (v) setTagsMode(v); }}
             >
-              <ToggleButton value="append" sx={{ px: 1.25, fontSize: '0.75rem' }}>추가</ToggleButton>
-              <ToggleButton value="replace" sx={{ px: 1.25, fontSize: '0.75rem' }}>덮어쓰기</ToggleButton>
+              <ToggleButton value="append" sx={{ px: 1.25, ...theme.typography.caption }}>추가</ToggleButton>
+              <ToggleButton value="replace" sx={{ px: 1.25, ...theme.typography.caption }}>덮어쓰기</ToggleButton>
             </ToggleButtonGroup>
           </Box>
           <Autocomplete
@@ -650,7 +652,7 @@ const UploadProgressDialog = ({ open, progress, onClose }) => {
         >
           <UploadIcon sx={{ fontSize: 20, color: theme.palette.primary.main }} />
         </Box>
-        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
+        <Typography variant="h4" sx={{ letterSpacing: '-0.02em' }}>
           엑셀 업로드 {isDone ? '완료' : '중'}
         </Typography>
       </DialogTitle>
@@ -839,12 +841,12 @@ const ProductManagementPreview = () => {
               <Box
                 onClick={() => setCanEdit(prev => !prev)}
                 sx={{
+                  ...theme.typography.caption,
                   display: 'flex', alignItems: 'center', gap: 0.5,
                   px: 1, py: 0.5, mr: 0.5,
                   borderRadius: `${theme.radii.sm}px`,
                   border: `1px dashed ${theme.gray[300]}`,
                   cursor: 'pointer',
-                  fontSize: '0.75rem',
                   color: canEdit ? theme.palette.primary.main : 'text.disabled',
                   fontWeight: 700,
                   letterSpacing: '0.03em',
@@ -979,14 +981,14 @@ const ProductManagementPreview = () => {
       <SectionCard sx={{ mb: 3 }} padding={20}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
           <FilterListIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-          <Typography variant="body2" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.01em' }}>
+          <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary', letterSpacing: '-0.01em' }}>
             필터
           </Typography>
           {activeFilterCount > 0 && (
             <Chip
               label={activeFilterCount}
               size="small"
-              sx={{ height: 18, fontSize: '0.75rem', fontWeight: 800, bgcolor: theme.palette.primary.main, color: '#fff' }}
+              sx={{ height: 18, fontWeight: 700, bgcolor: theme.palette.primary.main, color: theme.palette.primary.contrastText, '& .MuiChip-label': { ...theme.typography.caption } }}
             />
           )}
           {hasFilters && (
@@ -1056,67 +1058,59 @@ const ProductManagementPreview = () => {
             bgcolor: alpha(theme.palette.primary.main, 0.03),
           }}
         >
-          <Box
-            sx={{
-              px: 2.5, py: 1.5,
-              display: 'flex', alignItems: 'center', gap: 1.5,
-              flexWrap: 'wrap',
-            }}
+          <ActionSlot
+            sx={{ px: 2.5, py: 1.5 }}
+            leading={
+              <>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    fontWeight: 700,
+                    color: theme.palette.primary.main, letterSpacing: '-0.015em',
+                    fontFeatureSettings: '"tnum" 1',
+                  }}
+                >
+                  {selectedIds.length}개 선택됨
+                </Typography>
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => setSelectedIds([])}
+                  sx={{ color: 'text.secondary', minHeight: 36 }}
+                >
+                  해제
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<TuneIcon sx={{ fontSize: 16 }} />}
+                  onClick={() => setBulkEditOpen(true)}
+                  sx={{ minHeight: 36 }}
+                >
+                  선택 항목 편집
+                </Button>
+              </>
+            }
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography
-                variant="body1"
-                sx={{
-                  fontWeight: 800,
-                  color: theme.palette.primary.main, letterSpacing: '-0.015em',
-                  fontFeatureSettings: '"tnum" 1',
-                }}
-              >
-                {selectedIds.length}개 선택됨
-              </Typography>
-              <Button
-                size="small"
-                variant="text"
-                onClick={() => setSelectedIds([])}
-                sx={{ color: 'text.secondary', minHeight: 36 }}
-              >
-                해제
-              </Button>
-            </Box>
-
-            <Box sx={{ display: 'flex', gap: 1, ml: 1 }}>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<TuneIcon sx={{ fontSize: 16 }} />}
-                onClick={() => setBulkEditOpen(true)}
-                sx={{ minHeight: 36 }}
-              >
-                선택 항목 편집
-              </Button>
-            </Box>
-
-            <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box sx={{ width: 1, height: 24, bgcolor: theme.gray[200] }} />
-              <Button
-                size="small"
-                variant="outlined"
-                color="error"
-                startIcon={<DeleteIcon sx={{ fontSize: 16 }} />}
-                onClick={() => setDeleteSelectedOpen(true)}
-                sx={{
-                  minHeight: 36,
-                  borderColor: alpha(theme.palette.error.main, 0.4),
-                  '&:hover': {
-                    bgcolor: alpha(theme.palette.error.main, 0.06),
-                    borderColor: theme.palette.error.main,
-                  },
-                }}
-              >
-                선택 삭제
-              </Button>
-            </Box>
-          </Box>
+            <Box sx={{ width: 1, height: 24, bgcolor: theme.gray[200] }} />
+            <Button
+              size="small"
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon sx={{ fontSize: 16 }} />}
+              onClick={() => setDeleteSelectedOpen(true)}
+              sx={{
+                minHeight: 36,
+                borderColor: alpha(theme.palette.error.main, 0.4),
+                '&:hover': {
+                  bgcolor: alpha(theme.palette.error.main, 0.06),
+                  borderColor: theme.palette.error.main,
+                },
+              }}
+            >
+              선택 삭제
+            </Button>
+          </ActionSlot>
         </SectionCard>
       )}
 
@@ -1141,7 +1135,7 @@ const ProductManagementPreview = () => {
           />
           <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              <Box component="span" sx={{ fontWeight: 800, color: 'text.primary', fontFeatureSettings: '"tnum" 1' }}>
+              <Box component="span" sx={{ fontWeight: 700, color: 'text.primary', fontFeatureSettings: '"tnum" 1' }}>
                 {totalFiltered}
               </Box>
               개 상품
@@ -1164,7 +1158,7 @@ const ProductManagementPreview = () => {
             borderBottom: `1px solid ${theme.gray[200]}`,
             bgcolor: theme.gray[50],
             '& > *': {
-              fontSize: '0.75rem', fontWeight: 700, color: 'text.secondary',
+              ...theme.typography.caption, fontWeight: 700, color: 'text.secondary',
               letterSpacing: '0.03em', textTransform: 'uppercase',
             },
           }}
@@ -1182,17 +1176,15 @@ const ProductManagementPreview = () => {
         {/* Rows */}
         <Box>
           {displayedProducts.length === 0 ? (
-            <Box sx={{ py: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, color: 'text.disabled' }}>
-              <InventoryIcon sx={{ fontSize: 48 }} />
-              <Typography variant="body1" sx={{ fontWeight: 700 }}>
-                {hasFilters ? '검색 결과가 없습니다' : '등록된 상품이 없습니다'}
-              </Typography>
-              {hasFilters && (
-                <Button size="small" variant="outlined" startIcon={<RestartAltIcon sx={{ fontSize: 16 }} />} onClick={handleResetFilters}>
-                  필터 초기화
-                </Button>
-              )}
-            </Box>
+            <EmptyState
+              icon={InventoryIcon}
+              title={hasFilters ? '검색 결과가 없습니다' : '등록된 상품이 없습니다'}
+              action={hasFilters ? {
+                label: '필터 초기화',
+                onClick: handleResetFilters,
+                startIcon: <RestartAltIcon sx={{ fontSize: 16 }} />,
+              } : undefined}
+            />
           ) : (
             displayedProducts.map(product => (
               <ProductRow
