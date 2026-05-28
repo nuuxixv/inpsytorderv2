@@ -20,7 +20,7 @@ import {
   History as HistoryIcon,
   EmojiEvents as TrophyIcon,
 } from '@mui/icons-material';
-import { PageHeader, SectionCard, StatCard, StatusChip } from './ui';
+import { PageHeader, SectionCard, StatCard, StatusBadge } from './ui';
 import PreviewShell from './preview/PreviewShell';
 import { STATUS_TO_KOREAN } from '../constants/orderStatus';
 
@@ -89,7 +89,7 @@ const StatusBar = ({ statusCounts, totalOrders, onStatusClick }) => {
           <Box key={seg.key} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, cursor: 'pointer', px: 1.25, py: 0.75, borderRadius: `${theme.radii.sm}px`, bgcolor: theme.gray[50], border: `1px solid ${theme.gray[200]}`, '&:hover': { bgcolor: alpha(theme.status[seg.key], 0.06), borderColor: alpha(theme.status[seg.key], 0.3) } }}>
             <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: theme.status[seg.key] }} />
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>{STATUS_TO_KOREAN[seg.key]}</Typography>
-            <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 800, letterSpacing: '-0.01em' }}>{seg.count}</Typography>
+            <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 700, letterSpacing: '-0.01em' }}>{seg.count}</Typography>
           </Box>
         ))}
       </Box>
@@ -109,7 +109,8 @@ const RankingList = ({ items, color }) => {
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
         <ToggleButtonGroup size="small" value={sortBy} exclusive onChange={(_, v) => v && setSortBy(v)} sx={{
           '& .MuiToggleButton-root': {
-            px: 1.25, py: 0.375, fontSize: '0.75rem', fontWeight: 700, border: `1px solid ${theme.gray[200]}`, color: 'text.secondary', borderRadius: `${theme.radii.sm}px !important`,
+            ...theme.typography.caption,
+            px: 1.25, py: 0.375, fontWeight: 700, border: `1px solid ${theme.gray[200]}`, color: 'text.secondary', borderRadius: `${theme.radii.sm}px !important`,
             '&.Mui-selected': { bgcolor: alpha(color, 0.1), color, borderColor: alpha(color, 0.3) },
             '&:first-of-type': { mr: 0.5 },
           },
@@ -123,14 +124,14 @@ const RankingList = ({ items, color }) => {
           const isTop3 = i < 3;
           return (
             <Box key={item.product_id} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1.25, borderBottom: i === displayed.length - 1 ? 'none' : `1px solid ${theme.gray[100]}` }}>
-              <Box sx={{ width: 24, height: 24, flexShrink: 0, borderRadius: `${theme.radii.sm}px`, bgcolor: isTop3 ? alpha(color, 0.1) : theme.gray[50], color: isTop3 ? color : theme.gray[500], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800 }}>
-                {i + 1}
+              <Box sx={{ width: 24, height: 24, flexShrink: 0, borderRadius: `${theme.radii.sm}px`, bgcolor: isTop3 ? alpha(color, 0.1) : theme.gray[50], color: isTop3 ? color : theme.gray[500], display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: 'inherit', lineHeight: 1 }}>{i + 1}</Typography>
               </Box>
               <Typography variant="body2" sx={{ flex: 1, minWidth: 0, fontWeight: isTop3 ? 700 : 500, color: 'text.primary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {item.name}
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
-                <Typography variant="body2" sx={{ fontWeight: 800, color: isTop3 ? color : 'text.primary', letterSpacing: '-0.02em', fontFeatureSettings: '"tnum" 1' }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, color: isTop3 ? color : 'text.primary', letterSpacing: '-0.02em', fontFeatureSettings: '"tnum" 1' }}>
                   {sortBy === 'amount' ? `${item.totalAmount.toLocaleString()}원` : `${item.totalQuantity}부`}
                 </Typography>
                 <Typography variant="caption" sx={{ color: 'text.disabled' }}>
@@ -148,7 +149,7 @@ const RankingList = ({ items, color }) => {
             onClick={() => setExpanded(e => !e)}
             endIcon={expanded ? <ExpandLessIcon sx={{ fontSize: 16 }} /> : <ExpandMoreIcon sx={{ fontSize: 16 }} />}
             sx={{
-              fontSize: '0.75rem',
+              ...theme.typography.caption,
               fontWeight: 700,
               color: 'text.secondary',
               '&:hover': { bgcolor: alpha(color, 0.06), color },
@@ -217,7 +218,7 @@ const DashboardDesignPreview = () => {
                 <Box>
                   <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, letterSpacing: '0.02em', textTransform: 'uppercase' }}>오늘 접수</Typography>
                   <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.25 }}>
-                    <Typography variant="h3" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.03em', fontFeatureSettings: '"tnum" 1' }}>{data.todayOrdersCount}</Typography>
+                    <Typography variant="h3" sx={{ color: 'text.primary', letterSpacing: '-0.03em', fontFeatureSettings: '"tnum" 1' }}>{data.todayOrdersCount}</Typography>
                     <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.secondary' }}>건</Typography>
                   </Box>
                 </Box>
@@ -243,16 +244,16 @@ const DashboardDesignPreview = () => {
                 <Box sx={{ width: 32, height: 32, borderRadius: `${theme.radii.sm}px`, bgcolor: alpha(theme.accent.attention, 0.15), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <WarningIcon sx={{ fontSize: 18, color: theme.accent.attention }} />
                 </Box>
-                <Typography variant="body2" sx={{ fontWeight: 800, color: theme.accent.attention, letterSpacing: '-0.01em' }}>처리 필요</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700, color: theme.accent.attention, letterSpacing: '-0.01em' }}>처리 필요</Typography>
               </Box>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>결제대기</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 800, letterSpacing: '-0.02em', fontFeatureSettings: '"tnum" 1' }}>{data.statusCounts.pending}건</Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 700, letterSpacing: '-0.02em', fontFeatureSettings: '"tnum" 1' }}>{data.statusCounts.pending}건</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>출고 대기</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 800, letterSpacing: '-0.02em', fontFeatureSettings: '"tnum" 1' }}>{data.statusCounts.paid}건</Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 700, letterSpacing: '-0.02em', fontFeatureSettings: '"tnum" 1' }}>{data.statusCounts.paid}건</Typography>
                 </Box>
               </Box>
             </SectionCard>
@@ -287,18 +288,18 @@ const DashboardDesignPreview = () => {
                 {data.recentOrders.map((order, idx) => (
                   <Box key={order.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, px: 1.25, mx: -1.25, borderRadius: `${theme.radii.md}px`, cursor: 'pointer', borderBottom: idx === data.recentOrders.length - 1 ? 'none' : `1px solid ${theme.gray[100]}`, '&:hover': { bgcolor: theme.gray[50] } }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                      <Box sx={{ width: 36, height: 36, borderRadius: `${theme.radii.sm}px`, bgcolor: theme.gray[100], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem', fontWeight: 800, color: 'text.secondary' }}>
-                        {order.customer_name.slice(0, 1)}
+                      <Box sx={{ width: 36, height: 36, borderRadius: `${theme.radii.sm}px`, bgcolor: theme.gray[100], display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: 'inherit', lineHeight: 1 }}>{order.customer_name.slice(0, 1)}</Typography>
                       </Box>
                       <Box>
                         <Typography variant="body2" sx={{ fontWeight: 700, letterSpacing: '-0.01em' }}>{order.customer_name}</Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
-                          <StatusChip status={order.status} size="sm" />
+                          <StatusBadge value={order.status} size="sm" />
                           <Typography variant="caption" sx={{ color: 'text.disabled' }}>{order.created_at.slice(5, 16).replace('T', ' ')}</Typography>
                         </Box>
                       </Box>
                     </Box>
-                    <Typography variant="body1" sx={{ fontWeight: 800, letterSpacing: '-0.025em', fontFeatureSettings: '"tnum" 1' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 700, letterSpacing: '-0.025em', fontFeatureSettings: '"tnum" 1' }}>
                       {order.final_payment.toLocaleString()}원
                     </Typography>
                   </Box>

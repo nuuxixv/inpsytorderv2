@@ -6,6 +6,7 @@ import { alpha } from '@mui/material/styles';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { STATUS_COLORS, STATUS_TO_KOREAN } from '../constants/orderStatus';
+import { InfoRow, PriceBlock } from './ui';
 
 /**
  * DEV-ONLY: /preview/order-status
@@ -73,7 +74,7 @@ const getStatusAt = (history, status) => {
   return entries.length ? entries[entries.length - 1].changed_at : null;
 };
 
-const getBannerConfig = (order) => {
+const getBannerConfig = (order, theme) => {
   const edd = !order.is_on_site_sale ? order.events?.estimated_delivery_date : null;
   const completedAt = getStatusAt(order.status_history, 'completed');
 
@@ -116,7 +117,7 @@ const getBannerConfig = (order) => {
         subMessage: '결제 취소된 주문건입니다.',
       };
     default:
-      return { icon: '📋', label: order.status, color: '#8B95A1', subMessage: '' };
+      return { icon: '📋', label: order.status, color: theme.gray[500], subMessage: '' };
   }
 };
 
@@ -154,7 +155,7 @@ const ItemsCard = ({ items, cancelled = false, chip }) => {
             alignSelf: 'flex-start',
             mb: 0.5,
             bgcolor: 'primary.main',
-            color: '#fff',
+            color: 'primary.contrastText',
             borderRadius: '6px',
           }}
         />
@@ -217,24 +218,10 @@ const ItemsCard = ({ items, cancelled = false, chip }) => {
   );
 };
 
-// ─── Info row ───────────────────────────────────────────────
-const InfoRow = ({ label, value }) => (
-  <Box sx={{ display: 'flex', gap: 2, alignItems: 'baseline' }}>
-    <Typography
-      variant="body2"
-      sx={{ minWidth: 64, color: 'text.disabled', flexShrink: 0 }}
-    >
-      {label}
-    </Typography>
-    <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>
-      {value}
-    </Typography>
-  </Box>
-);
-
 // ─── Dev variant toolbar (sticky) ───────────────────────────
 const VariantToolbar = ({ status, setStatus, isOnSite, setIsOnSite, hasLinked, setHasLinked }) => {
   const theme = useTheme();
+  const white = theme.palette.common.white;
   return (
     <Box
       sx={{
@@ -242,15 +229,15 @@ const VariantToolbar = ({ status, setStatus, isOnSite, setIsOnSite, hasLinked, s
         top: 0,
         zIndex: 20,
         bgcolor: alpha(theme.palette.grey[900], 0.92),
-        color: '#fff',
+        color: white,
         px: 2,
         py: 1.25,
-        borderBottom: `1px solid ${alpha('#fff', 0.12)}`,
+        borderBottom: `1px solid ${alpha(white, 0.12)}`,
       }}
     >
       <Typography
         variant="caption"
-        sx={{ color: alpha('#fff', 0.65), display: 'block', mb: 0.5 }}
+        sx={{ color: alpha(white, 0.65), display: 'block', mb: 0.5 }}
       >
         DEV 변형 토글 (실 화면에는 없음)
       </Typography>
@@ -264,15 +251,15 @@ const VariantToolbar = ({ status, setStatus, isOnSite, setIsOnSite, hasLinked, s
           gap: 0.5,
           mb: 1,
           '& .MuiToggleButton-root': {
-            color: alpha('#fff', 0.8),
-            border: `1px solid ${alpha('#fff', 0.25)}`,
+            color: alpha(white, 0.8),
+            border: `1px solid ${alpha(white, 0.25)}`,
             borderRadius: '8px !important',
             minHeight: 32,
             px: 1.25,
           },
           '& .MuiToggleButton-root.Mui-selected': {
             bgcolor: STATUS_COLORS[status] || theme.palette.primary.main,
-            color: '#fff',
+            color: white,
             border: '1px solid transparent',
           },
         }}
@@ -299,7 +286,7 @@ const VariantToolbar = ({ status, setStatus, isOnSite, setIsOnSite, hasLinked, s
               현장구매
             </Typography>
           }
-          sx={{ m: 0, color: '#fff' }}
+          sx={{ m: 0, color: white }}
         />
         <FormControlLabel
           control={
@@ -314,7 +301,7 @@ const VariantToolbar = ({ status, setStatus, isOnSite, setIsOnSite, hasLinked, s
               연계 주문(2차)
             </Typography>
           }
-          sx={{ m: 0, color: '#fff' }}
+          sx={{ m: 0, color: white }}
         />
       </Stack>
     </Box>
@@ -322,15 +309,19 @@ const VariantToolbar = ({ status, setStatus, isOnSite, setIsOnSite, hasLinked, s
 };
 
 // ─── Status banner ──────────────────────────────────────────
-const StatusBanner = ({ banner, receivedAt, eventName }) => (
+const StatusBanner = ({ banner, receivedAt, eventName }) => {
+  const theme = useTheme();
+  const white = theme.palette.common.white;
+  return (
   <Box sx={{ bgcolor: banner.color, px: 3, pt: 4, pb: 3.5, textAlign: 'center' }}>
+    {/* status 배너 이모지 — 장식 아이콘(aria-hidden). 텍스트 토큰 아님 */}
     <Typography
       sx={{ fontSize: '2.5rem', mb: 1, lineHeight: 1 }}
       aria-hidden="true"
     >
       {banner.icon}
     </Typography>
-    <Typography variant="h6" sx={{ color: '#fff', mb: 0.5 }}>
+    <Typography variant="h6" sx={{ color: white, mb: 0.5 }}>
       {banner.label}
     </Typography>
     <Box sx={{ mb: 1.5 }}>
@@ -341,18 +332,19 @@ const StatusBanner = ({ banner, receivedAt, eventName }) => (
         <Typography
           key={i}
           variant="body2"
-          sx={{ color: alpha('#fff', 0.9) }}
+          sx={{ color: alpha(white, 0.9) }}
         >
           {line}
         </Typography>
       ))}
     </Box>
-    <Typography variant="caption" sx={{ color: alpha('#fff', 0.65) }}>
+    <Typography variant="caption" sx={{ color: alpha(white, 0.65) }}>
       {receivedAt}
       {eventName && ` · ${eventName}`}
     </Typography>
   </Box>
-);
+  );
+};
 
 // ─── Main ───────────────────────────────────────────────────
 const CustomerOrderStatusPreview = () => {
@@ -377,7 +369,7 @@ const CustomerOrderStatusPreview = () => {
   }, [status, isOnSite]);
 
   const linkedOrder = hasLinked ? MOCK_LINKED_SECOND : null;
-  const banner = getBannerConfig(order);
+  const banner = getBannerConfig(order, theme);
   const isCancelled = ['cancelled', 'refunded'].includes(order.status);
 
   // 연계 주문 1차/2차 정렬 — mock은 현재 주문이 parent(1차), linked가 child(2차)
@@ -448,7 +440,7 @@ const CustomerOrderStatusPreview = () => {
                 </>
               )}
 
-              {/* 결제 요약 */}
+              {/* 결제 요약 — PriceBlock(가격 위계). 사양 핵심 발견 #1: 합계 색은 상태 배너 색을 따라감 */}
               <Box
                 sx={{
                   bgcolor: 'background.paper',
@@ -459,94 +451,29 @@ const CustomerOrderStatusPreview = () => {
                 }}
               >
                 {linkedOrder ? (
-                  <>
-                    {/* 사양 line 86: 연계 분기에는 배송비 행이 없음 */}
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        mb: 0.75,
-                      }}
-                    >
-                      <Typography variant="body2" color="text.secondary">
-                        1차 결제금액
-                      </Typography>
-                      <Typography variant="body2">
-                        {(firstOrder?.final_payment ?? 0).toLocaleString()}원
-                      </Typography>
-                    </Box>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        mb: 0.75,
-                      }}
-                    >
-                      <Typography variant="body2" color="text.secondary">
-                        2차 결제금액
-                      </Typography>
-                      <Typography variant="body2">
-                        {(secondOrder?.final_payment ?? 0).toLocaleString()}원
-                      </Typography>
-                    </Box>
-                    <Box
-                      sx={{
-                        borderTop: `1px solid ${theme.palette.divider}`,
-                        pt: 1,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <Typography variant="subtitle2">
-                        합산 결제금액
-                      </Typography>
-                      {/* 사양 핵심 발견 #1: 합산/최종 금액 색은 상태 배너 색을 따라감 */}
-                      <Typography
-                        variant="subtitle2"
-                        sx={{ color: banner.color }}
-                      >
-                        {totalFinalPayment.toLocaleString()}원
-                      </Typography>
-                    </Box>
-                  </>
+                  /* 사양 line 86: 연계 분기에는 배송비 행이 없음 */
+                  <PriceBlock
+                    rows={[
+                      { label: '1차 결제금액', value: firstOrder?.final_payment ?? 0 },
+                      { label: '2차 결제금액', value: secondOrder?.final_payment ?? 0 },
+                    ]}
+                    totalLabel="합산 결제금액"
+                    totalValue={totalFinalPayment}
+                    totalColor={banner.color}
+                  />
                 ) : (
-                  <>
-                    {/* 현장구매여도 배송비 행은 유지 — 실 페이지가 그렇게 동작함 (delivery_fee가 0이면 "무료") */}
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        mb: 0.75,
-                      }}
-                    >
-                      <Typography variant="body2" color="text.secondary">
-                        배송비
-                      </Typography>
-                      <Typography variant="body2">
-                        {(order.delivery_fee ?? 0) === 0
-                          ? '무료'
-                          : `${order.delivery_fee.toLocaleString()}원`}
-                      </Typography>
-                    </Box>
-                    <Box
-                      sx={{
-                        borderTop: `1px solid ${theme.palette.divider}`,
-                        pt: 1,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <Typography variant="subtitle2">
-                        최종 결제금액
-                      </Typography>
-                      <Typography
-                        variant="subtitle2"
-                        sx={{ color: banner.color }}
-                      >
-                        {order.final_payment?.toLocaleString()}원
-                      </Typography>
-                    </Box>
-                  </>
+                  /* 현장구매여도 배송비 행은 유지 — 실 페이지가 그렇게 동작함 (delivery_fee가 0이면 "무료") */
+                  <PriceBlock
+                    rows={[
+                      {
+                        label: '배송비',
+                        value: (order.delivery_fee ?? 0) === 0 ? '무료' : order.delivery_fee,
+                      },
+                    ]}
+                    totalLabel="최종 결제금액"
+                    totalValue={order.final_payment}
+                    totalColor={banner.color}
+                  />
                 )}
               </Box>
 
@@ -559,15 +486,12 @@ const CustomerOrderStatusPreview = () => {
                   borderRadius: '12px',
                   p: 2,
                   mb: 3,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 1,
                 }}
               >
-                <InfoRow label="이름" value={order.customer_name} />
-                <InfoRow label="연락처" value={order.phone_number} />
+                <InfoRow label="이름" value={order.customer_name} labelWidth={80} />
+                <InfoRow label="연락처" value={order.phone_number} labelWidth={80} />
                 {order.inpsyt_id && (
-                  <InfoRow label="인싸이트 ID" value={order.inpsyt_id} />
+                  <InfoRow label="인싸이트 ID" value={order.inpsyt_id} labelWidth={80} />
                 )}
                 {/* 사양 line 98-100: 배송지 분기 — address 있으면 "배송지" + "address detail" 한 줄
                     없으면 "배송: 현장 수령". 우편번호는 표시 안 함(line 101). */}
@@ -577,9 +501,11 @@ const CustomerOrderStatusPreview = () => {
                     value={`${order.shipping_address.address} ${
                       order.shipping_address.detail || ''
                     }`.trim()}
+                    labelWidth={80}
+                    multiline
                   />
                 ) : (
-                  <InfoRow label="배송" value="현장 수령" />
+                  <InfoRow label="배송" value="현장 수령" labelWidth={80} />
                 )}
               </Box>
 

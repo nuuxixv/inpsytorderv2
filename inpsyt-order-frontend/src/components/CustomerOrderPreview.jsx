@@ -20,6 +20,7 @@ import {
   Check as CheckIcon,
   LocalShipping as ShippingIcon,
 } from '@mui/icons-material';
+import { InfoRow, PriceBlock, ActionSlot } from './ui';
 
 /**
  * DEV-ONLY: /preview/order
@@ -93,7 +94,7 @@ const StepIndicator = ({ activeStep }) => {
                   height: 22,
                   borderRadius: '50%',
                   bgcolor: dotColor,
-                  color: isDone || isActive ? '#fff' : 'text.disabled',
+                  color: isDone || isActive ? 'common.white' : 'text.disabled',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -136,7 +137,7 @@ const Header = ({ isOnsitePurchase, eventName, onTripleTap }) => (
         variant="subtitle2"
         sx={{
           color: isOnsitePurchase ? 'warning.main' : 'primary.main',
-          fontWeight: 800,
+          fontWeight: 700,
           letterSpacing: 1,
         }}
       >
@@ -206,15 +207,15 @@ const ProductCard = ({ product, discountRate, cartQuantity, onAdd, onIncrement, 
               height: 18,
               px: 0.75,
               borderRadius: '4px',
-              bgcolor: '#FFF4E1',
-              color: '#B45309',
+              bgcolor: alpha(theme.accent.attention, 0.14),
+              color: theme.accent.attention,
               display: 'flex',
               alignItems: 'center',
               gap: 0.25,
             }}
           >
-            <StarIcon sx={{ fontSize: 11, color: '#F59E0B' }} />
-            <Typography variant="caption" sx={{ fontWeight: 700, lineHeight: 1 }}>인기</Typography>
+            <StarIcon sx={{ fontSize: 11, color: theme.accent.attention }} />
+            <Typography variant="caption" sx={{ fontWeight: 700, lineHeight: 1, color: 'inherit' }}>인기</Typography>
           </Box>
         )}
         {product.is_new && (
@@ -229,7 +230,7 @@ const ProductCard = ({ product, discountRate, cartQuantity, onAdd, onIncrement, 
               alignItems: 'center',
             }}
           >
-            <Typography variant="caption" sx={{ fontWeight: 800, lineHeight: 1 }}>NEW</Typography>
+            <Typography variant="caption" sx={{ fontWeight: 700, lineHeight: 1 }}>NEW</Typography>
           </Box>
         )}
       </Box>
@@ -271,7 +272,6 @@ const ProductCard = ({ product, discountRate, cartQuantity, onAdd, onIncrement, 
         <Typography
           variant="subtitle1"
           sx={{
-            fontWeight: 800,
             color: hasDiscount ? 'primary.main' : 'text.primary',
             letterSpacing: '-0.01em',
           }}
@@ -291,28 +291,28 @@ const ProductCard = ({ product, discountRate, cartQuantity, onAdd, onIncrement, 
               justifyContent: 'space-between',
               borderRadius: '10px',
               bgcolor: 'primary.main',
-              color: '#fff',
+              color: 'common.white',
               px: 1,
             }}
           >
             <IconButton
               onClick={onDecrement}
-              sx={{ color: '#fff', minWidth: 32, minHeight: 32, p: 0 }}
+              sx={{ color: 'common.white', minWidth: 32, minHeight: 32, p: 0 }}
               aria-label="수량 감소"
             >
-              <Typography variant="body1" sx={{ fontWeight: 800, color: '#fff' }}>
+              <Typography variant="body1" sx={{ fontWeight: 700, color: 'inherit' }}>
                 {cartQuantity <= 1 ? '×' : '−'}
               </Typography>
             </IconButton>
-            <Typography variant="body2" sx={{ fontWeight: 800, color: '#fff' }}>
+            <Typography variant="body2" sx={{ fontWeight: 700, color: 'inherit' }}>
               {cartQuantity}
             </Typography>
             <IconButton
               onClick={onIncrement}
-              sx={{ color: '#fff', minWidth: 32, minHeight: 32, p: 0 }}
+              sx={{ color: 'common.white', minWidth: 32, minHeight: 32, p: 0 }}
               aria-label="수량 증가"
             >
-              <Typography variant="body1" sx={{ fontWeight: 800, color: '#fff' }}>＋</Typography>
+              <Typography variant="body1" sx={{ fontWeight: 700, color: 'inherit' }}>＋</Typography>
             </IconButton>
           </Box>
         ) : (
@@ -386,7 +386,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate, eventName }) =
     <Box sx={{ px: 2, pb: 4 }}>
       {/* Header */}
       <Box sx={{ mb: 2.5, pt: 2, textAlign: 'center' }}>
-        <Typography variant="h3" sx={{ fontWeight: 800, mb: 0.5 }}>
+        <Typography variant="h3" sx={{ mb: 0.5 }}>
           상품을 선택해주세요
         </Typography>
         {eventName && (
@@ -528,7 +528,7 @@ const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode, isOnsi
   return (
     <Box sx={{ px: 2, pb: 4 }}>
       <Box sx={{ mb: 3, pt: 2 }}>
-        <Typography variant="h3" sx={{ fontWeight: 800, mb: 0.5 }}>
+        <Typography variant="h3" sx={{ mb: 0.5 }}>
           주문자 정보를 입력해주세요
         </Typography>
         <Typography variant="body2" color="text.secondary">
@@ -690,17 +690,6 @@ const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode, isOnsi
 };
 
 // ─── Step 2: Review ──────────────────────────────────────────
-const InfoRow = ({ label, value }) => (
-  <Box sx={{ display: 'flex', py: 0.75 }}>
-    <Typography variant="body2" color="text.secondary" sx={{ minWidth: 72, flexShrink: 0 }}>
-      {label}
-    </Typography>
-    <Typography variant="body2" sx={{ fontWeight: 500, wordBreak: 'break-all' }}>
-      {value || '-'}
-    </Typography>
-  </Box>
-);
-
 const OrderReviewStep = ({ cart, customerInfo, discountRate, isOnsitePurchase, onGoToStep }) => {
   const theme = useTheme();
   const validItems = cart.filter((i) => i.id);
@@ -733,7 +722,7 @@ const OrderReviewStep = ({ cart, customerInfo, discountRate, isOnsitePurchase, o
   return (
     <Box sx={{ px: 2, pb: 4 }}>
       <Box sx={{ mb: 3, pt: 2 }}>
-        <Typography variant="h3" sx={{ fontWeight: 800, mb: 0.5 }}>
+        <Typography variant="h3" sx={{ mb: 0.5 }}>
           주문 내용을 확인해주세요
         </Typography>
         <Typography variant="body2" color="text.secondary">
@@ -833,35 +822,24 @@ const OrderReviewStep = ({ cart, customerInfo, discountRate, isOnsitePurchase, o
               />
             </Box>
           )}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body2" color="text.secondary">총 상품 금액</Typography>
-              <Typography variant="body2">{totalOriginalPrice.toLocaleString()}원</Typography>
-            </Box>
-            {totalDiscount > 0 && (
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography variant="body2" sx={{ color: 'error.main' }}>할인 금액</Typography>
-                <Typography variant="body2" sx={{ color: 'error.main' }}>
-                  -{totalDiscount.toLocaleString()}원
-                </Typography>
-              </Box>
-            )}
-            {!isOnsitePurchase && (
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography variant="body2" color="text.secondary">배송비</Typography>
-                <Typography variant="body2">
-                  {shippingFee === 0 ? '무료' : `${shippingFee.toLocaleString()}원`}
-                </Typography>
-              </Box>
-            )}
-          </Box>
-          <Divider sx={{ my: 2, borderStyle: 'dashed' }} />
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>최종 결제 금액</Typography>
-            <Typography variant="h3" sx={{ color: 'primary.main', fontWeight: 800 }}>
-              {finalPayment.toLocaleString()}원
-            </Typography>
-          </Box>
+          <PriceBlock
+            rows={[
+              { label: '총 상품 금액', value: totalOriginalPrice },
+              ...(totalDiscount > 0
+                ? [{ label: '할인 금액', value: `-${totalDiscount.toLocaleString()}원` }]
+                : []),
+              ...(!isOnsitePurchase
+                ? [{
+                    label: '배송비',
+                    value: shippingFee === 0 ? '무료' : `${shippingFee.toLocaleString()}원`,
+                    muted: shippingFee === 0,
+                  }]
+                : []),
+            ]}
+            totalLabel="최종 결제 금액"
+            totalValue={finalPayment}
+            totalColor={theme.palette.primary.main}
+          />
         </CardContent>
       </Card>
 
@@ -945,49 +923,58 @@ const FloatingBottomBar = ({
           />
         </Box>
       )}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        {activeStep === 0 ? (
-          <IconButton
-            onClick={onCartClick}
-            disabled={cart.length === 0}
-            sx={{ minWidth: 48, minHeight: 52, color: cart.length > 0 ? 'primary.main' : 'text.disabled' }}
-            aria-label="장바구니"
-          >
-            <Box sx={{ position: 'relative' }}>
-              <CartIcon sx={{ fontSize: 26 }} />
-              {cart.length > 0 && (
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    top: -4,
-                    right: -8,
-                    minWidth: 18,
-                    height: 18,
-                    px: 0.5,
-                    borderRadius: 9,
-                    bgcolor: 'primary.main',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Typography variant="caption" sx={{ fontWeight: 800, color: '#fff', lineHeight: 1 }}>
-                    {cart.length}
-                  </Typography>
-                </Box>
-              )}
-            </Box>
-          </IconButton>
-        ) : (
-          <IconButton
-            onClick={onBack}
-            sx={{ minWidth: 48, minHeight: 52, color: 'text.secondary' }}
-            aria-label="이전 단계"
-          >
-            <ArrowBackIcon />
-          </IconButton>
-        )}
+      {/* 좌측: 장바구니/뒤로 IconButton — 우측: CTA. ActionSlot 의미 단위 */}
+      <ActionSlot
+        wrap={false}
+        leading={
+          activeStep === 0 ? (
+            <IconButton
+              onClick={onCartClick}
+              disabled={cart.length === 0}
+              sx={{ minWidth: 48, minHeight: 52, color: cart.length > 0 ? 'primary.main' : 'text.disabled' }}
+              aria-label="장바구니"
+            >
+              <Box sx={{ position: 'relative' }}>
+                <CartIcon sx={{ fontSize: 26 }} />
+                {cart.length > 0 && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: -4,
+                      right: -8,
+                      minWidth: 18,
+                      height: 18,
+                      px: 0.5,
+                      borderRadius: 9,
+                      bgcolor: 'primary.main',
+                      color: 'common.white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'inherit', lineHeight: 1 }}>
+                      {cart.length}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </IconButton>
+          ) : (
+            <IconButton
+              onClick={onBack}
+              sx={{ minWidth: 48, minHeight: 52, color: 'text.secondary' }}
+              aria-label="이전 단계"
+            >
+              <ArrowBackIcon />
+            </IconButton>
+          )
+        }
+        sx={{
+          // CTA 버튼이 남은 공간을 모두 차지하도록 children 박스 flex 확장
+          '& > :last-child': { flex: 1 },
+        }}
+      >
         <Button
           variant="contained"
           size="large"
@@ -999,13 +986,14 @@ const FloatingBottomBar = ({
         >
           {ctaLabel}
         </Button>
-      </Box>
+      </ActionSlot>
     </Box>
   );
 };
 
 // ─── Main ────────────────────────────────────────────────────
 const CustomerOrderPreview = () => {
+  const theme = useTheme();
   const [activeStep, setActiveStep] = useState(0);
   const [cart, setCart] = useState([]);
   const [customerInfo, setCustomerInfo] = useState({
@@ -1088,7 +1076,7 @@ const CustomerOrderPreview = () => {
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        bgcolor: activeStep < 2 ? 'background.paper' : '#F8F9FA',
+        bgcolor: activeStep < 2 ? 'background.paper' : theme.gray[50],
         maxWidth: 600,
         mx: 'auto',
         transition: 'background-color 0.3s ease',

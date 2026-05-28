@@ -21,7 +21,7 @@ import {
   CalendarToday as CalendarTodayIcon,
   LocalOffer as LocalOfferIcon,
 } from '@mui/icons-material';
-import { PageHeader, SectionCard, StatusChip } from './ui';
+import { PageHeader, SectionCard, StatusBadge, ActionSlot, EmptyState } from './ui';
 import PreviewShell from './preview/PreviewShell';
 
 /**
@@ -64,7 +64,7 @@ const HOST_SOCIETIES = [
 ];
 
 // 학회 6개 — 예정 2 / 진행중 1 / 종료 3
-// stateKey: 카드 상태 매핑 (upcoming/active/ended) — StatusChip 'paid|preparing|completed' 로 매핑
+// stateKey: 카드 상태 매핑 (upcoming/active/ended) — StatusBadge value 'paid|pending|completed' 로 매핑
 // estimatedDeliveryDate: 사양 A5 line 96 (배송 예정일)
 const MOCK_EVENTS = [
   {
@@ -147,7 +147,7 @@ const MOCK_EVENTS = [
   },
 ];
 
-// stateKey → StatusChip status 매핑
+// stateKey → StatusBadge value 매핑
 const STATE_TO_STATUS = {
   active:   'paid',
   upcoming: 'pending',
@@ -168,38 +168,11 @@ const formatDateRange = (start, end) => {
   return start === end ? fmt(start) : `${fmt(start)} ~ ${fmt(end)}`;
 };
 
-const EventStateChip = ({ stateKey }) => {
-  const theme = useTheme();
-  const status = STATE_TO_STATUS[stateKey];
-  const color = theme.status[status];
-  return (
-    <Box
-      sx={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 0.625,
-        px: 1,
-        py: 0.5,
-        borderRadius: `${theme.radii.sm}px`,
-        bgcolor: alpha(color, 0.1),
-        border: `1px solid ${alpha(color, 0.2)}`,
-      }}
-    >
-      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: color }} />
-      <Typography
-        variant="caption"
-        sx={{
-          fontWeight: 700,
-          letterSpacing: '-0.01em',
-          color,
-          lineHeight: 1,
-        }}
-      >
-        {STATE_TO_LABEL[stateKey]}
-      </Typography>
-    </Box>
-  );
-};
+// 학회 상태(예정/진행중/종료)는 StatusBadge로 표시한다.
+// stateKey → status 토큰(STATE_TO_STATUS) + 한글 라벨(STATE_TO_LABEL) 매핑.
+const EventStateBadge = ({ stateKey }) => (
+  <StatusBadge value={STATE_TO_STATUS[stateKey]} label={STATE_TO_LABEL[stateKey]} />
+);
 
 const CardIconButton = ({ tooltip, icon, onClick }) => {
   const theme = useTheme();
@@ -213,7 +186,7 @@ const CardIconButton = ({ tooltip, icon, onClick }) => {
           borderRadius: `${theme.radii.sm}px`,
           color: theme.gray[600],
           border: `1px solid ${theme.gray[200]}`,
-          bgcolor: '#fff',
+          bgcolor: 'background.paper',
           transition: `all 0.15s ${theme.easing.toss}`,
           '&:hover': {
             bgcolor: alpha(theme.palette.primary.main, 0.06),
@@ -250,7 +223,7 @@ const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
     >
       {/* 상단: 상태 + 할인 배지 */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-        <EventStateChip stateKey={event.stateKey} />
+        <EventStateBadge stateKey={event.stateKey} />
         {/* 사양 A5 핵심 발견 #5: 할인율 UI 0~100% 표시 (DB 0~1 변환은 저장 시) */}
         {event.discountPercent > 0 && (
           <Box
@@ -269,7 +242,7 @@ const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
             <Typography
               variant="caption"
               sx={{
-                fontWeight: 800,
+                fontWeight: 700,
                 color: theme.accent.revenue,
                 lineHeight: 1,
                 fontFeatureSettings: '"tnum" 1',
@@ -285,7 +258,6 @@ const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
       <Typography
         variant="h4"
         sx={{
-          fontWeight: 700,
           letterSpacing: '-0.02em',
           color: 'text.primary',
           lineHeight: 1.35,
@@ -308,10 +280,10 @@ const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
             variant="outlined"
             sx={{
               height: 22,
-              fontSize: '0.75rem',
               fontWeight: 600,
               borderColor: theme.gray[200],
               color: 'text.secondary',
+              '& .MuiChip-label': { ...theme.typography.caption },
             }}
           />
         </Box>
@@ -397,30 +369,36 @@ const EventCard = ({ event, onCopyUrl, onOpenUrl, onShowQr, onEdit }) => {
         </Typography>
       </Box>
 
-      {/* 액션 4종 */}
-      <Box sx={{ display: 'flex', gap: 0.75, mt: 'auto', pt: 0.5 }}>
-        <CardIconButton
-          tooltip="구매 페이지 열기"
-          icon={<OpenInNewIcon sx={{ fontSize: 18 }} />}
-          onClick={onOpenUrl}
-        />
-        <CardIconButton
-          tooltip="URL 복사"
-          icon={<ContentCopyIcon sx={{ fontSize: 18 }} />}
-          onClick={onCopyUrl}
-        />
-        <CardIconButton
-          tooltip="QR 코드 보기"
-          icon={<QrCode2Icon sx={{ fontSize: 18 }} />}
-          onClick={onShowQr}
-        />
-        <Box sx={{ flex: 1 }} />
+      {/* 액션 4종 — 공유(열기·복사·QR)는 leading, 편집은 우측 끝 */}
+      <ActionSlot
+        wrap={false}
+        sx={{ mt: 'auto', pt: 0.5 }}
+        leading={
+          <>
+            <CardIconButton
+              tooltip="구매 페이지 열기"
+              icon={<OpenInNewIcon sx={{ fontSize: 18 }} />}
+              onClick={onOpenUrl}
+            />
+            <CardIconButton
+              tooltip="URL 복사"
+              icon={<ContentCopyIcon sx={{ fontSize: 18 }} />}
+              onClick={onCopyUrl}
+            />
+            <CardIconButton
+              tooltip="QR 코드 보기"
+              icon={<QrCode2Icon sx={{ fontSize: 18 }} />}
+              onClick={onShowQr}
+            />
+          </>
+        }
+      >
         <CardIconButton
           tooltip="편집"
           icon={<EditIcon sx={{ fontSize: 18 }} />}
           onClick={onEdit}
         />
-      </Box>
+      </ActionSlot>
     </Box>
   );
 };
@@ -491,7 +469,7 @@ const NewEventDialog = ({ open, onClose, onSubmit }) => {
         >
           <AddIcon sx={{ fontSize: 20, color: theme.palette.primary.main }} />
         </Box>
-        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
+        <Typography variant="h4" sx={{ letterSpacing: '-0.02em' }}>
           신규 학회 등록
         </Typography>
       </DialogTitle>
@@ -513,7 +491,7 @@ const NewEventDialog = ({ open, onClose, onSubmit }) => {
           <Typography
             variant="caption"
             sx={{
-              fontWeight: 800,
+              fontWeight: 700,
               color: theme.palette.primary.main,
               letterSpacing: '0.03em',
               textTransform: 'uppercase',
@@ -572,7 +550,7 @@ const NewEventDialog = ({ open, onClose, onSubmit }) => {
           <Typography
             variant="caption"
             sx={{
-              fontWeight: 800,
+              fontWeight: 700,
               color: 'text.secondary',
               letterSpacing: '0.03em',
               textTransform: 'uppercase',
@@ -698,7 +676,7 @@ const QrDialog = ({ open, event, onClose, onCopy }) => {
         >
           <QrCode2Icon sx={{ fontSize: 20, color: theme.palette.primary.main }} />
         </Box>
-        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
+        <Typography variant="h4" sx={{ letterSpacing: '-0.02em' }}>
           QR 코드
         </Typography>
       </DialogTitle>
@@ -863,14 +841,20 @@ const EventManagementPreview = () => {
       <SectionCard sx={{ mb: 3 }} padding={20}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
           <FilterListIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-          <Typography variant="body2" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.01em' }}>
+          <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
             필터
           </Typography>
           {activeFilterCount > 0 && (
             <Chip
               label={activeFilterCount}
               size="small"
-              sx={{ height: 18, fontSize: '0.75rem', fontWeight: 800, bgcolor: theme.palette.primary.main, color: '#fff' }}
+              sx={{
+                height: 18,
+                fontWeight: 700,
+                bgcolor: theme.palette.primary.main,
+                color: theme.palette.primary.contrastText,
+                '& .MuiChip-label': { ...theme.typography.caption },
+              }}
             />
           )}
         </Box>
@@ -926,7 +910,7 @@ const EventManagementPreview = () => {
         <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mb: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              <Box component="span" sx={{ fontWeight: 800, color: 'text.primary', fontFeatureSettings: '"tnum" 1' }}>
+              <Box component="span" sx={{ fontWeight: 700, color: 'text.primary', fontFeatureSettings: '"tnum" 1' }}>
                 {filteredEvents.length}
               </Box>
               개 학회
@@ -938,24 +922,11 @@ const EventManagementPreview = () => {
         </Box>
 
         {filteredEvents.length === 0 ? (
-          <Box
-            sx={{
-              py: 6,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 1,
-              color: 'text.disabled',
-            }}
-          >
-            <EventNoteIcon sx={{ fontSize: 48 }} />
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              조건에 맞는 학회가 없습니다
-            </Typography>
-            <Typography variant="caption">
-              필터를 해제하거나 신규 학회를 등록하세요
-            </Typography>
-          </Box>
+          <EmptyState
+            icon={EventNoteIcon}
+            title="조건에 맞는 학회가 없습니다"
+            description="필터를 해제하거나 신규 학회를 등록하세요"
+          />
         ) : (
           <Box
             sx={{

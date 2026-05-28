@@ -18,7 +18,7 @@ import {
   Event as EventIcon,
   CalendarToday as CalendarIcon,
 } from '@mui/icons-material';
-import { PageHeader, SectionCard, StatusChip } from './ui';
+import { PageHeader, SectionCard, StatusBadge, ActionSlot } from './ui';
 import PreviewShell from './preview/PreviewShell';
 import { STATUS_TO_KOREAN } from '../constants/orderStatus';
 
@@ -72,15 +72,15 @@ const FilterSummary = ({ activeFilters, onClearOne, onClearAll }) => {
           deleteIcon={<CloseIcon sx={{ fontSize: 14 }} />}
           sx={{
             fontWeight: 600,
-            fontSize: '0.75rem',
             bgcolor: alpha(theme.palette.primary.main, 0.08),
             color: theme.palette.primary.main,
             border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            '& .MuiChip-label': { ...theme.typography.caption },
             '& .MuiChip-deleteIcon': { color: theme.palette.primary.main, '&:hover': { color: theme.palette.primary.dark } },
           }}
         />
       ))}
-      <Button size="small" onClick={onClearAll} sx={{ fontSize: '0.75rem', color: 'text.secondary', fontWeight: 700, ml: 'auto' }}>
+      <Button size="small" onClick={onClearAll} sx={{ color: 'text.secondary', fontWeight: 700, ml: 'auto', ...theme.typography.caption }}>
         전체 해제
       </Button>
     </Box>
@@ -125,14 +125,14 @@ const OrderRow = ({ order, event, selected, onSelectToggle, onRowClick }) => {
       <Typography variant="body2" sx={{ color: 'text.secondary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {event?.name || 'N/A'}
       </Typography>
-      <Typography variant="body1" sx={{ fontWeight: 800, textAlign: 'right', letterSpacing: '-0.025em', color: 'text.primary', fontFeatureSettings: '"tnum" 1' }}>
+      <Typography variant="subtitle1" sx={{ textAlign: 'right', color: 'text.primary', fontFeatureSettings: '"tnum" 1' }}>
         {order.final_payment.toLocaleString()}원
       </Typography>
       <Typography variant="caption" sx={{ color: 'text.disabled', fontFeatureSettings: '"tnum" 1' }}>
         {order.created_at.slice(5, 16).replace('T', ' ')}
       </Typography>
       <Box onClick={(e) => e.stopPropagation()}>
-        <StatusChip status={order.status} size="sm" />
+        <StatusBadge value={order.status} size="sm" />
       </Box>
     </Box>
   );
@@ -218,14 +218,14 @@ const OrderManagementPreview = () => {
       <SectionCard sx={{ mb: 3 }} padding={20}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
           <FilterListIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-          <Typography variant="body2" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.01em' }}>
+          <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary', letterSpacing: '-0.01em' }}>
             필터
           </Typography>
           {activeFilters.length > 0 && (
             <Chip
               label={activeFilters.length}
               size="small"
-              sx={{ height: 18, fontSize: '0.75rem', fontWeight: 800, bgcolor: theme.palette.primary.main, color: '#fff' }}
+              sx={{ height: 18, fontWeight: 700, bgcolor: theme.palette.primary.main, color: theme.palette.primary.contrastText, '& .MuiChip-label': { ...theme.typography.caption } }}
             />
           )}
         </Box>
@@ -365,8 +365,8 @@ const OrderManagementPreview = () => {
             sx={{ p: 0 }}
           />
           {selectedOrderIds.length > 0 ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
-              <Typography variant="body2" sx={{ fontWeight: 800, color: theme.palette.primary.main, letterSpacing: '-0.01em' }}>
+            <ActionSlot justify="flex-start" sx={{ flex: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.primary.main, letterSpacing: '-0.01em' }}>
                 {selectedOrderIds.length}개 선택됨
               </Typography>
               <FormControl size="small" sx={{ minWidth: 140 }}>
@@ -383,11 +383,11 @@ const OrderManagementPreview = () => {
               <Button size="small" variant="text" onClick={() => setSelectedOrderIds([])} sx={{ color: 'text.secondary' }}>
                 선택 해제
               </Button>
-            </Box>
+            </ActionSlot>
           ) : (
             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                <Box component="span" sx={{ fontWeight: 800, color: 'text.primary', fontFeatureSettings: '"tnum" 1' }}>{MOCK_ORDERS.length}</Box>건의 주문
+                <Box component="span" sx={{ fontWeight: 700, color: 'text.primary', fontFeatureSettings: '"tnum" 1' }}>{MOCK_ORDERS.length}</Box>건의 주문
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.disabled' }}>
                 · 최신순
@@ -406,7 +406,7 @@ const OrderManagementPreview = () => {
           py: 1,
           borderBottom: `1px solid ${theme.gray[200]}`,
           bgcolor: theme.gray[50],
-          '& > *': { fontSize: '0.75rem', fontWeight: 700, color: 'text.secondary', letterSpacing: '0.03em', textTransform: 'uppercase' },
+          '& > *': { ...theme.typography.caption, fontWeight: 700, color: 'text.secondary', letterSpacing: '0.03em', textTransform: 'uppercase' },
         }}>
           <span />
           <span>주문번호</span>
