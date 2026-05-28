@@ -10,21 +10,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   CircularProgress,
   MenuItem,
   Select,
   FormControl,
   InputLabel,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Skeleton,
   Pagination,
   Checkbox,
-  FormControlLabel,
   ListItemText,
   OutlinedInput,
   Divider,
@@ -41,26 +33,21 @@ import { format, subDays } from 'date-fns';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
-import { Close as CloseIcon, KeyboardArrowDown as KeyboardArrowDownIcon, ShoppingCart as ShoppingCartIcon, RestartAlt as RestartAltIcon } from '@mui/icons-material';
+import { KeyboardArrowDown as KeyboardArrowDownIcon, ShoppingCart as ShoppingCartIcon, RestartAlt as RestartAltIcon } from '@mui/icons-material';
 import { useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import OrderDetailModal from './OrderDetailModal';
 import NewOrderModal from './NewOrderModal';
-import EmptyState from './EmptyState';
 import TableSkeleton from './TableSkeleton';
 import { SearchOff as SearchOffIcon, FilterList as FilterListIcon } from '@mui/icons-material';
 import { getEvents } from '../api/events';
 import { fetchAllProducts } from '../api/products';
 import { getOrders, groupLinkedOrders } from '../api/orders';
 import { sendAlimtalk } from '../api/alimtalk';
+import { PageHeader, SectionCard, StatusBadge, EmptyState } from './ui';
+import { STATUS_TO_KOREAN } from '../constants/orderStatus';
 
-const statusToKorean = {
-  pending: '결제대기',
-  paid: '결제완료',
-  cancelled: '주문취소',
-  refunded: '결제취소',
-  completed: '처리완료',
-};
+const statusToKorean = STATUS_TO_KOREAN;
 
 const initialState = {
   orders: [],
@@ -473,7 +460,7 @@ const OrderManagementPage = () => {
   const filterControls = (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
       {/* 날짜 프리셋 */}
-      <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
         {DATE_PRESETS.map(({ label, days }) => (
           <Chip
             key={label}
@@ -481,7 +468,7 @@ const OrderManagementPage = () => {
             size="small"
             variant="outlined"
             onClick={() => handleDatePreset(days)}
-            sx={{ borderRadius: '8px', fontWeight: 500, cursor: 'pointer' }}
+            sx={{ fontWeight: 500, cursor: 'pointer' }}
           />
         ))}
       </Box>
@@ -582,14 +569,14 @@ const OrderManagementPage = () => {
         value={productSearchTerm}
         onChange={(e) => setProductSearchTerm(e.target.value)}
       />
-      <Box sx={{ display: 'flex', gap: 0.75 }}>
+      <Box sx={{ display: 'flex', gap: 1 }}>
         <Chip
           label="전체"
           size="small"
           variant={selectedProductCategory === '' ? 'filled' : 'outlined'}
           color={selectedProductCategory === '' ? 'secondary' : 'default'}
           onClick={() => setSelectedProductCategory('')}
-          sx={{ borderRadius: '8px', fontWeight: selectedProductCategory === '' ? 700 : 400 }}
+          sx={{ fontWeight: selectedProductCategory === '' ? 700 : 500 }}
         />
         {productCategories.map(cat => (
           <Chip
@@ -599,7 +586,7 @@ const OrderManagementPage = () => {
             variant={selectedProductCategory === cat ? 'filled' : 'outlined'}
             color={selectedProductCategory === cat ? 'secondary' : 'default'}
             onClick={() => setSelectedProductCategory(prev => prev === cat ? '' : cat)}
-            sx={{ borderRadius: '8px', fontWeight: selectedProductCategory === cat ? 700 : 400 }}
+            sx={{ fontWeight: selectedProductCategory === cat ? 700 : 500 }}
           />
         ))}
       </Box>
@@ -611,104 +598,119 @@ const OrderManagementPage = () => {
     return <Box sx={{ p: 3 }}><Typography>주문 관리 페이지 접근 권한이 없습니다.</Typography></Box>;
   }
 
+  const headerAction = (
+    <Box sx={{ display: 'flex', gap: 1 }}>
+      <Button
+        variant="outlined"
+        onClick={(e) => setExcelMenuAnchor(e.currentTarget)}
+        endIcon={<KeyboardArrowDownIcon />}
+      >
+        엑셀 다운로드
+      </Button>
+      <Menu
+        anchorEl={excelMenuAnchor}
+        open={Boolean(excelMenuAnchor)}
+        onClose={() => setExcelMenuAnchor(null)}
+      >
+        <MenuItem onClick={() => handleExcelDownload('book')}>📘 도서 출고 전용 엑셀</MenuItem>
+        <MenuItem onClick={() => handleExcelDownload('test')}>📄 검사 출고 전용 엑셀</MenuItem>
+        <Divider />
+        <MenuItem onClick={() => handleExcelDownload('all')}>전체 통합 엑셀 (백업용)</MenuItem>
+      </Menu>
+      {hasPermission('orders:edit') && (
+        <Button variant="contained" color="primary" onClick={() => dispatch({ type: 'OPEN_NEW_ORDER' })}>
+          + 신규 주문
+        </Button>
+      )}
+    </Box>
+  );
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-        <ShoppingCartIcon sx={{ color: 'primary.main', fontSize: '1.4rem' }} />
-        <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>주문 관리</Typography>
-      </Box>
+      <PageHeader
+        title="주문 관리"
+        icon={ShoppingCartIcon}
+        action={headerAction}
+      />
 
       {isMobile ? (
         <Box sx={{ px: 1, mb: 2, display: 'flex', justifyContent: 'flex-start', gap: 1, alignItems: 'center' }}>
-          <Button startIcon={<FilterListIcon />} variant="outlined" onClick={() => setFilterDrawerOpen(true)} sx={{ borderRadius: '8px' }}>
+          <Button startIcon={<FilterListIcon />} variant="outlined" onClick={() => setFilterDrawerOpen(true)}>
             필터{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
           </Button>
-          <SwipeableDrawer 
-            anchor="bottom" 
-            open={filterDrawerOpen} 
-            onClose={() => setFilterDrawerOpen(false)} 
+          <SwipeableDrawer
+            anchor="bottom"
+            open={filterDrawerOpen}
+            onClose={() => setFilterDrawerOpen(false)}
             onOpen={() => setFilterDrawerOpen(true)}
-            PaperProps={{ sx: { borderRadius: '16px 16px 0 0', p: 3, pb: 6, maxHeight: '80vh' } }}
+            PaperProps={{ sx: { p: 3, pb: 6, maxHeight: '80vh' } }}
           >
             <Typography variant="h6" fontWeight="bold" mb={2}>주문 필터</Typography>
             {filterControls}
-            <Button variant="contained" fullWidth sx={{ mt: 3, borderRadius: '8px', minHeight: 48 }} onClick={() => setFilterDrawerOpen(false)}>
+            <Button variant="contained" fullWidth sx={{ mt: 3, minHeight: 48 }} onClick={() => setFilterDrawerOpen(false)}>
               확인
             </Button>
           </SwipeableDrawer>
         </Box>
       ) : (
-        <Paper sx={{ p: 2, mb: 2 }}>
+        <SectionCard sx={{ mb: 2 }} padding={16}>
           {filterControls}
-        </Paper>
+        </SectionCard>
       )}
 
-      <Paper sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
-          <Box flexGrow={1}>
-            {hasPermission('orders:edit') && state.selectedOrders.length > 0 && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, backgroundColor: 'grey.100', borderRadius: 1 }}>
-                    <Typography variant="subtitle1" fontWeight="bold">
-                        {state.selectedOrders.length}개 선택됨
-                    </Typography>
-                    <FormControl size="small" sx={{ minWidth: 150, backgroundColor: 'white' }}>
-                        <InputLabel>상태 일괄 변경</InputLabel>
-                        <Select
-                            value={bulkStatus}
-                            label="상태 일괄 변경"
-                            onChange={(e) => setBulkStatus(e.target.value)}
-                        >
-                            {Object.entries(statusToKorean).map(([key, value]) => <MenuItem key={key} value={key}>{value}</MenuItem>)}
-                        </Select>
-                    </FormControl>
-                    <Button variant="contained" onClick={handleBulkStatusUpdate} disabled={!bulkStatus}>
-                        적용
-                    </Button>
-                </Box>
-            )}
-          </Box>
-          <Box display="flex" gap={2}>
-            {hasPermission('orders:edit') && <Button variant="contained" color="primary" onClick={() => dispatch({ type: 'OPEN_NEW_ORDER' })}>+ 신규 주문</Button>}
-            <Button 
-              variant="outlined" 
-              onClick={(e) => setExcelMenuAnchor(e.currentTarget)}
-              endIcon={<KeyboardArrowDownIcon />}
-            >
-              엑셀 다운로드
+      <SectionCard padding={0} sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {hasPermission('orders:edit') && state.selectedOrders.length > 0 && (
+          <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2, bgcolor: 'grey.50', borderBottom: `1px solid ${theme.gray[200]}` }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              {state.selectedOrders.length}개 선택됨
+            </Typography>
+            <FormControl size="small" sx={{ minWidth: 150, bgcolor: 'background.paper' }}>
+              <InputLabel>상태 일괄 변경</InputLabel>
+              <Select
+                value={bulkStatus}
+                label="상태 일괄 변경"
+                onChange={(e) => setBulkStatus(e.target.value)}
+              >
+                {Object.entries(statusToKorean).map(([key, value]) => <MenuItem key={key} value={key}>{value}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <Button variant="contained" onClick={handleBulkStatusUpdate} disabled={!bulkStatus}>
+              적용
             </Button>
-            <Menu
-              anchorEl={excelMenuAnchor}
-              open={Boolean(excelMenuAnchor)}
-              onClose={() => setExcelMenuAnchor(null)}
-            >
-              <MenuItem onClick={() => handleExcelDownload('book')}>📘 도서 출고 전용 엑셀</MenuItem>
-              <MenuItem onClick={() => handleExcelDownload('test')}>📄 검사 출고 전용 엑셀</MenuItem>
-              <Divider />
-              <MenuItem onClick={() => handleExcelDownload('all')}>전체 통합 엑셀 (백업용)</MenuItem>
-            </Menu>
           </Box>
-        </Box>
+        )}
         {isMobile ? (
-          <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 1 }}>
+          <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 1, py: 2 }}>
             {state.loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
             ) : displayedOrders.length === 0 ? (
-              <Box sx={{ py: 4 }}>
+              activeFilterCount > 0 ? (
                 <EmptyState
-                  message={activeFilterCount > 0 ? "조건에 맞는 주문이 없습니다." : "아직 접수된 주문이 없습니다."}
-                  subMessage={activeFilterCount > 0 ? "검색 조건이나 필터를 변경해보세요." : "새로운 주문이 들어오면 여기에 표시됩니다."}
+                  icon={SearchOffIcon}
+                  title="조건에 맞는 주문이 없습니다."
+                  description="검색 조건이나 필터를 변경해보세요."
+                  action={{
+                    label: '필터 초기화',
+                    startIcon: <RestartAltIcon />,
+                    onClick: () => { dispatch({ type: 'CLEAR_FILTERS' }); setProductSearchTerm(''); setSelectedProductCategory(''); },
+                  }}
                 />
-              </Box>
+              ) : (
+                <EmptyState
+                  title="아직 접수된 주문이 없습니다."
+                  description="새로운 주문이 들어오면 여기에 표시됩니다."
+                />
+              )
             ) : (
               <Stack spacing={2} sx={{ pb: 2 }}>
                 {displayedOrders.map((order) => {
                   const isSelected = state.selectedOrders.indexOf(order.id) !== -1;
                   return (
-                    <Card 
-                      key={order.id} 
-                      variant="outlined" 
+                    <Card
+                      key={order.id}
+                      variant="outlined"
                       onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}
-                      sx={{ borderRadius: '12px', borderColor: isSelected ? 'primary.main' : 'divider', borderWidth: isSelected ? 2 : 1 }}
+                      sx={{ borderColor: isSelected ? 'primary.main' : 'divider', borderWidth: isSelected ? 2 : 1 }}
                     >
                       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
@@ -720,23 +722,18 @@ const OrderManagementPage = () => {
                                 sx={{ p: 0 }}
                               />
                             )}
-                            <Typography variant="subtitle2" color="text.secondary">
+                            <Typography variant="body2" color="text.secondary">
                               {format(new Date(order.created_at), 'yyyy-MM-dd')}
                             </Typography>
                           </Box>
-                          <Chip 
-                            label={statusToKorean[order.status]} 
-                            size="small" 
-                            color={order.status === 'completed' ? 'success' : order.status === 'pending' ? 'warning' : 'default'} 
-                            sx={{ fontWeight: 'bold' }} 
-                          />
+                          <StatusBadge value={order.status} size="sm" />
                         </Box>
                         <Box display="flex" justifyContent="space-between" alignItems="flex-end">
                           <Box>
-                            <Typography fontWeight="bold" fontSize="1.1rem">{order.customer_name}</Typography>
+                            <Typography variant="subtitle1">{order.customer_name}</Typography>
                             <Typography variant="body2" color="text.secondary">{state.events.find(e => e.id === order.event_id)?.name || 'N/A'}</Typography>
                           </Box>
-                          <Typography fontWeight="bold" color="primary.main">{(order.final_payment || 0).toLocaleString()}원</Typography>
+                          <Typography variant="subtitle1" color="primary.main">{(order.final_payment || 0).toLocaleString()}원</Typography>
                         </Box>
                       </CardContent>
                     </Card>
@@ -749,7 +746,7 @@ const OrderManagementPage = () => {
           <TableContainer sx={{ flexGrow: 1 }}>
             <Table stickyHeader>
               <TableHead>
-                <TableRow sx={{ '& .MuiTableCell-root': { bgcolor: 'grey.200', fontWeight: 'bold' } }}>
+                <TableRow>
                   {hasPermission('orders:edit') && (
                     <TableCell padding="checkbox">
                       <Checkbox
@@ -774,33 +771,35 @@ const OrderManagementPage = () => {
                 ) : displayedOrders.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={hasPermission('orders:edit') ? 8 : 7}>
-                      <Box sx={{ py: 4 }}>
-                        {activeFilterCount > 0 ? (
-                          <EmptyState
-                            message="조건에 맞는 주문이 없습니다."
-                            subMessage="검색 조건이나 필터를 변경해보세요."
-                            icon={<SearchOffIcon sx={{ fontSize: 64 }} />}
-                            action={{ label: "필터 초기화", onClick: () => { dispatch({ type: 'CLEAR_FILTERS' }); setProductSearchTerm(''); setSelectedProductCategory(''); } }}
-                          />
-                        ) : (
-                          <EmptyState
-                            message="아직 접수된 주문이 없습니다."
-                            subMessage="새로운 주문이 들어오면 여기에 표시됩니다."
-                          />
-                        )}
-                      </Box>
+                      {activeFilterCount > 0 ? (
+                        <EmptyState
+                          icon={SearchOffIcon}
+                          title="조건에 맞는 주문이 없습니다."
+                          description="검색 조건이나 필터를 변경해보세요."
+                          action={{
+                            label: '필터 초기화',
+                            startIcon: <RestartAltIcon />,
+                            onClick: () => { dispatch({ type: 'CLEAR_FILTERS' }); setProductSearchTerm(''); setSelectedProductCategory(''); },
+                          }}
+                        />
+                      ) : (
+                        <EmptyState
+                          title="아직 접수된 주문이 없습니다."
+                          description="새로운 주문이 들어오면 여기에 표시됩니다."
+                        />
+                      )}
                     </TableCell>
                   </TableRow>
                 ) : (
                   displayedOrders.map((order) => {
                     const isSelected = state.selectedOrders.indexOf(order.id) !== -1;
                     return (
-                      <TableRow 
-                        key={order.id} 
-                        hover 
-                        role="checkbox" 
-                        aria-checked={isSelected} 
-                        tabIndex={-1} 
+                      <TableRow
+                        key={order.id}
+                        hover
+                        role="checkbox"
+                        aria-checked={isSelected}
+                        tabIndex={-1}
                         selected={isSelected}
                         sx={{ cursor: 'pointer' }}
                       >
@@ -818,7 +817,7 @@ const OrderManagementPage = () => {
                         <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{(order.final_payment || 0).toLocaleString()}원</TableCell>
                         <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{format(new Date(order.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
                         <TableCell>
-                          <FormControl size="small" variant="outlined" sx={{ minWidth: 100 }} onClick={(e) => e.stopPropagation()}>
+                          <FormControl size="small" variant="outlined" sx={{ minWidth: 120 }} onClick={(e) => e.stopPropagation()}>
                             <Select value={order.status} onChange={(e) => handleStatusChange(order.id, e.target.value)} disabled={!hasPermission('orders:edit')}>
                               {Object.entries(statusToKorean).map(([key, value]) => <MenuItem key={key} value={key}>{value}</MenuItem>)}
                             </Select>
@@ -832,10 +831,10 @@ const OrderManagementPage = () => {
             </Table>
           </TableContainer>
         )}
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 2, borderTop: `1px solid ${theme.gray[100]}` }}>
           <Pagination count={Math.ceil(state.totalOrders / ordersPerPage)} page={state.currentPage} onChange={(_, value) => dispatch({ type: 'SET_FILTER', payload: { key: 'currentPage', value } })} color="primary" />
         </Box>
-      </Paper>
+      </SectionCard>
 
       {state.selectedOrder && !state.productsLoading && (
         <OrderDetailModal
