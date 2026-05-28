@@ -39,11 +39,14 @@
 |---|---|---|
 | `category-book` | `#3B82F6` | 도서 카테고리 구분 칩 |
 | `category-test` | `#6366F1` | 검사 카테고리 구분 칩 |
+| `category-tool` | `#6B7684` | 도구 카테고리 구분 칩 (회색 계열) |
 
 - 출고 시안(A3·FulfillmentPreview)에서 채택·사용 중인 값을 정식 토큰으로 승격(08 D17).
 - **status 색과 의미 분리.** `category-test`(`#6366F1`)는 `status-completed`와 헥사가 같으니, 같은 화면 공존 시 칩=outlined / status=filled로 형태 분리.
-- 도구(tool) 카테고리는 출고가 도서·검사만 분리하므로 이번 등재 제외. 상품관리엔 도구가 있으나 단일색 미확정(현재 `grey[600]`) — 회색 계열, 추후 확정.
-- 상품관리 화면(ProductManagementPage)은 현재 `info.main`/`secondary.main`으로 다른 색을 써서 코드 정합이 후속으로 남음(08 D17).
+- 도구(tool) 카테고리는 출고가 도서·검사만 분리하므로 시안 채택은 없었으나, 상품관리 통합 정합을 위해 `#6B7684`(기존 `grey[600]` 값 그대로 토큰화)로 등재. 회색 계열을 유지해 도서·검사와 위계로 구분된다.
+- **코드 단일 소스:** `inpsyt-order-frontend/src/constants/categoryColors.js`. `CATEGORY_COLORS` + `CATEGORY_LABELS` + `CATEGORY_KEY_BY_LABEL`(한글 라벨 역매핑) 노출.
+- ProductManagementPage 카테고리 카드 3종은 이 토큰을 사용하도록 정합 완료(인라인 `theme.palette.info.main`/`secondary.main`/`grey[600]` 제거).
+- `theme.js`의 `ACCENT.books`(`#3D4DB0`)·`ACCENT.tests`(`#2B398F`)는 DashboardDesignPreview 시안 호환용으로 잔존, `@deprecated` 주석으로 표시. M2 대시보드 시안 머지 시점에 `CATEGORY_COLORS`로 정합 예정.
 
 ## 3. 색 — Surface (회색 5단계)
 
