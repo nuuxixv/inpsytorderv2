@@ -25,11 +25,17 @@ const GRAY = {
 // ─────────────────────────────────────────────
 // Semantic Accent Palette (dashboard categories)
 // Use via theme.accent.* — NOT hardcoded hex in pages
+//
+// books·tests 는 카테고리 색 (D17). 정식 토큰은 constants/categoryColors.js 의
+// CATEGORY_COLORS.book / .test (`#3B82F6` / `#6366F1`). 여기 값은 카테고리 색
+// 단일화 이전의 대시보드 시안 톤이며 DashboardDesignPreview 가 참조한다.
+// 후속 사이클(M2 시안 머지 시점)에 categoryColors.js 와 정합화 예정.
+// 새 코드에서는 theme.accent.books / .tests 호출을 피하고 CATEGORY_COLORS 를 쓴다.
 // ─────────────────────────────────────────────
 const ACCENT = {
   revenue:   '#00B894', // 매출/성장 - Toss 그린
-  books:     '#3D4DB0', // 도서 - 브랜드 서브
-  tests:     '#2B398F', // 검사 - 브랜드 프라이머리
+  books:     '#3D4DB0', // @deprecated D17 — DashboardDesignPreview 시안 호환용. CATEGORY_COLORS.book 권장
+  tests:     '#2B398F', // @deprecated D17 — DashboardDesignPreview 시안 호환용. CATEGORY_COLORS.test 권장
   shipping:  '#0984E3', // 배송
   attention: '#F59E0B', // 주의/대기
   danger:    '#FF6B6B',

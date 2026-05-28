@@ -25,6 +25,7 @@ import { useNotification } from '../hooks/useNotification';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../supabaseClient';
 import { matchesSearch } from '../utils/search';
+import { CATEGORY_COLORS, CATEGORY_KEY_BY_LABEL } from '../constants/categoryColors';
 import EmptyState from './EmptyState';
 import TableSkeleton from './TableSkeleton';
 
@@ -659,9 +660,11 @@ const ProductManagementPage = () => {
             </CardContent>
           </Card>
           {[
-            { key: '도서', icon: <MenuBookIcon />, color: theme.palette.info.main },
-            { key: '검사', icon: <ScienceIcon />, color: theme.palette.secondary.main },
-            { key: '도구', icon: <BuildIcon />, color: theme.palette.grey[600] },
+            // 카테고리 색은 design-system Appendix §2-1 / 08 D17 정식 토큰
+            // (constants/categoryColors.js). 인라인 hex·theme.palette 우회 금지.
+            { key: '도서', icon: <MenuBookIcon />, color: CATEGORY_COLORS[CATEGORY_KEY_BY_LABEL['도서']] },
+            { key: '검사', icon: <ScienceIcon />, color: CATEGORY_COLORS[CATEGORY_KEY_BY_LABEL['검사']] },
+            { key: '도구', icon: <BuildIcon />, color: CATEGORY_COLORS[CATEGORY_KEY_BY_LABEL['도구']] },
           ].map(({ key, icon, color }) => (
             <Card
               key={key}
