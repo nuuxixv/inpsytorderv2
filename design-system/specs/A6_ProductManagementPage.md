@@ -15,9 +15,9 @@
 
 ## 표시 정보 (라벨 단위, 누락 금지)
 
-### 상단 헤더 (line 558-601)
-- [ ] 페이지 제목 아이콘: `CategoryIcon` (primary 색) — line 562
-- [ ] 페이지 제목 텍스트: "상품 관리" — line 563
+### 상단 헤더 (PageHeader 합성 컴포넌트)
+- [ ] 페이지 제목 아이콘: `Inventory2Icon` (PageHeader.icon prop. M3-2에서 CategoryIcon→Inventory2Icon으로 변경, 시안 정합)
+- [ ] 페이지 제목 텍스트: "상품 관리" (PageHeader.title)
 - [ ] 액션 버튼 그룹 (우측):
   - 엑셀 양식 다운로드 아이콘 (`DescriptionIcon`, info 톤 배경) — line 566-570
   - 상품 목록 다운로드 아이콘 (`DownloadIcon`, success 톤 배경) — line 571-575
@@ -46,7 +46,8 @@
   - 본문 숫자: `categoryCounts['도구']`
   - 클릭 효과: `selectedCategory='도구'` 토글
 
-> 디자인 결정 시 참고: 현재 그라데이션 배경은 CLAUDE.md "AI 산출물 시그니처" 절에서 차단 대상으로 명시. 시안에서는 토큰 패턴으로 교체 필요.
+> 디자인 결정 시 참고: 그라데이션 배경은 CLAUDE.md "AI 산출물 시그니처" 절에서 차단 대상.
+> M3-2(2026-05-28)에서 ProductManagementPage 본문 6장 카드를 시안 QuickFilterCard 패턴(border 기반, 흰 배경 + alpha 색상 hover) 으로 교체 완료. theme 토큰 + `categoryColors.js` 만 사용, 인라인 hex 0.
 
 ### 검색·필터 카드 (line 690-736)
 - [ ] 상품명 검색 입력: 라벨 "상품명 검색", `SearchIcon` 시작 아이콘
@@ -183,3 +184,4 @@
 ## 변경 이력
 
 - 2026-05-13 신설.
+- 2026-05-28 (M3-2): 실 페이지 시안 디자인 시스템 정합. 그라데이션 카드 6장 → border 기반 QuickFilterCard로 교체. PageHeader · SectionCard · ActionSlot · ui/EmptyState 합성 컴포넌트 적용. 모달 영역(line 903~1135) · 비즈니스 로직 · 권한 가드 · 받아쓰기 모달 · 엑셀 업·다운로드 전부 보존. 자동 검출 5종 본문 신규 위반 0.

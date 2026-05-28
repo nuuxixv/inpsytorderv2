@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Box, Typography, Button, TextField, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Card, CardContent, Dialog,
+  TableContainer, TableHead, TableRow, Dialog,
   DialogActions, DialogContent, DialogTitle, FormControlLabel, Checkbox,
   FormControl, InputLabel, Select, MenuItem, Autocomplete, Chip,
   Pagination, IconButton, Tooltip, ToggleButton, ToggleButtonGroup,
@@ -10,7 +10,7 @@ import {
 import {
   Add as AddIcon, FileDownload as DownloadIcon, FileUpload as UploadIcon,
   Edit as EditIcon, Search as SearchIcon, Inventory as InventoryIcon,
-  Category as CategoryIcon, LocalOffer as TagIcon,
+  Inventory2 as Inventory2Icon, LocalOffer as TagIcon,
   TrendingUp as TrendingUpIcon, Delete as DeleteIcon,
   DeleteForever as DeleteForeverIcon, CheckBox as CheckBoxIcon,
   RestartAlt as RestartAltIcon, Tune as TuneIcon,
@@ -26,7 +26,7 @@ import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../supabaseClient';
 import { matchesSearch } from '../utils/search';
 import { CATEGORY_COLORS, CATEGORY_KEY_BY_LABEL } from '../constants/categoryColors';
-import EmptyState from './EmptyState';
+import { PageHeader, SectionCard, ActionSlot, EmptyState } from './ui';
 import TableSkeleton from './TableSkeleton';
 
 const categories = ['도서', '검사', '도구'];
@@ -555,208 +555,217 @@ const ProductManagementPage = () => {
     return <Box sx={{ p: 3 }}><Typography>상품 관리 페이지 접근 권한이 없습니다.</Typography></Box>;
   }
 
+  // 빠른 필터 카드 — 시안 QuickFilterCard 패턴 (border 기반, 그라데이션 제거 — 02 §색 E항)
+  const renderQuickFilterCard = (opts) => {
+    const { label, value, Icon, baseColor, active, onClick } = opts;
+    return (
+      <Box
+        key={label}
+        onClick={onClick}
+        sx={{
+          flex: '1 1 140px',
+          minWidth: 130,
+          cursor: 'pointer',
+          bgcolor: 'background.paper',
+          border: `1px solid ${alpha(baseColor, active ? 0.55 : 0.18)}`,
+          borderRadius: `${theme.radii.md}px`,
+          px: 2,
+          py: 1.5,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1,
+          transition: `all 0.15s ${theme.easing.toss}`,
+          minHeight: 64,
+          '&:hover': {
+            borderColor: alpha(baseColor, 0.4),
+            bgcolor: alpha(baseColor, 0.04),
+          },
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'text.secondary',
+              fontWeight: 700,
+              letterSpacing: '0.03em',
+              textTransform: 'uppercase',
+              display: 'block',
+            }}
+          >
+            {label}
+          </Typography>
+          <Typography
+            variant="h3"
+            sx={{
+              color: active ? baseColor : 'text.primary',
+              lineHeight: 1.1,
+              fontFeatureSettings: '"tnum" 1',
+            }}
+          >
+            {value}
+          </Typography>
+        </Box>
+        <Icon sx={{ fontSize: 28, color: alpha(baseColor, active ? 0.7 : 0.4) }} />
+      </Box>
+    );
+  };
+
+  const headerAction = (
+    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+      <Tooltip title="엑셀 양식 다운로드">
+        <IconButton onClick={handleDownloadTemplate} sx={{ bgcolor: alpha(theme.palette.info.main, 0.1) }}>
+          <DescriptionIcon />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="상품 목록 다운로드">
+        <IconButton onClick={handleDownloadExcel} sx={{ bgcolor: alpha(theme.palette.success.main, 0.1) }}>
+          <DownloadIcon />
+        </IconButton>
+      </Tooltip>
+      {hasPermission('products:edit') && (
+        <>
+          <Tooltip title="엑셀 업로드 (product_code 기준 upsert)">
+            <IconButton component="label" sx={{ bgcolor: alpha(theme.palette.warning.main, 0.1) }}>
+              <UploadIcon />
+              <input ref={fileInputRef} hidden type="file" accept=".xlsx,.xls" onChange={handleFileUpload} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="전체 삭제">
+            <IconButton
+              onClick={() => {
+                setDeleteAllConfirmText('');
+                setDeleteAllDialogOpen(true);
+              }}
+              sx={{ bgcolor: alpha(theme.palette.error.main, 0.08), color: 'error.main' }}
+            >
+              <DeleteForeverIcon />
+            </IconButton>
+          </Tooltip>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
+            상품 추가
+          </Button>
+        </>
+      )}
+    </Box>
+  );
+
   return (
     <Box>
-      <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <CategoryIcon sx={{ color: 'primary.main', fontSize: '1.4rem' }} />
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>상품 관리</Typography>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            <Tooltip title="엑셀 양식 다운로드">
-              <IconButton onClick={handleDownloadTemplate} sx={{ bgcolor: alpha(theme.palette.info.main, 0.1) }}>
-                <DescriptionIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="상품 목록 다운로드">
-              <IconButton onClick={handleDownloadExcel} sx={{ bgcolor: alpha(theme.palette.success.main, 0.1) }}>
-                <DownloadIcon />
-              </IconButton>
-            </Tooltip>
-            {hasPermission('products:edit') && (
-              <>
-                <Tooltip title="엑셀 업로드 (product_code 기준 upsert)">
-                  <IconButton component="label" sx={{ bgcolor: alpha(theme.palette.warning.main, 0.1) }}>
-                    <UploadIcon />
-                    <input ref={fileInputRef} hidden type="file" accept=".xlsx,.xls" onChange={handleFileUpload} />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="전체 삭제">
-                  <IconButton
-                    onClick={() => {
-                      setDeleteAllConfirmText('');
-                      setDeleteAllDialogOpen(true);
-                    }}
-                    sx={{ bgcolor: alpha(theme.palette.error.main, 0.08), color: 'error.main' }}
-                  >
-                    <DeleteForeverIcon />
-                  </IconButton>
-                </Tooltip>
-                <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
-                  상품 추가
-                </Button>
-              </>
-            )}
-          </Box>
-        </Box>
+      <PageHeader
+        title="상품 관리"
+        icon={Inventory2Icon}
+        action={headerAction}
+      />
 
-        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-          <Card
-            onClick={() => setProductQuickFilter(null)}
-            sx={{
-              flex: '1 1 180px',
-              cursor: 'pointer',
-              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.primary.main, productQuickFilter === null ? 0.6 : 0.2)}`,
-            }}
-          >
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>전체 상품</Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'primary.main' }}>{totalProducts}</Typography>
-                </Box>
-                <InventoryIcon sx={{ fontSize: 40, color: alpha(theme.palette.primary.main, 0.5) }} />
-              </Box>
-            </CardContent>
-          </Card>
-          <Card
-            onClick={() => setProductQuickFilter((prev) => (prev === 'discountable' ? null : 'discountable'))}
-            sx={{
-              flex: '1 1 180px',
-              cursor: 'pointer',
-              background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.main, 0.05)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.success.main, productQuickFilter === 'discountable' ? 0.6 : 0.2)}`,
-            }}
-          >
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>할인 가능</Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.main' }}>{totalDiscountableCount}</Typography>
-                </Box>
-                <TagIcon sx={{ fontSize: 40, color: alpha(theme.palette.success.main, 0.5) }} />
-              </Box>
-            </CardContent>
-          </Card>
-          <Card
-            onClick={() => setProductQuickFilter((prev) => (prev === 'popular' ? null : 'popular'))}
-            sx={{
-              flex: '1 1 180px',
-              cursor: 'pointer',
-              background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)} 0%, ${alpha(theme.palette.warning.main, 0.05)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.warning.main, productQuickFilter === 'popular' ? 0.6 : 0.2)}`,
-            }}
-          >
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>인기 상품</Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'warning.main' }}>{totalPopularCount}</Typography>
-                </Box>
-                <TrendingUpIcon sx={{ fontSize: 40, color: alpha(theme.palette.warning.main, 0.5) }} />
-              </Box>
-            </CardContent>
-          </Card>
-          {[
-            // 카테고리 색은 design-system Appendix §2-1 / 08 D17 정식 토큰
-            // (constants/categoryColors.js). 인라인 hex·theme.palette 우회 금지.
-            { key: '도서', icon: <MenuBookIcon />, color: CATEGORY_COLORS[CATEGORY_KEY_BY_LABEL['도서']] },
-            { key: '검사', icon: <ScienceIcon />, color: CATEGORY_COLORS[CATEGORY_KEY_BY_LABEL['검사']] },
-            { key: '도구', icon: <BuildIcon />, color: CATEGORY_COLORS[CATEGORY_KEY_BY_LABEL['도구']] },
-          ].map(({ key, icon, color }) => (
-            <Card
-              key={key}
-              onClick={() => setSelectedCategory(prev => prev === key ? '' : key)}
-              sx={{
-                flex: '1 1 120px',
-                cursor: 'pointer',
-                background: `linear-gradient(135deg, ${alpha(color, 0.1)} 0%, ${alpha(color, 0.05)} 100%)`,
-                border: `1px solid ${alpha(color, selectedCategory === key ? 0.6 : 0.2)}`,
-              }}
-            >
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>{key}</Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 'bold', color }}>{categoryCounts[key] ?? 0}</Typography>
-                  </Box>
-                  {React.cloneElement(icon, { sx: { fontSize: 40, color: alpha(color, 0.5) } })}
-                </Box>
-              </CardContent>
-            </Card>
-          ))}
-        </Box>
+      <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+        {renderQuickFilterCard({
+          label: '전체 상품',
+          value: totalProducts,
+          Icon: InventoryIcon,
+          baseColor: theme.palette.primary.main,
+          active: productQuickFilter === null && !selectedCategory,
+          onClick: () => { setProductQuickFilter(null); setSelectedCategory(''); },
+        })}
+        {renderQuickFilterCard({
+          label: '할인 가능',
+          value: totalDiscountableCount,
+          Icon: TagIcon,
+          baseColor: theme.palette.success.main,
+          active: productQuickFilter === 'discountable',
+          onClick: () => setProductQuickFilter((prev) => (prev === 'discountable' ? null : 'discountable')),
+        })}
+        {renderQuickFilterCard({
+          label: '인기 상품',
+          value: totalPopularCount,
+          Icon: TrendingUpIcon,
+          baseColor: theme.palette.warning.main,
+          active: productQuickFilter === 'popular',
+          onClick: () => setProductQuickFilter((prev) => (prev === 'popular' ? null : 'popular')),
+        })}
+        {[
+          // 카테고리 색은 design-system Appendix §2-1 / 08 D17 정식 토큰
+          // (constants/categoryColors.js). 인라인 hex·theme.palette 우회 금지.
+          { key: '도서', Icon: MenuBookIcon, color: CATEGORY_COLORS[CATEGORY_KEY_BY_LABEL['도서']] },
+          { key: '검사', Icon: ScienceIcon, color: CATEGORY_COLORS[CATEGORY_KEY_BY_LABEL['검사']] },
+          { key: '도구', Icon: BuildIcon, color: CATEGORY_COLORS[CATEGORY_KEY_BY_LABEL['도구']] },
+        ].map(({ key, Icon, color }) => renderQuickFilterCard({
+          label: key,
+          value: categoryCounts[key] ?? 0,
+          Icon,
+          baseColor: color,
+          active: selectedCategory === key,
+          onClick: () => setSelectedCategory(prev => prev === key ? '' : key),
+        }))}
       </Box>
 
-      <Card sx={{ mb: 2 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: availableTags.length > 0 ? 1.5 : 0 }}>
-            <TextField
-              label="상품명 검색"
-              value={searchTerm}
-              onChange={(event) => {
-                setSearchTerm(event.target.value);
-                setCurrentPage(1);
-              }}
-              size="small"
-              sx={{ flexGrow: 1, minWidth: 200 }}
-              InputProps={{ startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} /> }}
-            />
-            {hasFilters && (
-              <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-                {totalFiltered}개 표시 중
-              </Typography>
-            )}
-            {hasFilters && (
-              <Button variant="outlined" onClick={handleResetFilters} size="small" startIcon={<RestartAltIcon />}>
-                초기화
-              </Button>
-            )}
-          </Box>
-          {availableTags.length > 0 && (
-            <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-              {availableTags.map(tag => (
-                <Chip
-                  key={tag}
-                  label={tag}
-                  size="small"
-                  variant={selectedTags.includes(tag) ? 'filled' : 'outlined'}
-                  color={selectedTags.includes(tag) ? 'primary' : 'default'}
-                  onClick={() => {
-                    setSelectedTags(prev =>
-                      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-                    );
-                    setCurrentPage(1);
-                  }}
-                  sx={{ borderRadius: '8px', fontWeight: selectedTags.includes(tag) ? 700 : 400 }}
-                />
-              ))}
-            </Box>
+      <SectionCard sx={{ mb: 2 }} padding={16}>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: availableTags.length > 0 ? 2 : 0 }}>
+          <TextField
+            label="상품명 검색"
+            value={searchTerm}
+            onChange={(event) => {
+              setSearchTerm(event.target.value);
+              setCurrentPage(1);
+            }}
+            size="small"
+            sx={{ flexGrow: 1, minWidth: 200 }}
+            InputProps={{ startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} /> }}
+          />
+          {hasFilters && (
+            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+              {totalFiltered}개 표시 중
+            </Typography>
           )}
-        </CardContent>
-      </Card>
+          {hasFilters && (
+            <Button variant="outlined" onClick={handleResetFilters} size="small" startIcon={<RestartAltIcon />}>
+              초기화
+            </Button>
+          )}
+        </Box>
+        {availableTags.length > 0 && (
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            {availableTags.map(tag => (
+              <Chip
+                key={tag}
+                label={tag}
+                size="small"
+                variant={selectedTags.includes(tag) ? 'filled' : 'outlined'}
+                color={selectedTags.includes(tag) ? 'primary' : 'default'}
+                onClick={() => {
+                  setSelectedTags(prev =>
+                    prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+                  );
+                  setCurrentPage(1);
+                }}
+                sx={{ fontWeight: selectedTags.includes(tag) ? 700 : 500 }}
+              />
+            ))}
+          </Box>
+        )}
+      </SectionCard>
 
       {selectedCount > 0 && hasPermission('products:edit') && (
-        <Box
+        <SectionCard
+          padding={0}
           sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
-            mb: 1.5,
-            px: 2,
-            py: 1.25,
-            bgcolor: alpha(theme.palette.primary.main, 0.06),
-            borderRadius: 2,
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+            mb: 2,
+            bgcolor: alpha(theme.palette.primary.main, 0.04),
+            borderColor: alpha(theme.palette.primary.main, 0.2),
           }}
         >
-          <CheckBoxIcon sx={{ color: 'primary.main', fontSize: '1.2rem' }} />
-          <Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main' }}>
-            {selectedCount}개 선택됨
-          </Typography>
-          <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+          <ActionSlot
+            sx={{ px: 2, py: 1.5 }}
+            leading={
+              <>
+                <CheckBoxIcon sx={{ color: 'primary.main' }} />
+                <Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                  {selectedCount}개 선택됨
+                </Typography>
+              </>
+            }
+          >
             <Button size="small" variant="outlined" startIcon={<TuneIcon />} onClick={handleOpenBulkEdit}>
               선택 항목 편집
             </Button>
@@ -766,11 +775,11 @@ const ProductManagementPage = () => {
             <Button size="small" variant="text" onClick={() => setSelectedIds(new Set())}>
               선택 해제
             </Button>
-          </Box>
-        </Box>
+          </ActionSlot>
+        </SectionCard>
       )}
 
-      <Card>
+      <SectionCard padding={0}>
         <TableContainer>
           <Table>
             <TableHead>
@@ -802,15 +811,15 @@ const ProductManagementPage = () => {
                 <TableRow>
                   <TableCell colSpan={hasPermission('products:edit') ? 9 : 8} sx={{ border: 0, py: 4 }}>
                     <EmptyState
-                      message={hasFilters ? '검색 결과가 없습니다' : '등록된 상품이 없습니다'}
-                      subMessage={hasFilters ? '다른 검색어나 필터를 시도해 보세요' : '새 상품을 추가해 시작하세요'}
-                      icon={<InventoryIcon sx={{ fontSize: 64, color: 'text.disabled' }} />}
+                      icon={InventoryIcon}
+                      title={hasFilters ? '검색 결과가 없습니다' : '등록된 상품이 없습니다'}
+                      description={hasFilters ? '다른 검색어나 필터를 시도해 보세요' : '새 상품을 추가해 시작하세요'}
                       action={
                         hasFilters
-                          ? { label: '필터 초기화', onClick: handleResetFilters }
+                          ? { label: '필터 초기화', onClick: handleResetFilters, startIcon: <RestartAltIcon /> }
                           : hasPermission('products:edit')
-                          ? { label: '상품 추가', onClick: () => handleOpen() }
-                          : null
+                          ? { label: '상품 추가', onClick: () => handleOpen(), startIcon: <AddIcon /> }
+                          : undefined
                       }
                     />
                   </TableCell>
@@ -830,17 +839,17 @@ const ProductManagementPage = () => {
                     <TableCell sx={{ fontWeight: 500 }}>{product.name}</TableCell>
                     <TableCell><Chip label={product.category} size="small" color="primary" variant="outlined" /></TableCell>
                     <TableCell>{product.sub_category || '-'}</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>{(product.list_price || 0).toLocaleString()}원</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700, fontFeatureSettings: '"tnum" 1' }}>{(product.list_price || 0).toLocaleString()}원</TableCell>
                     <TableCell sx={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product.notes || '-'}</TableCell>
                     <TableCell align="center">
                       <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', justifyContent: 'center', minWidth: 80 }}>
-                        {product.is_popular && <Chip label="인기" size="small" color="warning" sx={{ height: 20, fontSize: '0.7rem' }} />}
-                        {product.is_new && <Chip label="신상품" size="small" color="primary" sx={{ height: 20, fontSize: '0.7rem' }} />}
+                        {product.is_popular && <Chip label="인기" size="small" color="warning" />}
+                        {product.is_new && <Chip label="신상품" size="small" color="primary" />}
                         {product.is_discountable && (
                           <Chip
                             label="할인"
                             size="small"
-                            sx={{ height: 20, fontSize: '0.7rem', bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main', border: 0 }}
+                            sx={{ bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main', border: 0 }}
                           />
                         )}
                         {!product.is_popular && !product.is_new && !product.is_discountable && (
@@ -879,7 +888,7 @@ const ProductManagementPage = () => {
         </TableContainer>
 
         {displayedProducts.length > 0 && (
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderTop: 1, borderColor: 'divider' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderTop: `1px solid ${theme.gray[100]}` }}>
             <FormControl size="small">
               <InputLabel>페이지당 항목 수</InputLabel>
               <Select
@@ -898,7 +907,7 @@ const ProductManagementPage = () => {
             <Pagination count={Math.max(1, Math.ceil(totalFiltered / productsPerPage))} page={currentPage} onChange={(_, page) => setCurrentPage(page)} color="primary" />
           </Box>
         )}
-      </Card>
+      </SectionCard>
 
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 'bold' }}>{isEditing ? '상품 수정' : '새 상품 추가'}</DialogTitle>
