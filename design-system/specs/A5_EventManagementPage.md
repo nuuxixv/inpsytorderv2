@@ -2,7 +2,7 @@
 
 > 이 시트는 학회 관리 화면의 정보·기능·데이터 구조의 단일 진실 소스다.
 > 시안과 실서비스 구현은 이 시트의 모든 항목을 1:1로 반영해야 한다.
-> 마지막 갱신: 2026-05-13 신설.
+> 마지막 갱신: 2026-05-28 M3-4 정합 후 통계 카드 4장 → 헤더 subtitle + 상태 토글 통합 기록.
 
 ## 참조 파일
 - 실 컴포넌트: `inpsyt-order-frontend/src/components/EventManagementPage.jsx` (799줄)
@@ -23,22 +23,18 @@
   - "학회 목록 관리" 버튼 (outlined, `SettingsIcon`)
   - "새 학회 추가" 버튼 (contained, `AddIcon`)
 
-### 통계 카드 4장 — 클릭하면 필터 적용 (line 354-417)
-- [ ] 카드 1: "전체 학회" — primary 그라데이션, `EventIcon`
-  - 본문 숫자: `events.length`
-  - 클릭 효과: `eventFilter='all'`
-- [ ] 카드 2: "활성 학회" — success 그라데이션, `CalendarIcon`
-  - 본문 숫자: `activeEventsCount` (`start_date <= today <= end_date`인 학회 수)
-  - 클릭 효과: `eventFilter='active'` 토글
-- [ ] 카드 3: "예정 학회" — info 그라데이션, `CalendarTodayIcon`
-  - 본문 숫자: `upcomingEventsCount` (`today < start_date`)
-  - 클릭 효과: `eventFilter='upcoming'` 토글
-- [ ] 카드 4: "종료 학회" — error 그라데이션, `EventIcon`
-  - 본문 숫자: `endedEventsCount` (`today > end_date`)
-  - 클릭 효과: `eventFilter='ended'` 토글
-- [ ] 활성 카드 강조: 보더 `outline: 2px solid primary.main`
+### 상태 필터 토글 (M3-4 정합 후 — 통계 카드 4장 외형 전환)
+2026-05-28 M3-4(EventManagementPage 시안 정합) 사이클에서 통계 카드 4장(그라데이션 배경)을 두 영역으로 분리해 흡수:
+- 헤더 `subtitle`에 `총 N건 · 진행 중 X · 예정 Y · 종료 Z` 한 줄 통계로 통합
+- 필터 영역 SectionCard 안 상태 토글 Chip 4종 (`전체 N` / `예정 Y` / `진행 중 X` / `종료 Z`)으로 통합
 
-> 위 그라데이션 배경은 신 디자인 시스템(`CLAUDE.md` E항)에서 차단 대상. 시안에서는 토큰 패턴으로 교체.
+각 칩 클릭 시 `eventFilter` 토글:
+- [ ] 전체: `events.length`, `eventFilter='all'`
+- [ ] 예정: `upcomingEventsCount` (`today < start_date`), `eventFilter='upcoming'`
+- [ ] 진행 중: `activeEventsCount` (`start_date <= today <= end_date`), `eventFilter='active'`
+- [ ] 종료: `endedEventsCount` (`today > end_date`), `eventFilter='ended'`
+
+> 그라데이션 배경은 신 디자인 시스템(`CLAUDE.md` E항)에서 차단 대상. 카드 4장 외형은 제거됐고, 정보는 통계 subtitle + 상태 토글로 1:1 보존됨.
 
 ### 학회 표 (line 420-559)
 - [ ] 컬럼 헤더(`events:edit` 권한별): 학회명 / 상태 / 주문 URL / 할인율(중앙) / 기간 / 주최학회 / 작업(`events:edit` 시)
@@ -170,3 +166,4 @@
 ## 변경 이력
 
 - 2026-05-13 신설.
+- 2026-05-28 M3-4 정합: 통계 카드 4장 외형 → 헤더 subtitle + 상태 토글 칩으로 통합 (정보 1:1 보존, 그라데이션 제거). 표 영역은 `SectionCard padding=0`으로 래핑. 헤더는 `PageHeader`, 상태 칩은 `StatusBadge(value=paid|pending|completed)`, URL 액션 묶음은 `ActionSlot`, 빈 상태는 `ui/EmptyState`로 교체. 폼 2블록 분리·할인율 단위 변환·QR 다운로드·권한 분기 보존.
