@@ -32,6 +32,11 @@
 - `A3_FulfillmentPage.md` — 출고 현황
 - `A5_EventManagementPage.md` — 학회 관리
 - `A6_ProductManagementPage.md` — 상품 관리
+- `A7_UserManagementPage.md` — 사용자 관리 (멤버·역할 템플릿)
+- `A7_BulletinBoardPage.md` — 게시판 (매뉴얼·패치노트·공지)
+- `A7_FeedbackManagementPage.md` — 피드백 관리 (master 트리아지)
+- `A8_SettingsPage.md` — 설정 (리다이렉트 학회·배송비 정책)
+- `A8_LoginPage.md` — 어드민 로그인 (역할→이름→PIN 3단계)
 
 다른 화면의 시트가 필요하면 `_TEMPLATE.md` 를 복사해 같은 톤·포맷으로 추가한다.
 
