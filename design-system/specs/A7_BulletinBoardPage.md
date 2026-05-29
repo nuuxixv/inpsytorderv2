@@ -172,3 +172,31 @@
 
 ## 변경 이력
 - 2026-05-28 신설 — design/m2-admin-rest 브랜치 5종 일괄 사전 정독.
+- 2026-05-29 (M3-6) — design/m3-bulletin 시안 정합 실 페이지 반영 (PR #10·11·12·13·14 답습).
+  - 교체:
+    - PageHeader (icon + title + subtitle "총 N개 · 안 읽음 M개 (본인 기준)" + action 분기 master only)
+    - 좌측 목록·우측 상세 → SectionCard 2개 (padding=0/24)
+    - 카테고리 필터: Tabs → 칩 그룹 + 검색 TextField (SectionCard 안에 통합)
+    - 빈 상태(좌측·우측 미선택·검색 결과 없음) → `ui/EmptyState`
+    - master 우측 액션 3종(읽음 현황/수정/삭제) → `ActionSlot` + `RowIconButton`(36×36, 시안/PR #14 패턴)
+    - 모달 3종: borderRadius 토큰화(`theme.radii.lg`), 삭제 모달 아이콘 박스 신설, 읽음 현황 모달에 subtitle(게시글 제목) 추가
+  - 보존:
+    - API 7종 호출(getBulletins, createBulletin, updateBulletin, deleteBulletin, markBulletinRead, getBulletinReaders) + supabase bulletin_reads 직조회
+    - 권한 가드 `permissions.includes('master')` 단일 분기(부채 #2 그대로 — 별도 백로그)
+    - 본문 마크다운 렌더 `SimpleMarkdown` (시안용 SimpleMarkdownPreview 아님)
+    - 카테고리 3색 인라인 hex(`#3B82F6`/`#8B5CF6`/`#F59E0B`) — 사양 §핵심 발견 3 D17 후속 백로그
+    - 읽음 처리 silent fail, 안 읽음 닷 본인 기준, 좌측 380/우측 flex, 모바일 단일 패널 토글
+    - 입력 폼 4필드 분리(title/content/category/is_pinned) 절대 보존
+    - 폼·삭제·읽음 현황 모달의 모든 표시 정보·액션
+  - 신규(시안에서 시작):
+    - 검색 입력(`searchTerm`) — title/content 부분일치, 좌측 목록만 영향
+    - 안 읽음 카운트(`unreadCount`) — 헤더 subtitle에 본인 기준 명시
+  - 자동 검출 5종:
+    - raw hex: 카테고리 3색만 사양 예외(BULLETIN_CATEGORY) — 그 외 0
+    - 인라인 fontSize: 아이콘 fontSize(시각 사이즈)만 — 텍스트는 variant 100% 사용
+    - weight 800: 0 (h1/h2 reserved 위반 없음)
+    - 4배수 외 spacing: 0
+    - touch 44 미만: RowIconButton 36×36 (시안 답습, PR #14에서 채택된 행 액션 한계)
+  - 후속 백로그:
+    - 카테고리 3색 토큰화(`category-manual`/`category-patch`/`category-notice`) — D17 정합 사이클
+    - `bulletins:manage` 권한 매트릭스 ↔ 코드 단일화(부채 #1)
