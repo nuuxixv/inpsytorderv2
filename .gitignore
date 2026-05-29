@@ -12,6 +12,7 @@ build/
 
 # AI tooling - ignore Claude Code worktrees (managed by Claude Code, not git)
 .claude/worktrees/
+.claude/settings.local.json
 .gemini/
 
 # System Files
