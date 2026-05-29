@@ -231,19 +231,16 @@ const OrderPage = () => {
         emoji: '🔗',
         title: '링크를 확인해 주세요',
         desc: '학회 전용 링크로만 주문할 수 있어요.\n담당자에게 올바른 링크를 받아 다시 접속해 주세요.',
-        showLookup: false,
       },
       expired: {
         emoji: '📅',
         title: '주문이 가능한 날짜가 아니예요.',
         desc: '주문 내역은 받아보신 알림톡에서 확인할 수 있어요.',
-        showLookup: true,
       },
       not_found: {
         emoji: '❓',
         title: '찾을 수 없는 링크예요',
         desc: '학회 전용 링크로만 주문할 수 있어요.\n담당자에게 올바른 링크를 받아 다시 접속해 주세요.',
-        showLookup: false,
       },
     };
     const { emoji, title, desc } = messages[accessError] || messages.not_found;
