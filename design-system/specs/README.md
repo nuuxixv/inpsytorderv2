@@ -28,6 +28,8 @@
 
 - `C1_OrderPage.md` — 고객 주문서 (3-step)
 - `A1_OrderManagementPage.md` — 어드민 주문 관리 (필터·일괄·엑셀·신규/상세 모달)
+- `A2_OrderDetailModal.md` — 어드민 주문 상세 모달 (편집·연계·삭제·알림톡 재발송, **시안 부재 — 실 컴포넌트가 단일 진실 소스**)
+- `A2_NewOrderModal.md` — 어드민 신규 주문 모달 (학회·현장판매·상품 검색·장바구니, **시안 부재 — 실 컴포넌트가 단일 진실 소스**)
 - `A2_OrderStatusPage.md` — 고객 주문 상태 (알림톡 링크·주문 직후 자동 진입)
 - `A2_OrderLookupPage.md` — 고객 주문 조회 (이름+연락처 검색, **현재 라우트 미등록 — 확인 필요**)
 - `A3_FulfillmentPage.md` — 출고 현황
