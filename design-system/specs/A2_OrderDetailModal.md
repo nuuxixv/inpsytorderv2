@@ -266,3 +266,9 @@
 
 ## 변경 이력
 - 2026-05-29 신설 — M3-13 선행. 시안 부재 화면이므로 실 컴포넌트가 단일 진실 소스. RPC 시그니처 불일치 1건, 삭제 트랜잭션 부재 1건, linkOrders 배송비 정책 모호 1건, 알림톡 이력 UI 미노출 1건을 부채 후보로 기록. 시안 작업 착수 시 이 시트의 핵심 발견 5건을 먼저 정리한 뒤 진행.
+- 2026-05-29 M3-13 시안 정합 — 시안 부재이므로 사양 시트 단일 진실 소스 기반 토큰·합성 컴포넌트 적용.
+  - 합성 컴포넌트 적용: `SectionCard`(7섹션), `InfoRow`(주문 상세·주문자·배송지 12행), `StatusBadge`(상태 이력·연계 주문), `PriceBlock`(결제 정보), `ActionSlot`(푸터).
+  - Modal/Drawer/Dialog 라운드를 `theme.radii.lg`·`md`·`sm` 토큰으로 교체. raw hex 0, 인라인 fontSize 0, fontWeight 800 본문 0.
+  - 정보 구조·필드·액션 전부 보존(7섹션 유지, 배송지 3필드 분리, 연계 주문 Alert→tone 카드, 상태 이력 Accordion).
+  - 보존: 모든 API/RPC/Edge Function 호출(`update_order_details`, `linkOrders`, `searchOrdersForLinking`, `sendAlimtalk`, 삭제·status 단건 update, `site_settings` 조회), 권한별 분기, 편집 토글, 자동 알림톡, Daum 우편번호 Dialog.
+  - 부채 5건은 손대지 않음(별도 사이클 — CTO 검수 권장).

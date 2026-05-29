@@ -285,3 +285,10 @@
 
 ## 변경 이력
 - 2026-05-29 신설 — M3-13 선행. 시안 부재 화면이므로 실 컴포넌트가 단일 진실 소스. 스냅샷 컬럼 미입력 1건, status_history 초기항목 누락 1건, 배송비 기준 3중 분기 1건, customer_request·admin_memo 입력란 부재 2건을 부채 후보로 기록. 시안 작업 착수 시 이 시트의 핵심 발견 6건을 먼저 정리한 뒤 진행.
+- 2026-05-29 M3-13 시안 정합 — 시안 부재이므로 사양 시트 단일 진실 소스 기반 토큰·합성 컴포넌트 적용.
+  - 합성 컴포넌트 적용: `PriceBlock`(주문 요약), `ActionSlot`(푸터 취소·주문 추가), `EmptyState`(상품 검색 결과 없음).
+  - Dialog/Modal 라운드·shadow를 `theme.radii.lg`·`customShadows.lg` 토큰으로 교체. raw hex 0, 인라인 fontSize 0(텍스트), fontWeight 800 본문 0.
+  - 학회 상태 색은 `theme.status.paid`·`palette.info.main`·`gray[400]`로 정합(기존 raw `#0984e3`/`#00b894`/`#b2bec3` 제거). 상품 카드 카테고리 칩은 `Chip outlined`로 통일.
+  - 정보 구조·필드·액션 전부 보존(좌 300→320px 패널, 학회 옵션 상태 뱃지·할인율 캡션, 주소 3필드 분리, 장바구니 ±/숫자/삭제 3컴포넌트, 현장판매 체크박스).
+  - 보존: orders·order_items 직접 insert, 가격·할인·배송비 계산, Daum Modal, phone formatter, matchesSearch, 카테고리·인기 상품 필터.
+  - 부채 6건은 손대지 않음(별도 사이클 — CTO 검수 권장).
