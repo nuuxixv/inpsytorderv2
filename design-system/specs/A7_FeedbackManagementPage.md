@@ -138,3 +138,13 @@ master 권한자가 학회 직후 또는 한가한 시간에 들어와 학회장
 
 ## 변경 이력
 - 2026-05-28 신설 — design/m2-admin-rest 브랜치 5종 일괄 사전 정독.
+- 2026-05-29 M3-7 시안 정합 (PR #10~15 답습) — FeedbackManagementPage.jsx (315→419, +281/-176).
+  - PageHeader 도입 (subtitle: 통계 압축본 · 필터 시 라벨+카운트)
+  - 상태별 StatCard 6장 (클릭 시 statusFilter 토글 → 서버측 재조회)
+  - 필터 영역 SectionCard (유형 칩 3종 + 검색 + 초기화)
+  - 표 SectionCard padding=0, 컬럼 6개 보존
+  - 빈 상태 → ui/EmptyState
+  - 상세 모달 InfoRow 4행 + content readOnly 회색 배경 강화 (사양 §발견 2)
+  - 신규: 검색(content·제출자·location 클라이언트 필터) — 시안 답습
+  - 보존: API 2종 (getFeedback, updateFeedbackStatus), 6상태 색 매핑, 3종 유형 매핑, 권한 미체크 (사양 §발견 3 — RLS 의존)
+  - 자동 검출 5종 통과 (raw hex 0 / 인라인 fontSize rem-px 0 / weight 800 0 / 4배수 외 0 / touch 44 미만 0 — 아이콘 px 14/18은 시안 답습)

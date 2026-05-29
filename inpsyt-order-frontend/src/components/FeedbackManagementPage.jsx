@@ -1,43 +1,99 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box, Typography, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, Card, Chip, Dialog, DialogTitle, DialogContent,
+  TableHead, TableRow, Chip, Dialog, DialogTitle, DialogContent,
   DialogActions, Button, TextField, FormControl, InputLabel, Select,
   MenuItem, CircularProgress, alpha, useTheme,
 } from '@mui/material';
 import RateReviewIcon from '@mui/icons-material/RateReview';
+import SearchIcon from '@mui/icons-material/Search';
+import BugReportIcon from '@mui/icons-material/BugReport';
+import TuneIcon from '@mui/icons-material/Tune';
+import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { getFeedback, updateFeedbackStatus } from '../api/feedback';
 import { useNotification } from '../hooks/useNotification';
-import EmptyState from './EmptyState';
 import TableSkeleton from './TableSkeleton';
+import { PageHeader, SectionCard, StatCard, EmptyState, InfoRow } from './ui';
 
-const TYPE_LABELS = {
-  bug: '버그',
-  ux: 'UX 개선',
-  suggestion: '제안',
+// 사양 §유형 필터 칩 line 24-29: 3종 매핑.
+const TYPE_META = {
+  bug:        { label: '버그',    icon: BugReportIcon },
+  ux:         { label: 'UX 개선', icon: TuneIcon },
+  suggestion: { label: '제안',    icon: LightbulbIcon },
+};
+const ALL_TYPES = ['bug', 'ux', 'suggestion'];
+
+// 사양 §상태 필터 칩 line 33-39: 6상태 + 색 매핑. 코드 상단 상수 (사양 §핵심 발견 1).
+const STATUS_META = {
+  received:     { label: '접수',     colorKey: 'default' },
+  acknowledged: { label: '작업예정', colorKey: 'info' },
+  in_progress:  { label: '작업중',   colorKey: 'primary' },
+  completed:    { label: '작업완료', colorKey: 'success' },
+  deferred:     { label: '보류',     colorKey: 'warning' },
+  cancelled:    { label: '접수취소', colorKey: 'error' },
+};
+const ALL_STATUSES = Object.keys(STATUS_META);
+
+// 사양 §제출자 3단계 fallback.
+const resolveSubmitter = (fb) =>
+  fb._userName || fb.user_name || fb.user_email || '-';
+
+const truncate = (text, maxLen = 50) => {
+  if (!text) return '';
+  return text.length > maxLen ? `${text.slice(0, maxLen)}...` : text;
 };
 
-const STATUS_LABELS = {
-  received: '접수',
-  acknowledged: '작업예정',
-  in_progress: '작업중',
-  completed: '작업완료',
-  deferred: '보류',
-  cancelled: '접수취소',
+// ─── 상태 칩 — 시안 StatusChipFB 답습 ────────────────────────────
+const StatusChipFB = ({ status }) => {
+  const theme = useTheme();
+  const meta = STATUS_META[status];
+  if (!meta) return null;
+  const palette = (() => {
+    if (meta.colorKey === 'info')    return theme.palette.info.main;
+    if (meta.colorKey === 'primary') return theme.palette.primary.main;
+    if (meta.colorKey === 'success') return theme.palette.success.main;
+    if (meta.colorKey === 'warning') return theme.palette.warning.main;
+    if (meta.colorKey === 'error')   return theme.palette.error.main;
+    return theme.gray[600];
+  })();
+  return (
+    <Box
+      sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 0.5,
+        px: 1,
+        py: 0.5,
+        borderRadius: `${theme.radii.sm}px`,
+        bgcolor: alpha(palette, 0.1),
+        border: `1px solid ${alpha(palette, 0.2)}`,
+      }}
+    >
+      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: palette }} />
+      <Typography variant="caption" sx={{ color: palette, fontWeight: 700, lineHeight: 1 }}>
+        {meta.label}
+      </Typography>
+    </Box>
+  );
 };
 
-const STATUS_COLORS = {
-  received: 'default',
-  acknowledged: 'info',
-  in_progress: 'primary',
-  completed: 'success',
-  deferred: 'warning',
-  cancelled: 'error',
+// ─── 유형 칩 — 시안 TypeChipFB 답습 ──────────────────────────────
+const TypeChipFB = ({ type }) => {
+  const meta = TYPE_META[type];
+  if (!meta) return null;
+  const Icon = meta.icon;
+  return (
+    <Chip
+      icon={<Icon sx={{ fontSize: 14 }} />}
+      label={meta.label}
+      size="small"
+      variant="outlined"
+      sx={{ fontWeight: 600 }}
+    />
+  );
 };
-
-const ALL_STATUSES = Object.keys(STATUS_LABELS);
 
 const FeedbackManagementPage = () => {
   const theme = useTheme();
@@ -47,6 +103,7 @@ const FeedbackManagementPage = () => {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState(null);
   const [typeFilter, setTypeFilter] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Detail dialog state
   const [selectedFeedback, setSelectedFeedback] = useState(null);
@@ -55,6 +112,7 @@ const FeedbackManagementPage = () => {
   const [editAdminNote, setEditAdminNote] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // 사양 §액션: statusFilter 변경 시 서버측 재조회. 유형·검색은 클라이언트.
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -99,84 +157,177 @@ const FeedbackManagementPage = () => {
     setSelectedFeedback(null);
   };
 
+  // 사양 §필터·뷰 모드: statusFilter는 fetch가 끝낸 후 들어와 있는 상태. 유형·검색만 클라이언트 처리.
   const displayedFeedback = useMemo(() => {
-    if (!typeFilter) return feedbackList;
-    return feedbackList.filter(fb => fb.type === typeFilter);
-  }, [feedbackList, typeFilter]);
+    let list = feedbackList;
+    if (typeFilter) list = list.filter((fb) => fb.type === typeFilter);
+    if (searchTerm.trim()) {
+      const s = searchTerm.trim().toLowerCase();
+      list = list.filter((fb) =>
+        (fb.content || '').toLowerCase().includes(s)
+        || (resolveSubmitter(fb) || '').toLowerCase().includes(s)
+        || (fb.location || '').toLowerCase().includes(s),
+      );
+    }
+    return list;
+  }, [feedbackList, typeFilter, searchTerm]);
 
-  const truncate = (text, maxLen = 50) => {
-    if (!text) return '';
-    return text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
+  // 상태별 카운트 — StatCard 6장. statusFilter 적용 전 원본 기준이 아니라
+  // 현재 응답에 들어와 있는 데이터 기준(서버측 status 필터가 적용된 상태)이므로
+  // 의미는 "선택한 상태 안에서 N건" — 단순 표시 보조. 토글로 전체↔필터 전환.
+  const statusCounts = useMemo(() => {
+    const result = {};
+    ALL_STATUSES.forEach((s) => {
+      result[s] = feedbackList.filter((fb) => fb.status === s).length;
+    });
+    return result;
+  }, [feedbackList]);
+
+  const totalShown = displayedFeedback.length;
+  const totalLoaded = feedbackList.length;
+
+  // 상태별 색 (StatCard color prop)
+  const statusColor = (status) => {
+    const meta = STATUS_META[status];
+    if (!meta) return theme.gray[600];
+    if (meta.colorKey === 'info')    return theme.palette.info.main;
+    if (meta.colorKey === 'primary') return theme.palette.primary.main;
+    if (meta.colorKey === 'success') return theme.palette.success.main;
+    if (meta.colorKey === 'warning') return theme.palette.warning.main;
+    if (meta.colorKey === 'error')   return theme.palette.error.main;
+    return theme.gray[600];
   };
+
+  // 헤더 subtitle — 진입 시 statusFilter=null이므로 전체 통계 압축본.
+  const headerSubtitle = statusFilter
+    ? `${STATUS_META[statusFilter]?.label || statusFilter} 필터 · ${totalShown}건 표시`
+    : `총 ${totalLoaded}건 · 접수 ${statusCounts.received || 0} · 작업중 ${statusCounts.in_progress || 0} · 완료 ${statusCounts.completed || 0}`;
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-        <RateReviewIcon sx={{ color: 'primary.main', fontSize: '1.6rem' }} />
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>
-          피드백 관리
-        </Typography>
-      </Box>
+      <PageHeader
+        title="피드백 관리"
+        subtitle={headerSubtitle}
+        icon={RateReviewIcon}
+      />
 
-      {/* Type filter chips */}
-      <Box sx={{ display: 'flex', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
-        <Chip
-          label="전체 유형"
-          variant={typeFilter === null ? 'filled' : 'outlined'}
-          color={typeFilter === null ? 'secondary' : 'default'}
-          onClick={() => setTypeFilter(null)}
-          sx={{ fontWeight: typeFilter === null ? 700 : 400, borderRadius: '10px' }}
-        />
-        {Object.entries(TYPE_LABELS).map(([key, label]) => (
-          <Chip
-            key={key}
-            label={label}
-            variant={typeFilter === key ? 'filled' : 'outlined'}
-            color={typeFilter === key ? 'secondary' : 'default'}
-            onClick={() => setTypeFilter(key)}
-            sx={{ fontWeight: typeFilter === key ? 700 : 400, borderRadius: '10px' }}
+      {/* 상태별 StatCard 6장 — 클릭 시 statusFilter 토글 (서버측 재조회) */}
+      <SectionCard sx={{ mb: 3 }} padding={20}>
+        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+          {ALL_STATUSES.map((s) => {
+            const active = statusFilter === s;
+            const color = statusColor(s);
+            return (
+              <Box
+                key={s}
+                onClick={() => setStatusFilter((prev) => (prev === s ? null : s))}
+                sx={{
+                  flex: '1 1 140px',
+                  minWidth: 130,
+                  cursor: 'pointer',
+                  p: 1.5,
+                  borderRadius: `${theme.radii.md}px`,
+                  border: `1px solid ${active ? alpha(color, 0.55) : theme.gray[200]}`,
+                  bgcolor: active ? alpha(color, 0.04) : 'background.paper',
+                  transition: `all 0.15s ${theme.easing.toss}`,
+                  '&:hover': { borderColor: alpha(color, 0.5) },
+                }}
+              >
+                <StatCard
+                  label={STATUS_META[s].label}
+                  value={statusCounts[s] || 0}
+                  unit="건"
+                  color={color}
+                />
+              </Box>
+            );
+          })}
+        </Box>
+      </SectionCard>
+
+      {/* 필터 — 유형 칩 + 검색 + 초기화 */}
+      <SectionCard sx={{ mb: 3 }} padding={20}>
+        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Chip
+              label="전체 유형"
+              size="small"
+              variant={typeFilter === null ? 'filled' : 'outlined'}
+              color={typeFilter === null ? 'secondary' : 'default'}
+              onClick={() => setTypeFilter(null)}
+              sx={{ fontWeight: typeFilter === null ? 700 : 500, cursor: 'pointer' }}
+            />
+            {ALL_TYPES.map((t) => {
+              const meta = TYPE_META[t];
+              const Icon = meta.icon;
+              const active = typeFilter === t;
+              return (
+                <Chip
+                  key={t}
+                  icon={<Icon sx={{ fontSize: 14 }} />}
+                  label={meta.label}
+                  size="small"
+                  variant={active ? 'filled' : 'outlined'}
+                  color={active ? 'secondary' : 'default'}
+                  onClick={() => setTypeFilter((prev) => (prev === t ? null : t))}
+                  sx={{ fontWeight: active ? 700 : 500, cursor: 'pointer' }}
+                />
+              );
+            })}
+          </Box>
+          <TextField
+            size="small"
+            placeholder="내용·제출자·위치 검색"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: <SearchIcon sx={{ fontSize: 18, color: 'text.disabled', mr: 0.75 }} />,
+            }}
+            sx={{ flex: '1 1 240px', minWidth: 240 }}
           />
-        ))}
-      </Box>
+          {(statusFilter || typeFilter || searchTerm.trim()) && (
+            <Button
+              size="small"
+              variant="text"
+              onClick={() => {
+                setStatusFilter(null);
+                setTypeFilter(null);
+                setSearchTerm('');
+              }}
+              sx={{ color: 'text.secondary' }}
+            >
+              필터 초기화
+            </Button>
+          )}
+          <Typography variant="caption" sx={{ color: 'text.secondary', ml: 'auto' }}>
+            {totalShown}건 표시
+          </Typography>
+        </Box>
+      </SectionCard>
 
-      {/* Status filter chips */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
-        <Chip
-          label="전체"
-          variant={statusFilter === null ? 'filled' : 'outlined'}
-          color={statusFilter === null ? 'primary' : 'default'}
-          onClick={() => setStatusFilter(null)}
-          sx={{ cursor: 'pointer', fontWeight: statusFilter === null ? 700 : 400 }}
-        />
-        {ALL_STATUSES.map((status) => (
-          <Chip
-            key={status}
-            label={STATUS_LABELS[status]}
-            variant={statusFilter === status ? 'filled' : 'outlined'}
-            color={statusFilter === status ? STATUS_COLORS[status] : 'default'}
-            onClick={() => setStatusFilter(status)}
-            sx={{ cursor: 'pointer', fontWeight: statusFilter === status ? 700 : 400 }}
-          />
-        ))}
-      </Box>
-
-      {/* Table */}
-      <Card sx={{ borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
+      {/* 피드백 표 */}
+      <SectionCard padding={0}>
         {loading ? (
           <TableSkeleton columns={6} rows={5} />
         ) : displayedFeedback.length === 0 ? (
-          <EmptyState message="피드백이 없습니다." />
+          <EmptyState
+            icon={RateReviewIcon}
+            title="피드백이 없습니다."
+            description={(statusFilter || typeFilter || searchTerm.trim())
+              ? '필터를 조정해 보세요.'
+              : '아직 들어온 피드백이 없습니다.'}
+          />
         ) : (
           <TableContainer>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 700 }}>생성일</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>제출자</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>위치</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>유형</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>내용</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>상태</TableCell>
+                  <TableCell sx={{ minWidth: 140 }}>생성일</TableCell>
+                  <TableCell sx={{ minWidth: 100 }}>제출자</TableCell>
+                  <TableCell sx={{ minWidth: 140 }}>위치</TableCell>
+                  <TableCell sx={{ minWidth: 100 }}>유형</TableCell>
+                  <TableCell>내용</TableCell>
+                  <TableCell sx={{ minWidth: 100 }}>상태</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -188,24 +339,42 @@ const FeedbackManagementPage = () => {
                     sx={{ cursor: 'pointer', '&:last-child td': { borderBottom: 0 } }}
                   >
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                      {format(new Date(fb.created_at), 'yyyy-MM-dd HH:mm', { locale: ko })}
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: 'text.secondary',
+                          fontFeatureSettings: '"tnum" 1',
+                        }}
+                      >
+                        {format(new Date(fb.created_at), 'yyyy-MM-dd HH:mm', { locale: ko })}
+                      </Typography>
                     </TableCell>
-                    <TableCell>{fb._userName ||fb.user_name || fb.user_email || '-'}</TableCell>
-                    <TableCell>{fb.location || '-'}</TableCell>
                     <TableCell>
-                      <Chip
-                        label={TYPE_LABELS[fb.type] || fb.type}
-                        size="small"
-                        variant="outlined"
-                      />
+                      <Typography variant="body2" sx={{ color: 'text.primary' }}>
+                        {resolveSubmitter(fb)}
+                      </Typography>
                     </TableCell>
-                    <TableCell>{truncate(fb.content)}</TableCell>
                     <TableCell>
-                      <Chip
-                        label={STATUS_LABELS[fb.status] || fb.status}
-                        size="small"
-                        color={STATUS_COLORS[fb.status] || 'default'}
-                      />
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: 'text.secondary',
+                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                        }}
+                      >
+                        {fb.location || '-'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <TypeChipFB type={fb.type} />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ color: 'text.primary' }}>
+                        {truncate(fb.content)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <StatusChipFB status={fb.status} />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -213,59 +382,65 @@ const FeedbackManagementPage = () => {
             </Table>
           </TableContainer>
         )}
-      </Card>
+      </SectionCard>
 
-      {/* Detail dialog */}
-      <Dialog open={dialogOpen} onClose={handleDialogClose} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>피드백 상세</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
+      {/* 상세 모달 — 사양 §상세 모달 (line 219-309) 1:1 답습 */}
+      <Dialog
+        open={dialogOpen}
+        onClose={handleDialogClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: `${theme.radii.lg}px` } }}
+      >
+        <DialogTitle sx={{ pb: 1.5 }}>
+          <Typography variant="h4" sx={{ letterSpacing: '-0.02em' }}>피드백 상세</Typography>
+        </DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1.5 }}>
           {selectedFeedback && (
             <>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ minWidth: 60 }}>
-                  제출자
-                </Typography>
-                <Typography variant="body2">
-                  {selectedFeedback._userName ||selectedFeedback.user_name || selectedFeedback.user_email || '-'}
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ minWidth: 60 }}>
-                  위치
-                </Typography>
-                <Typography variant="body2">
-                  {selectedFeedback.location || '-'}
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ minWidth: 60 }}>
-                  유형
-                </Typography>
-                <Chip
-                  label={TYPE_LABELS[selectedFeedback.type] || selectedFeedback.type}
-                  size="small"
-                  variant="outlined"
+              {/* 메타 정보 — InfoRow 4행 */}
+              <Box>
+                <InfoRow label="제출자" value={resolveSubmitter(selectedFeedback)} />
+                <InfoRow
+                  label="위치"
+                  value={selectedFeedback.location || '-'}
+                  mono
+                  muted={!selectedFeedback.location}
+                />
+                <InfoRow
+                  label="유형"
+                  value={<TypeChipFB type={selectedFeedback.type} />}
+                />
+                <InfoRow
+                  label="생성일"
+                  value={format(new Date(selectedFeedback.created_at), 'yyyy-MM-dd HH:mm:ss', { locale: ko })}
+                  mono
                 />
               </Box>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ minWidth: 60 }}>
-                  생성일
+
+              {/* 사양 §발견 2: content readOnly — 운영자가 원본 수정 못함 */}
+              <Box>
+                <Typography
+                  variant="caption"
+                  sx={{ color: 'text.secondary', display: 'block', mb: 0.5, fontWeight: 600 }}
+                >
+                  내용 (수정 불가)
                 </Typography>
-                <Typography variant="body2">
-                  {format(new Date(selectedFeedback.created_at), 'yyyy-MM-dd HH:mm:ss', { locale: ko })}
-                </Typography>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={4}
+                  value={selectedFeedback.content}
+                  InputProps={{ readOnly: true }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      bgcolor: theme.gray[50],
+                    },
+                  }}
+                />
               </Box>
 
-              <TextField
-                label="내용"
-                multiline
-                rows={4}
-                fullWidth
-                value={selectedFeedback.content}
-                InputProps={{ readOnly: true }}
-                sx={{ mt: 1 }}
-              />
-
+              {/* 상태 변경 */}
               <FormControl fullWidth size="small">
                 <InputLabel>상태</InputLabel>
                 <Select
@@ -275,12 +450,13 @@ const FeedbackManagementPage = () => {
                 >
                   {ALL_STATUSES.map((status) => (
                     <MenuItem key={status} value={status}>
-                      {STATUS_LABELS[status]}
+                      {STATUS_META[status].label}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
 
+              {/* 관리자 메모 */}
               <TextField
                 label="관리자 메모"
                 multiline
@@ -293,8 +469,8 @@ const FeedbackManagementPage = () => {
             </>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={handleDialogClose} disabled={saving}>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button onClick={handleDialogClose} disabled={saving} sx={{ color: 'text.secondary' }}>
             취소
           </Button>
           <Button
