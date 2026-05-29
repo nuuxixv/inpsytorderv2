@@ -146,3 +146,4 @@
 
 ## 변경 이력
 - 2026-05-28 신설 — design/m2-admin-rest 브랜치 5종 일괄 사전 정독. user_profiles 익명 SELECT·dead fulfillment 분기·100ms 자동 제출 등 잠재 부채 8건 발견.
+- 2026-05-29 M3-9 시안 정합 — LoginPage.jsx 시안 답습(전체 화면 컨테이너, PreviewShell X). 보존: 멀티스텝 3단계·100ms 자동 제출·fulfillment dead branch·에러 한글화·user_profiles 익명 SELECT·PIN type=password. 신규: 토큰화 컨테이너(radii.lg + customShadows.lg + gray.200 border), 스텝 인디케이터(done/active/pending), handlingSubmitRef 중복 발화 방지(§발견 7 부채 흡수), 헤더 부제 "인싸이트 현장주문 어드민", PIN helperText "숫자 6자리 · N/6" 좌/우 분리. 미반영: 시안의 IP 로고 박스(실제 LOGO.svg 유지), 빈 역할 보안 안내 caption(사양 외 시안 전용).
