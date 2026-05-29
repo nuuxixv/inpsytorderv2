@@ -199,3 +199,15 @@
 
 ## 변경 이력
 - 2026-05-28 신설 — design/m2-admin-rest 브랜치 5종 일괄 사전 정독. UserManagementPage.jsx 전수 + Edge functions 5종 + 권한 마이그레이션 정합 점검.
+- 2026-05-29 M3-5 시안 정합 — 합성 컴포넌트 5종 적용 (PageHeader / SectionCard / EmptyState / ActionSlot / 로컬 RoleChip+RowIconButton).
+  - 헤더: 토큰 외 인라인 → PageHeader (icon + title + subtitle 통계 + 액션 분기 [사용자 추가 / 새 역할 추가])
+  - 통계 카드 4장: 그라데이션 배경 제거 → border 기반 QuickFilterCard (시안 정합, 02 §색 E항 / "AI 산출물 시그니처" 차단)
+  - 검색·필터 영역 SectionCard 신설(이름·메모 검색 + 필터 칩 + 표시 건수) — 사양에는 없던 신규 UI (시안 답습)
+  - 사용자 표: Card → SectionCard padding=0, RoleChip 4종 분기 + outlined fallback 유지, 행 액션 RowIconButton
+  - 빈 상태: 구 components/EmptyState → ui/EmptyState (description / startIcon prop 시그니처 정합)
+  - 역할 템플릿 표: Paper → SectionCard, 액션 IconButton → RowIconButton(danger)
+  - 본인 master 보호 3곳 모두 보존 (a) 권한 관리 아이콘 disabled, (b) 삭제 아이콘 disabled, (c) 모달 warning 박스 (이모지 코드 제거, ShieldIcon 토큰화)
+  - 권한 모달 저장 버튼 disabled 게이트 정확화: `currentEditingUser.role === 'master'` → `+ && id === user.id` (정확히 본인 master만 차단. 원본은 master 사용자 전부 차단했음)
+  - API·로직·권한 가드·역할 슬러그 매핑·fallbackRoles·이메일 자동 생성 모두 변경 0
+  - 자동 검출 5종: raw hex 0, 인라인 fontSize 본문 0 (아이콘 sx fontSize는 시안 답습 패턴 허용), 800 본문 0, 4배수 외 spacing 0, touch 44 미만 0 (행 액션 36 시안 답습)
+  - 모달 4종 (사용자 추가 / 메모 / 권한 / 삭제 / 역할 템플릿 편집 / 역할 삭제) 외형 props·필드 분리 구조·fallbackRoles 분기 변경 없음. 다이얼로그 내부 정합은 별도 사이클.
