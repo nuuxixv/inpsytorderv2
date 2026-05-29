@@ -5,8 +5,9 @@ import {
   Box, Typography, Button, TextField, IconButton,
   FormControlLabel, Checkbox, Select, MenuItem,
   FormControl, InputLabel, Chip, Divider, InputAdornment,
-  CircularProgress, Stack, alpha, Modal,
+  CircularProgress, Stack, Modal, useTheme,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import {
   Close as CloseIcon,
   Add as AddIcon,
@@ -19,32 +20,23 @@ import {
 import { supabase } from '../supabaseClient';
 import { useNotification } from '../hooks/useNotification';
 import { matchesSearch } from '../utils/search';
+import { PriceBlock, ActionSlot, EmptyState } from './ui';
 
-const postcodeModalStyle = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: '90%',
-  maxWidth: 400,
-  bgcolor: 'background.paper',
-  boxShadow: 24,
-  borderRadius: 2,
-  overflow: 'hidden',
-  zIndex: 1400,
-};
+// 사양 시트: design-system/specs/A2_NewOrderModal.md
+// (M3-13 시안 정합본. 시안 부재 — 사양 시트 단일 진실 소스 기반 토큰·합성 컴포넌트 적용.)
 
-const getEventStatus = (startDate, endDate) => {
+const getEventStatusKey = (startDate, endDate) => {
   const now = new Date();
   const start = startDate ? new Date(startDate) : null;
   const end = endDate ? new Date(endDate) : null;
   if (!start || !end) return null;
-  if (now < start) return { label: '예정', color: '#0984e3' };
-  if (now > end) return { label: '종료', color: '#b2bec3' };
-  return { label: '진행중', color: '#00b894' };
+  if (now < start) return { key: 'upcoming', label: '예정' };
+  if (now > end) return { key: 'ended', label: '종료' };
+  return { key: 'live', label: '진행중' };
 };
 
 const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], settings = {} }) => {
+  const theme = useTheme();
   const { addNotification } = useNotification();
   const [saving, setSaving] = useState(false);
 
@@ -242,28 +234,49 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
     [events],
   );
 
+  const eventStatusColor = {
+    upcoming: theme.palette.info.main,
+    live: theme.status.paid,
+    ended: theme.gray[400],
+  };
+
+  const postcodeModalStyle = {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: '90%',
+    maxWidth: 400,
+    bgcolor: 'background.paper',
+    boxShadow: theme.customShadows.lg,
+    borderRadius: `${theme.radii.lg}px`,
+    overflow: 'hidden',
+    zIndex: 1400,
+  };
+
   return (
     <>
       <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>신규 주문 추가</Typography>
-          <IconButton size="small" onClick={onClose}><CloseIcon /></IconButton>
+          <Typography variant="h5">신규 주문 추가</Typography>
+          <IconButton size="small" onClick={onClose} aria-label="닫기"><CloseIcon /></IconButton>
         </DialogTitle>
 
         <DialogContent dividers sx={{ p: 0, overflow: 'hidden' }}>
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, height: { sm: 560 } }}>
 
-            {/* ── LEFT PANEL ── */}
-            <Box sx={{
-              flex: '0 0 300px',
-              p: 2.5,
-              borderRight: { sm: '1px solid' },
-              borderColor: { sm: 'divider' },
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-              overflowY: 'auto',
-            }}>
+            {/* ── LEFT PANEL ── 고객 정보·학회·요약 */}
+            <Box
+              sx={{
+                flex: '0 0 320px',
+                p: 3,
+                borderRight: { sm: `1px solid ${theme.gray[200]}` },
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+                overflowY: 'auto',
+              }}
+            >
 
               <FormControlLabel
                 control={
@@ -275,7 +288,7 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
                     }}
                   />
                 }
-                label={<Typography variant="body2" sx={{ fontWeight: 600 }}>현장판매</Typography>}
+                label={<Typography variant="subtitle2">현장판매</Typography>}
               />
 
               <FormControl fullWidth size="small" required>
@@ -286,18 +299,25 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
                   onChange={e => setSelectedEventId(e.target.value)}
                 >
                   {sortedEvents.map(ev => {
-                    const status = getEventStatus(ev.start_date, ev.end_date);
+                    const status = getEventStatusKey(ev.start_date, ev.end_date);
+                    const color = status ? eventStatusColor[status.key] : theme.gray[400];
                     return (
                       <MenuItem key={ev.id} value={ev.id}>
                         <Box sx={{ width: '100%' }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             {status && (
-                              <Box component="span" sx={{
-                                fontSize: '0.6rem', fontWeight: 700, px: 0.75, py: 0.25,
-                                borderRadius: '4px', bgcolor: alpha(status.color, 0.12),
-                                color: status.color, flexShrink: 0,
-                              }}>
-                                {status.label}
+                              <Box
+                                component="span"
+                                sx={{
+                                  px: 0.75,
+                                  py: 0.25,
+                                  borderRadius: `${theme.radii.xs}px`,
+                                  bgcolor: alpha(color, 0.12),
+                                  color,
+                                  flexShrink: 0,
+                                }}
+                              >
+                                <Typography variant="caption" sx={{ fontWeight: 700 }}>{status.label}</Typography>
                               </Box>
                             )}
                             <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
@@ -320,7 +340,11 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
                     fullWidth size="small" label="고객명 *"
                     value={name} onChange={e => setName(e.target.value)}
                     InputProps={{
-                      startAdornment: <InputAdornment position="start"><PersonIcon sx={{ fontSize: 18, color: 'text.secondary' }} /></InputAdornment>,
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <PersonIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                        </InputAdornment>
+                      ),
                     }}
                   />
                   <TextField
@@ -328,7 +352,11 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
                     value={phone} onChange={handlePhoneChange}
                     inputProps={{ maxLength: 13 }} placeholder="010-0000-0000"
                     InputProps={{
-                      startAdornment: <InputAdornment position="start"><PhoneIcon sx={{ fontSize: 18, color: 'text.secondary' }} /></InputAdornment>,
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <PhoneIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                        </InputAdornment>
+                      ),
                     }}
                   />
                   <TextField
@@ -337,11 +365,14 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
                     onClick={() => setPostcodeOpen(true)}
                     InputProps={{
                       readOnly: true,
-                      startAdornment: <InputAdornment position="start"><HomeIcon sx={{ fontSize: 18, color: 'text.secondary' }} /></InputAdornment>,
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <HomeIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                        </InputAdornment>
+                      ),
                       endAdornment: (
                         <InputAdornment position="end">
-                          <Button size="small" variant="outlined" onClick={() => setPostcodeOpen(true)}
-                            sx={{ minWidth: 'auto', px: 1, py: 0.25, fontSize: '0.7rem', borderRadius: 1 }}>
+                          <Button size="small" variant="outlined" onClick={() => setPostcodeOpen(true)} sx={{ minWidth: 'auto', px: 1.25 }}>
                             검색
                           </Button>
                         </InputAdornment>
@@ -358,60 +389,47 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
                 </>
               )}
 
-              {/* ── Order Summary ── */}
+              {/* ── Order Summary — PriceBlock ── */}
               {cart.length > 0 && (
-                <Box sx={{ mt: 'auto', pt: 1.5 }}>
-                  <Divider sx={{ mb: 1.5 }} />
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>주문 요약</Typography>
-                  <Stack spacing={0.75}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2" color="text.secondary">총 상품금액</Typography>
-                      <Typography variant="body2">{totalAmount.toLocaleString()}원</Typography>
-                    </Box>
-                    {discountAmount > 0 && (
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2" color="error.main">할인</Typography>
-                        <Typography variant="body2" color="error.main">- {discountAmount.toLocaleString()}원</Typography>
-                      </Box>
-                    )}
-                    {!isOnSite && (
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2" color="text.secondary">배송비</Typography>
-                        <Typography variant="body2">{deliveryFee > 0 ? `${deliveryFee.toLocaleString()}원` : '무료'}</Typography>
-                      </Box>
-                    )}
-                    <Divider />
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2" sx={{ fontWeight: 700 }}>최종 결제금액</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 800, color: 'primary.main' }}>{finalPayment.toLocaleString()}원</Typography>
-                    </Box>
-                  </Stack>
+                <Box sx={{ mt: 'auto', pt: 2 }}>
+                  <Divider sx={{ mb: 2 }} />
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>주문 요약</Typography>
+                  <PriceBlock
+                    rows={[
+                      { label: '총 상품금액', value: totalAmount },
+                      ...(discountAmount > 0
+                        ? [{ label: '할인', value: `- ${discountAmount.toLocaleString()}원` }]
+                        : []),
+                      ...(!isOnSite
+                        ? [{ label: '배송비', value: deliveryFee > 0 ? `${deliveryFee.toLocaleString()}원` : '무료', muted: deliveryFee === 0 }]
+                        : []),
+                    ]}
+                    totalLabel="최종 결제금액"
+                    totalValue={finalPayment}
+                    totalColor={theme.palette.primary.main}
+                  />
                 </Box>
               )}
             </Box>
 
-            {/* ── RIGHT PANEL ── */}
-            <Box sx={{ flex: 1, minWidth: 0, p: 2.5, display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
+            {/* ── RIGHT PANEL ── 상품 검색·장바구니 */}
+            <Box sx={{ flex: 1, minWidth: 0, p: 3, display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
 
               {/* Search */}
               <TextField
                 fullWidth size="small" placeholder="상품명으로 검색"
                 value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                 InputProps={{
-                  startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: 'text.disabled' }} /></InputAdornment>,
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '12px', bgcolor: '#F2F4F6',
-                    '& fieldset': { borderColor: 'transparent' },
-                    '&:hover fieldset': { borderColor: 'transparent' },
-                    '&.Mui-focused fieldset': { borderColor: 'primary.main' },
-                  },
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ color: 'text.disabled' }} />
+                    </InputAdornment>
+                  ),
                 }}
               />
 
               {/* Category chips */}
-              <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', flexShrink: 0 }}>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', flexShrink: 0 }}>
                 {['all', ...categories].map(cat => (
                   <Chip
                     key={cat}
@@ -420,19 +438,26 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
                     variant={selectedCategory === cat ? 'filled' : 'outlined'}
                     color={selectedCategory === cat ? 'primary' : 'default'}
                     onClick={() => setSelectedCategory(cat)}
-                    sx={{ borderRadius: '8px', fontWeight: selectedCategory === cat ? 700 : 500, cursor: 'pointer' }}
                   />
                 ))}
               </Box>
 
               {/* Product list */}
-              <Box sx={{ flex: '1 1 0', overflowY: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 2, minHeight: 0 }}>
+              <Box
+                sx={{
+                  flex: '1 1 0',
+                  overflowY: 'auto',
+                  border: `1px solid ${theme.gray[200]}`,
+                  borderRadius: `${theme.radii.md}px`,
+                  minHeight: 0,
+                }}
+              >
                 {filteredProducts.length === 0 ? (
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 100 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      {searchTerm ? '검색 결과가 없습니다' : '인기 상품이 없습니다'}
-                    </Typography>
-                  </Box>
+                  <EmptyState
+                    title={searchTerm ? '검색 결과가 없습니다' : '인기 상품이 없습니다'}
+                    description={searchTerm ? '다른 검색어를 시도해 주세요.' : '상품 관리에서 인기 상품을 지정하세요.'}
+                    sx={{ py: 4 }}
+                  />
                 ) : (
                   filteredProducts.map(product => {
                     const inCart = !!getCartItem(product.id);
@@ -444,28 +469,39 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
                         sx={{
                           display: 'flex',
                           alignItems: 'center',
-                          px: 1.5,
-                          py: 1,
-                          borderBottom: '1px solid',
-                          borderColor: 'divider',
+                          px: 2,
+                          py: 1.5,
+                          borderBottom: `1px solid ${theme.gray[200]}`,
                           '&:last-child': { borderBottom: 'none' },
-                          bgcolor: inCart ? alpha('#1976d2', 0.04) : 'transparent',
+                          bgcolor: inCart ? alpha(theme.palette.primary.main, 0.04) : 'transparent',
                           minWidth: 0,
                         }}
                       >
                         <Box sx={{ flex: 1, minWidth: 0, mr: 1 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <Typography
+                            variant="body2"
+                            sx={{ fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          >
                             {product.name}
                           </Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25, flexWrap: 'wrap' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
                             {product.category && (
-                              <Chip label={product.category} size="small" sx={{ height: 16, fontSize: '0.6rem', borderRadius: '4px' }} />
+                              <Chip label={product.category} size="small" variant="outlined" />
                             )}
-                            <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              component="span"
+                              sx={{ whiteSpace: 'nowrap', fontFeatureSettings: '"tnum" 1' }}
+                            >
                               {isDisc ? (
                                 <>
-                                  <span style={{ textDecoration: 'line-through', marginRight: 4 }}>{product.list_price?.toLocaleString()}원</span>
-                                  <span style={{ color: '#d32f2f', fontWeight: 700 }}>{discounted.toLocaleString()}원</span>
+                                  <Box component="span" sx={{ textDecoration: 'line-through', mr: 0.5 }}>
+                                    {product.list_price?.toLocaleString()}원
+                                  </Box>
+                                  <Box component="span" sx={{ color: theme.palette.error.main, fontWeight: 700 }}>
+                                    {discounted.toLocaleString()}원
+                                  </Box>
                                 </>
                               ) : (
                                 `${product.list_price?.toLocaleString()}원`
@@ -475,14 +511,9 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
                         </Box>
                         <Box sx={{ flexShrink: 0 }}>
                           {inCart ? (
-                            <Chip label="담김" size="small" color="primary" variant="outlined" sx={{ borderRadius: '8px', fontWeight: 600, fontSize: '0.7rem' }} />
+                            <Chip label="담김" size="small" color="primary" variant="outlined" />
                           ) : (
-                            <Button
-                              size="small"
-                              variant="contained"
-                              onClick={() => handleAddToCart(product)}
-                              sx={{ minWidth: 44, borderRadius: '8px', fontWeight: 700, fontSize: '0.75rem', px: 1 }}
-                            >
+                            <Button size="small" variant="contained" onClick={() => handleAddToCart(product)}>
                               담기
                             </Button>
                           )}
@@ -496,10 +527,10 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
               {/* Cart */}
               {cart.length > 0 && (
                 <Box sx={{ flexShrink: 0 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.75 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
                     장바구니 ({cart.length}종)
                   </Typography>
-                  <Stack spacing={0.5} sx={{ maxHeight: 160, overflowY: 'auto' }}>
+                  <Stack spacing={1} sx={{ maxHeight: 160, overflowY: 'auto' }}>
                     {cart.map(({ product, quantity }) => {
                       const discounted = calcDiscountedPrice(product);
                       return (
@@ -508,33 +539,62 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
                           sx={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 0.5,
-                            px: 1.25,
-                            py: 0.75,
-                            borderRadius: 1.5,
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            bgcolor: 'grey.50',
+                            gap: 1,
+                            px: 1.5,
+                            py: 1,
+                            borderRadius: `${theme.radii.md}px`,
+                            border: `1px solid ${theme.gray[200]}`,
+                            bgcolor: theme.gray[50],
                             minWidth: 0,
                           }}
                         >
-                          <Typography variant="body2" sx={{ flex: 1, minWidth: 0, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <Typography
+                            variant="body2"
+                            sx={{ flex: 1, minWidth: 0, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          >
                             {product.name}
                           </Typography>
-                          <Typography variant="body2" sx={{ color: 'primary.main', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color: 'primary.main',
+                              fontWeight: 700,
+                              whiteSpace: 'nowrap',
+                              flexShrink: 0,
+                              fontFeatureSettings: '"tnum" 1',
+                            }}
+                          >
                             {(discounted * quantity).toLocaleString()}원
                           </Typography>
                           <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                            <IconButton size="small" onClick={() => handleDecrement(product.id)} sx={{ width: 22, height: 22 }}>
-                              <RemoveIcon sx={{ fontSize: 12 }} />
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDecrement(product.id)}
+                              aria-label="수량 감소"
+                            >
+                              <RemoveIcon fontSize="small" />
                             </IconButton>
-                            <Typography variant="body2" sx={{ minWidth: 18, textAlign: 'center', fontWeight: 700, fontSize: '0.8rem' }}>{quantity}</Typography>
-                            <IconButton size="small" onClick={() => handleIncrement(product.id)} sx={{ width: 22, height: 22 }}>
-                              <AddIcon sx={{ fontSize: 12 }} />
+                            <Typography
+                              variant="body2"
+                              sx={{ minWidth: 24, textAlign: 'center', fontWeight: 700, fontFeatureSettings: '"tnum" 1' }}
+                            >
+                              {quantity}
+                            </Typography>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleIncrement(product.id)}
+                              aria-label="수량 증가"
+                            >
+                              <AddIcon fontSize="small" />
                             </IconButton>
                           </Box>
-                          <IconButton size="small" onClick={() => handleRemoveFromCart(product.id)} sx={{ width: 22, height: 22, color: 'text.disabled', flexShrink: 0 }}>
-                            <CloseIcon sx={{ fontSize: 12 }} />
+                          <IconButton
+                            size="small"
+                            onClick={() => handleRemoveFromCart(product.id)}
+                            sx={{ color: 'text.disabled', flexShrink: 0 }}
+                            aria-label="장바구니에서 제거"
+                          >
+                            <CloseIcon fontSize="small" />
                           </IconButton>
                         </Box>
                       );
@@ -546,16 +606,18 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
           </Box>
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
-          <Button onClick={onClose} disabled={saving}>취소</Button>
-          <Button
-            variant="contained"
-            onClick={handleSave}
-            disabled={saving || cart.length === 0}
-            startIcon={saving ? <CircularProgress size={16} /> : null}
-          >
-            {saving ? '저장 중...' : '주문 추가'}
-          </Button>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <ActionSlot sx={{ width: '100%' }}>
+            <Button onClick={onClose} disabled={saving} variant="outlined">취소</Button>
+            <Button
+              variant="contained"
+              onClick={handleSave}
+              disabled={saving || cart.length === 0}
+              startIcon={saving ? <CircularProgress size={16} /> : null}
+            >
+              {saving ? '저장 중...' : '주문 추가'}
+            </Button>
+          </ActionSlot>
         </DialogActions>
       </Dialog>
 
