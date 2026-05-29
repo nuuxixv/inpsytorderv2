@@ -31,6 +31,7 @@
 - `A2_OrderStatusPage.md` — 고객 주문 상태 (알림톡 링크·주문 직후 자동 진입)
 - `A2_OrderLookupPage.md` — 고객 주문 조회 (이름+연락처 검색, **현재 라우트 미등록 — 확인 필요**)
 - `A3_FulfillmentPage.md` — 출고 현황
+- `A4_DashboardPage.md` — 어드민 대시보드 (3단 계층 필터·매출 KPI·랭킹·현장 보고서·최근 주문)
 - `A5_EventManagementPage.md` — 학회 관리
 - `A6_ProductManagementPage.md` — 상품 관리
 - `A7_UserManagementPage.md` — 사용자 관리 (멤버·역할 템플릿)
