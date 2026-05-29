@@ -378,3 +378,4 @@
 
 ## 변경 이력
 - 2026-05-13 신설 — M2 시안 착수 사전 정독. `OrderPage.jsx` 외 6개 자식·보조 컴포넌트 + DB 마이그레이션 + create-order edge function 전수. 환각 방지 위해 컬럼명 불일치·문구 잔재·`is_on_site_sale` 미사용 등 의심 8건은 "확인 필요"로 표기.
+- 2026-05-29 M3-10 시안 정합 — `OrderPage.jsx` + 자식 7종(`OrderStepIndicator`/`FloatingBottomBar`/`ProductCard`/`ProductSelectionStep`/`CustomerInfoStep`/`OrderReviewStep`/`CostSummary`) 토큰화. **보존**: 트리플탭 600ms 3회·Step 0 인디케이터 숨김·주소 3필드 분리(DaumPostcode 모달)·`hasOnlineCode` 조건부 인싸이트 ID·현장구매 배송지 섹션 숨김·API/Supabase/Edge Function/알림톡 트리거·`CartBottomSheet` 변경 0·성공 다이얼로그 fallback·접근 차단 화면. **교체**: 인라인 raw hex 0건(theme 토큰 경유), 인라인 `fontSize`/`borderRadius` 흡수(글로벌 MuiCard·MuiButton·MuiTextField·MuiChip 토큰 위임), `bgcolor: '#F8F9FA'` → `theme.gray[50]`, `'#F2F4F6'` → `theme.gray[100]`, `'rgba(43,57,143,...)'` → `alpha(primary.main, ...)`, 사양 §발견 7 잔재 문구 정리 — `OrderPage:139`의 "성함, 연락처, 이메일" → "성함, 연락처", 배송 예정일 안내의 트럭 이모지 → `ShippingIcon` 컴포넌트. **신규 없음**(시안 답습 0건). **사양 §발견 1~7 모두 보존 확인.**

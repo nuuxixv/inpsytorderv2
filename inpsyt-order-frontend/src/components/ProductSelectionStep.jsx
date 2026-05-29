@@ -6,6 +6,7 @@ import {
   Chip,
   CircularProgress,
   InputAdornment,
+  useTheme,
 } from '@mui/material';
 import { Search as SearchIcon, Star as StarIcon, FiberNew as NewIcon } from '@mui/icons-material';
 import { fetchAllProducts } from '../api/products';
@@ -16,6 +17,7 @@ import ProductCard from './ProductCard';
 const PAGE_SIZE = 40;
 
 const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags = [], eventName = '' }) => {
+  const theme = useTheme();
   const { addNotification } = useNotification();
   const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -161,7 +163,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
         )}
       </Box>
 
-      {/* Search bar */}
+      {/* Search bar — 사양 §Step 0 검색바. 검색박스는 보더 투명 + 채움 배경 강조. */}
       <TextField
         fullWidth
         placeholder="상품명으로 검색 (띄어쓰기로 여러 키워드)"
@@ -177,8 +179,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
         sx={{
           mb: 2,
           '& .MuiOutlinedInput-root': {
-            borderRadius: '14px',
-            bgcolor: '#F2F4F6',
+            bgcolor: theme.gray[100],
             height: 48,
             '& fieldset': { borderColor: 'transparent' },
             '&:hover fieldset': { borderColor: 'transparent' },
@@ -210,8 +211,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
               sx={{
                 flexShrink: 0,
                 fontWeight: viewMode === mode.key ? 700 : 500,
-                borderRadius: '10px',
-                transition: 'all 0.15s ease',
+                transition: `all 0.15s ${theme.easing.toss}`,
                 '&:active': { transform: 'scale(0.95)' },
               }}
             />
@@ -239,8 +239,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
               sx={{
                 flexShrink: 0,
                 fontWeight: selectedCategory === filter.key ? 700 : 500,
-                borderRadius: '10px',
-                transition: 'all 0.15s ease',
+                transition: `all 0.15s ${theme.easing.toss}`,
                 '&:active': { transform: 'scale(0.95)' },
               }}
             />

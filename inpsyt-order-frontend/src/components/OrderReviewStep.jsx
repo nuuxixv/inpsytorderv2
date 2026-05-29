@@ -1,6 +1,7 @@
 import React from 'react';
-import { Box, Typography, Card, CardContent, Button, Divider } from '@mui/material';
-import { Edit as EditIcon } from '@mui/icons-material';
+import { Box, Typography, Card, CardContent, Button, Divider, useTheme } from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import { Edit as EditIcon, LocalShipping as ShippingIcon } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import CostSummary from './CostSummary';
@@ -17,6 +18,7 @@ const InfoRow = ({ label, value }) => (
 );
 
 const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoToStep, isOnsitePurchase = false, estimatedDeliveryDate }) => {
+  const theme = useTheme();
   const validItems = cart.filter(item => item.id);
 
   const getItemPrice = (item) => {
@@ -43,7 +45,7 @@ const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoT
       </Box>
 
       {/* Order items card */}
-      <Card sx={{ mb: 2, borderRadius: '16px', boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+      <Card sx={{ mb: 2 }}>
         <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
@@ -53,7 +55,7 @@ const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoT
               size="small"
               startIcon={<EditIcon sx={{ fontSize: 14 }} />}
               onClick={() => onGoToStep(0)}
-              sx={{ fontSize: '0.75rem', color: 'text.secondary' }}
+              sx={{ color: 'text.secondary' }}
             >
               수정
             </Button>
@@ -93,7 +95,7 @@ const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoT
       </Card>
 
       {/* Customer info card */}
-      <Card sx={{ mb: 2, borderRadius: '16px', boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+      <Card sx={{ mb: 2 }}>
         <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
@@ -103,7 +105,7 @@ const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoT
               size="small"
               startIcon={<EditIcon sx={{ fontSize: 14 }} />}
               onClick={() => onGoToStep(1)}
-              sx={{ fontSize: '0.75rem', color: 'text.secondary' }}
+              sx={{ color: 'text.secondary' }}
             >
               수정
             </Button>
@@ -118,17 +120,30 @@ const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoT
       </Card>
 
       {/* Cost summary */}
-      <Card sx={{ borderRadius: '16px', boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+      <Card>
         <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
           <CostSummary cart={cart} settings={settings} discountRate={discountRate} embedded isOnsitePurchase={isOnsitePurchase} />
         </CardContent>
       </Card>
 
-      {/* 배송 예정일 안내 */}
+      {/* 배송 예정일 안내 — 사양 §Step 2 배송 예정일 안내 */}
       {!isOnsitePurchase && estimatedDeliveryDate && (
-        <Box sx={{ mt: 2, bgcolor: 'rgba(43, 57, 143, 0.06)', border: '1px solid rgba(43, 57, 143, 0.18)', borderRadius: '12px', p: 2, textAlign: 'center' }}>
+        <Box
+          sx={{
+            mt: 2,
+            bgcolor: alpha(theme.palette.primary.main, 0.06),
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
+            borderRadius: `${theme.radii.md}px`,
+            p: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 0.75,
+          }}
+        >
+          <ShippingIcon sx={{ fontSize: 18, color: 'primary.main' }} />
           <Typography variant="body2" sx={{ color: 'primary.main', fontWeight: 600 }}>
-            🚚 지금 주문하면 {format(new Date(estimatedDeliveryDate), 'M월 d일 (E)', { locale: ko })} 도착 예정이에요.
+            지금 주문하면 {format(new Date(estimatedDeliveryDate), 'M월 d일 (E)', { locale: ko })} 도착 예정이에요.
           </Typography>
         </Box>
       )}

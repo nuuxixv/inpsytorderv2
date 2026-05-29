@@ -1,8 +1,13 @@
 import React from 'react';
-import { Box, Typography, Card, CardContent, Button, IconButton, Chip } from '@mui/material';
+import { Box, Typography, Card, CardContent, Button, IconButton, Chip, useTheme } from '@mui/material';
 import { Add as AddIcon, Remove as RemoveIcon, Delete as DeleteIcon } from '@mui/icons-material';
 
+// 사양 §Step 0 — 상품 카드.
+// - 카테고리 / 인기 / 신규 배지 (조건부)
+// - 할인 시 원가 line-through + % 칩
+// - 카트 없으면 '담기' outlined, 있으면 수량 스테퍼
 const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onIncrement, onDecrement }) => {
+  const theme = useTheme();
   const isInCart = cartQuantity > 0;
   const isDiscounted = product.is_discountable && discountRate > 0;
   const discountedPrice = isDiscounted
@@ -12,11 +17,10 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
   return (
     <Card
       sx={{
-        borderRadius: '16px',
         border: '1.5px solid',
         borderColor: isInCart ? 'primary.main' : 'divider',
         boxShadow: 'none',
-        transition: 'border-color 0.2s cubic-bezier(0.33, 1, 0.68, 1)',
+        transition: `border-color 0.2s ${theme.easing.toss}`,
         cursor: !isInCart ? 'pointer' : 'default',
         '&:active': !isInCart ? { transform: 'scale(0.97)' } : {},
         overflow: 'visible',
@@ -26,7 +30,7 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
       onClick={!isInCart ? onAdd : undefined}
     >
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 }, display: 'flex', flexDirection: 'column', height: '100%' }}>
-        {/* Category badge */}
+        {/* Category / popular / new badges */}
         <Box sx={{ display: 'flex', gap: 0.5, mb: 0.75, alignItems: 'center' }}>
           {(product.category === '검사' || product.category === '도서') && (
             <Chip
@@ -34,12 +38,9 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
               size="small"
               sx={{
                 height: 18,
-                fontSize: '0.625rem',
-                fontWeight: 700,
-                borderRadius: '6px',
-                bgcolor: product.category === '검사' ? 'info.main' : 'grey.400',
-                color: '#fff',
-                '& .MuiChip-label': { px: 0.75 },
+                bgcolor: product.category === '검사' ? 'info.main' : theme.gray[400],
+                color: 'common.white',
+                '& .MuiChip-label': { px: 0.75, fontWeight: 700 },
               }}
             />
           )}
@@ -49,12 +50,9 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
               size="small"
               sx={{
                 height: 18,
-                fontSize: '0.625rem',
-                fontWeight: 800,
-                borderRadius: '6px',
-                bgcolor: '#f39c12',
-                color: '#fff',
-                '& .MuiChip-label': { px: 0.75 },
+                bgcolor: theme.accent.attention,
+                color: 'common.white',
+                '& .MuiChip-label': { px: 0.75, fontWeight: 800 },
               }}
             />
           )}
@@ -64,26 +62,18 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
               size="small"
               sx={{
                 height: 18,
-                fontSize: '0.625rem',
-                fontWeight: 800,
-                borderRadius: '6px',
                 bgcolor: 'error.main',
-                color: '#fff',
-                '& .MuiChip-label': { px: 0.75 },
+                color: 'common.white',
+                '& .MuiChip-label': { px: 0.75, fontWeight: 800 },
               }}
             />
           )}
         </Box>
-        {/* Product name */}
+
+        {/* Product name — 02 §타이포 약속 2: 13px 인라인 → body2(14)로 흡수 */}
         <Typography
           variant="body2"
-          sx={{
-            fontWeight: 600,
-            mb: 1.5,
-            lineHeight: '1.3em',
-            fontSize: '0.8125rem',
-            color: 'text.primary',
-          }}
+          sx={{ fontWeight: 600, mb: 1.5, lineHeight: 1.3 }}
         >
           {product.name}
         </Typography>
@@ -97,7 +87,6 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
                 sx={{
                   textDecoration: 'line-through',
                   color: 'text.disabled',
-                  fontSize: '0.6875rem',
                 }}
               >
                 {product.list_price.toLocaleString()}원
@@ -108,9 +97,7 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
                 color="error"
                 sx={{
                   height: 18,
-                  fontSize: '0.625rem',
-                  fontWeight: 700,
-                  '& .MuiChip-label': { px: 0.75 },
+                  '& .MuiChip-label': { px: 0.75, fontWeight: 700 },
                 }}
               />
             </Box>
@@ -120,7 +107,6 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
             sx={{
               fontWeight: 800,
               color: isDiscounted ? 'primary.main' : 'text.primary',
-              fontSize: '0.9375rem',
               lineHeight: 1.2,
             }}
           >
@@ -139,10 +125,8 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
               onAdd();
             }}
             sx={{
-              borderRadius: '10px',
               height: 40,
               fontWeight: 700,
-              fontSize: '0.8125rem',
               borderColor: 'primary.main',
               color: 'primary.main',
               '&:active': { transform: 'scale(0.97)' },
@@ -157,7 +141,7 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
               alignItems: 'center',
               justifyContent: 'space-between',
               bgcolor: 'primary.main',
-              borderRadius: '10px',
+              borderRadius: `${theme.radii.sm}px`,
               height: 40,
               px: 0.5,
             }}
@@ -167,11 +151,14 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
               size="small"
               onClick={onDecrement}
               sx={{
-                color: 'white',
+                color: 'common.white',
                 width: 32,
                 height: 32,
+                minWidth: 32,
+                minHeight: 32,
                 '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' },
               }}
+              aria-label="수량 감소"
             >
               {cartQuantity === 1 ? (
                 <DeleteIcon sx={{ fontSize: 18 }} />
@@ -183,10 +170,9 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
               variant="body2"
               sx={{
                 fontWeight: 700,
-                color: 'white',
+                color: 'common.white',
                 minWidth: 28,
                 textAlign: 'center',
-                fontSize: '0.875rem',
               }}
             >
               {cartQuantity}
@@ -195,11 +181,14 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
               size="small"
               onClick={onIncrement}
               sx={{
-                color: 'white',
+                color: 'common.white',
                 width: 32,
                 height: 32,
+                minWidth: 32,
+                minHeight: 32,
                 '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' },
               }}
+              aria-label="수량 증가"
             >
               <AddIcon sx={{ fontSize: 18 }} />
             </IconButton>

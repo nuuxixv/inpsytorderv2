@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Button, IconButton, Typography, Badge, LinearProgress } from '@mui/material';
+import { Box, Button, IconButton, Typography, Badge, LinearProgress, useTheme } from '@mui/material';
 import {
   ShoppingCart as CartIcon,
   ArrowBack as ArrowBackIcon,
@@ -7,6 +7,10 @@ import {
 } from '@mui/icons-material';
 import CircularProgress from '@mui/material/CircularProgress';
 
+// 사양 §전 단계 공통 — 플로팅 하단 바.
+// - position fixed, 600px max 가운데 정렬
+// - Step 0: 좌측 장바구니 아이콘+무료배송 진행, Step 1·2: 좌측 뒤로가기
+// - 우측 CTA: '주문서 작성하기' / '다음' / '주문 제출하기'
 const FloatingBottomBar = ({
   activeStep,
   cart,
@@ -20,6 +24,7 @@ const FloatingBottomBar = ({
   isSubmitting,
   isSubmittable,
 }) => {
+  const theme = useTheme();
   const totalQuantity = cart.filter(item => item.id).reduce((sum, item) => sum + item.quantity, 0);
   const hasItems = totalQuantity > 0;
 
@@ -74,7 +79,7 @@ const FloatingBottomBar = ({
         pb: 'max(12px, env(safe-area-inset-bottom))',
       }}
     >
-      {/* Shipping info bar - only on step 0, hidden in on-site mode */}
+      {/* Shipping info bar - only on step 0, hidden in on-site mode. 사양 §Step 0 무료배송 안내. */}
       {!isOnsitePurchase && activeStep === 0 && hasItems && totalPrice < freeShippingThreshold && (
         <Box sx={{ maxWidth: 600, mx: 'auto', mb: 1 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
@@ -88,7 +93,7 @@ const FloatingBottomBar = ({
             sx={{
               height: 4,
               borderRadius: 2,
-              bgcolor: '#E5E8EB',
+              bgcolor: theme.gray[200],
               '& .MuiLinearProgress-bar': { borderRadius: 2 },
             }}
           />
@@ -121,21 +126,16 @@ const FloatingBottomBar = ({
               cursor: hasItems ? 'pointer' : 'default',
               py: 1,
               px: 1.5,
-              borderRadius: 2,
-              transition: 'background-color 0.15s ease',
-              '&:active': hasItems ? { bgcolor: 'grey.100' } : {},
+              borderRadius: `${theme.radii.sm}px`,
+              transition: `background-color 0.15s ${theme.easing.toss}`,
+              '&:active': hasItems ? { bgcolor: theme.gray[100] } : {},
               minWidth: 56,
             }}
           >
             <Badge
               badgeContent={totalQuantity}
               color="primary"
-              sx={{
-                '& .MuiBadge-badge': {
-                  fontWeight: 700,
-                  fontSize: '0.7rem',
-                },
-              }}
+              sx={{ '& .MuiBadge-badge': { fontWeight: 700 } }}
             >
               <CartIcon sx={{ color: hasItems ? 'primary.main' : 'text.disabled', fontSize: 26 }} />
             </Badge>
@@ -148,12 +148,13 @@ const FloatingBottomBar = ({
               width: 48,
               height: 48,
             }}
+            aria-label="이전 단계"
           >
             <ArrowBackIcon />
           </IconButton>
         )}
 
-        {/* Right side: CTA button */}
+        {/* Right side: CTA button — 라운드·폰트는 글로벌 MuiButton sizeLarge 토큰에 위임 */}
         <Button
           variant="contained"
           size="large"
@@ -168,14 +169,9 @@ const FloatingBottomBar = ({
             ) : null
           }
           sx={{
-            minHeight: 52,
-            borderRadius: '14px',
-            fontSize: '1.0625rem',
-            fontWeight: 700,
-            boxShadow: 'none',
-            '&:disabled': {
-              bgcolor: '#E5E8EB',
-              color: '#B0B8C1',
+            '&.Mui-disabled': {
+              bgcolor: theme.gray[200],
+              color: theme.gray[400],
             },
           }}
         >
