@@ -304,3 +304,23 @@ frontend 사이클(M3-12 본 작업)이 흡수해야 할 항목:
 
 ## 변경 이력
 - 2026-05-29 신설 — M3-12 시안 정합 사이클 사전 작성, 게이트 1.5 통과 목적. 시안 vs 실 페이지 차이 14건 적출. `societies` 테이블 마이그레이션 누락(2건째 부채), field_reports RLS 무가드(1건), YoY 매출 정의 불일치(1건), 도구 카테고리 분류 모호성(1건) 부채 후보로 기록.
+- 2026-05-29 M3-12 frontend 사이클 — DashboardPage.jsx 시안 정합 (805→723줄). 시안 차이 14건 흡수:
+  - #1 헤더 subtitle 도입 (eventName 자리 이동), 매출 카드 내부 제목 제거.
+  - #2 새로고침 outlined Button + "새로고침" 텍스트 (IconButton 단독 폐기).
+  - #3 매출 카드 레이아웃 시안 채택 — hero StatCard(총 매출+YoY trend) + 오늘 접수 박스 + sub StatCard 3장(검사/도서/배송비). 정보량 동일, 시각 구조 흡수.
+  - #4 `CompactKpi`(로컬) → 공용 `StatCard` 교체. 로컬 정의 제거.
+  - #5 StatusBar height 28→10, 외부 칩 범례에 건수 노출 (시안 패턴).
+  - #6 처리 필요 알림 — **실 페이지 조건 보존**: `hasAlerts` true일 때만 노출. 0건 시 빈 카드 노출은 AI 시그니처(CLAUDE.md E절)로 판단해 채택 거부. → 사양 §확인필요 결론 명시.
+  - #7 처리 필요 라벨 — **실 페이지 라벨 보존**: "결제대기" / "결제완료(출고대기)". 운영자가 상태와 매치 인식 중. → 사양 §확인필요 결론 명시.
+  - #8 랭킹 행 정보량 — 시안 정보량 채택 (sortBy에 따라 주/보조 자리 바뀜, 1~3위 컬러 강조).
+  - #9 랭킹 토글 — Chip → `ToggleButtonGroup` 교체.
+  - #10 현장 보고서 — **CRUD 전체 보존**: 작성 폼·일차 Select·작성자·삭제 Dialog·자동 채움 템플릿 모두 유지. 시안의 안내문 1줄 패턴은 행사 미선택 빈 상태에만 적용. 정보 손실 0.
+  - #11 최근 주문 이니셜 박스 — 단순 이니셜 박스로 채택 (테두리 없는 gray[100] 정사각, 장식 없음, 사양 결정에 따름).
+  - #12 모바일 변형 — 반응형 분기 보존.
+  - #13 디바이더 — OK 유지.
+  - #14 일자 칩 라벨 톤 — `{N}일차 (MM-DD)` → `{N}일차 · MM-DD` (시안 톤).
+  - 추가 흡수: 일자 칩 영역에 "일자" 레이블 노출(시안). raw hex 13건 → theme.accent/status/gray 토큰. raw borderRadius 11건 → theme.radii. raw boxShadow 5건 → MuiCard 기본값 의존. SectionCard 공용 헤더로 카드 헤더 일원화.
+  - 보존: API 호출(events·societies·products·orders), YoY 계산 조건(`selectedYear !== 'all' && selectedEventIds.length === 0`), 매출 정의(취소·환불 제외), 카테고리 분류(`도구`→testRevenue 포함), 캐스케이드 리셋, 일자 칩, 상세 행사 multi-select renderValue, OrderDetailModal 연동(`onUpdate=fetchData`), field_reports CRUD, 권한 가드(`dashboard:view`는 라우터 단), navigate 라우팅 (`/admin/orders?status=...`).
+  - 자동 검출 5종(raw hex / raw borderRadius / rgba / raw boxShadow / raw fontSize 문자열): 모두 0건.
+  - 빌드 통과(12.11s). lint 신규 위반 0 (baseline 20→17, DashboardPage 'Icon' unused 2건 + useEffect deps 1건 해소).
+  - 부채 미해결: §핵심 발견 1~6 모두 그대로(시안 정합 사이클 범위 밖). YoY 매출 정의 불일치·field_reports RLS 무가드는 백로그 유지. societies 테이블 마이그레이션 누락은 CTO 검수 대상.
