@@ -4,10 +4,12 @@ import {
   Typography,
   Card,
   Divider,
-  LinearProgress
+  LinearProgress,
+  useTheme,
 } from '@mui/material';
 
 const CostSummary = ({ cart, settings, discountRate = 0, embedded = false, compact = false, isOnsitePurchase = false }) => {
+  const theme = useTheme();
   const { free_shipping_threshold = 30000, shipping_cost = 3000 } = settings || {};
   const calculateCosts = () => {
     let totalOriginalPrice = 0;
@@ -52,12 +54,12 @@ const CostSummary = ({ cart, settings, discountRate = 0, embedded = false, compa
     <>
       <Typography variant="h5" sx={{ fontWeight: 700, mb: 2.5 }}>결제 정보</Typography>
 
-      {/* Free shipping progress - hide in on-site mode */}
+      {/* Free shipping progress - hide in on-site mode. 사양 §Step 2 결제 정보 무료배송 진행바. */}
       {!isOnsitePurchase && (
-        <Box sx={{ mb: 3, p: 2, bgcolor: '#F2F4F6', borderRadius: '12px' }}>
+        <Box sx={{ mb: 3, p: 2, bgcolor: theme.gray[100], borderRadius: `${theme.radii.md}px` }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8125rem' }}>
-            {totalOriginalPrice < free_shipping_threshold
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+              {totalOriginalPrice < free_shipping_threshold
                 ? `무료배송까지 ${remainingForFreeShipping.toLocaleString()}원 남았습니다!`
                 : '무료배송 혜택이 적용되었습니다!'}
             </Typography>
@@ -68,11 +70,12 @@ const CostSummary = ({ cart, settings, discountRate = 0, embedded = false, compa
             sx={{
               height: 6,
               borderRadius: 3,
-              bgcolor: 'grey.200',
+              bgcolor: theme.gray[200],
               '& .MuiLinearProgress-bar': {
                 borderRadius: 3,
-                backgroundImage: 'linear-gradient(90deg, #2B398F 0%, #3d4db0 100%)'
-              }
+                // 사양에서는 brand 그라데이션 (단색 brand-700 단순화 검토 권장). 현재 사양 그대로 유지.
+                backgroundImage: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+              },
             }}
           />
         </Box>
@@ -104,14 +107,10 @@ const CostSummary = ({ cart, settings, discountRate = 0, embedded = false, compa
 
       <Divider sx={{ my: 2.5, borderStyle: 'dashed' }} />
 
-      {/* Final amount */}
+      {/* Final amount — 사양 §Step 2 결제 정보 최종 행. 02 §타이포 약속 4 number 토큰 위계. */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-end', sm: 'center' } }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>최종 결제 금액</Typography>
-        <Typography
-          variant="h3"
-          color="primary"
-          sx={{ fontWeight: 800, letterSpacing: '-0.02em', fontSize: { xs: '1.375rem', sm: '1.5rem' } }}
-        >
+        <Typography variant="h6" sx={{ color: 'text.primary' }}>최종 결제 금액</Typography>
+        <Typography variant="h3" color="primary" sx={{ fontWeight: 800 }}>
           {finalCost.toLocaleString()}원
         </Typography>
       </Box>
@@ -123,9 +122,9 @@ const CostSummary = ({ cart, settings, discountRate = 0, embedded = false, compa
     return content;
   }
 
-  // Standalone mode: with Card wrapper
+  // Standalone mode: with Card wrapper. 라운드/보더는 글로벌 MuiCard에 위임.
   return (
-    <Card sx={{ p: { xs: 2.5, sm: 3 }, borderRadius: '16px', boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+    <Card sx={{ p: { xs: 2.5, sm: 3 } }}>
       {content}
     </Card>
   );

@@ -9,6 +9,7 @@ import {
   Stack,
   Button,
   Divider,
+  useTheme,
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -19,30 +20,31 @@ import {
   Note as NoteIcon,
 } from '@mui/icons-material';
 
-const modalStyle = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: '92%',
-  maxWidth: 420,
-  bgcolor: 'background.paper',
-  boxShadow: 24,
-  borderRadius: '16px',
-  overflow: 'hidden',
-};
-
-const inputSx = {
-  '& .MuiOutlinedInput-root': {
-    borderRadius: '12px',
-    minHeight: 52,
-    bgcolor: '#F8F9FA',
-    fontSize: '16px',
-  },
-};
+// 사양 §Step 1 — 주문자 정보. 주소 3필드 분리 절대 유지.
 
 const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false, isOnsitePurchase = false }) => {
+  const theme = useTheme();
   const [isPostcodeModalOpen, setIsPostcodeModalOpen] = useState(false);
+
+  // 모달 스타일·인풋 스타일을 테마 토큰으로 정합화.
+  const modalStyle = {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: '92%',
+    maxWidth: 420,
+    bgcolor: 'background.paper',
+    boxShadow: theme.customShadows.lg,
+    borderRadius: `${theme.radii.lg}px`,
+    overflow: 'hidden',
+  };
+
+  // 인풋 셸은 theme.MuiTextField 글로벌 토큰을 그대로 받고,
+  // 폼 자체 높이만 52(터치 영역)로 끌어올린다. 인라인 fontSize 금지(02 §타이포 약속 1).
+  const inputSx = {
+    '& .MuiOutlinedInput-root': { minHeight: 52 },
+  };
 
   const handleOpenPostcode = () => setIsPostcodeModalOpen(true);
   const handleClosePostcode = () => setIsPostcodeModalOpen(false);
@@ -187,13 +189,7 @@ const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false
                       size="small"
                       variant="outlined"
                       onClick={handleOpenPostcode}
-                      sx={{
-                        minWidth: 'auto',
-                        px: 1.5,
-                        py: 0.5,
-                        fontSize: '0.75rem',
-                        borderRadius: '8px',
-                      }}
+                      sx={{ minWidth: 'auto', px: 1.5, py: 0.5 }}
                     >
                       검색
                     </Button>
@@ -257,13 +253,6 @@ const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false
                 <NoteIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
               </InputAdornment>
             ),
-          }}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '12px',
-              bgcolor: '#F8F9FA',
-              fontSize: '16px',
-            },
           }}
         />
       </Stack>

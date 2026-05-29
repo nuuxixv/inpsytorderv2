@@ -13,6 +13,7 @@ import {
   DialogContentText,
   DialogTitle,
   Snackbar,
+  useTheme,
 } from '@mui/material';
 
 import OrderStepIndicator from './OrderStepIndicator';
@@ -24,6 +25,7 @@ import CartBottomSheet from './CartBottomSheet';
 import { getTodayKST } from '../utils/date';
 
 const OrderPage = () => {
+  const theme = useTheme();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const eventSlug = searchParams.get('events');
@@ -136,7 +138,8 @@ const OrderPage = () => {
       window.scrollTo(0, 0);
     } else if (activeStep === 1) {
       if (!isCustomerInfoValid) {
-        setError('필수 정보(성함, 연락처, 이메일)를 입력해주세요.');
+        // 사양 §발견 7 — 'email' 컬럼 제거됨(2026-04-08). 잔재 문구 정리.
+        setError('필수 정보(성함, 연락처)를 입력해주세요.');
         return;
       }
       setError(null);
@@ -261,7 +264,8 @@ const OrderPage = () => {
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        bgcolor: activeStep < 2 ? 'background.paper' : '#F8F9FA',
+        // 사양 §전 단계 공통 — Step 0·1 흰색 / Step 2 회색. 토큰화.
+        bgcolor: activeStep < 2 ? 'background.paper' : theme.gray[50],
         maxWidth: 600,
         mx: 'auto',
         transition: 'background-color 0.3s ease',
@@ -297,12 +301,12 @@ const OrderPage = () => {
       {/* Step indicator - Hide only in Step 0 (Lounge mode) */}
       {activeStep > 0 && <OrderStepIndicator activeStep={activeStep} />}
 
-      {/* Error display */}
+      {/* Error display — 사양 §전 단계 공통 에러 알림 */}
       {error && (
         <Alert
           severity="error"
           onClose={() => setError(null)}
-          sx={{ mx: 2, mt: 2, borderRadius: '12px' }}
+          sx={{ mx: 2, mt: 2, borderRadius: `${theme.radii.md}px` }}
         >
           {error}
         </Alert>
@@ -368,7 +372,7 @@ const OrderPage = () => {
         settings={settings}
       />
 
-      {/* Success dialog */}
+      {/* Success dialog — 사양 §성공 다이얼로그. 실 플로우에선 access_token 있을 때 navigate가 우선, 이 다이얼로그는 fallback. */}
       <Dialog
         open={showSuccessDialog}
         onClose={(event, reason) => {
@@ -377,9 +381,9 @@ const OrderPage = () => {
             handleCloseSuccessDialog();
           }
         }}
-        PaperProps={{ sx: { borderRadius: '16px', mx: 2 } }}
+        PaperProps={{ sx: { mx: 2 } }}
       >
-        <DialogTitle sx={{ fontWeight: 700, textAlign: 'center', pt: 4, pb: 1 }}>
+        <DialogTitle sx={{ textAlign: 'center', pt: 4, pb: 1 }}>
           주문이 접수됐어요
         </DialogTitle>
         <DialogContent>
@@ -395,7 +399,6 @@ const OrderPage = () => {
             size="large"
             fullWidth
             onClick={handleCloseSuccessDialog}
-            sx={{ borderRadius: '12px', minHeight: 48 }}
           >
             닫기
           </Button>
