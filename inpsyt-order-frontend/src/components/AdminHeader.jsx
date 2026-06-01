@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Typography, IconButton, Popover, List, ListItem, ListItemText,
   Divider, Avatar, Menu, MenuItem, Dialog, DialogTitle, DialogContent,
-  DialogActions, TextField, Button, Chip, CircularProgress,
+  DialogActions, TextField, Button, Chip, CircularProgress, useTheme,
 } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -33,6 +33,7 @@ const FEEDBACK_TYPES = [
 ];
 
 const AdminHeader = ({ onMenuToggle }) => {
+  const theme = useTheme();
   const { user, logout, profile } = useAuth();
   const { addNotification, notifications } = useNotification();
   const navigate = useNavigate();
@@ -139,22 +140,18 @@ const AdminHeader = ({ onMenuToggle }) => {
         width: '100%',
         height: 64,
         px: { xs: 2, md: 3 },
-        mb: 3,
-        backgroundColor: '#ffffff',
-        borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
+        backgroundColor: theme.palette.background.paper,
+        borderBottom: `1px solid ${theme.gray[100]}`,
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        transition: 'all 0.3s ease',
-        '&:hover': { boxShadow: '0 8px 30px rgba(0,0,0,0.04)' },
       }}
     >
       {/* 좌측: 모바일 햄버거 메뉴 */}
       <IconButton
         onClick={onMenuToggle}
         size="medium"
-        sx={{ display: { md: 'none' }, color: 'text.secondary' }}
+        sx={{ display: { md: 'none' }, color: theme.gray[600] }}
         aria-label="메뉴 열기"
       >
         <MenuIcon />
@@ -166,18 +163,32 @@ const AdminHeader = ({ onMenuToggle }) => {
         {/* 피드백 아이콘 */}
         <IconButton
           onClick={handleOpenFeedback}
-          sx={{ color: 'text.secondary', minWidth: 44, minHeight: 44 }}
+          disableRipple
+          sx={{
+            color: theme.gray[500],
+            minWidth: 44,
+            minHeight: 44,
+            borderRadius: '8px',
+            '&:hover': { bgcolor: theme.gray[50], color: theme.gray[900] },
+          }}
           aria-label="피드백 보내기"
         >
-          <ChatBubbleOutlineIcon />
+          <ChatBubbleOutlineIcon sx={{ fontSize: 20 }} />
         </IconButton>
 
         {/* 알림 */}
         <IconButton
           onClick={handleNotificationClick}
-          sx={{ color: 'text.secondary', minWidth: 44, minHeight: 44 }}
+          disableRipple
+          sx={{
+            color: theme.gray[500],
+            minWidth: 44,
+            minHeight: 44,
+            borderRadius: '8px',
+            '&:hover': { bgcolor: theme.gray[50], color: theme.gray[900] },
+          }}
         >
-          <NotificationsIcon />
+          <NotificationsIcon sx={{ fontSize: 20 }} />
         </IconButton>
         <Popover
           open={openNotification}
@@ -185,7 +196,7 @@ const AdminHeader = ({ onMenuToggle }) => {
           onClose={handleNotificationClose}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-          PaperProps={{ sx: { mt: 1.5, borderRadius: '16px', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', border: '1px solid rgba(0,0,0,0.05)' } }}
+          PaperProps={{ sx: { mt: 1.5, borderRadius: `${theme.radii.lg}px`, boxShadow: '0 4px 12px rgba(0,0,0,0.10)', border: `1px solid ${theme.gray[100]}` } }}
         >
           <List sx={{ width: 320, maxHeight: 400, overflow: 'auto' }}>
             <ListItem>
@@ -202,8 +213,8 @@ const AdminHeader = ({ onMenuToggle }) => {
                   <ListItemText
                     primary={notification.message}
                     secondary={format(notification.timestamp, 'yyyy-MM-dd HH:mm', { locale: ko })}
-                    primaryTypographyProps={{ fontSize: '0.9rem' }}
-                    secondaryTypographyProps={{ fontSize: '0.75rem' }}
+                    primaryTypographyProps={{ variant: 'body2' }}
+                    secondaryTypographyProps={{ variant: 'caption' }}
                   />
                 </ListItem>
               ))
@@ -212,8 +223,8 @@ const AdminHeader = ({ onMenuToggle }) => {
         </Popover>
 
         {/* 사용자 아바타 */}
-        <IconButton onClick={handleUserMenuClick} sx={{ p: 0.5, minWidth: 44, minHeight: 44, border: '1px solid transparent', '&:hover': { borderColor: 'primary.light' } }}>
-          <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.9rem', fontWeight: 'bold' }}>
+        <IconButton onClick={handleUserMenuClick} disableRipple sx={{ p: 0.5, minWidth: 44, minHeight: 44 }}>
+          <Avatar sx={{ width: 30, height: 30, bgcolor: theme.gray[900], color: '#fff', fontSize: '0.875rem', fontWeight: 600, letterSpacing: '-0.02em' }}>
             {(profile?.name || user?.email)?.[0]?.toUpperCase()}
           </Avatar>
         </IconButton>
@@ -223,7 +234,7 @@ const AdminHeader = ({ onMenuToggle }) => {
           onClose={handleUserMenuClose}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-          PaperProps={{ sx: { mt: 1.5, borderRadius: '16px', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', border: '1px solid rgba(0,0,0,0.05)', minWidth: 200 } }}
+          PaperProps={{ sx: { mt: 1.5, borderRadius: `${theme.radii.lg}px`, boxShadow: '0 4px 12px rgba(0,0,0,0.10)', border: `1px solid ${theme.gray[100]}`, minWidth: 200 } }}
         >
           <Box sx={{ px: 2.5, py: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>

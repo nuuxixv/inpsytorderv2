@@ -5,16 +5,19 @@ import {
   IconButton,
   Divider,
   SwipeableDrawer,
-  Button,
+  useTheme,
 } from '@mui/material';
 import {
   Close as CloseIcon,
   Add as AddIcon,
   Remove as RemoveIcon,
   Delete as DeleteIcon,
+  ShoppingCartOutlined as ShoppingCartIcon,
 } from '@mui/icons-material';
+import { EmptyState } from './ui';
 
 const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, discountRate = 0, isOnsitePurchase = false }) => {
+  const theme = useTheme();
   const { free_shipping_threshold = 30000, shipping_cost = 3000 } = settings || {};
   const validItems = cart.filter(item => item.id);
 
@@ -55,7 +58,7 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
       disableSwipeToOpen
       PaperProps={{
         sx: {
-          borderRadius: '16px 16px 0 0',
+          borderRadius: `${theme.radii.lg}px ${theme.radii.lg}px 0 0`,
           maxHeight: '75vh',
           pb: 'env(safe-area-inset-bottom)',
           left: 'max(0px, calc((100vw - 600px) / 2))',
@@ -65,14 +68,14 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
     >
       {/* Drag handle */}
       <Box sx={{ display: 'flex', justifyContent: 'center', pt: 1.5, pb: 0.5 }}>
-        <Box sx={{ width: 40, height: 4, bgcolor: 'grey.300', borderRadius: 2 }} />
+        <Box sx={{ width: 40, height: 4, bgcolor: 'grey.300', borderRadius: `${theme.radii.pill}px` }} />
       </Box>
 
       {/* Header */}
       <Box sx={{ px: 2.5, pb: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h4" sx={{ fontWeight: 800 }}>
           장바구니{' '}
-          <Typography component="span" color="primary.main" sx={{ fontWeight: 800, fontSize: 'inherit' }}>
+          <Typography component="span" variant="inherit" color="primary.main">
             {validItems.length}
           </Typography>
         </Typography>
@@ -86,11 +89,7 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
       {/* Cart items */}
       <Box sx={{ overflowY: 'auto', flex: 1, px: 2.5, py: 1.5 }}>
         {validItems.length === 0 ? (
-          <Box sx={{ textAlign: 'center', py: 6 }}>
-            <Typography variant="body1" color="text.secondary">
-              장바구니가 비어있습니다
-            </Typography>
-          </Box>
+          <EmptyState icon={ShoppingCartIcon} title="장바구니가 비어있습니다" />
         ) : (
           validItems.map((item, index) => {
             const unitPrice = getItemPrice(item);
@@ -125,7 +124,7 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
                         alignItems: 'center',
                         border: '1px solid',
                         borderColor: 'divider',
-                        borderRadius: '10px',
+                        borderRadius: `${theme.radii.sm}px`,
                         overflow: 'hidden',
                       }}
                     >
@@ -141,12 +140,10 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
                         )}
                       </IconButton>
                       <Typography
-                        variant="body2"
+                        variant="subtitle2"
                         sx={{
-                          fontWeight: 700,
                           minWidth: 32,
                           textAlign: 'center',
-                          fontSize: '0.875rem',
                         }}
                       >
                         {item.quantity}
@@ -161,7 +158,7 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
                     </Box>
 
                     {/* Price */}
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    <Typography variant="subtitle2">
                       {itemTotal.toLocaleString()}원
                     </Typography>
                   </Box>
@@ -181,7 +178,7 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
             py: 2,
             borderTop: '1px solid',
             borderColor: 'divider',
-            bgcolor: '#F8F9FA',
+            bgcolor: 'grey.50',
           }}
         >
           {!isOnsitePurchase && (
@@ -189,13 +186,13 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
               <Typography variant="caption" color="text.secondary">
                 배송비
               </Typography>
-              <Typography variant="caption" sx={{ fontWeight: 600 }}>
+              <Typography variant="subtitle2">
                 {totalOriginalPrice >= free_shipping_threshold ? '무료' : `${shipping_cost.toLocaleString()}원`}
               </Typography>
             </Box>
           )}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 500 }}>
+            <Typography variant="body1" color="text.secondary">
               총 금액
             </Typography>
             <Typography variant="h4" sx={{ fontWeight: 800, color: 'primary.main' }}>
