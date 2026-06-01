@@ -10,7 +10,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 // 사양 §전 단계 공통 — 플로팅 하단 바.
 // - position fixed, 600px max 가운데 정렬
 // - Step 0: 좌측 장바구니 아이콘+무료배송 진행, Step 1·2: 좌측 뒤로가기
-// - 우측 CTA: '주문서 작성하기' / '다음' / '주문 제출하기'
+// - 우측 CTA: '배송지 입력하기'(현장구매 시 '주문서 작성하기') / '다음' / '주문 제출하기'
 const FloatingBottomBar = ({
   activeStep,
   cart,
@@ -31,7 +31,7 @@ const FloatingBottomBar = ({
   const getNextLabel = () => {
     switch (activeStep) {
       case 0:
-        return '주문서 작성하기';
+        return isOnsitePurchase ? '주문서 작성하기' : '배송지 입력하기';
       case 1:
         return '다음';
       case 2:

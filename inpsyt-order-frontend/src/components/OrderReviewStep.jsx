@@ -17,7 +17,7 @@ const InfoRow = ({ label, value }) => (
   </Box>
 );
 
-const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoToStep, isOnsitePurchase = false, estimatedDeliveryDate }) => {
+const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoToStep, isOnsitePurchase = false, estimatedDeliveryDate, eventName = '' }) => {
   const theme = useTheme();
   const validItems = cart.filter(item => item.id);
 
@@ -39,9 +39,12 @@ const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoT
         <Typography variant="h3" sx={{ fontWeight: 800, mb: 0.5 }}>
           주문 내용을 확인해주세요
         </Typography>
-        <Typography variant="body2" color="text.secondary">
-          모든 정보가 올바른지 확인 후 제출해주세요
-        </Typography>
+        {eventName && (
+          <Typography variant="body2" color="text.secondary">
+            {eventName}
+            {discountRate > 0 && ` · ${(discountRate * 100).toFixed(0)}% 할인 적용`}
+          </Typography>
+        )}
       </Box>
 
       {/* Order items card */}

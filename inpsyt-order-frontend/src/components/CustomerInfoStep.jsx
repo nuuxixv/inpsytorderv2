@@ -22,7 +22,7 @@ import {
 
 // 사양 §Step 1 — 주문자 정보. 주소 3필드 분리 절대 유지.
 
-const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false, isOnsitePurchase = false }) => {
+const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false, isOnsitePurchase = false, eventName = '', discountRate = 0 }) => {
   const theme = useTheme();
   const [isPostcodeModalOpen, setIsPostcodeModalOpen] = useState(false);
 
@@ -88,11 +88,14 @@ const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false
       {/* Header */}
       <Box sx={{ mb: 3, pt: 2 }}>
         <Typography variant="h3" sx={{ fontWeight: 800, mb: 0.5 }}>
-          주문자 정보를 입력해주세요
+          {isOnsitePurchase ? '주문자 정보를 입력해주세요' : '배송 받으실 주소를 입력해주세요'}
         </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {isOnsitePurchase ? '주문자 확인을 위한 정보입니다' : '배송에 필요한 정보입니다'}
-        </Typography>
+        {eventName && (
+          <Typography variant="body2" color="text.secondary">
+            {eventName}
+            {discountRate > 0 && ` · ${(discountRate * 100).toFixed(0)}% 할인 적용`}
+          </Typography>
+        )}
       </Box>
 
       {/* Required section */}

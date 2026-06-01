@@ -176,16 +176,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
             </InputAdornment>
           ),
         }}
-        sx={{
-          mb: 2,
-          '& .MuiOutlinedInput-root': {
-            bgcolor: theme.gray[100],
-            height: 48,
-            '& fieldset': { borderColor: 'transparent' },
-            '&:hover fieldset': { borderColor: 'transparent' },
-            '&.Mui-focused fieldset': { borderColor: 'primary.main' },
-          },
-        }}
+        sx={{ mb: 2 }}
       />
 
       {/* Filters */}
@@ -211,6 +202,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
               sx={{
                 flexShrink: 0,
                 fontWeight: viewMode === mode.key ? 700 : 500,
+                borderRadius: `${theme.radii.sm}px`,
                 transition: `all 0.15s ${theme.easing.toss}`,
                 '&:active': { transform: 'scale(0.95)' },
               }}
@@ -239,6 +231,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
               sx={{
                 flexShrink: 0,
                 fontWeight: selectedCategory === filter.key ? 700 : 500,
+                borderRadius: `${theme.radii.sm}px`,
                 transition: `all 0.15s ${theme.easing.toss}`,
                 '&:active': { transform: 'scale(0.95)' },
               }}
