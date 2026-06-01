@@ -35,7 +35,7 @@ const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoT
   return (
     <Box sx={{ px: 2, pb: 4 }}>
       {/* Header */}
-      <Box sx={{ mb: 3, pt: 2 }}>
+      <Box sx={{ mb: 3, pt: 2, textAlign: 'center' }}>
         <Typography variant="h3" sx={{ fontWeight: 800, mb: 0.5 }}>
           주문 내용을 확인해주세요
         </Typography>
