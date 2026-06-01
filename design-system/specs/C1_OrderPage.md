@@ -228,6 +228,8 @@
   - 수량 스테퍼: 수량 1에서 -1 누르면 `DeleteIcon`으로 전환(카트 제거), 2 이상이면 `RemoveIcon`
 - [ ] 빈 상태: `ui/EmptyState`(icon=`ShoppingCartOutlined`, title="장바구니가 비어있습니다")
 - [ ] 푸터(아이템 있을 때, `bgcolor: grey.50`):
+  - **총 상품 금액 행**: `totalOriginalPrice`(정가 합계) — `caption`/`subtitle2`. (2026-06-01 건우님 — 시트에도 정가 대비 할인 표기)
+  - **할인 금액 행**(할인 > 0): `-(totalOriginalPrice - totalPrice)`, `error.main` 빨강 — `caption`/`subtitle2`
   - 배송비 행(`!isOnsitePurchase`): 정가(할인 전) 합계가 free_shipping_threshold 이상이면 "무료", 미달이면 `shipping_cost` 표시 (`variant="subtitle2"`)
   - 총 금액 행: 라벨 `variant="body1"`, `text.secondary` + 합계 `variant="h4"`, `primary.main`, `fontWeight: 800`
   - 현장구매(`isOnsitePurchase=true`)면 배송비 행 미표시 + 합계는 배송비 미가산
