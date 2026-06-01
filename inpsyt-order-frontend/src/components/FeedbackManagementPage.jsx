@@ -112,19 +112,19 @@ const FeedbackManagementPage = () => {
   const [editAdminNote, setEditAdminNote] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // 사양 §액션: statusFilter 변경 시 서버측 재조회. 유형·검색은 클라이언트.
+  // 전체 피드백을 한 번만 조회. 상태·유형·검색 필터는 모두 클라이언트 처리
+  // (소량 데이터 + StatCard 카운트가 항상 '전체 기준'이어야 함 — 2026-06-01 건우님).
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const filters = statusFilter ? { status: statusFilter } : {};
-      const data = await getFeedback(filters);
+      const data = await getFeedback({});
       setFeedbackList(data);
     } catch (err) {
       addNotification(`피드백 조회 실패: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, addNotification]);
+  }, [addNotification]);
 
   useEffect(() => {
     fetchData();
@@ -157,9 +157,10 @@ const FeedbackManagementPage = () => {
     setSelectedFeedback(null);
   };
 
-  // 사양 §필터·뷰 모드: statusFilter는 fetch가 끝낸 후 들어와 있는 상태. 유형·검색만 클라이언트 처리.
+  // 상태·유형·검색 모두 클라이언트 필터(전체 로드 기준).
   const displayedFeedback = useMemo(() => {
     let list = feedbackList;
+    if (statusFilter) list = list.filter((fb) => fb.status === statusFilter);
     if (typeFilter) list = list.filter((fb) => fb.type === typeFilter);
     if (searchTerm.trim()) {
       const s = searchTerm.trim().toLowerCase();
@@ -170,11 +171,10 @@ const FeedbackManagementPage = () => {
       );
     }
     return list;
-  }, [feedbackList, typeFilter, searchTerm]);
+  }, [feedbackList, statusFilter, typeFilter, searchTerm]);
 
-  // 상태별 카운트 — StatCard 6장. statusFilter 적용 전 원본 기준이 아니라
-  // 현재 응답에 들어와 있는 데이터 기준(서버측 status 필터가 적용된 상태)이므로
-  // 의미는 "선택한 상태 안에서 N건" — 단순 표시 보조. 토글로 전체↔필터 전환.
+  // 상태별 카운트 — StatCard 6장. 전체 로드 데이터 기준이라 상태 필터와 무관하게 항상 정확
+  // (2026-06-01 건우님 — 필터 켜면 다른 상태가 0으로 보이던 문제 해소).
   const statusCounts = useMemo(() => {
     const result = {};
     ALL_STATUSES.forEach((s) => {

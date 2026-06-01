@@ -13,12 +13,6 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const defaultOperatorPermissions = [
-    'orders:view',
-    'products:view',
-    'events:view',
-  ];
-
   const hasPermission = useCallback((permissionKey) => {
     if (!user) return false;
     // master 역할은 모든 권한을 가집니다.
@@ -37,8 +31,9 @@ export const AuthProvider = ({ children }) => {
         } else if (userPermissions.length > 0) {
           setPermissions(userPermissions);
         } else {
-          // 역할이나 권한이 명시되지 않은 경우 기본 operator 권한 부여
-          setPermissions(defaultOperatorPermissions);
+          // 권한이 JWT에 없으면 = 미인가. 프론트에서 임의 부여 금지(서버 RLS와 정합).
+          // 임의 기본권한 부여 시 "메뉴는 보이는데 데이터는 RLS에 막히는" 엇박 발생(2026-06-01 건우님).
+          setPermissions([]);
         }
         setUser(session.user);
         setAccessToken(session.access_token); // Set access token here

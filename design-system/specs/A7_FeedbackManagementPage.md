@@ -38,7 +38,7 @@ master 권한자가 학회 직후 또는 한가한 시간에 들어와 학회장
   - "보류" (`deferred`, warning)
   - "접수취소" (`cancelled`, error)
 - [ ] 선택 시 해당 색 filled, 비선택 default outlined
-- [ ] 상태 필터는 서버측 필터(`getFeedback({status})`), 유형 필터는 클라이언트측(line 102-105)
+- [ ] **상태·유형·검색 모두 클라이언트 필터** (2026-06-01 건우님). `getFeedback({})`로 전체 1회 로드 후 클라이언트에서 거름 → **StatCard 카운트가 항상 전체 기준으로 정확**(상태 필터 켜도 다른 상태가 0으로 안 보임). 과거 서버측 status 필터 폐기
 
 ### 피드백 표 (line 164-216)
 - [ ] 컬럼: 생성일 / 제출자 / 위치 / 유형 / 내용 / 상태
@@ -114,7 +114,7 @@ master 권한자가 학회 직후 또는 한가한 시간에 들어와 학회장
 
 ## 필터·뷰 모드
 
-- [ ] 상태 필터(`statusFilter`): null(전체) / received / acknowledged / in_progress / completed / deferred / cancelled. 서버측 필터.
+- [ ] 상태 필터(`statusFilter`): null(전체) / received / acknowledged / in_progress / completed / deferred / cancelled. **클라이언트 필터**(전체 로드 후).
 - [ ] 유형 필터(`typeFilter`): null(전체) / bug / ux / suggestion. 클라이언트측 필터.
 - [ ] 두 필터는 AND로 합성.
 - [ ] 정렬: `created_at` desc (API 기본).
@@ -140,7 +140,7 @@ master 권한자가 학회 직후 또는 한가한 시간에 들어와 학회장
 - 2026-05-28 신설 — design/m2-admin-rest 브랜치 5종 일괄 사전 정독.
 - 2026-05-29 M3-7 시안 정합 (PR #10~15 답습) — FeedbackManagementPage.jsx (315→419, +281/-176).
   - PageHeader 도입 (subtitle: 통계 압축본 · 필터 시 라벨+카운트)
-  - 상태별 StatCard 6장 (클릭 시 statusFilter 토글 → 서버측 재조회)
+  - 상태별 StatCard 6장 (클릭 시 statusFilter 토글 → 클라이언트 필터, 카운트는 전체 기준 유지)
   - 필터 영역 SectionCard (유형 칩 3종 + 검색 + 초기화)
   - 표 SectionCard padding=0, 컬럼 6개 보존
   - 빈 상태 → ui/EmptyState
