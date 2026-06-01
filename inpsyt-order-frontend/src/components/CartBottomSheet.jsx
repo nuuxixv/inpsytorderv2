@@ -5,6 +5,7 @@ import {
   IconButton,
   Divider,
   SwipeableDrawer,
+  Button,
   useTheme,
 } from '@mui/material';
 import {
@@ -16,7 +17,7 @@ import {
 } from '@mui/icons-material';
 import { EmptyState } from './ui';
 
-const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, discountRate = 0, isOnsitePurchase = false }) => {
+const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, discountRate = 0, isOnsitePurchase = false, onProceed }) => {
   const theme = useTheme();
   const { free_shipping_threshold = 30000, shipping_cost = 3000 } = settings || {};
   const validItems = cart.filter(item => item.id);
@@ -48,6 +49,11 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
 
   // 무료배송 기준은 정가(할인 전) 기준
   const totalOriginalPrice = validItems.reduce((sum, item) => sum + item.list_price * item.quantity, 0);
+
+  // 확정 영역용 — 총 건수 / 배송비 부과 여부 / 무료배송까지 남은 금액
+  const totalQty = validItems.reduce((sum, item) => sum + item.quantity, 0);
+  const hasFee = !isOnsitePurchase && totalOriginalPrice < free_shipping_threshold;
+  const remainingForFree = Math.max(0, free_shipping_threshold - totalOriginalPrice);
 
   return (
     <SwipeableDrawer
@@ -202,6 +208,45 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
               ).toLocaleString()}원
             </Typography>
           </Box>
+
+          {/* 확정 영역 — 0→1 진행 전 장바구니 확인 + 무료배송 업셀 (건우님 2026-06-01) */}
+          {onProceed && (
+            <Box sx={{ mt: 2.5 }}>
+              <Typography variant="body2" sx={{ textAlign: 'center', mb: 1.5, color: 'text.secondary' }}>
+                총 {totalQty}건 구매
+                {hasFee && (
+                  <>
+                    {' · '}
+                    <Box component="span" sx={{ color: 'primary.main', fontWeight: 700 }}>
+                      {remainingForFree.toLocaleString()}원
+                    </Box>
+                    {' 더 구매하시면 무료배송이에요'}
+                  </>
+                )}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                {hasFee ? (
+                  <>
+                    <Button fullWidth size="large" variant="outlined" onClick={onProceed}>
+                      그래도 주문하기
+                    </Button>
+                    <Button fullWidth size="large" variant="contained" onClick={onClose}>
+                      상품 추가하기
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button fullWidth size="large" variant="contained" onClick={onProceed}>
+                      주문하기
+                    </Button>
+                    <Button fullWidth size="large" variant="outlined" onClick={onClose}>
+                      상품 추가하기
+                    </Button>
+                  </>
+                )}
+              </Box>
+            </Box>
+          )}
         </Box>
       )}
     </SwipeableDrawer>
