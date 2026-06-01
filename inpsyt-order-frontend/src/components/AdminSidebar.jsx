@@ -13,7 +13,6 @@ import {
   IconButton,
   Tooltip,
   Badge,
-  alpha,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
@@ -77,53 +76,54 @@ const AdminSidebar = ({ open, onClose, collapsed = false, onToggleCollapse }) =>
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Logo / Branding */}
       <Box sx={{
-        p: collapsed ? 1.5 : 3,
+        px: collapsed ? 0 : 2.5,
         display: 'flex',
         alignItems: 'center',
         justifyContent: collapsed ? 'center' : 'flex-start',
-        gap: collapsed ? 0 : 1.5,
-        height: 80,
+        gap: collapsed ? 0 : 1.25,
+        height: 64,
       }}>
         <img src="/LOGO.svg" alt="logo" style={{ height: 32 }} />
         {!collapsed && (
-          <Typography variant="h6" sx={{ fontWeight: 800, color: 'primary.main', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
+          <Typography variant="body1" sx={{ fontWeight: 600, color: theme.gray[900], letterSpacing: '-0.015em', whiteSpace: 'nowrap' }}>
             인싸이트 현장주문
           </Typography>
         )}
       </Box>
 
+      {/* 브랜딩 아래 구분선 */}
+      <Box sx={{ height: '1px', bgcolor: theme.gray[100], mx: collapsed ? 1.25 : 2 }} />
+
       {/* Menu items */}
-      <List sx={{ px: collapsed ? 1 : 2, flexGrow: 1 }}>
+      <List sx={{ px: 1.25, py: 1.5, flexGrow: 1 }}>
         {filteredMenuItems.map((item) => (
           <ListItem key={item.text} disablePadding sx={{ my: 0.5, minHeight: 52 }}>
             <NavLink to={item.path} style={navLinkStyles} onClick={!isDesktop ? onClose : undefined}>
               {({ isActive }) => (
                 <Tooltip title={collapsed ? item.text : ''} placement="right" arrow>
                   <ListItemButton
+                    disableRipple
                     sx={(t) => ({
                       // hit-area 52px 강제 (specificity issue 대비 height 명시)
                       minHeight: 52,
                       height: 52,
-                      borderRadius: '12px',
+                      borderRadius: '8px',
                       mb: 0.5,
                       py: 0,
-                      px: collapsed ? 1.5 : 2,
+                      px: collapsed ? 1.25 : 1.5,
                       justifyContent: collapsed ? 'center' : 'flex-start',
-                      borderLeft: isActive ? `4px solid ${t.palette.primary.main}` : '4px solid transparent',
-                      backgroundColor: isActive ? alpha(t.palette.primary.main, 0.08) : 'transparent',
-                      color: isActive ? t.palette.primary.main : t.palette.text.secondary,
+                      backgroundColor: isActive ? t.gray[100] : 'transparent',
+                      color: isActive ? t.gray[900] : t.gray[600],
                       '&:hover': {
-                        backgroundColor: isActive
-                          ? alpha(t.palette.primary.main, 0.12)
-                          : alpha(t.palette.text.primary, 0.04),
+                        backgroundColor: isActive ? t.gray[100] : t.gray[50],
                       },
-                      transition: 'all 0.2s ease-in-out',
+                      transition: 'background-color 0.15s ease',
                     })}
                   >
                     <ListItemIcon sx={{
-                      minWidth: collapsed ? 0 : 40,
-                      color: 'inherit',
-                      '& svg': { fontSize: 22 },
+                      minWidth: collapsed ? 0 : 32,
+                      color: isActive ? theme.gray[900] : theme.gray[500],
+                      '& svg': { fontSize: 20 },
                       justifyContent: 'center',
                     }}>
                       {item.path === '/admin/bulletins' && bulletinUnreadCount > 0 ? (
@@ -136,9 +136,10 @@ const AdminSidebar = ({ open, onClose, collapsed = false, onToggleCollapse }) =>
                       <ListItemText
                         primary={item.text}
                         primaryTypographyProps={{
-                          fontWeight: isActive ? 700 : 500,
-                          fontSize: '0.95rem',
+                          variant: 'body1',
+                          fontWeight: isActive ? 600 : 500,
                           whiteSpace: 'nowrap',
+                          letterSpacing: '-0.01em',
                         }}
                       />
                     )}
@@ -152,14 +153,17 @@ const AdminSidebar = ({ open, onClose, collapsed = false, onToggleCollapse }) =>
 
       {/* Collapse toggle button (desktop only) */}
       {isDesktop && onToggleCollapse && (
-        <Box sx={{ p: 1.5, display: 'flex', justifyContent: collapsed ? 'center' : 'flex-end' }}>
+        <Box sx={{ p: 1.25, display: 'flex', justifyContent: collapsed ? 'center' : 'flex-end' }}>
           <IconButton
             onClick={onToggleCollapse}
+            disableRipple
             sx={{
-              bgcolor: alpha(theme.palette.primary.main, 0.06),
-              '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.12) },
+              bgcolor: 'transparent',
+              color: theme.gray[500],
               width: 44,
               height: 44,
+              borderRadius: '8px',
+              '&:hover': { bgcolor: theme.gray[50], color: theme.gray[900] },
             }}
           >
             {collapsed ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
@@ -181,10 +185,10 @@ const AdminSidebar = ({ open, onClose, collapsed = false, onToggleCollapse }) =>
         '& .MuiDrawer-paper': {
           width: isDesktop ? currentWidth : DRAWER_WIDTH,
           boxSizing: 'border-box',
-          backgroundColor: '#ffffff',
+          backgroundColor: theme.palette.background.paper,
           color: theme.palette.text.primary,
-          borderRight: 'none',
-          boxShadow: '4px 0 24px rgba(0,0,0,0.02)',
+          borderRight: `1px solid ${theme.gray[100]}`,
+          boxShadow: 'none',
           transition: 'width 0.25s cubic-bezier(0.33, 1, 0.68, 1)',
           overflowX: 'hidden',
         },

@@ -213,17 +213,20 @@
 - [ ] 끝 아이콘: Step 0·1은 `ArrowForwardIcon`, Step 2는 없음
 
 ### CartBottomSheet (`CartBottomSheet.jsx`, Step 0의 카트 아이콘 클릭 시)
-- [ ] `SwipeableDrawer` anchor bottom, `disableSwipeToOpen`, `maxHeight: 75vh`, top radius 16
-- [ ] 좌우 600px max 가운데 정렬 (플로팅 바와 동일 폭)
-- [ ] 상단 드래그 핸들 — 40x4 회색 바
+> 2026-06-01 디자인 시스템 정합(M3 후속): raw-hex·인라인 토큰을 theme 토큰으로 교체. 시각·기능 동일, 라벨 구조 불변.
+- [ ] `SwipeableDrawer` anchor bottom, `disableSwipeToOpen`, `maxHeight: 75vh`, top radius `theme.radii.lg`(16)
+- [ ] 좌우 600px max 가운데 정렬 (플로팅 바와 동일 폭), `pb: env(safe-area-inset-bottom)`
+- [ ] 상단 드래그 핸들 — 40x4 회색 바(`grey.300`, `theme.radii.pill`)
 - [ ] 헤더 — "장바구니 {N}" (`variant="h4"`, `fontWeight: 800`, 숫자만 `primary.main`) + `CloseIcon` 우측
 - [ ] 아이템 행:
   - 상단: 상품명 (`variant="body2"`, `fontWeight: 600`) + 우측 `CloseIcon` 작은 삭제 버튼
-  - 하단: 수량 스테퍼(보더 1px divider radius 10) + 라인 합계 `variant="subtitle2"`, `fontWeight: 700`
-- [ ] 빈 상태: "장바구니가 비어있습니다" 가운데 py 6
-- [ ] 푸터(아이템 있을 때, `bgcolor: #F8F9FA`):
-  - 배송비 행(`!isOnsitePurchase`): 정가 합계가 free_shipping_threshold 이상이면 "무료", 미달이면 `shipping_cost` 표시
+  - 하단: 수량 스테퍼(보더 1px divider, `theme.radii.sm`=8) + 라인 합계 `variant="subtitle2"`(토큰 weight 700)
+  - 수량 스테퍼: 수량 1에서 -1 누르면 `DeleteIcon`으로 전환(카트 제거), 2 이상이면 `RemoveIcon`
+- [ ] 빈 상태: `ui/EmptyState`(icon=`ShoppingCartOutlined`, title="장바구니가 비어있습니다")
+- [ ] 푸터(아이템 있을 때, `bgcolor: grey.50`):
+  - 배송비 행(`!isOnsitePurchase`): 정가(할인 전) 합계가 free_shipping_threshold 이상이면 "무료", 미달이면 `shipping_cost` 표시 (`variant="subtitle2"`)
   - 총 금액 행: 라벨 `variant="body1"`, `text.secondary` + 합계 `variant="h4"`, `primary.main`, `fontWeight: 800`
+  - 현장구매(`isOnsitePurchase=true`)면 배송비 행 미표시 + 합계는 배송비 미가산
 
 ### 성공 다이얼로그 (`OrderPage.jsx:372-403`)
 > 중요: 실제 플로우에서는 거의 도달하지 않는다. `create-order` 응답의 `data.order.access_token`이 있으면 `/order/status/{token}`으로 즉시 navigate하기 때문(line 191-194). 다이얼로그는 토큰이 없을 때의 fallback.
