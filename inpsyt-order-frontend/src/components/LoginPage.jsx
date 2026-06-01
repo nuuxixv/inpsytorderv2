@@ -109,7 +109,8 @@ const LoginPage = () => {
   useEffect(() => {
     const fetchProfiles = async () => {
       try {
-        const { data, error: fetchError } = await supabase.from('user_profiles').select('*');
+        // user_profiles RLS 적용(20260601) — anon은 직접 SELECT 차단. 로그인 셀렉터용 최소 컬럼(id/name/role/email)만 RPC로.
+        const { data, error: fetchError } = await supabase.rpc('get_login_directory');
         if (fetchError) throw fetchError;
         setProfiles(data || []);
       } catch (err) {
