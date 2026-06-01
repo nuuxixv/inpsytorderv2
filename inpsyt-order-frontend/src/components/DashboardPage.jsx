@@ -50,7 +50,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import { useNavigate } from 'react-router-dom';
 import { STATUS_TO_KOREAN as statusToKorean, STATUS_COLORS as statusColors } from '../constants/orderStatus';
-import { PageHeader, SectionCard, StatCard, StatusBadge } from './ui';
+import { PageHeader, SectionCard, StatCard, StatusBadge, EmptyState } from './ui';
 
 // 사양 시트: design-system/specs/A4_DashboardPage.md
 // (M3-12 시안 정합본. PR #10~#20 패턴.)
@@ -565,23 +565,32 @@ const DashboardPage = () => {
   useEffect(() => { setSelectedDate(null); }, [selectedEventIds]);
 
   // 사양 §일자 칩 — 행사 시작/종료 사이 일별 칩 생성
-  // 일자 탭은 '단일 상세 행사'를 골랐을 때만 의미 있음 — 그 행사의 실제 start~end만 enumerate.
-  // 서비스 현실: 행사가 띄엄띄엄(연 8일 = 1일짜리 4 + 2일짜리 2)이라 행사 간 빈 날을 채우면 안 됨(과거 145일 버그 원인).
-  // 1일짜리 → [1일] → 탭 미표시(전체 기간만). 2일짜리 → [1일,2일] → 전체 기간·1일차·2일차.
+  // 일자 칩 = 단일 상세 행사에서 '실제 주문(매출)이 발생한 지난 날짜'만 (KST distinct).
+  // 행사 기간(start~end) 전체를 채우면 안 됨 — 검수/테스트 행사는 1년 내내라 365일 폭주. 주문 있는 날만.
   // 넓은 범위(전체 합산/여러 행사) → [] → 일자 드릴다운 없이 전체 기간만.
-  const availableDates = useMemo(() => {
-    if (selectedEventIds.length !== 1) return [];
-    const ev = events.find(e => e.id === selectedEventIds[0]);
-    if (!ev || !ev.start_date || !ev.end_date) return [];
-    const dates = [];
-    let cur = new Date(ev.start_date + 'T12:00:00Z');
-    const last = new Date(ev.end_date + 'T12:00:00Z');
-    while (cur <= last) {
-      dates.push(cur.toISOString().slice(0, 10));
-      cur = new Date(cur.getTime() + 86400000);
-    }
-    return dates;
-  }, [selectedEventIds, events]);
+  const [salesDates, setSalesDates] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (selectedEventIds.length !== 1) { setSalesDates([]); return; }
+      const { data, error } = await supabase
+        .from('orders')
+        .select('created_at')
+        .eq('event_id', selectedEventIds[0]);
+      if (cancelled) return;
+      if (error || !data) { setSalesDates([]); return; }
+      const set = new Set(
+        data.map(o => {
+          // KST(UTC+9) 기준 날짜로 환산
+          const d = new Date(new Date(o.created_at).getTime() + 9 * 3600 * 1000);
+          return d.toISOString().slice(0, 10);
+        })
+      );
+      setSalesDates([...set].sort());
+    })();
+    return () => { cancelled = true; };
+  }, [selectedEventIds]);
+  const availableDates = salesDates;
 
   // ─── Aggregate Data Fetching (사양 §집계 로직 — 보존 100%) ───
   const fetchDataForEventIds = async (eventIds, targetEventName = '전체(합계)') => {
@@ -1011,8 +1020,13 @@ const DashboardPage = () => {
                   </Box>
                 </SectionCard>
               ) : (
-                // 알림 없음 = 카드 자체 미노출. 좌측 상태바 카드가 100% 폭 차지.
-                null
+                // 알림 없음 = 공백 대신 한적한 빈 상태(건우님 2026-06-01)
+                <SectionCard sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <EmptyState
+                    title="처리하실 주문이 없어요"
+                    description="들어온 주문을 모두 처리했어요"
+                  />
+                </SectionCard>
               )}
             </Box>
           </Box>
