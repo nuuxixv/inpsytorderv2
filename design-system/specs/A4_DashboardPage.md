@@ -56,9 +56,11 @@
     - 2건+ 선택 → "N개 선택"
   - 옵션 행: Checkbox + ListItemText(primary=`ev.name`, secondary=`start_date.toLocaleDateString()` 또는 "일자 미상")
   - 관련 행사 없음 시 disabled MenuItem "관련 행사 없음" 노출
-- [ ] 일자 칩(`availableDates.length > 1` 일 때만 노출) — line 651-673
+- [ ] 일자 칩(`availableDates.length > 1` 일 때만 노출)
+  - **`availableDates` = 단일 상세 행사(`selectedEventIds.length === 1`) 선택 시 그 행사의 실제 `start_date~end_date`만 enumerate** (2026-06-01 건우님 — 과거엔 전 행사 min→max 달력 전체를 채워 145일+ 버튼 폭주 버그). 넓은 범위/다중 선택 → `[]`(일자 탭 없이 전체 기간만)
+  - 서비스 현실: 연 8일(1일짜리 4 + 2일짜리 2). **1일짜리 행사 → 일자 탭 미표시(전체 기간만), 2일짜리 → 전체 기간·1일차·2일차**
   - "전체 기간" 칩 (선택 시 `selectedDate=null`, filled primary)
-  - 각 일차 칩: `{idx+1}일차 ({date.slice(5)})` 라벨, 클릭 토글 — `selectedDate === date` 면 해제, 아니면 설정
+  - 각 일차 칩: `{idx+1}일차 · {date.slice(5)}` 라벨, 클릭 토글 — `selectedDate === date` 면 해제, 아니면 설정
 - [ ] 계층 캐스케이드 리셋(side effect):
   - `selectedYear`/`selectedSociety` 변경 → `selectedEventIds=[]`, `selectedDate=null` (line 431)
   - `selectedEventIds` 변경 → `selectedDate=null` (line 432)

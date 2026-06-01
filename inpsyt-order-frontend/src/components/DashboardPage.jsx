@@ -565,25 +565,23 @@ const DashboardPage = () => {
   useEffect(() => { setSelectedDate(null); }, [selectedEventIds]);
 
   // 사양 §일자 칩 — 행사 시작/종료 사이 일별 칩 생성
+  // 일자 탭은 '단일 상세 행사'를 골랐을 때만 의미 있음 — 그 행사의 실제 start~end만 enumerate.
+  // 서비스 현실: 행사가 띄엄띄엄(연 8일 = 1일짜리 4 + 2일짜리 2)이라 행사 간 빈 날을 채우면 안 됨(과거 145일 버그 원인).
+  // 1일짜리 → [1일] → 탭 미표시(전체 기간만). 2일짜리 → [1일,2일] → 전체 기간·1일차·2일차.
+  // 넓은 범위(전체 합산/여러 행사) → [] → 일자 드릴다운 없이 전체 기간만.
   const availableDates = useMemo(() => {
-    const relevantEvents = selectedEventIds.length > 0
-      ? events.filter(e => selectedEventIds.includes(e.id))
-      : filteredEventsForDropdown;
-    if (relevantEvents.length === 0) return [];
-    const starts = relevantEvents.map(e => e.start_date).filter(Boolean);
-    const ends = relevantEvents.map(e => e.end_date).filter(Boolean);
-    if (!starts.length || !ends.length) return [];
-    const minStart = [...starts].sort()[0];
-    const maxEnd = [...ends].sort().reverse()[0];
+    if (selectedEventIds.length !== 1) return [];
+    const ev = events.find(e => e.id === selectedEventIds[0]);
+    if (!ev || !ev.start_date || !ev.end_date) return [];
     const dates = [];
-    let cur = new Date(minStart + 'T12:00:00Z');
-    const last = new Date(maxEnd + 'T12:00:00Z');
+    let cur = new Date(ev.start_date + 'T12:00:00Z');
+    const last = new Date(ev.end_date + 'T12:00:00Z');
     while (cur <= last) {
       dates.push(cur.toISOString().slice(0, 10));
       cur = new Date(cur.getTime() + 86400000);
     }
     return dates;
-  }, [selectedEventIds, events, filteredEventsForDropdown]);
+  }, [selectedEventIds, events]);
 
   // ─── Aggregate Data Fetching (사양 §집계 로직 — 보존 100%) ───
   const fetchDataForEventIds = async (eventIds, targetEventName = '전체(합계)') => {
