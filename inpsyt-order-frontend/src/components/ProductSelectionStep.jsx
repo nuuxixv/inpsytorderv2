@@ -57,7 +57,8 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
 
     // 카테고리
     if (selectedCategory !== 'all') {
-      list = list.filter(p => p.category === selectedCategory);
+      // 도구는 검사 하위 — 검사 선택 시 도구도 포함
+      list = list.filter(p => (p.category === '도구' ? '검사' : p.category) === selectedCategory);
     }
 
     // 모드 (검색 중에는 무시)
@@ -134,7 +135,10 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
   };
 
   const knownCategories = ['검사', '도서'];
-  const extractedCategories = allProducts.map(p => p.category).filter(Boolean);
+  // 도구 → 검사로 정규화(별도 칩으로 노출하지 않음)
+  const extractedCategories = allProducts
+    .map(p => (p.category === '도구' ? '검사' : p.category))
+    .filter(Boolean);
   const categories = [...new Set([...knownCategories, ...extractedCategories])];
 
   const viewModes = [
