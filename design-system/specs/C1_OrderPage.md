@@ -54,7 +54,7 @@
 - [ ] `minHeight: 100vh`, `display: flex`, `flexDirection: column`
 - [ ] `maxWidth: 600` 가운데 정렬 (모바일 우선이지만 데스크탑 폭 제한)
 - [ ] 배경색: `activeStep < 2` → `background.paper` (흰색) / `activeStep === 2` → `#F8F9FA` (회색) — 0.3s ease transition
-- [ ] **배경은 풀폭 래퍼, 콘텐츠는 600px 중앙(inner Box)** — PC에서 흰 컬럼 vs 바깥 색 경계(레터박스 "틈")가 안 보이게 seamless. 하단바는 600px 유지(흰 배경 위 흰 바). (2026-06-01 건우님 — PC/모바일 일관성)
+- [ ] **레이아웃 = 풀폭 회색 음영 backdrop(`gray[100]`=#F2F4F6) + 600px 중앙 컬럼.** 컬럼(inner Box) 표면색은 Step 0·1 흰색 / Step 2 `gray[50]`. 모바일앱을 PC 가운데 둔 프레임. (2026-06-01 건우님 — 600 바깥은 음영이어야 함. ※한때 풀폭 흰색 seamless로 잘못 갔다가 복구)
 - [ ] 콘텐츠 영역 하단 `pb: 100px` (플로팅 바 가림 방지)
 
 ### Step 0 — 상품 선택 (`ProductSelectionStep.jsx`)
@@ -186,7 +186,7 @@
 - [ ] 문구: "지금 주문하면 {M월 d일 (E)} 도착 예정이에요." — `date-fns/format` `ko` locale, `primary.main`, `fontWeight: 600` (실제 코드엔 트럭 이모지가 앞에 붙음)
 
 ### 전 단계 공통 — 플로팅 하단 바 (`FloatingBottomBar.jsx`)
-- [ ] position fixed bottom 0, 좌우 max(0, (100vw - 600px) / 2)로 **부모 콘텐츠 컬럼(600px)에 맞춰 가운데 정렬** (뷰포트 풀폭 아님 — 부모 컨테이너 폭에 정합), zIndex 1200
+- [ ] position fixed bottom 0, **`left:0; right:0; maxWidth:600; mx:auto`로 600px 중앙 정렬** — 콘텐츠 컬럼과 동일한 auto-margin 방식이라 스크롤바 오프셋 없이 컬럼과 픽셀 정렬(`100vw` 계산 금지: 스크롤바 폭 포함돼 PC에서 ~7px 어긋나 "양옆 틈" 발생했던 원인). zIndex 1200
 - [ ] `bgcolor: background.paper`, top 1px divider, `boxShadow: '0 -4px 20px rgba(0,0,0,0.08)'`
 - [ ] 안전 영역: `pb: max(12px, env(safe-area-inset-bottom))`
 
