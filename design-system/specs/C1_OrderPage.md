@@ -65,19 +65,19 @@
 #### 검색바 (line 165-188)
 - [ ] `TextField` 풀너비, 시작 아이콘 `SearchIcon`(text.disabled)
 - [ ] 플레이스홀더: "상품명으로 검색 (띄어쓰기로 여러 키워드)"
-- [ ] 토큰 외 시각 속성 — 시안에서 정리 대상: `borderRadius: '14px'`, `bgcolor: '#F2F4F6'`, height 48, 비포커스 시 보더 투명
+- [ ] 시각: **흰색 기본 아웃라인 TextField(글로벌 테마), `sx={{ mb: 2 }}`만.** (2026-06-01 건우님 결정 — /preview 목업 정합. 기존 회색 채움 `#F2F4F6`/height48/보더투명 폐기. 단 플레이스홀더의 멀티키워드 힌트는 기능 안내라 유지)
 
 #### 뷰 모드 칩 (line 192-219)
 - [ ] 가로 스크롤 영역, 칩 3개:
   - "전체" (key=`all`)
   - "인기" (key=`popular`, `StarIcon`) — 기본 선택
   - "신규출시" (key=`new`, `NewIcon` = `FiberNew`)
-- [ ] 선택 시 filled+primary, 비선택 시 outlined default
+- [ ] 선택 시 filled+primary, 비선택 시 outlined default. **라운드 `radii.sm`(8px) = 둥근 사각(알약형 아님). 2026-06-01 목업 정합**
 - [ ] 검색어가 있을 때는 뷰 모드 필터링 무시 (line 62-65)
 
 #### 카테고리 칩 (line 221-248)
 - [ ] 동적 목록 — `['검사', '도서']` + `allProducts`에서 추출한 `category`의 unique 합집합 (line 134-136) + 맨 앞 "전체"(`all`)
-- [ ] 선택 시 filled+secondary, 비선택 시 outlined default
+- [ ] 선택 시 filled+secondary, 비선택 시 outlined default. **라운드 `radii.sm`(8px) — 뷰 모드 칩과 동일(2026-06-01 목업 정합)**
 
 #### 상품 그리드 (line 251-289)
 - [ ] CSS Grid, `gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))'`, gap 1.5
@@ -107,11 +107,12 @@
 
 ### Step 1 — 주문자 정보 (`CustomerInfoStep.jsx`)
 
-#### 헤더 (line 87-94)
-- [ ] 페이지 제목: "주문자 정보를 입력해주세요" — `variant="h3"`, `fontWeight: 800`
-- [ ] 부제 — `isOnsitePurchase` 분기:
-  - 일반: "배송에 필요한 정보입니다"
-  - 현장구매: "주문자 확인을 위한 정보입니다"
+#### 헤더 (line 87-96)
+- [ ] 페이지 제목 — `isOnsitePurchase` 분기 (2026-06-01 건우님 결정):
+  - 일반(배송): **"배송 받으실 주소를 입력해주세요"**
+  - 현장구매: "주문자 정보를 입력해주세요" (배송지 없으므로 기존 유지)
+  - `variant="h3"`, `fontWeight: 800`
+- [ ] 부제: **"{이벤트명}" + `discountRate > 0`이면 " · {N}% 할인 적용"** (Step 0 헤더와 동일 패턴, 양쪽 모드 공통). 기존 "배송에 필요한 정보입니다"/"주문자 확인을 위한 정보입니다" 폐기
 
 #### 섹션 1 — 필수 정보 (line 96-157)
 - [ ] 섹션 헤더: `variant="overline"`, "필수 정보" — `fontWeight: 700`, `color: text.secondary`
@@ -143,7 +144,7 @@
 
 #### 헤더 (line 35-43)
 - [ ] 페이지 제목: "주문 내용을 확인해주세요" — `variant="h3"`, `fontWeight: 800`
-- [ ] 부제: "모든 정보가 올바른지 확인 후 제출해주세요"
+- [ ] 부제: **"{이벤트명}" + `discountRate > 0`이면 " · {N}% 할인 적용"** (Step 0 헤더와 동일 패턴). 기존 "모든 정보가 올바른지 확인 후 제출해주세요" 폐기 (2026-06-01 건우님 결정)
 
 #### 카드 1 — 주문 상품 (line 45-93)
 - [ ] 카드 헤더 좌측: "주문 상품 · {N}건" — `variant="h5"`, `fontWeight: 700`
@@ -202,7 +203,7 @@
 #### 우측 CTA 버튼 (line 157-183)
 - [ ] `variant="contained"`, size large, fullWidth, minHeight 52, radius 14(인라인 — 시안에서는 `radius-button`=8로 흡수)
 - [ ] 단계별 라벨:
-  - Step 0: "주문서 작성하기"
+  - Step 0: **"배송지 입력하기"** (배송 주문) / **"주문서 작성하기"** (현장구매 `isOnsitePurchase`) — 2026-06-01 건우님 결정, isOnsitePurchase 분기
   - Step 1: "다음"
   - Step 2: "주문 제출하기"
 - [ ] 단계별 비활성 조건(`getNextDisabled`):
@@ -380,5 +381,6 @@
 10. **`fontSize: '0.8125rem'`(13px), `0.6875rem`(11px) 같은 인라인 값이 카드·칩에 다수.** 02 §타이포 §사용 규칙 약속 2 흡수 표를 그대로 적용.
 
 ## 변경 이력
+- 2026-06-01 고객 주문 화면 보강 (건우님 지시) — (1) **검색바** 회색 채움 `#F2F4F6` → **흰색 기본 아웃라인**(/preview 목업 정합, 플레이스홀더 멀티키워드 힌트 유지). (2) **뷰/카테고리 칩** 알약형 → `radii.sm`(8px) 둥근 사각. (3) **Step 1 헤더** `isOnsitePurchase` 분기 — 배송 "배송 받으실 주소를 입력해주세요" / 현장 "주문자 정보를 입력해주세요" 유지. (4) **Step 1·2 부제** → "{이벤트명} · N% 할인 적용"(Step 0 패턴 통일, 양쪽 모드). (5) **CTA Step 0** "주문서 작성하기" → 배송 "배송지 입력하기" / 현장 기존 유지. (6) **제출 후 OrderStatusPage 연락처** `mono`(monospace) 제거 → 일반 폰트. **보존**: 주소 3필드 분리·현장구매 배송지 숨김·할인/무료배송 로직·검색 멀티키워드 전부 무변경. **현장구매 모드 문구는 전부 기존 보존**(배송 문구 강제 주입 안 함).
 - 2026-05-13 신설 — M2 시안 착수 사전 정독. `OrderPage.jsx` 외 6개 자식·보조 컴포넌트 + DB 마이그레이션 + create-order edge function 전수. 환각 방지 위해 컬럼명 불일치·문구 잔재·`is_on_site_sale` 미사용 등 의심 8건은 "확인 필요"로 표기.
 - 2026-05-29 M3-10 시안 정합 — `OrderPage.jsx` + 자식 7종(`OrderStepIndicator`/`FloatingBottomBar`/`ProductCard`/`ProductSelectionStep`/`CustomerInfoStep`/`OrderReviewStep`/`CostSummary`) 토큰화. **보존**: 트리플탭 600ms 3회·Step 0 인디케이터 숨김·주소 3필드 분리(DaumPostcode 모달)·`hasOnlineCode` 조건부 인싸이트 ID·현장구매 배송지 섹션 숨김·API/Supabase/Edge Function/알림톡 트리거·`CartBottomSheet` 변경 0·성공 다이얼로그 fallback·접근 차단 화면. **교체**: 인라인 raw hex 0건(theme 토큰 경유), 인라인 `fontSize`/`borderRadius` 흡수(글로벌 MuiCard·MuiButton·MuiTextField·MuiChip 토큰 위임), `bgcolor: '#F8F9FA'` → `theme.gray[50]`, `'#F2F4F6'` → `theme.gray[100]`, `'rgba(43,57,143,...)'` → `alpha(primary.main, ...)`, 사양 §발견 7 잔재 문구 정리 — `OrderPage:139`의 "성함, 연락처, 이메일" → "성함, 연락처", 배송 예정일 안내의 트럭 이모지 → `ShippingIcon` 컴포넌트. **신규 없음**(시안 답습 0건). **사양 §발견 1~7 모두 보존 확인.**

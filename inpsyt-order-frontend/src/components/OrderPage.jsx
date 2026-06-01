@@ -327,6 +327,8 @@ const OrderPage = () => {
             setCustomerInfo={setCustomerInfo}
             hasOnlineCode={hasOnlineCode}
             isOnsitePurchase={isOnsitePurchase}
+            eventName={eventInfo?.name || ''}
+            discountRate={discountRate}
           />
         )}
 
@@ -339,6 +341,7 @@ const OrderPage = () => {
             onGoToStep={handleGoToStep}
             isOnsitePurchase={isOnsitePurchase}
             estimatedDeliveryDate={eventInfo?.estimated_delivery_date}
+            eventName={eventInfo?.name || ''}
           />
         )}
       </Box>
