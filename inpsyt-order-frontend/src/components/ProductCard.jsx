@@ -1,6 +1,7 @@
 import React from 'react';
-import { Box, Typography, Card, CardContent, Button, IconButton, Chip, useTheme } from '@mui/material';
-import { Add as AddIcon, Remove as RemoveIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { Box, Typography, Card, CardContent, Button, IconButton, useTheme } from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import { Add as AddIcon, Remove as RemoveIcon, Delete as DeleteIcon, Star as StarIcon } from '@mui/icons-material';
 
 // 사양 §Step 0 — 상품 카드.
 // - 카테고리 / 인기 / 신규 배지 (조건부)
@@ -13,6 +14,8 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
   const discountedPrice = isDiscounted
     ? Math.round(product.list_price * (1 - discountRate))
     : product.list_price;
+  // 도구는 검사 하위로 본다 — 배지·필터 모두 '검사'로 표기
+  const displayCategory = product.category === '도구' ? '검사' : product.category;
 
   return (
     <Card
@@ -30,43 +33,60 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
       onClick={!isInCart ? onAdd : undefined}
     >
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 }, display: 'flex', flexDirection: 'column', height: '100%' }}>
-        {/* Category / popular / new badges */}
-        <Box sx={{ display: 'flex', gap: 0.5, mb: 0.75, alignItems: 'center' }}>
-          {(product.category === '검사' || product.category === '도서') && (
-            <Chip
-              label={product.category}
-              size="small"
+        {/* Category / popular / new badges — 소프트 틴트(목업 정합). 솔리드 칩 폐기 */}
+        <Box sx={{ display: 'flex', gap: 0.5, mb: 0.75, flexWrap: 'wrap', alignItems: 'center' }}>
+          {displayCategory && (
+            <Box
               sx={{
                 height: 18,
-                bgcolor: product.category === '검사' ? 'info.main' : theme.gray[400],
-                color: 'common.white',
-                '& .MuiChip-label': { px: 0.75, fontWeight: 700 },
+                px: 0.75,
+                borderRadius: '4px',
+                bgcolor: displayCategory === '검사' ? alpha(theme.palette.info.main, 0.14) : theme.gray[200],
+                color: displayCategory === '검사' ? 'info.dark' : 'text.secondary',
+                display: 'flex',
+                alignItems: 'center',
               }}
-            />
+            >
+              <Typography variant="caption" sx={{ fontWeight: 700, lineHeight: 1 }}>
+                {displayCategory}
+              </Typography>
+            </Box>
           )}
           {product.is_popular && (
-            <Chip
-              label="★"
-              size="small"
+            <Box
               sx={{
                 height: 18,
-                bgcolor: theme.accent.attention,
-                color: 'common.white',
-                '& .MuiChip-label': { px: 0.75, fontWeight: 800 },
+                px: 0.75,
+                borderRadius: '4px',
+                bgcolor: alpha(theme.accent.attention, 0.14),
+                color: theme.accent.attention,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.25,
               }}
-            />
+            >
+              <StarIcon sx={{ fontSize: 11 }} />
+              <Typography variant="caption" sx={{ fontWeight: 700, lineHeight: 1, color: 'inherit' }}>
+                인기
+              </Typography>
+            </Box>
           )}
           {product.is_new && (
-            <Chip
-              label="NEW"
-              size="small"
+            <Box
               sx={{
                 height: 18,
-                bgcolor: 'error.main',
-                color: 'common.white',
-                '& .MuiChip-label': { px: 0.75, fontWeight: 800 },
+                px: 0.75,
+                borderRadius: '4px',
+                bgcolor: alpha(theme.palette.error.main, 0.12),
+                color: 'error.main',
+                display: 'flex',
+                alignItems: 'center',
               }}
-            />
+            >
+              <Typography variant="caption" sx={{ fontWeight: 700, lineHeight: 1 }}>
+                NEW
+              </Typography>
+            </Box>
           )}
         </Box>
 
@@ -124,8 +144,6 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
             sx={{
               height: 40,
               fontWeight: 700,
-              borderColor: 'primary.main',
-              color: 'primary.main',
               '&:active': { transform: 'scale(0.97)' },
             }}
           >

@@ -76,7 +76,7 @@
 - [ ] 검색어가 있을 때는 뷰 모드 필터링 무시 (line 62-65)
 
 #### 카테고리 칩 (line 221-248)
-- [ ] 동적 목록 — `['검사', '도서']` + `allProducts`에서 추출한 `category`의 unique 합집합 (line 134-136) + 맨 앞 "전체"(`all`)
+- [ ] 동적 목록 — `['검사', '도서']` + `allProducts`에서 추출한 `category`의 unique 합집합 (line 134-136) + 맨 앞 "전체"(`all`). **`도구`는 `검사`로 정규화 — 별도 칩 노출 안 함, `검사` 선택 시 도구도 포함 (2026-06-01 건우님 규칙)**
 - [ ] 선택 시 filled+secondary, 비선택 시 outlined default. **라운드 `radii.sm`(8px) — 뷰 모드 칩과 동일(2026-06-01 목업 정합)**
 
 #### 상품 그리드 (line 251-289)
@@ -89,15 +89,16 @@
 #### 상품 카드 (`ProductCard.jsx`)
 - [ ] 보더 1.5px — 장바구니에 있으면 `primary.main`, 없으면 `divider`
 - [ ] 상단 배지 영역 (mb 0.75):
-  - 카테고리 칩 — `검사`/`도서`인 경우만 (높이 18, `검사` `info.main` 배경 / `도서` `grey.400` 배경, **`도서`가 회색인 건 시안 검수에서 의미 강도 재검토 필요** — 정보 vs 회색 위계가 비대칭)
-  - 인기 별 칩 (별 모양) — `is_popular=true`일 때, `#f39c12` 배경
-  - 신규 칩 "NEW" — `is_new=true`일 때, `error.main` 배경
+  - **배지 = 솔리드 칩 아님. 소프트 틴트 박스(높이 18, radius 4px, alpha 0.12~0.14 배경 + 컬러 텍스트). 2026-06-01 /preview 목업 정합.**
+  - 카테고리 배지 — `category` 있으면 표시(`도구`는 `검사`로). `검사`=`alpha(info.main,0.14)` 배경+`info.dark` 텍스트 / 그 외(`도서` 등)=`gray[200]` 배경+`text.secondary`
+  - 인기 배지 — `is_popular=true`일 때, `alpha(accent.attention,0.14)` 배경 + `accent.attention` 색 + **`StarIcon`(11px) + "인기" 텍스트** (★ 단독 아님)
+  - 신규 배지 "NEW" — `is_new=true`일 때, `alpha(error.main,0.12)` 배경 + `error.main` 텍스트
 - [ ] 상품명 — `variant="body2"`, `fontWeight: 600`, 토큰 외 인라인 `fontSize: '0.8125rem'` 사용 중(13px) → 02 §타이포 §사용 규칙 약속 2에 따라 시안에서는 14(`body2`)로 흡수
 - [ ] 가격 영역:
   - 할인 시(상품이 `is_discountable=true` AND `discountRate > 0`): 원가 line-through(`text.disabled`) + `{N}%` **빨강 텍스트**(`caption`, `error.main`, fontWeight 700 — **칩 아님**, 2026-06-01 /preview 목업 정합)
   - 최종가 — `variant="subtitle1"`, `fontWeight: 800`, 할인 시 `primary.main` 색
 - [ ] 액션 영역(높이 40, 하단 고정):
-  - 카트에 없으면 "담기" outlined 버튼 (보더 + 텍스트 `primary.main`)
+  - 카트에 없으면 "담기" outlined 버튼 — **전역 테마 회색 아웃라인(`gray[300]` 보더 + `gray[800]` 텍스트). primary 파랑 override 폐기, 2026-06-01 목업 정합**
   - 카트에 있으면 수량 스테퍼 — `bgcolor: primary.main`, 흰색 텍스트, 좌측 마이너스/Delete(수량 1일 때), 가운데 수량, 우측 플러스
 
 #### 빈 상태·로딩 (line 252-264)
@@ -184,7 +185,7 @@
 - [ ] 문구: "지금 주문하면 {M월 d일 (E)} 도착 예정이에요." — `date-fns/format` `ko` locale, `primary.main`, `fontWeight: 600` (실제 코드엔 트럭 이모지가 앞에 붙음)
 
 ### 전 단계 공통 — 플로팅 하단 바 (`FloatingBottomBar.jsx`)
-- [ ] position fixed bottom 0, 좌우 max(0, (100vw - 600px) / 2)로 600px 폭 가운데 정렬, zIndex 1200
+- [ ] position fixed bottom 0, **바 배경은 화면 풀폭(`left:0, right:0`)** — 양옆 틈 제거. **내부 콘텐츠(카트·CTA·무료배송 안내)는 `maxWidth 600, mx:auto`로 중앙** 유지(콘텐츠 컬럼과 정렬). zIndex 1200. (2026-06-01 건우님 — 데스크톱/태블릿 레터박스 틈 제거)
 - [ ] `bgcolor: background.paper`, top 1px divider, `boxShadow: '0 -4px 20px rgba(0,0,0,0.08)'`
 - [ ] 안전 영역: `pb: max(12px, env(safe-area-inset-bottom))`
 
@@ -381,6 +382,7 @@
 10. **`fontSize: '0.8125rem'`(13px), `0.6875rem`(11px) 같은 인라인 값이 카드·칩에 다수.** 02 §타이포 §사용 규칙 약속 2 흡수 표를 그대로 적용.
 
 ## 변경 이력
+- 2026-06-01 상품 카드/하단바 목업 정합 (건우님 좌우 비교 지시) — (1) **배지 솔리드 칩 → 소프트 틴트 박스**(alpha 0.12~0.14), 인기 배지 "★" 단독 → **StarIcon+"인기"**. (2) **"담기" 버튼 파랑(primary) → 회색**(테마 기본 outlined). (3) **하단바 배경 풀폭**(left/right 0) — 양옆 레터박스 틈 제거, 내부 콘텐츠는 maxWidth 600 중앙 유지. (4) **`도구` 카테고리 → `검사`로 정규화**(별도 칩 X, 검사 필터에 포함, 카드 배지도 검사). 파일: `ProductCard.jsx`·`ProductSelectionStep.jsx`·`FloatingBottomBar.jsx`.
 - 2026-06-01 고객 주문 화면 보강 (건우님 지시) — (1) **검색바** 회색 채움 `#F2F4F6` → **흰색 기본 아웃라인**(/preview 목업 정합, 플레이스홀더 멀티키워드 힌트 유지). (2) **뷰/카테고리 칩** 알약형 → `radii.sm`(8px) 둥근 사각. (3) **Step 1 헤더** `isOnsitePurchase` 분기 — 배송 "배송 받으실 주소를 입력해주세요" / 현장 "주문자 정보를 입력해주세요" 유지. (4) **Step 1·2 부제** → "{이벤트명} · N% 할인 적용"(Step 0 패턴 통일, 양쪽 모드). (5) **CTA Step 0** "주문서 작성하기" → 배송 "배송지 입력하기" / 현장 기존 유지. (6) **제출 후 OrderStatusPage 연락처** `mono`(monospace) 제거 → 일반 폰트. **보존**: 주소 3필드 분리·현장구매 배송지 숨김·할인/무료배송 로직·검색 멀티키워드 전부 무변경. **현장구매 모드 문구는 전부 기존 보존**(배송 문구 강제 주입 안 함).
 - 2026-05-13 신설 — M2 시안 착수 사전 정독. `OrderPage.jsx` 외 6개 자식·보조 컴포넌트 + DB 마이그레이션 + create-order edge function 전수. 환각 방지 위해 컬럼명 불일치·문구 잔재·`is_on_site_sale` 미사용 등 의심 8건은 "확인 필요"로 표기.
 - 2026-05-29 M3-10 시안 정합 — `OrderPage.jsx` + 자식 7종(`OrderStepIndicator`/`FloatingBottomBar`/`ProductCard`/`ProductSelectionStep`/`CustomerInfoStep`/`OrderReviewStep`/`CostSummary`) 토큰화. **보존**: 트리플탭 600ms 3회·Step 0 인디케이터 숨김·주소 3필드 분리(DaumPostcode 모달)·`hasOnlineCode` 조건부 인싸이트 ID·현장구매 배송지 섹션 숨김·API/Supabase/Edge Function/알림톡 트리거·`CartBottomSheet` 변경 0·성공 다이얼로그 fallback·접근 차단 화면. **교체**: 인라인 raw hex 0건(theme 토큰 경유), 인라인 `fontSize`/`borderRadius` 흡수(글로벌 MuiCard·MuiButton·MuiTextField·MuiChip 토큰 위임), `bgcolor: '#F8F9FA'` → `theme.gray[50]`, `'#F2F4F6'` → `theme.gray[100]`, `'rgba(43,57,143,...)'` → `alpha(primary.main, ...)`, 사양 §발견 7 잔재 문구 정리 — `OrderPage:139`의 "성함, 연락처, 이메일" → "성함, 연락처", 배송 예정일 안내의 트럭 이모지 → `ShippingIcon` 컴포넌트. **신규 없음**(시안 답습 0건). **사양 §발견 1~7 모두 보존 확인.**

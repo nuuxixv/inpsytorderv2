@@ -67,8 +67,9 @@ const FloatingBottomBar = ({
       sx={{
         position: 'fixed',
         bottom: 0,
-        left: 'max(0px, calc((100vw - 600px) / 2))',
-        right: 'max(0px, calc((100vw - 600px) / 2))',
+        // 바 배경은 화면 꽉 차게(양옆 틈 제거), 내부 콘텐츠는 maxWidth 600 중앙 유지
+        left: 0,
+        right: 0,
         zIndex: 1200,
         bgcolor: 'background.paper',
         borderTop: '1px solid',
