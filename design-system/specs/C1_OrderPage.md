@@ -54,6 +54,7 @@
 - [ ] `minHeight: 100vh`, `display: flex`, `flexDirection: column`
 - [ ] `maxWidth: 600` 가운데 정렬 (모바일 우선이지만 데스크탑 폭 제한)
 - [ ] 배경색: `activeStep < 2` → `background.paper` (흰색) / `activeStep === 2` → `#F8F9FA` (회색) — 0.3s ease transition
+- [ ] **배경은 풀폭 래퍼, 콘텐츠는 600px 중앙(inner Box)** — PC에서 흰 컬럼 vs 바깥 색 경계(레터박스 "틈")가 안 보이게 seamless. 하단바는 600px 유지(흰 배경 위 흰 바). (2026-06-01 건우님 — PC/모바일 일관성)
 - [ ] 콘텐츠 영역 하단 `pb: 100px` (플로팅 바 가림 방지)
 
 ### Step 0 — 상품 선택 (`ProductSelectionStep.jsx`)
