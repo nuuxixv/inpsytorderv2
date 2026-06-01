@@ -57,7 +57,7 @@
   - 옵션 행: Checkbox + ListItemText(primary=`ev.name`, secondary=`start_date.toLocaleDateString()` 또는 "일자 미상")
   - 관련 행사 없음 시 disabled MenuItem "관련 행사 없음" 노출
 - [ ] 일자 칩(`availableDates.length > 1` 일 때만 노출)
-  - **`availableDates` = 단일 상세 행사(`selectedEventIds.length === 1`) 선택 시 그 행사의 실제 `start_date~end_date`만 enumerate** (2026-06-01 건우님 — 과거엔 전 행사 min→max 달력 전체를 채워 145일+ 버튼 폭주 버그). 넓은 범위/다중 선택 → `[]`(일자 탭 없이 전체 기간만)
+  - **`availableDates` = 단일 상세 행사(`selectedEventIds.length === 1`)의 주문에서 '실제 매출(주문) 발생한 지난 날짜'만 distinct·KST·정렬** (2026-06-01 건우님). `start~end` 전체 enumerate 금지 — 검수/테스트 행사는 1년 내내라 365일 폭주(또 과거엔 전 행사 min→max로 145일+ 버그). 주문 없는 날은 칩 미생성. 넓은 범위/다중 선택 → `[]`(일자 탭 없이 전체 기간만). 2일짜리 행사도 주문 있는 날만(둘 다 있으면 1·2일차)
   - 서비스 현실: 연 8일(1일짜리 4 + 2일짜리 2). **1일짜리 행사 → 일자 탭 미표시(전체 기간만), 2일짜리 → 전체 기간·1일차·2일차**
   - "전체 기간" 칩 (선택 시 `selectedDate=null`, filled primary)
   - 각 일차 칩: `{idx+1}일차 · {date.slice(5)}` 라벨, 클릭 토글 — `selectedDate === date` 면 해제, 아니면 설정
@@ -107,7 +107,7 @@
 - [ ] 항목(조건부):
   - `결제대기 N건` (`pendingCount > 0`)
   - `결제완료(출고대기) N건` (`paidCount > 0`)
-- [ ] **확인 필요** — 시안은 항상 노출(line 242-260)하고 라벨이 "결제대기" / "출고 대기"로 다름. 실 페이지는 0건이면 카드 자체 미노출 + "결제완료(출고대기)" 라벨. 정합 결정 필요
+- [ ] **0건일 때(`!hasAlerts`)**: 공백 대신 **한적한 빈 상태 카드** — `EmptyState` 제목 "처리하실 주문이 없어요" / 부제 "들어온 주문을 모두 처리했어요" (2026-06-01 건우님 — 공백 제거). 라벨 "결제완료(출고대기)"는 운영자 인식 보존
 
 #### 주문 처리 현황 (StatusBar, line 75-134, 우측 카드)
 - [ ] 소제목: "주문 처리 현황" (실 페이지: StatusBar 내부 line 84 / 시안: SectionCard title)
