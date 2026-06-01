@@ -164,12 +164,12 @@ const LoginPage = () => {
     }
   };
 
-  // 사양 §필터 line 88-93: fulfillment는 3종 슬러그 묶음 (dead branch 'fulfillment' 포함)
+  // 사양 §필터: '출고' 역할은 fulfillment_book/fulfillment_test 두 슬러그를 묶어 노출
   const usersForRole = useMemo(() => {
     if (!selectedRole) return [];
     if (selectedRole === 'fulfillment') {
       return profiles.filter(
-        p => p.role === 'fulfillment' || p.role === 'fulfillment_book' || p.role === 'fulfillment_test',
+        p => p.role === 'fulfillment_book' || p.role === 'fulfillment_test',
       );
     }
     return profiles.filter(p => p.role === selectedRole);

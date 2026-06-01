@@ -20,6 +20,7 @@ import {
 import { supabase } from '../supabaseClient';
 import { useNotification } from '../hooks/useNotification';
 import { matchesSearch } from '../utils/search';
+import { SHIPPING_DEFAULTS } from '../constants/shipping';
 import { PriceBlock, ActionSlot, EmptyState } from './ui';
 
 // 사양 시트: design-system/specs/A2_NewOrderModal.md
@@ -160,8 +161,8 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
     const originalSubtotal = cart.reduce((sum, c) => sum + (c.product.list_price || 0) * c.quantity, 0);
     const discountedSubtotal = cart.reduce((sum, c) => sum + calcDiscountedPrice(c.product) * c.quantity, 0);
     const calcDiscount = originalSubtotal - discountedSubtotal;
-    const freeThreshold = settings.free_shipping_threshold ?? 30000;
-    const shipCost = settings.shipping_cost ?? 3000;
+    const freeThreshold = settings.free_shipping_threshold ?? SHIPPING_DEFAULTS.FREE_SHIPPING_THRESHOLD;
+    const shipCost = settings.shipping_cost ?? SHIPPING_DEFAULTS.SHIPPING_COST;
     const fee = isOnSite ? 0 : (discountedSubtotal > 0 && discountedSubtotal < freeThreshold ? shipCost : 0);
     return {
       totalAmount: originalSubtotal,

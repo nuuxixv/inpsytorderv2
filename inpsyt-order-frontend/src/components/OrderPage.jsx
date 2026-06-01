@@ -23,6 +23,7 @@ import CustomerInfoStep from './CustomerInfoStep';
 import OrderReviewStep from './OrderReviewStep';
 import CartBottomSheet from './CartBottomSheet';
 import { getTodayKST } from '../utils/date';
+import { SHIPPING_DEFAULTS } from '../constants/shipping';
 
 const OrderPage = () => {
   const theme = useTheme();
@@ -40,8 +41,8 @@ const OrderPage = () => {
 
   // Settings state
   const [settings, setSettings] = useState({
-    free_shipping_threshold: 30000,
-    shipping_cost: 3000,
+    free_shipping_threshold: SHIPPING_DEFAULTS.FREE_SHIPPING_THRESHOLD,
+    shipping_cost: SHIPPING_DEFAULTS.SHIPPING_COST,
   });
 
   // Data state
