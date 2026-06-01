@@ -35,6 +35,7 @@ const OrderPage = () => {
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const [isOnsitePurchase, setIsOnsitePurchase] = useState(false);
   const [onsiteSnackbar, setOnsiteSnackbar] = useState(false);
+  const [shippingNotice, setShippingNotice] = useState(false);
   const tapCountRef = useRef(0);
   const tapTimerRef = useRef(null);
 
@@ -67,7 +68,8 @@ const OrderPage = () => {
     return validCartItems.reduce((sum, item) => sum + (item.list_price || 0) * item.quantity, 0);
   }, [validCartItems]);
 
-  const isCustomerInfoValid = customerInfo.name && customerInfo.phone;
+  const isCustomerInfoValid = customerInfo.name && customerInfo.phone
+    && (isOnsitePurchase || (customerInfo.address && customerInfo.detailAddress));
   const hasOnlineCode = validCartItems.some(item => item.category === '온라인코드' || (item.name && item.name.includes('온라인')));
   const isSubmittable = isCustomerInfoValid && hasCartItems;
 
@@ -134,12 +136,17 @@ const OrderPage = () => {
         return;
       }
       setError(null);
+      // 배송 모드 & 배송비 부과 조건이면 0→1 전환 시 배송비 노티(CS 예방)
+      if (!isOnsitePurchase && totalOriginalPrice < settings.free_shipping_threshold) {
+        setShippingNotice(true);
+      }
       setActiveStep(1);
       window.scrollTo(0, 0);
     } else if (activeStep === 1) {
       if (!isCustomerInfoValid) {
-        // 사양 §발견 7 — 'email' 컬럼 제거됨(2026-04-08). 잔재 문구 정리.
-        setError('필수 정보(성함, 연락처)를 입력해주세요.');
+        setError(isOnsitePurchase
+          ? '필수 정보(성함, 연락처)를 입력해주세요.'
+          : '필수 정보(성함, 연락처, 배송지)를 입력해주세요.');
         return;
       }
       setError(null);
@@ -302,8 +309,8 @@ const OrderPage = () => {
         <Box sx={{ flex: 1 }} />
       </Box>
 
-      {/* Step indicator - Hide only in Step 0 (Lounge mode) */}
-      {activeStep > 0 && <OrderStepIndicator activeStep={activeStep} />}
+      {/* Step indicator - 3단계 전체 표시 (Step 0 포함, 2026-06-01 건우님) */}
+      <OrderStepIndicator activeStep={activeStep} />
 
       {/* Error display — 사양 §전 단계 공통 에러 알림 */}
       {error && (
@@ -420,6 +427,15 @@ const OrderPage = () => {
         autoHideDuration={2000}
         onClose={() => setOnsiteSnackbar(false)}
         message={isOnsitePurchase ? '🏪 현장구매 모드로 전환됐어요' : '📦 일반 배송 모드로 전환됐어요'}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      />
+
+      {/* 배송비 노티 — 0→1 전환 시(배송 모드·배송비 부과). CS 예방 */}
+      <Snackbar
+        open={shippingNotice}
+        autoHideDuration={4000}
+        onClose={() => setShippingNotice(false)}
+        message={`📦 배송비 ${settings.shipping_cost.toLocaleString()}원이 추가돼요 · ${settings.free_shipping_threshold.toLocaleString()}원 이상 구매 시 무료배송`}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       />
     </Box>

@@ -86,7 +86,7 @@ const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false
   return (
     <Box sx={{ px: 2, pb: 4 }}>
       {/* Header */}
-      <Box sx={{ mb: 3, pt: 2 }}>
+      <Box sx={{ mb: 3, pt: 2, textAlign: 'center' }}>
         <Typography variant="h3" sx={{ fontWeight: 800, mb: 0.5 }}>
           {isOnsitePurchase ? '주문자 정보를 입력해주세요' : '배송 받으실 주소를 입력해주세요'}
         </Typography>
@@ -174,6 +174,7 @@ const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false
           </Typography>
           <Stack spacing={2} sx={{ mb: 3 }}>
             <TextField
+              required
               fullWidth
               name="address"
               label="주소 검색"
@@ -206,6 +207,7 @@ const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false
               }}
             />
             <TextField
+              required
               fullWidth
               name="detailAddress"
               label="상세주소"
@@ -220,14 +222,7 @@ const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false
               }}
               sx={inputSx}
             />
-            <TextField
-              fullWidth
-              name="postcode"
-              label="우편번호"
-              value={customerInfo.postcode}
-              InputProps={{ readOnly: true }}
-              sx={inputSx}
-            />
+            {/* 우편번호 — 칸은 히든(Daum 검색이 자동 저장, 출고 정보엔 그대로 포함). 건우님 2026-06-01 */}
           </Stack>
         </>
       )}
