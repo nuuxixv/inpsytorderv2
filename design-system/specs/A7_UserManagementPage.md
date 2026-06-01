@@ -64,11 +64,14 @@
 #### 권한 매트릭스 표 (line 704-790)
 - [ ] 첫 컬럼(sticky left): "역할"
   - 행마다: 템플릿명 + (시스템이면) `LockIcon` "기본" outlined 칩 + 설명(있으면 caption)
-- [ ] 11개 권한 컬럼(`PERMISSION_COLUMNS`):
+- [ ] **8개** 권한 컬럼(`PERMISSION_COLUMNS`) — 실제 동작(메뉴 게이트/RLS 연결)하는 권한만:
   - `dashboard:view` 대시보드 / `orders:view` 주문 조회 / `orders:edit` 주문 편집
-  - `fulfillment:view` 출고 현황 / `events:view` 학회 조회 / `events:edit` 학회 편집
+  - `events:view` 학회 조회 / `events:edit` 학회 편집
   - `products:view` 상품 조회 / `products:edit` 상품 편집 / `users:manage` 사용자 관리
-  - `feedback:view` 피드백 / `bulletins:manage` 게시판 관리
+- [ ] **제거된 가짜 컬럼 3종(2026-06-01 건우님)** — 켜도 동작 안 하던 것:
+  - `fulfillment:view` → 출고 현황 메뉴는 `orders:view`로 열림(별도 키 미사용)
+  - `feedback:view` → 피드백은 master 전용 / `bulletins:manage` → 게시판 보기=전원·작성/수정=master 전용
+  - 칩 미리보기도 유효 권한(PERMISSION_COLUMNS + master)만 표시하도록 필터(레거시 역할에 잔존해도 UI 비노출, DB값은 무해)
 - [ ] 마지막 컬럼 "액션": 비-시스템 템플릿만 편집/삭제 아이콘, 시스템은 "-"
 - [ ] 셀: `Checkbox` size small. 마스터 템플릿은 항상 체크·비활성(`isMasterTemplate`). 토글 직후 `updateRoleTemplate` 호출 + 토스트.
 
@@ -101,7 +104,7 @@
 - [ ] 타이틀: 편집이면 "역할 템플릿 편집", 신규면 "새 역할 추가"
 - [ ] 필드: "역할 이름" (required, placeholder "예: 외부 파트너")
 - [ ] 필드: "설명" (multiline rows=2, placeholder "이 역할의 용도를 설명합니다.")
-- [ ] 권한 선택 영역: 11개 권한 `Checkbox` + 라벨 (위 `PERMISSION_COLUMNS` 그대로), flex-wrap 그리드
+- [ ] 권한 선택 영역: 8개 권한 `Checkbox` + 라벨 (위 `PERMISSION_COLUMNS` 그대로), flex-wrap 그리드
 - [ ] 액션: "취소" / 편집이면 "업데이트", 신규면 "생성하기" (저장 중 `CircularProgress`)
 
 ### 모달 6 — 역할 템플릿 삭제 확인 (line 854-872)
@@ -135,7 +138,7 @@
 ## 입력 폼 구조 (분리/통합 절대 금지)
 
 - [ ] 사용자 추가 폼: `name`(단일) / `password`(PIN 6자리 단일) / 역할 선택(roleTemplateId 또는 fallback role 슬러그). 이메일은 자동 생성, 입력 폼에 없음.
-- [ ] 역할 템플릿 폼: `name`, `description`, `permissions`(배열, 11개 중 부분 집합)
+- [ ] 역할 템플릿 폼: `name`, `description`, `permissions`(배열, 8개 중 부분 집합)
 - [ ] 메모 폼: `memo`(단일 multiline)
 
 ## 권한별 차이
