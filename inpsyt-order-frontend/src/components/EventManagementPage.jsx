@@ -485,7 +485,7 @@ const EventManagementPage = () => {
                     </TableCell>
                     <TableCell align="center">
                       <Chip
-                        label={`${(event.discount_rate * 100).toFixed(0)}%`}
+                        label={`${((event.discount_rate ?? 0) * 100).toFixed(0)}%`}
                         size="small"
                         color={event.discount_rate > 0 ? 'success' : 'default'}
                         variant={event.discount_rate > 0 ? 'filled' : 'outlined'}

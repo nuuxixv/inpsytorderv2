@@ -44,6 +44,7 @@ import DaumPostcode from 'react-daum-postcode';
 import { supabase } from '../supabaseClient';
 import { linkOrders, searchOrdersForLinking } from '../api/orders';
 import { sendAlimtalk } from '../api/alimtalk';
+import { SHIPPING_DEFAULTS } from '../constants/shipping';
 import { SectionCard, StatusBadge, InfoRow, ActionSlot, PriceBlock } from './ui';
 
 // 사양 시트: design-system/specs/A2_OrderDetailModal.md
@@ -85,8 +86,8 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
 
   // Settings state
   const [settings, setSettings] = useState({
-    free_shipping_threshold: 30000,
-    shipping_cost: 3000,
+    free_shipping_threshold: SHIPPING_DEFAULTS.FREE_SHIPPING_THRESHOLD,
+    shipping_cost: SHIPPING_DEFAULTS.SHIPPING_COST,
   });
 
   // Fetch settings

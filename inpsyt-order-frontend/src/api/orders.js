@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { format, startOfDay, endOfDay } from 'date-fns';
+import { SHIPPING_DEFAULTS } from '../constants/shipping';
 
 /**
  * 필터 및 페이지네이션 옵션에 따라 주문 목록을 가져옵니다.
@@ -106,7 +107,7 @@ export const getFulfillmentOrders = async ({ eventId, statuses, dateFrom, dateTo
         products(name, category)
       )
     `)
-    .in('status', statuses || ['paid', 'preparing', 'completed'])
+    .in('status', statuses || ['paid', 'completed'])
     .order('created_at', { ascending: false });
 
   if (eventId) query = query.eq('event_id', eventId);
@@ -137,7 +138,7 @@ export const linkOrders = async (parentOrderId, childOrderId, settings = {}) => 
   const child = orders.find(o => o.id === childOrderId);
   if (!parent || !child) throw new Error('주문을 찾을 수 없습니다.');
 
-  const threshold = settings.free_shipping_threshold ?? 30000;
+  const threshold = settings.free_shipping_threshold ?? SHIPPING_DEFAULTS.FREE_SHIPPING_THRESHOLD;
   const combinedListPrice = parent.total_cost + child.total_cost;
   const PAID_STATUSES = ['paid', 'completed'];
 
@@ -181,8 +182,8 @@ export const unlinkOrders = async (orderId, settings = {}) => {
 
   if (fetchError) throw fetchError;
 
-  const threshold = settings.free_shipping_threshold ?? 30000;
-  const shippingFee = settings.shipping_cost ?? 3000;
+  const threshold = settings.free_shipping_threshold ?? SHIPPING_DEFAULTS.FREE_SHIPPING_THRESHOLD;
+  const shippingFee = settings.shipping_cost ?? SHIPPING_DEFAULTS.SHIPPING_COST;
 
   // 개별 주문 기준으로 배송비 재계산
   const deliveryFee = order.total_cost >= threshold ? 0 : shippingFee;
@@ -190,11 +191,10 @@ export const unlinkOrders = async (orderId, settings = {}) => {
 
   const { error } = await supabase
     .from('orders')
-    .update({ 
-      parent_order_id: null, 
-      delivery_fee: deliveryFee, 
-      final_paymentValue: finalPayment, // typo? 아니, final_payment 
-      final_payment: finalPayment
+    .update({
+      parent_order_id: null,
+      delivery_fee: deliveryFee,
+      final_payment: finalPayment,
     })
     .eq('id', orderId);
 

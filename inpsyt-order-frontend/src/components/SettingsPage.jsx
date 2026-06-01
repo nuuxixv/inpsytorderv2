@@ -29,13 +29,12 @@ import { supabase } from '../supabaseClient';
 import { useNotification } from '../hooks/useNotification';
 import { PageHeader, SectionCard, ActionSlot, InfoRow } from './ui';
 
-// 사양 §핵심 발견 2: prod URL 하드코딩 — 시안 답습 유지.
-const REDIRECT_URL = 'https://inpsytorder.vercel.app/go';
+// 사양 §발견 2: 리다이렉트 베이스는 VITE_APP_URL 우선, 없으면 현재 origin.
+const APP_BASE_URL = import.meta.env?.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+const REDIRECT_URL = `${APP_BASE_URL}/go`;
 
-// 시스템 정보 — 시안 답습. 빌드/배포 정보는 정적값(향후 vite define 주입 가능).
-const APP_VERSION = 'v2.4.1';
+// 시스템 정보 — 빌드와 실제로 연동되는 환경 모드만 노출 (가짜 정적값 제거).
 const APP_ENV = (import.meta.env?.MODE === 'production') ? 'production' : (import.meta.env?.MODE || 'development');
-const APP_DB_REGION = 'ap-northeast-2';
 
 const SettingsPage = () => {
   const theme = useTheme();
@@ -363,7 +362,6 @@ const SettingsPage = () => {
         padding={24}
       >
         <Box sx={{ mt: 1 }}>
-          <InfoRow label="버전" value={APP_VERSION} mono />
           <InfoRow
             label="환경"
             value={
@@ -391,7 +389,6 @@ const SettingsPage = () => {
               </Box>
             }
           />
-          <InfoRow label="DB 리전" value={APP_DB_REGION} mono />
         </Box>
       </SectionCard>
 
