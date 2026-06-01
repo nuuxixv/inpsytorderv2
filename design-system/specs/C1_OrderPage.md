@@ -94,7 +94,7 @@
   - 신규 칩 "NEW" — `is_new=true`일 때, `error.main` 배경
 - [ ] 상품명 — `variant="body2"`, `fontWeight: 600`, 토큰 외 인라인 `fontSize: '0.8125rem'` 사용 중(13px) → 02 §타이포 §사용 규칙 약속 2에 따라 시안에서는 14(`body2`)로 흡수
 - [ ] 가격 영역:
-  - 할인 시(상품이 `is_discountable=true` AND `discountRate > 0`): 원가 line-through(`text.disabled`, 11px → 시안에서 12px로 흡수) + `{N}%` 칩 (`error.main`)
+  - 할인 시(상품이 `is_discountable=true` AND `discountRate > 0`): 원가 line-through(`text.disabled`) + `{N}%` **빨강 텍스트**(`caption`, `error.main`, fontWeight 700 — **칩 아님**, 2026-06-01 /preview 목업 정합)
   - 최종가 — `variant="subtitle1"`, `fontWeight: 800`, 할인 시 `primary.main` 색
 - [ ] 액션 영역(높이 40, 하단 고정):
   - 카트에 없으면 "담기" outlined 버튼 (보더 + 텍스트 `primary.main`)

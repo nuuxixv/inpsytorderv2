@@ -4,7 +4,7 @@ import { Add as AddIcon, Remove as RemoveIcon, Delete as DeleteIcon } from '@mui
 
 // 사양 §Step 0 — 상품 카드.
 // - 카테고리 / 인기 / 신규 배지 (조건부)
-// - 할인 시 원가 line-through + % 칩
+// - 할인 시 원가 line-through + % 빨강 텍스트(칩 아님, /preview 목업 정합)
 // - 카트 없으면 '담기' outlined, 있으면 수량 스테퍼
 const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onIncrement, onDecrement }) => {
   const theme = useTheme();
@@ -91,15 +91,12 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
               >
                 {product.list_price.toLocaleString()}원
               </Typography>
-              <Chip
-                label={`${(discountRate * 100).toFixed(0)}%`}
-                size="small"
-                color="error"
-                sx={{
-                  height: 18,
-                  '& .MuiChip-label': { px: 0.75, fontWeight: 700 },
-                }}
-              />
+              <Typography
+                variant="caption"
+                sx={{ color: 'error.main', fontWeight: 700 }}
+              >
+                {`${(discountRate * 100).toFixed(0)}%`}
+              </Typography>
             </Box>
           )}
           <Typography
