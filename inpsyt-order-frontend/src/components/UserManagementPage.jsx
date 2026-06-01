@@ -54,18 +54,19 @@ import {
 import { PageHeader, SectionCard, EmptyState, ActionSlot } from './ui';
 
 // Permission definitions for the matrix
+// 실제 동작하는(메뉴 게이트·RLS에 연결된) 권한만. 동작 안 하던 가짜 컬럼 3종 제거(2026-06-01 건우님):
+//   - fulfillment:view → 출고 현황은 'orders:view'로 열림(별도 키 미사용)
+//   - feedback:view    → 피드백은 master 전용
+//   - bulletins:manage → 게시판 보기=전원, 작성/수정=master 전용
 const PERMISSION_COLUMNS = [
   { key: 'dashboard:view', label: '대시보드' },
   { key: 'orders:view', label: '주문 조회' },
   { key: 'orders:edit', label: '주문 편집' },
-  { key: 'fulfillment:view', label: '출고 현황' },
   { key: 'events:view', label: '학회 조회' },
   { key: 'events:edit', label: '학회 편집' },
   { key: 'products:view', label: '상품 조회' },
   { key: 'products:edit', label: '상품 편집' },
   { key: 'users:manage', label: '사용자 관리' },
-  { key: 'feedback:view', label: '피드백' },
-  { key: 'bulletins:manage', label: '게시판 관리' },
 ];
 
 // 역할 슬러그 4종 + fallback (사양 §핵심 발견 1)
@@ -1091,7 +1092,9 @@ const UserManagementPage = () => {
               {/* Permission preview chips */}
               {getSelectedTemplate() && (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                  {(getSelectedTemplate().permissions || []).map((perm) => (
+                  {(getSelectedTemplate().permissions || [])
+                    .filter((perm) => perm === 'master' || PERMISSION_COLUMNS.some((c) => c.key === perm))
+                    .map((perm) => (
                     <Chip
                       key={perm}
                       label={permissionLabels[perm] || perm}
