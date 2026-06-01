@@ -67,9 +67,11 @@ const FloatingBottomBar = ({
       sx={{
         position: 'fixed',
         bottom: 0,
-        // 부모 콘텐츠 컬럼(maxWidth 600 중앙)에 맞춤 — 뷰포트 풀폭 아님
-        left: 'max(0px, calc((100vw - 600px) / 2))',
-        right: 'max(0px, calc((100vw - 600px) / 2))',
+        // 콘텐츠 컬럼과 동일하게 auto-margin 중앙정렬(600px). 100vw 안 씀 → 스크롤바 오프셋 없이 컬럼과 픽셀 정렬
+        left: 0,
+        right: 0,
+        maxWidth: 600,
+        mx: 'auto',
         zIndex: 1200,
         bgcolor: 'background.paper',
         borderTop: '1px solid',

@@ -259,9 +259,8 @@ const OrderPage = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        // 사양 §전 단계 공통 — Step 0·1 흰색 / Step 2 회색.
-        // 배경은 풀폭(PC 레터박스 틈 방지), 콘텐츠는 아래 inner에서 600 중앙 — 경계가 안 보이게 seamless
-        bgcolor: activeStep < 2 ? 'background.paper' : theme.gray[50],
+        // 600px 컬럼 바깥은 음영(회색 backdrop). 모바일앱을 PC 가운데 둔 프레임 느낌.
+        bgcolor: theme.gray[100],
         transition: 'background-color 0.3s ease',
       }}
     >
@@ -272,6 +271,8 @@ const OrderPage = () => {
           flexDirection: 'column',
           maxWidth: 600,
           mx: 'auto',
+          // 콘텐츠 컬럼 표면 — Step 0·1 흰색 / Step 2 회색
+          bgcolor: activeStep < 2 ? 'background.paper' : theme.gray[50],
         }}
       >
       {/* Header Branding */}
