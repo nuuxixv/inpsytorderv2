@@ -49,6 +49,8 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
 
   // 무료배송 기준은 정가(할인 전) 기준
   const totalOriginalPrice = validItems.reduce((sum, item) => sum + item.list_price * item.quantity, 0);
+  // 정가 대비 할인 금액 (CostSummary와 동일 표기)
+  const totalDiscount = totalOriginalPrice - totalPrice;
 
   // 확정 영역용 — 총 건수 / 배송비 부과 여부 / 무료배송까지 남은 금액
   const totalQty = validItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -187,6 +189,24 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
             bgcolor: 'grey.50',
           }}
         >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+            <Typography variant="caption" color="text.secondary">
+              총 상품 금액
+            </Typography>
+            <Typography variant="subtitle2">
+              {totalOriginalPrice.toLocaleString()}원
+            </Typography>
+          </Box>
+          {totalDiscount > 0 && (
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+              <Typography variant="caption" color="error.main">
+                할인 금액
+              </Typography>
+              <Typography variant="subtitle2" color="error.main">
+                -{totalDiscount.toLocaleString()}원
+              </Typography>
+            </Box>
+          )}
           {!isOnsitePurchase && (
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
               <Typography variant="caption" color="text.secondary">
