@@ -215,8 +215,9 @@
 - [ ] 제출 중: 아이콘 자리에 `CircularProgress` size 20, 라벨 "주문 처리 중..."
 - [ ] 끝 아이콘: Step 0·1은 `ArrowForwardIcon`, Step 2는 없음
 
-### CartBottomSheet (`CartBottomSheet.jsx`, Step 0의 카트 아이콘 클릭 시)
+### CartBottomSheet (`CartBottomSheet.jsx`, Step 0의 카트 아이콘 클릭 시 + 'CTA 진행' 확인 시트)
 > 2026-06-01 디자인 시스템 정합(M3 후속): raw-hex·인라인 토큰을 theme 토큰으로 교체. 시각·기능 동일, 라벨 구조 불변.
+> 2026-06-01 확정 영역 추가(건우님): `onProceed` 전달 시 푸터 하단에 `총 N건 구매` + (배송비 시)무료배송 업셀 + 진행/추가 버튼 노출(변경이력 5 참조). 0→1 전환은 이 시트의 버튼으로 수행.
 - [ ] `SwipeableDrawer` anchor bottom, `disableSwipeToOpen`, `maxHeight: 75vh`, top radius `theme.radii.lg`(16)
 - [ ] 좌우 600px max 가운데 정렬 (플로팅 바와 동일 폭), `pb: env(safe-area-inset-bottom)`
 - [ ] 상단 드래그 핸들 — 40x4 회색 바(`grey.300`, `theme.radii.pill`)
@@ -383,7 +384,7 @@
 10. **`fontSize: '0.8125rem'`(13px), `0.6875rem`(11px) 같은 인라인 값이 카드·칩에 다수.** 02 §타이포 §사용 규칙 약속 2 흡수 표를 그대로 적용.
 
 ## 변경 이력
-- 2026-06-01 주문 흐름 UX 5건 (건우님) — (1) 단계 인디케이터 **Step0 포함 전 단계 표시**(OrderStepIndicator는 이미 3단계, OrderPage가 막던 것 해제). (2) **헤더 전부 중앙정렬**(Step1 CustomerInfoStep·Step2 OrderReviewStep도 `textAlign:center`). (3) **우편번호 칸 히든**(데이터·출고정보 보존). (4) **배송 모드 배송지(도로명+상세) 필수** — `isCustomerInfoValid`에 추가, 미입력 시 '다음'/제출 차단·필드 `required` 표시. 현장구매는 성함·연락처만. (5) **0→1 전환 시 배송비 토스트**(배송 모드·`총<무료임계값`일 때) — `📦 배송비 N원이 추가돼요 · M원 이상 무료배송`. 제출 팝업 대신 전환 노티로 CS 예방하면서 UX 부담 최소화. 파일: OrderPage·CustomerInfoStep·OrderReviewStep.
+- 2026-06-01 주문 흐름 UX 5건 (건우님) — (1) 단계 인디케이터 **Step0 포함 전 단계 표시**(OrderStepIndicator는 이미 3단계, OrderPage가 막던 것 해제). (2) **헤더 전부 중앙정렬**(Step1 CustomerInfoStep·Step2 OrderReviewStep도 `textAlign:center`). (3) **우편번호 칸 히든**(데이터·출고정보 보존). (4) **배송 모드 배송지(도로명+상세) 필수** — `isCustomerInfoValid`에 추가, 미입력 시 '다음'/제출 차단·필드 `required` 표시. 현장구매는 성함·연락처만. (5) **0→1 전환 시 장바구니 확인 바텀시트**(토스트 폐기·건우님) — CTA가 step1로 직행하지 않고 `CartBottomSheet`를 열어 카트 요약 + 무료배송 업셀. 배송비 부과 시: `총 N건 구매 · X원 더 구매하시면 무료배송이에요` + `[그래도 주문하기]`(회색 outlined) `[상품 추가하기]`(파랑 contained = 유도 행동). 무료배송/현장구매: `총 N건 구매` + `[주문하기]`(파랑) `[상품 추가하기]`(회색). 주문하기/그래도주문하기→step1(onProceed), 상품 추가하기→시트 닫고 step0. 파일: OrderPage·CustomerInfoStep·OrderReviewStep·CartBottomSheet.
 - 2026-06-01 상품 카드/하단바 목업 정합 (건우님 좌우 비교 지시) — (1) **배지 솔리드 칩 → 소프트 틴트 박스**(alpha 0.12~0.14), 인기 배지 "★" 단독 → **StarIcon+"인기"**. (2) **"담기" 버튼 파랑(primary) → 회색**(테마 기본 outlined). (3) ~~하단바 배경 풀폭~~ **철회·복구**(건우님 지시) — 하단바는 **부모 콘텐츠 컬럼(600px)에 맞춰 정렬**. 뷰포트 풀폭으로 채운 건 오판, 즉시 복구. (4) **`도구` 카테고리 → `검사`로 정규화**(별도 칩 X, 검사 필터에 포함, 카드 배지도 검사). 파일: `ProductCard.jsx`·`ProductSelectionStep.jsx`·`FloatingBottomBar.jsx`.
 - 2026-06-01 고객 주문 화면 보강 (건우님 지시) — (1) **검색바** 회색 채움 `#F2F4F6` → **흰색 기본 아웃라인**(/preview 목업 정합, 플레이스홀더 멀티키워드 힌트 유지). (2) **뷰/카테고리 칩** 알약형 → `radii.sm`(8px) 둥근 사각. (3) **Step 1 헤더** `isOnsitePurchase` 분기 — 배송 "배송 받으실 주소를 입력해주세요" / 현장 "주문자 정보를 입력해주세요" 유지. (4) **Step 1·2 부제** → "{이벤트명} · N% 할인 적용"(Step 0 패턴 통일, 양쪽 모드). (5) **CTA Step 0** "주문서 작성하기" → 배송 "배송지 입력하기" / 현장 기존 유지. (6) **제출 후 OrderStatusPage 연락처** `mono`(monospace) 제거 → 일반 폰트. **보존**: 주소 3필드 분리·현장구매 배송지 숨김·할인/무료배송 로직·검색 멀티키워드 전부 무변경. **현장구매 모드 문구는 전부 기존 보존**(배송 문구 강제 주입 안 함).
 - 2026-05-13 신설 — M2 시안 착수 사전 정독. `OrderPage.jsx` 외 6개 자식·보조 컴포넌트 + DB 마이그레이션 + create-order edge function 전수. 환각 방지 위해 컬럼명 불일치·문구 잔재·`is_on_site_sale` 미사용 등 의심 8건은 "확인 필요"로 표기.

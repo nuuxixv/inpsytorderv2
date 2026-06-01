@@ -35,7 +35,6 @@ const OrderPage = () => {
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const [isOnsitePurchase, setIsOnsitePurchase] = useState(false);
   const [onsiteSnackbar, setOnsiteSnackbar] = useState(false);
-  const [shippingNotice, setShippingNotice] = useState(false);
   const tapCountRef = useRef(0);
   const tapTimerRef = useRef(null);
 
@@ -136,12 +135,8 @@ const OrderPage = () => {
         return;
       }
       setError(null);
-      // 배송 모드 & 배송비 부과 조건이면 0→1 전환 시 배송비 노티(CS 예방)
-      if (!isOnsitePurchase && totalOriginalPrice < settings.free_shipping_threshold) {
-        setShippingNotice(true);
-      }
-      setActiveStep(1);
-      window.scrollTo(0, 0);
+      // 0→1 진행 전 장바구니 확인 시트(무료배송 업셀 + 배송비 인지). 실제 진행은 시트의 onProceed
+      setCartSheetOpen(true);
     } else if (activeStep === 1) {
       if (!isCustomerInfoValid) {
         setError(isOnsitePurchase
@@ -153,6 +148,14 @@ const OrderPage = () => {
       setActiveStep(2);
       window.scrollTo(0, 0);
     }
+  };
+
+  // 장바구니 확인 시트의 '주문하기/그래도 주문하기' → 배송지 입력(step1)으로 진행
+  const handleProceedToInfo = () => {
+    setCartSheetOpen(false);
+    setError(null);
+    setActiveStep(1);
+    window.scrollTo(0, 0);
   };
 
   const handleBack = () => {
@@ -385,6 +388,7 @@ const OrderPage = () => {
         discountRate={discountRate}
         isOnsitePurchase={isOnsitePurchase}
         settings={settings}
+        onProceed={handleProceedToInfo}
       />
 
       {/* Success dialog — 사양 §성공 다이얼로그. 실 플로우에선 access_token 있을 때 navigate가 우선, 이 다이얼로그는 fallback. */}
@@ -427,15 +431,6 @@ const OrderPage = () => {
         autoHideDuration={2000}
         onClose={() => setOnsiteSnackbar(false)}
         message={isOnsitePurchase ? '🏪 현장구매 모드로 전환됐어요' : '📦 일반 배송 모드로 전환됐어요'}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      />
-
-      {/* 배송비 노티 — 0→1 전환 시(배송 모드·배송비 부과). CS 예방 */}
-      <Snackbar
-        open={shippingNotice}
-        autoHideDuration={4000}
-        onClose={() => setShippingNotice(false)}
-        message={`📦 배송비 ${settings.shipping_cost.toLocaleString()}원이 추가돼요 · ${settings.free_shipping_threshold.toLocaleString()}원 이상 구매 시 무료배송`}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       />
     </Box>
