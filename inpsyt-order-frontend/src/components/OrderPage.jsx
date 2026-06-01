@@ -259,15 +259,21 @@ const OrderPage = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        // 사양 §전 단계 공통 — Step 0·1 흰색 / Step 2 회색. 토큰화.
+        // 사양 §전 단계 공통 — Step 0·1 흰색 / Step 2 회색.
+        // 배경은 풀폭(PC 레터박스 틈 방지), 콘텐츠는 아래 inner에서 600 중앙 — 경계가 안 보이게 seamless
         bgcolor: activeStep < 2 ? 'background.paper' : theme.gray[50],
-        maxWidth: 600,
-        mx: 'auto',
         transition: 'background-color 0.3s ease',
       }}
     >
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          maxWidth: 600,
+          mx: 'auto',
+        }}
+      >
       {/* Header Branding */}
       <Box sx={{ pt: 3, pb: 1, px: 2, display: 'flex', alignItems: 'center' }}>
         {/* 좌측 여백 (우측 버튼 너비와 균형) */}
@@ -344,6 +350,7 @@ const OrderPage = () => {
             eventName={eventInfo?.name || ''}
           />
         )}
+      </Box>
       </Box>
 
       {/* Floating bottom bar */}
