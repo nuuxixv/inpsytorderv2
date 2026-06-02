@@ -66,6 +66,18 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
+  // 본인 정보(이름·부서) 수정 후 헤더 등에 즉시 반영하기 위해 프로필만 다시 조회.
+  // (재로그인 없이 캐시 갱신 — 캐시 자체는 성능상 유지)
+  const refreshProfile = useCallback(async () => {
+    if (!user?.id) return;
+    const { data } = await supabase
+      .from('user_profiles')
+      .select('name, role, department')
+      .eq('id', user.id)
+      .single();
+    if (data) setProfile(data);
+  }, [user]);
+
   const logout = async () => {
     setLoading(true);
     const { error } = await supabase.auth.signOut();
@@ -80,7 +92,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, permissions, profile, hasPermission, loading, setUser, logout }}>
+    <AuthContext.Provider value={{ user, accessToken, permissions, profile, hasPermission, loading, setUser, logout, refreshProfile }}>
       {!loading && children}
     </AuthContext.Provider>
   );

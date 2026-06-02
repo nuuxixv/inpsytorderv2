@@ -158,7 +158,7 @@ const RowIconButton = ({ tooltip, icon, onClick, danger = false, disabled = fals
 
 const UserManagementPage = () => {
   const theme = useTheme();
-  const { user, accessToken, hasPermission, logout } = useAuth();
+  const { user, accessToken, hasPermission, logout, refreshProfile } = useAuth();
   const { addNotification } = useNotification();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -553,6 +553,8 @@ const UserManagementPage = () => {
       if (data?.error) throw new Error(data.error);
 
       addNotification('사용자 정보가 업데이트되었습니다.', 'success');
+      // 본인 정보를 수정했으면 헤더 등 즉시 반영(재로그인 불필요)
+      if (currentEditingUser.id === user?.id) refreshProfile();
       setOpenProfileModal(false);
       setCurrentEditingUser(null);
       fetchUsers();
@@ -962,8 +964,9 @@ const UserManagementPage = () => {
                                   onClick={() => handleOpenProfileModal(u)}
                                 />
                               )}
-                              {/* master 전용: PIN 재설정 */}
-                              {isMaster && (
+                              {/* master 전용: PIN 재설정 — 본인·타 마스터(=모든 master 행)는 숨김
+                                  (백엔드가 본인 400·타 master 403으로 차단하므로 노출해도 에러만 남) */}
+                              {isMaster && u.role !== 'master' && (
                                 <RowIconButton
                                   tooltip="PIN 재설정"
                                   icon={<PasswordIcon sx={{ fontSize: 16 }} />}
