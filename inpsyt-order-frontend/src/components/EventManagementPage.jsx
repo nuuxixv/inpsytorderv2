@@ -153,31 +153,33 @@ const EventManagementPage = () => {
       // 행사명을 직접 입력/수정하면 자동완성이 더 이상 덮어쓰지 않도록 플래그
       if (name === 'name') newState._nameTouched = true;
 
-      // Auto-suggest name and URL if year, society, and season change
-      // (행사명을 사용자가 직접 건드렸으면 자동완성으로 덮어쓰지 않음)
-      if (['event_year', 'host_society', 'event_season'].includes(name) && !isEditing) {
+      // 연도/주최학회/행사구분이 바뀌면:
+      //  - 행사명(name): 생성·편집 모두 자동 갱신 (직접 수정한 이름은 _nameTouched로 보존)
+      //  - URL 슬러그: 신규 등록 시에만 — 편집 시 변경하면 기존 주문 링크가 깨지므로 유지
+      if (['event_year', 'host_society', 'event_season'].includes(name)) {
         const newYear = name === 'event_year' ? value : prev.event_year;
         const newSociety = name === 'host_society' ? value : prev.host_society;
         const newSeason = name === 'event_season' ? value : prev.event_season;
 
         if (newYear && newSociety && newSeason) {
-          // Auto-suggest Name (수동 편집 전에만)
+          // 행사명 자동 완성 (수동 편집 전에만)
           if (!prev._nameTouched) newState.name = `${newYear} ${newSociety} ${newSeason}`;
 
-          // Auto-suggest URL Slug with random suffix to prevent guessing
-          const societyObj = availableSocieties.find(s => s.name === newSociety);
-          if (societyObj) {
-            const seasonMap = {
-              '춘계학술대회': 'spring', '추계학술대회': 'fall', '연수강좌': 'training',
-              '보수교육': 'edu', '세미나': 'seminar', '기타': 'etc'
-            };
-            const sPrefix = societyObj.slug_prefix || 'event';
-            const seasonEng = seasonMap[newSeason] || 'etc';
-            const randomToken = Math.random().toString(36).slice(2, 6); // 4자리 랜덤 토큰
-            newState.order_url_slug = `${sPrefix}-${newYear}-${seasonEng}-${randomToken}`;
+          // URL 슬러그 자동 생성은 신규 등록 시에만 (편집 시 URL 유지)
+          if (!isEditing) {
+            const societyObj = availableSocieties.find(s => s.name === newSociety);
+            if (societyObj) {
+              const seasonMap = {
+                '춘계학술대회': 'spring', '추계학술대회': 'fall', '연수강좌': 'training',
+                '보수교육': 'edu', '세미나': 'seminar', '기타': 'etc'
+              };
+              const sPrefix = societyObj.slug_prefix || 'event';
+              const seasonEng = seasonMap[newSeason] || 'etc';
+              const randomToken = Math.random().toString(36).slice(2, 6); // 4자리 랜덤 토큰
+              newState.order_url_slug = `${sPrefix}-${newYear}-${seasonEng}-${randomToken}`;
+            }
           }
         }
-
       }
 
       return newState;
