@@ -40,6 +40,8 @@ import {
   Add as AddIcon,
   Search as SearchIcon,
   Close as CloseIcon,
+  Password as PasswordIcon,
+  Business as BusinessIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { useAuth } from '../hooks/useAuth';
@@ -170,6 +172,16 @@ const UserManagementPage = () => {
   const [editedMemo, setEditedMemo] = useState('');
   const [openPermissionsModal, setOpenPermissionsModal] = useState(false);
   const [currentRole, setCurrentRole] = useState('');
+  // 이름·부서 수정 (master 전용)
+  const [openProfileModal, setOpenProfileModal] = useState(false);
+  const [editedName, setEditedName] = useState('');
+  const [editedDepartment, setEditedDepartment] = useState('');
+  const [profileSaving, setProfileSaving] = useState(false);
+  // PIN 재설정 (master 전용). issuedPin은 모달 표시용 임시값 — 닫으면 폐기, 장기 보관 금지.
+  const [pinResetTarget, setPinResetTarget] = useState(null);
+  const [pinResetting, setPinResetting] = useState(false);
+  const [issuedPin, setIssuedPin] = useState(null);
+  const [issuedPinUserName, setIssuedPinUserName] = useState('');
   const [userFilter, setUserFilter] = useState(null); // null / 'master' / 'onsite' / 'fulfillment'
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteTargetUser, setDeleteTargetUser] = useState(null);
@@ -511,6 +523,78 @@ const UserManagementPage = () => {
     setCurrentRole('');
   };
 
+  const handleOpenProfileModal = (u) => {
+    setCurrentEditingUser(u);
+    setEditedName(u.name || '');
+    setEditedDepartment(u.department || '');
+    setOpenProfileModal(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!isMaster) {
+      addNotification('권한이 없습니다.', 'error');
+      return;
+    }
+    if (!currentEditingUser) return;
+    if (!editedName.trim()) {
+      addNotification('이름을 입력해주세요.', 'warning');
+      return;
+    }
+    try {
+      setProfileSaving(true);
+      const { data, error: invokeError } = await supabase.functions.invoke('update-user-profile', {
+        body: {
+          userId: currentEditingUser.id,
+          name: editedName.trim(),
+          department: editedDepartment.trim(),
+        },
+      });
+      if (invokeError) throw invokeError;
+      if (data?.error) throw new Error(data.error);
+
+      addNotification('사용자 정보가 업데이트되었습니다.', 'success');
+      setOpenProfileModal(false);
+      setCurrentEditingUser(null);
+      fetchUsers();
+    } catch (err) {
+      console.error('Error updating user profile:', err);
+      addNotification(`사용자 정보 수정 실패: ${err.message}`, 'error');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const handleResetPinConfirm = async () => {
+    if (!isMaster) {
+      addNotification('권한이 없습니다.', 'error');
+      return;
+    }
+    if (!pinResetTarget) return;
+    try {
+      setPinResetting(true);
+      const { data, error: invokeError } = await supabase.functions.invoke('reset-user-pin', {
+        body: { userId: pinResetTarget.id },
+      });
+      if (invokeError) throw invokeError;
+      if (data?.error) throw new Error(data.error);
+
+      setIssuedPin(data.pin);
+      setIssuedPinUserName(pinResetTarget.name || '이름 없음');
+      setPinResetTarget(null);
+      addNotification('PIN이 재설정되었습니다.', 'success');
+    } catch (err) {
+      console.error('Error resetting PIN:', err);
+      addNotification(`PIN 재설정 실패: ${err.message}`, 'error');
+    } finally {
+      setPinResetting(false);
+    }
+  };
+
+  const handleCloseIssuedPin = () => {
+    setIssuedPin(null);
+    setIssuedPinUserName('');
+  };
+
   const getInitials = (name) => {
     if (!name) return '?';
     return name.charAt(0).toUpperCase();
@@ -540,6 +624,8 @@ const UserManagementPage = () => {
       </Box>
     );
   }
+
+  const isMaster = hasPermission('master');
 
   const masterUsers = users.filter((u) => u.role === 'master').length;
   const onsiteUsers = users.filter((u) => u.role === 'onsite').length;
@@ -765,6 +851,7 @@ const UserManagementPage = () => {
                     <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.04) }}>
                       <TableCell sx={{ fontWeight: 700 }}>사용자</TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>역할</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>부서</TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>메모</TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>생성일</TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>마지막 로그인</TableCell>
@@ -818,6 +905,11 @@ const UserManagementPage = () => {
                           <TableCell>
                             <RoleChip role={u.role} />
                           </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                              {u.department || '마케팅운영팀'}
+                            </Typography>
+                          </TableCell>
                           <TableCell sx={{
                             maxWidth: 200,
                             overflow: 'hidden',
@@ -862,6 +954,22 @@ const UserManagementPage = () => {
                                 onClick={() => handleOpenPermissionsModal(u)}
                                 disabled={isSelfMaster}
                               />
+                              {/* master 전용: 이름·부서 수정 */}
+                              {isMaster && (
+                                <RowIconButton
+                                  tooltip="정보 수정"
+                                  icon={<BusinessIcon sx={{ fontSize: 16 }} />}
+                                  onClick={() => handleOpenProfileModal(u)}
+                                />
+                              )}
+                              {/* master 전용: PIN 재설정 */}
+                              {isMaster && (
+                                <RowIconButton
+                                  tooltip="PIN 재설정"
+                                  icon={<PasswordIcon sx={{ fontSize: 16 }} />}
+                                  onClick={() => setPinResetTarget(u)}
+                                />
+                              )}
                               <RowIconButton
                                 tooltip="메모 수정"
                                 icon={<EditIcon sx={{ fontSize: 16 }} />}
@@ -1169,6 +1277,100 @@ const UserManagementPage = () => {
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setOpenMemoModal(false)}>취소</Button>
           <Button onClick={handleSaveMemo} variant="contained">저장</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Profile (name·department) Dialog — master 전용 */}
+      <Dialog open={openProfileModal} onClose={() => setOpenProfileModal(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>사용자 정보 수정</DialogTitle>
+        <DialogContent sx={{ pt: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+          <TextField
+            autoFocus
+            label="이름"
+            type="text"
+            fullWidth
+            required
+            value={editedName}
+            onChange={(e) => setEditedName(e.target.value)}
+            placeholder="예: 홍길동"
+            error={editedName.length === 0}
+          />
+          <TextField
+            label="부서"
+            type="text"
+            fullWidth
+            value={editedDepartment}
+            onChange={(e) => setEditedDepartment(e.target.value)}
+            placeholder="예: 마케팅운영팀"
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2.5 }}>
+          <Button onClick={() => setOpenProfileModal(false)}>취소</Button>
+          <Button
+            onClick={handleSaveProfile}
+            variant="contained"
+            disabled={profileSaving || !editedName.trim()}
+            sx={{ px: 4 }}
+          >
+            {profileSaving ? <CircularProgress size={22} /> : '저장'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reset PIN Confirmation Dialog — master 전용 */}
+      <Dialog open={Boolean(pinResetTarget)} onClose={() => setPinResetTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>PIN 재설정</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            <strong>{pinResetTarget?.name || '이름 없음'}</strong> 님의 PIN을 새로 발급합니다.
+            <br />기존 PIN은 즉시 사용할 수 없게 되며, 새 임시 PIN이 1회만 표시됩니다.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setPinResetTarget(null)}>취소</Button>
+          <Button
+            onClick={handleResetPinConfirm}
+            variant="contained"
+            disabled={pinResetting}
+          >
+            {pinResetting ? <CircularProgress size={22} /> : '재설정'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Issued PIN Display Dialog (1회용) — 닫으면 메모리에서 폐기 */}
+      <Dialog open={Boolean(issuedPin)} onClose={handleCloseIssuedPin} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>임시 PIN 발급 완료</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+            <strong>{issuedPinUserName}</strong> 님의 새 임시 PIN입니다. 이 PIN을 직원에게 직접 전달하세요.
+            이 창을 닫으면 다시 볼 수 없습니다.
+          </Typography>
+          <Box
+            sx={{
+              p: 2,
+              textAlign: 'center',
+              bgcolor: alpha(theme.palette.primary.main, 0.06),
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+              borderRadius: `${theme.radii.md}px`,
+            }}
+          >
+            <Typography
+              variant="h3"
+              sx={{
+                fontFeatureSettings: '"tnum" 1',
+                letterSpacing: '0.2em',
+                color: theme.palette.primary.main,
+              }}
+            >
+              {issuedPin}
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCloseIssuedPin} variant="contained" fullWidth>
+            확인 (창 닫기)
+          </Button>
         </DialogActions>
       </Dialog>
 

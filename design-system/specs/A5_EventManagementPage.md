@@ -85,7 +85,7 @@
 > 세 필드 모두 입력되면 자동으로 행사명과 URL slug가 생성됨(아래 액션 참조).
 
 ### Step 2 — 자동 생성 + 추가 정보 (line 631-704)
-- [ ] **행사명** (`name`, 텍스트, `InputLabelProps={shrink: true}`) — helperText "위에서 입력한 정보로 자동 생성됩니다."
+- [ ] **행사명** (`name`, 텍스트, `InputLabelProps={shrink: true}`) — helperText "위 정보로 자동 완성되며, 직접 입력·수정할 수 있습니다." (2026-06-02 — 자유 입력 명확화. 행사명을 직접 수정하면 `_nameTouched` 플래그로 이후 자동완성이 덮어쓰지 않음. `_nameTouched`는 UI 전용, DB upsert에서 제외)
 - [ ] **주문 URL** (`order_url_slug`, 텍스트) — helperText "주문 페이지 주소로 사용됩니다. 영문, 숫자, 하이픈만 가능"
 - [ ] **할인율 (%)** (`discount_rate`, number) — UI는 0~100 정수, 저장은 `/100`해서 소수로. helperText "예: 15 = 15% 할인"
 - [ ] **시작일** (`start_date`, date) + **종료일** (`end_date`, date) — 가로 배치, 별도 필드
@@ -99,7 +99,7 @@
 ### 자동 채우기 규칙 (line 133-170)
 - 신규 등록 모드에서만 작동(편집 시 작동 안 함)
 - name 직접 입력 시 → 자동으로 slug 생성(공백 → `-`, 영문 외 제거)
-- event_year + host_society + event_season 모두 채워지면:
+- event_year + host_society + event_season 모두 채워지면 (단, 행사명을 사용자가 직접 건드리지 않은 경우 `!_nameTouched`):
   - name = `"{year} {host_society} {season}"`
   - slug = `"{society.slug_prefix}-{year}-{season_eng}-{random4}"` (랜덤 4자리 토큰으로 추측 방지)
   - season_eng: 춘계→spring / 추계→fall / 연수강좌→training / 보수교육→edu / 세미나→seminar / 기타→etc
@@ -167,3 +167,4 @@
 
 - 2026-05-13 신설.
 - 2026-05-28 M3-4 정합: 통계 카드 4장 외형 → 헤더 subtitle + 상태 토글 칩으로 통합 (정보 1:1 보존, 그라데이션 제거). 표 영역은 `SectionCard padding=0`으로 래핑. 헤더는 `PageHeader`, 상태 칩은 `StatusBadge(value=paid|pending|completed)`, URL 액션 묶음은 `ActionSlot`, 빈 상태는 `ui/EmptyState`로 교체. 폼 2블록 분리·할인율 단위 변환·QR 다운로드·권한 분기 보존.
+- 2026-06-02 행사명 자유 입력 명확화: helperText "직접 입력·수정 가능"으로 변경(라벨 "행사명 (자동 완성)" → "행사명"). 행사명 직접 수정 시 `_nameTouched`(UI 전용 플래그)로 이후 연도/시즌/주최학회 변경이 행사명을 덮어쓰지 않게 보존. `_nameTouched`는 DB upsert에서 분리. 기존 자동완성·slug 생성·기존 옵션 유지(주최학회는 이미 Autocomplete freeSolo). 동작 추가만, 제거 0.

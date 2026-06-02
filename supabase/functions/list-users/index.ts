@@ -72,7 +72,7 @@ serve(async (req: Request) => {
     // Fetch user profiles to get names and specialized roles
     const { data: profiles, error: profileError } = await supabaseAdmin
       .from('user_profiles')
-      .select('id, name, role');
+      .select('id, name, role, department');
 
     if (profileError) {
       console.error('Error fetching user profiles:', profileError);
@@ -87,6 +87,7 @@ serve(async (req: Request) => {
         email: u.email,
         name: profileInfo?.name || '알 수 없음',
         role: profileInfo?.role || u.app_metadata?.role || 'operator',
+        department: profileInfo?.department || '',
         permissions: u.app_metadata?.permissions || [],
         memo: u.user_metadata?.memo || '',
         created_at: u.created_at,

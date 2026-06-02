@@ -37,6 +37,7 @@
 - [ ] `DashboardIcon` (primary.main, fontSize 1.4rem) — 페이지 제목 아이콘
 - [ ] 페이지 제목 텍스트: "대시보드" (Typography variant h6, fontWeight 700)
 - [ ] 새로고침 IconButton — `RefreshIcon`, 회전 애니메이션 (`refreshing` 상태), 비활성 조건 `refreshing || loading`
+- [ ] **입금결의서 내보내기 버튼** (2026-06-02 건우님) — `DownloadIcon`, outlined. **단일 상세 행사(`selectedEventIds.length === 1`) 선택 시에만 노출.** 클릭 → 그 행사의 결제완료 주문으로 `computeRevenueByCategory` → 회사 공통 양식(`public/templates/deposit-resolution-template.xlsx`)을 ExcelJS로 열어 셀만 채워 다운로드. 파일명 `입금결의서_{학회명}_{YYYY-MM}.xlsx`. 채울 셀(시트 "02.입금결의서 (템플릿)"): N4=연·Q4=월·S4=일(오늘), C5=한글금액(total), D6=total, Q5=부서(기본 "마케팅운영팀"), Q6=성명(profile.name/user), 도서행 E9/N9/R9(book), 검사행 E10/N10/R10(test), 계 R16(total). 0원이어도 도서·검사 둘 다 기재. 양식 데모 행(E11/E12 등)은 비움. 유틸: `src/utils/depositResolution.js`
 - [ ] (시안만 보유) 헤더 subtitle = `dashboardData.eventName` — 실 페이지는 헤더에 부제가 없고, 매출 카드 상단(line 685)에 별도 표시. **확인 필요** — 시안의 subtitle 위치로 옮길지 결정
 - [ ] (시안만 보유) "새로고침" 텍스트 + outlined Button — 실 페이지는 아이콘 단독 IconButton. 두 패턴 중 결정 필요
 
@@ -65,13 +66,15 @@
   - `selectedYear`/`selectedSociety` 변경 → `selectedEventIds=[]`, `selectedDate=null` (line 431)
   - `selectedEventIds` 변경 → `selectedDate=null` (line 432)
 
-### Row 1 — 매출 현황 카드 (line 681-697)
-- [ ] 카드 제목: `{dashboardData.eventName} 매출 현황` — line 684 (예: "전체 기간 누적 합계 매출 현황", "2026년 한국심리학회 누적 합계 매출 현황", "3개 행사 합계 매출 현황", 행사 1건 선택 시 해당 학회명)
-- [ ] KPI 4개 (모바일 column, 데스크톱 row + 세로 디바이더):
-  - 검사 판매액 (`testRevenue`) — `TestIcon`, color `#2B398F`
-  - 도서 판매액 (`bookRevenue`) — `BookIcon`, color `#3d4db0`
-  - 배송비 (`shippingRevenue`) — `CartIcon`, color `#0984e3`
-  - 총 매출액 (`totalRevenue`) — `ReceiptIcon`, color `#00B894`, **`yoyPct` Chip 노출 (전년 동조건 비교)**
+### Row 1 — 매출 현황 카드 (시안 정합본: hero 총매출 + 오늘접수 박스 + sub 2장)
+> **2026-06-02 매출 합산 구조 변경 (건우님 승인):** 별도 `shippingRevenue` 버킷 폐기. 배송비를 검사/도서에 할당(검사 우선, 도서만 있는 주문이면 도서). `computeRevenueByCategory`(공용 유틸) 단일 소스. 매출 정의 = **결제완료(`['paid','completed']`)만** — 이전엔 `cancelled/refunded`만 제외해 `pending`(결제대기)도 매출·랭킹에 포함됐으나, 결제완료 기준으로 통일(매출·랭킹 정합).
+- [ ] 헤더 subtitle: `{dashboardData.eventName}` (예: "전체 기간 누적 합계", "2026년 한국심리학회 누적 합계", "3개 행사 합계", 행사 1건 선택 시 해당 학회명)
+- [ ] hero StatCard: **총 매출액** (`totalRevenue` = test + book) — `ReceiptIcon`, color `theme.accent.revenue`, **`yoyPct` trend pill (전년 동조건 비교, final_payment 기반)**
+- [ ] 오늘 접수 박스 (Row 1 우측) — `todayOrdersCount`, `CartIcon`, `theme.accent.attention`
+- [ ] sub StatCard 2장 (모바일 column, 데스크톱 row):
+  - **검사 판매 (배송비 포함)** (`testRevenue`) — `TestIcon`, color `theme.accent.tests`
+  - **도서 판매 (배송비 포함)** (`bookRevenue`) — `BookIcon`, color `theme.accent.books`
+  - (배송비 단독 카드 폐기 — 검사/도서에 흡수)
 - [ ] `CompactKpi` 컴포넌트 형식 (line 51-72):
   - 아이콘 박스 (정사각, fontSize 28, color bg)
   - title (variant caption, fontWeight 600, text.secondary)
@@ -168,11 +171,12 @@
 - [ ] `selectedEventIds.length === 1` 시: 해당 행사명
 - [ ] `selectedEventIds.length >= 2` 시: `N개 행사 합계`
 - [ ] 일자 필터 활성 시: `created_at >= dateFrom (KST 0시)` and `<= dateTo (KST 23:59:59.999)` — 양 끝 포함 (line 465-466)
-- [ ] 매출 계산 — **`cancelled`·`refunded` 상태 주문은 매출에서 제외** (`NON_REVENUE_STATUSES`, line 506). `statusCounts`에는 포함하되 매출·랭킹에는 미포함
-- [ ] 카테고리 분류:
+- [ ] 매출 계산 — **결제완료(`['paid','completed']`)만** (`computeRevenueByCategory` 내부 `PAID_STATUSES`). `pending`/`cancelled`/`refunded`는 매출·랭킹에서 제외. `statusCounts`·`todayOrdersCount`에는 전체 포함. (2026-06-02 변경 — 이전엔 pending도 매출 포함이었음)
+- [ ] 카테고리 분류 (`computeRevenueByCategory`):
   - 도서 매출: category가 `도서` 또는 `book` 포함
-  - 검사 매출: category가 `검사`/`test`/`도구`/`tool` 포함 (**확인 필요** — `도구`도 "검사 판매액"에 합산되는 게 의도인지)
-- [ ] `totalRevenue = bookRevenue + testRevenue + shippingRevenue` (취소·환불 주문 배송비도 제외)
+  - 검사 매출: category가 `검사`/`test`/`도구`/`tool` 포함 (도구는 검사 버킷). 미분류도 검사 버킷.
+  - 배송비 할당: 주문에 검사(도구 포함) 품목이 하나라도 있으면 배송비 → 검사, 도서만 있는 주문이면 → 도서.
+- [ ] `totalRevenue = bookRevenue + testRevenue` (각 버킷에 배송비 포함됨)
 - [ ] YoY 계산: `selectedYear !== 'all' && selectedEventIds.length === 0` 일 때만 전년 동조건 (같은 host_society·tags 매칭) 전체 매출 비교. `prevTotal > 0` 일 때만 표시
 - [ ] **확인 필요** — YoY는 전년 주문 fetch 시 `final_payment` 만 끌어와 합산하고 취소·환불 분리 안 함(line 488-491). 매출 정의 불일치 부채
 
@@ -238,9 +242,9 @@
 - RLS: `authenticated` 전체 CRUD 허용 (`20260311_create_field_reports.sql`)
 - **확인 필요** — 권한 가드 없이 모든 어드민이 모든 보고서 편집·삭제 가능. 의도된 정책인지 CTO 검수 필요
 
-### 집계 산출 객체 `dashboardData` (state, line 540-544)
+### 집계 산출 객체 `dashboardData` (state)
 - `eventName` (string)
-- `totalRevenue`, `bookRevenue`, `testRevenue`, `shippingRevenue` (number, 원)
+- `totalRevenue`, `bookRevenue`, `testRevenue` (number, 원). **검사·도서는 배송비 포함값. `shippingRevenue` 폐기(2026-06-02).** total = test + book.
 - `yoyPct` (number | null) — 전년 동조건 대비 % (절대값+삼각형은 표시 시 가공)
 - `totalOrders` (number) — 취소·환불 포함 전체 건수
 - `statusCounts` (object) — 5상태별 건수
@@ -305,6 +309,12 @@ frontend 사이클(M3-12 본 작업)이 흡수해야 할 항목:
 6. **상품 전수 fetch 비용.** 진입 시 `fetchAllProducts`로 페이지네이션 1000씩 끝까지 끌어오고 `productsMap` 메모리 적재(line 374-384). 신상품 등록이 폭증하지 않는 한 부담 없는 규모(연 800건 운영). 단, 신규 환경에서 products가 수만 건이 된다면 N+1 위험. 부채 후보로 기록.
 
 ## 변경 이력
+- 2026-06-02 매출 합산 구조 변경 + 입금결의서 export (건우님 승인):
+  - 매출 집계를 공용 유틸 `computeRevenueByCategory`로 교체. 별도 `shippingRevenue` 버킷 폐기 — 배송비를 검사/도서에 할당(검사 우선). 매출 카드 "검사 판매(배송비 포함)" / "도서 판매(배송비 포함)" / 총매출(=test+book) 2+hero 구조. 배송비 단독 StatCard 제거. `ShippingIcon` import 제거.
+  - **매출·랭킹 기준 변경:** 결제완료(`paid`/`completed`)만. 이전엔 `cancelled/refunded`만 제외해 `pending` 매출 포함이었음 → 결제대기는 입금 전이라 매출 제외가 옳음(util `PAID_STATUSES` 단일 소스). 랭킹(`productSales`)도 동일 기준으로 정합(이전엔 매출↔랭킹 status 기준 불일치였음). YoY는 final_payment 기반 그대로(영향 없음).
+  - 입금결의서 내보내기 버튼 신설(단일 상세 행사 선택 시). `src/utils/depositResolution.js`(ExcelJS) — 양식 워크북 로드 후 셀만 채움(병합·서식·로고 보존). **ExcelJS 신규 의존성(CTO 승인 대상).**
+  - 현장보고서 자동 채움 템플릿 "0. 판매 (배송비 포함)"로 라벨 명시.
+  - **미검증(권한 차단):** lint/build/양식 셀 실측은 Bash 권한 거부로 미실행 — 권한 확보 후 검증 필요.
 - 2026-05-29 신설 — M3-12 시안 정합 사이클 사전 작성, 게이트 1.5 통과 목적. 시안 vs 실 페이지 차이 14건 적출. `societies` 테이블 마이그레이션 누락(2건째 부채), field_reports RLS 무가드(1건), YoY 매출 정의 불일치(1건), 도구 카테고리 분류 모호성(1건) 부채 후보로 기록.
 - 2026-05-29 M3-12 frontend 사이클 — DashboardPage.jsx 시안 정합 (805→723줄). 시안 차이 14건 흡수:
   - #1 헤더 subtitle 도입 (eventName 자리 이동), 매출 카드 내부 제목 제거.
