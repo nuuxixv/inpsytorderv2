@@ -38,7 +38,6 @@ const mockOrder = {
   id: 1,
   created_at: new Date().toISOString(),
   customer_name: '홍길동',
-  email: 'hong@example.com',
   phone_number: '010-1234-5678',
   shipping_address: {
     address: '서울시 강남구',
@@ -139,7 +138,6 @@ describe('OrderDetailModal', () => {
     // 주문자 정보 확인
     expect(screen.getByText(mockOrder.customer_name)).toBeInTheDocument();
     expect(screen.getByText(mockOrder.phone_number)).toBeInTheDocument();
-    expect(screen.getByText(mockOrder.email)).toBeInTheDocument();
 
     // 배송지 정보 확인
     expect(screen.getByText(mockOrder.shipping_address.postcode)).toBeInTheDocument();
