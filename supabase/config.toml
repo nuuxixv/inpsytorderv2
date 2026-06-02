@@ -322,7 +322,8 @@ s3_access_key = "env(S3_ACCESS_KEY)"
 s3_secret_key = "env(S3_SECRET_KEY)"
 
 [functions.send-order-email]
-enabled = true
+# 이메일 미사용 함수 — 배포 대상에서 제외 (2026-06-02). 이 서비스는 알림톡만 사용.
+enabled = false
 verify_jwt = true
 import_map = "./deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
