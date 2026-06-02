@@ -1,4 +1,6 @@
-import postgres from "postgres";
+// postgres를 전체 URL로 import (bare specifier "postgres"는 배포 시 import map 부재로
+// "failed to create the graph" 오류 → CI 일괄 배포 전체 실패의 원인이었음. 2026-06-02)
+import postgres from "https://deno.land/x/postgresjs@v3.4.2/mod.js";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.2";
 
 // 환경 변수 로드
