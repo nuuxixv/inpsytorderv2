@@ -751,6 +751,7 @@ const DashboardPage = () => {
         orders: data || [],
         productsMap,
         authorName: profile?.name || user?.email || '',
+        department: profile?.department || '',
       });
       addNotification('입금결의서를 내보냈습니다.', 'success');
     } catch (e) {
