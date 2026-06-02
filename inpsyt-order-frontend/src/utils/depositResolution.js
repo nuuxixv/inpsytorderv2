@@ -36,7 +36,12 @@ function formatEventDateRange(startDate, endDate) {
   if (endDate) {
     const e = new Date(endDate);
     const sameDay = s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth() && s.getDate() === e.getDate();
-    if (!sameDay) label += `-${String(e.getDate()).padStart(2, '0')}`;
+    if (!sameDay) {
+      const sameMonth = s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth();
+      const edd = String(e.getDate()).padStart(2, '0');
+      // 같은 달: 'MM.DD-DD' (예 04.16-17) / 달을 넘기면: 'MM.DD~MM.DD'
+      label += sameMonth ? `-${edd}` : `~${String(e.getMonth() + 1).padStart(2, '0')}.${edd}`;
+    }
   }
   return label;
 }
