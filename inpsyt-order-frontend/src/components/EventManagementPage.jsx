@@ -566,11 +566,8 @@ const EventManagementPage = () => {
               <Autocomplete
                 freeSolo
                 options={['춘계학술대회', '추계학술대회', '연수강좌', '보수교육', '세미나', '기타']}
-                value={currentEvent?.event_season || ''}
-                onChange={(e, newValue) => handleChange('event_season', newValue || '')}
-                onInputChange={(e, newInputValue) => {
-                  if (e && e.type === 'change') handleChange('event_season', newInputValue);
-                }}
+                inputValue={currentEvent?.event_season || ''}
+                onInputChange={(e, newInputValue) => handleChange('event_season', newInputValue)}
                 disabled={!hasPermission('events:edit')}
                 renderInput={(params) => (
                   <TextField
