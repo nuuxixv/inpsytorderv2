@@ -563,43 +563,41 @@ const EventManagementPage = () => {
                 })}
               </TextField>
 
-              <TextField
-                select
-                fullWidth
-                label="행사 구분"
-                name="event_season"
-                value={currentEvent?.event_season || ''}
-                onChange={(e) => handleChange(e.target.name, e.target.value)}
-                disabled={!hasPermission('events:edit')}
-                InputLabelProps={{ shrink: true }}
-              >
-                <MenuItem value=""><em>시즌 선택</em></MenuItem>
-                <MenuItem value="춘계학술대회">춘계학술대회</MenuItem>
-                <MenuItem value="추계학술대회">추계학술대회</MenuItem>
-                <MenuItem value="연수강좌">연수강좌</MenuItem>
-                <MenuItem value="보수교육">보수교육</MenuItem>
-                <MenuItem value="세미나">세미나</MenuItem>
-                <MenuItem value="기타">기타</MenuItem>
-              </TextField>
-
               <Autocomplete
                 freeSolo
-                options={availableSocieties.map(s => s.name)}
-                value={currentEvent?.host_society || ''}
-                onChange={(e, newValue) => handleChange('host_society', newValue)}
+                options={['춘계학술대회', '추계학술대회', '연수강좌', '보수교육', '세미나', '기타']}
+                value={currentEvent?.event_season || ''}
+                onChange={(e, newValue) => handleChange('event_season', newValue || '')}
                 onInputChange={(e, newInputValue) => {
-                   if (e && e.type === 'change') handleChange('host_society', newInputValue);
+                  if (e && e.type === 'change') handleChange('event_season', newInputValue);
                 }}
                 disabled={!hasPermission('events:edit')}
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="주최 학회"
+                    label="행사 구분"
                     placeholder="목록에서 선택하거나 직접 입력"
                     InputLabelProps={{ shrink: true }}
                   />
                 )}
               />
+
+              <TextField
+                select
+                fullWidth
+                label="주최 학회"
+                name="host_society"
+                value={currentEvent?.host_society || ''}
+                onChange={(e) => handleChange('host_society', e.target.value)}
+                disabled={!hasPermission('events:edit')}
+                InputLabelProps={{ shrink: true }}
+                helperText="학회 목록 관리에서 추가한 학회 중 선택"
+              >
+                <MenuItem value=""><em>학회 선택</em></MenuItem>
+                {availableSocieties.map((s) => (
+                  <MenuItem key={s.id} value={s.name}>{s.name}</MenuItem>
+                ))}
+              </TextField>
             </Box>
 
             <Divider />
