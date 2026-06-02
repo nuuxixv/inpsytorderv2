@@ -338,8 +338,10 @@ const FieldReportSection = ({ eventId, eventName, revenueData }) => {
     const testRev = (revenueData?.testRevenue || 0).toLocaleString();
     const bookRev = (revenueData?.bookRevenue || 0).toLocaleString();
     const totalRev = (revenueData?.totalRevenue || 0).toLocaleString();
+    const testShip = (revenueData?.testShipping || 0).toLocaleString();
+    const bookShip = (revenueData?.bookShipping || 0).toLocaleString();
     setEditContent(
-      `${eventName || '전체'} 현장마케팅 보고드립니다.\n\n0. 판매 (배송비 포함)\n검사 판매: ${testRev}원\n도서 판매: ${bookRev}원\n합계: ${totalRev}원\n\n1. 도서 관련\n\n2. 검사 관련\n\n이상 현장마케팅 마무리하겠습니다.`
+      `${eventName || '전체'} 현장마케팅 보고드립니다.\n\n0. 판매\n검사 판매: ${testRev}원 (배송비 ${testShip}원 포함)\n도서 판매: ${bookRev}원 (배송비 ${bookShip}원 포함)\n합계: ${totalRev}원\n\n1. 도서 관련\n\n2. 검사 관련\n\n이상 현장마케팅 마무리하겠습니다.`
     );
     setEditDayNumber(1);
     setEditAuthor('');
@@ -678,7 +680,7 @@ const DashboardPage = () => {
 
     // 매출 버킷 — 공용 유틸로 통일. 배송비를 검사/도서에 할당(검사 우선), 별도 shipping 버킷 폐기.
     // util은 PAID_STATUSES(결제완료)만 합산 — 취소/환불/미결제는 자동 제외(위 랭킹 분류와 동일 결과).
-    const { test: testRevenue, book: bookRevenue, total: totalRevenue } =
+    const { test: testRevenue, book: bookRevenue, total: totalRevenue, testShipping, bookShipping } =
       computeRevenueByCategory(orders, { productsMap });
 
     const salesList = Object.values(productSales);
@@ -695,7 +697,7 @@ const DashboardPage = () => {
       .sort((a, b) => b.totalQuantity - a.totalQuantity);
 
     setDashboardData({
-      eventName: targetEventName, totalRevenue, bookRevenue, testRevenue, yoyPct,
+      eventName: targetEventName, totalRevenue, bookRevenue, testRevenue, testShipping, bookShipping, yoyPct,
       totalOrders: orders.length, statusCounts, bookTop5, testTop5, todayOrdersCount,
       recentOrders: recentRes.data || [],
     });
@@ -965,14 +967,14 @@ const DashboardPage = () => {
               {/* 매출 합산 — 배송비를 검사/도서에 할당(검사 우선), 별도 버킷 폐기(2026-06-02 건우님). */}
               <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 2, sm: 3 } }}>
                 <StatCard
-                  label="검사 판매 (배송비 포함)"
+                  label={`검사 판매 (배송비 ${(dashboardData.testShipping || 0).toLocaleString()}원 포함)`}
                   value={(dashboardData.testRevenue || 0).toLocaleString()}
                   unit="원"
                   icon={TestIcon}
                   color={theme.accent.tests}
                 />
                 <StatCard
-                  label="도서 판매 (배송비 포함)"
+                  label={`도서 판매 (배송비 ${(dashboardData.bookShipping || 0).toLocaleString()}원 포함)`}
                   value={(dashboardData.bookRevenue || 0).toLocaleString()}
                   unit="원"
                   icon={BookIcon}

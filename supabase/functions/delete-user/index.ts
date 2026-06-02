@@ -50,7 +50,21 @@ serve(async (req: Request) => {
       })
     }
 
-    // Delete user from Auth (this will cascade to user_profiles if FK is set correctly)
+    // user_profiles 행을 먼저 삭제한다. auth.users FK에 ON DELETE CASCADE가 없어
+    // deleteUser가 "Database error deleting user"(FK 위반)로 실패하던 문제 해결.
+    const { error: profileDeleteError } = await supabaseAdmin
+      .from('user_profiles')
+      .delete()
+      .eq('id', userId)
+
+    if (profileDeleteError) {
+      return new Response(JSON.stringify({ error: profileDeleteError.message }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
+
+    // Auth 사용자 삭제
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId)
 
     if (deleteError) {
