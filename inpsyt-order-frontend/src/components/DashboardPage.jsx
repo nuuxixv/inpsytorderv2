@@ -36,12 +36,12 @@ import {
   Delete as DeleteIcon,
   Add as AddIcon,
   ChevronRight as ChevronRightIcon,
-  LocalShipping as ShippingIcon,
   Assignment as ReportIcon,
   History as HistoryIcon,
   EmojiEvents as TrophyIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { supabase } from '../supabaseClient';
 import { formatISO, startOfToday, format } from 'date-fns';
@@ -51,6 +51,8 @@ import { useNotification } from '../hooks/useNotification';
 import { useNavigate } from 'react-router-dom';
 import { STATUS_TO_KOREAN as statusToKorean, STATUS_COLORS as statusColors } from '../constants/orderStatus';
 import { PageHeader, SectionCard, StatCard, StatusBadge, EmptyState } from './ui';
+import { computeRevenueByCategory, PAID_STATUSES } from '../utils/revenueByCategory';
+// exportDepositResolution(ExcelJS 의존)은 무거워서 버튼 클릭 시 동적 import (메인 번들 분리)
 
 // 사양 시트: design-system/specs/A4_DashboardPage.md
 // (M3-12 시안 정합본. PR #10~#20 패턴.)
@@ -337,7 +339,7 @@ const FieldReportSection = ({ eventId, eventName, revenueData }) => {
     const bookRev = (revenueData?.bookRevenue || 0).toLocaleString();
     const totalRev = (revenueData?.totalRevenue || 0).toLocaleString();
     setEditContent(
-      `${eventName || '전체'} 현장마케팅 보고드립니다.\n\n0. 판매\n검사 판매: ${testRev}원\n도서 판매: ${bookRev}원\n합계: ${totalRev}원\n\n1. 도서 관련\n\n2. 검사 관련\n\n이상 현장마케팅 마무리하겠습니다.`
+      `${eventName || '전체'} 현장마케팅 보고드립니다.\n\n0. 판매 (배송비 포함)\n검사 판매: ${testRev}원\n도서 판매: ${bookRev}원\n합계: ${totalRev}원\n\n1. 도서 관련\n\n2. 검사 관련\n\n이상 현장마케팅 마무리하겠습니다.`
     );
     setEditDayNumber(1);
     setEditAuthor('');
@@ -496,7 +498,8 @@ const DashboardPage = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const { hasPermission } = useAuth();
+  const [exporting, setExporting] = useState(false);
+  const { hasPermission, profile, user } = useAuth();
   const { addNotification } = useNotification();
 
   // Modal
@@ -596,7 +599,7 @@ const DashboardPage = () => {
   const fetchDataForEventIds = async (eventIds, targetEventName = '전체(합계)') => {
     if (!eventIds || eventIds.length === 0) {
       setDashboardData({
-        eventName: targetEventName, totalRevenue: 0, bookRevenue: 0, testRevenue: 0, shippingRevenue: 0,
+        eventName: targetEventName, totalRevenue: 0, bookRevenue: 0, testRevenue: 0,
         totalOrders: 0, statusCounts: {}, bookTop5: [], testTop5: [], recentOrders: [], todayOrdersCount: 0, yoyPct: null,
       });
       return;
@@ -640,21 +643,19 @@ const DashboardPage = () => {
 
     const orders = ordersRes.data || [];
     const statusCounts = {};
-    let bookRevenue = 0, testRevenue = 0, shippingRevenue = 0;
     const productSales = {};
 
     const todayStart = formatISO(startOfToday());
     let todayOrdersCount = 0;
-    const NON_REVENUE_STATUSES = ['cancelled', 'refunded'];
 
     orders.forEach(order => {
       statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
       if (order.created_at >= todayStart) todayOrdersCount++;
 
-      // 사양 §매출 정의 — 취소/환불은 매출 제외 (statusCounts에는 포함)
-      if (NON_REVENUE_STATUSES.includes(order.status)) return;
-
-      shippingRevenue += order.delivery_fee || 0;
+      // 랭킹도 매출과 동일 기준 — 결제완료(paid/completed)만 집계.
+      // (이전엔 cancelled/refunded만 제외해 pending도 포함 → 매출 버킷과 불일치였음.
+      //  매출이 computeRevenueByCategory(PAID_STATUSES)로 통일되며 랭킹도 정합.)
+      if (!PAID_STATUSES.includes(order.status)) return;
 
       (order.order_items || []).forEach(item => {
         const prod = productsMap[item.product_id];
@@ -663,10 +664,6 @@ const DashboardPage = () => {
         if (!itemName && !prod) return;
         const qty = item.quantity || 0;
         const price = item.price_at_purchase || 0;
-        const cat = (itemCategory || '').toLowerCase();
-
-        if (cat.includes('도서') || cat.includes('book')) bookRevenue += price * qty;
-        else if (cat.includes('검사') || cat.includes('test') || cat.includes('도구') || cat.includes('tool')) testRevenue += price * qty;
 
         if (!productSales[item.product_id]) {
           productSales[item.product_id] = {
@@ -678,7 +675,11 @@ const DashboardPage = () => {
         productSales[item.product_id].totalAmount += price * qty;
       });
     });
-    const totalRevenue = bookRevenue + testRevenue + shippingRevenue;
+
+    // 매출 버킷 — 공용 유틸로 통일. 배송비를 검사/도서에 할당(검사 우선), 별도 shipping 버킷 폐기.
+    // util은 PAID_STATUSES(결제완료)만 합산 — 취소/환불/미결제는 자동 제외(위 랭킹 분류와 동일 결과).
+    const { test: testRevenue, book: bookRevenue, total: totalRevenue } =
+      computeRevenueByCategory(orders, { productsMap });
 
     const salesList = Object.values(productSales);
     const bookTop5 = salesList
@@ -694,7 +695,7 @@ const DashboardPage = () => {
       .sort((a, b) => b.totalQuantity - a.totalQuantity);
 
     setDashboardData({
-      eventName: targetEventName, totalRevenue, bookRevenue, testRevenue, shippingRevenue, yoyPct,
+      eventName: targetEventName, totalRevenue, bookRevenue, testRevenue, yoyPct,
       totalOrders: orders.length, statusCounts, bookTop5, testTop5, todayOrdersCount,
       recentOrders: recentRes.data || [],
     });
@@ -729,6 +730,34 @@ const DashboardPage = () => {
   const handleRefresh = () => { setRefreshing(true); fetchData(); };
   const handleRowClick = (order) => { setSelectedOrder(order); setIsModalOpen(true); };
 
+  // 입금결의서 내보내기 — 단일 상세 행사 선택 시에만 노출(버튼 가드).
+  const handleExportDeposit = async () => {
+    if (selectedEventIds.length !== 1) return;
+    const eventId = selectedEventIds[0];
+    const event = events.find(e => e.id === eventId);
+    if (!event) { addNotification('행사 정보를 찾을 수 없습니다.', 'error'); return; }
+    setExporting(true);
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('status, delivery_fee, order_items(product_id, category, price_at_purchase, quantity)')
+        .eq('event_id', eventId);
+      if (error) throw error;
+      const { exportDepositResolution } = await import('../utils/depositResolution');
+      await exportDepositResolution({
+        event,
+        orders: data || [],
+        productsMap,
+        authorName: profile?.name || user?.email || '',
+      });
+      addNotification('입금결의서를 내보냈습니다.', 'success');
+    } catch (e) {
+      console.error(e);
+      addNotification(`입금결의서 내보내기 실패: ${e.message}`, 'error');
+    }
+    setExporting(false);
+  };
+
   // ─── Render ───
   if (events.length === 0 && loading) {
     return <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}><CircularProgress /></Box>;
@@ -746,22 +775,36 @@ const DashboardPage = () => {
         subtitle={dashboardData?.eventName || ''}
         icon={DashboardIcon}
         action={
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={handleRefresh}
-            disabled={refreshing || loading}
-            startIcon={
-              <RefreshIcon
-                sx={{
-                  fontSize: 16,
-                  animation: refreshing ? 'spin 1s linear infinite' : 'none',
-                }}
-              />
-            }
-          >
-            새로고침
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {/* 입금결의서 — 단일 상세 행사 선택 시에만 노출(2026-06-02 건우님) */}
+            {selectedEventIds.length === 1 && (
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={handleExportDeposit}
+                disabled={exporting || loading}
+                startIcon={<DownloadIcon sx={{ fontSize: 16 }} />}
+              >
+                {exporting ? '생성중...' : '입금결의서 내보내기'}
+              </Button>
+            )}
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleRefresh}
+              disabled={refreshing || loading}
+              startIcon={
+                <RefreshIcon
+                  sx={{
+                    fontSize: 16,
+                    animation: refreshing ? 'spin 1s linear infinite' : 'none',
+                  }}
+                />
+              }
+            >
+              새로고침
+            </Button>
+          </Box>
         }
       />
 
@@ -919,27 +962,21 @@ const DashboardPage = () => {
                   </Box>
                 </Box>
               </Box>
+              {/* 매출 합산 — 배송비를 검사/도서에 할당(검사 우선), 별도 버킷 폐기(2026-06-02 건우님). */}
               <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 2, sm: 3 } }}>
                 <StatCard
-                  label="검사 판매"
+                  label="검사 판매 (배송비 포함)"
                   value={(dashboardData.testRevenue || 0).toLocaleString()}
                   unit="원"
                   icon={TestIcon}
                   color={theme.accent.tests}
                 />
                 <StatCard
-                  label="도서 판매"
+                  label="도서 판매 (배송비 포함)"
                   value={(dashboardData.bookRevenue || 0).toLocaleString()}
                   unit="원"
                   icon={BookIcon}
                   color={theme.accent.books}
-                />
-                <StatCard
-                  label="배송비"
-                  value={(dashboardData.shippingRevenue || 0).toLocaleString()}
-                  unit="원"
-                  icon={ShippingIcon}
-                  color={theme.accent.shipping}
                 />
               </Box>
             </Box>

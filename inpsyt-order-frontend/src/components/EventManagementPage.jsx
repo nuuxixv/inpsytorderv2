@@ -150,16 +150,19 @@ const EventManagementPage = () => {
       if (name === 'name' && !isEditing && !newState.order_url_slug) {
         newState.order_url_slug = value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
       }
+      // 행사명을 직접 입력/수정하면 자동완성이 더 이상 덮어쓰지 않도록 플래그
+      if (name === 'name') newState._nameTouched = true;
 
       // Auto-suggest name and URL if year, society, and season change
+      // (행사명을 사용자가 직접 건드렸으면 자동완성으로 덮어쓰지 않음)
       if (['event_year', 'host_society', 'event_season'].includes(name) && !isEditing) {
         const newYear = name === 'event_year' ? value : prev.event_year;
         const newSociety = name === 'host_society' ? value : prev.host_society;
         const newSeason = name === 'event_season' ? value : prev.event_season;
 
         if (newYear && newSociety && newSeason) {
-          // Auto-suggest Name
-          newState.name = `${newYear} ${newSociety} ${newSeason}`;
+          // Auto-suggest Name (수동 편집 전에만)
+          if (!prev._nameTouched) newState.name = `${newYear} ${newSociety} ${newSeason}`;
 
           // Auto-suggest URL Slug with random suffix to prevent guessing
           const societyObj = availableSocieties.find(s => s.name === newSociety);
@@ -216,7 +219,7 @@ const EventManagementPage = () => {
       return;
     }
 
-    const { id, ...upsertData } = currentEvent;
+    const { id, _nameTouched, ...upsertData } = currentEvent;
 
     let query;
     if (isEditing) {
@@ -605,13 +608,13 @@ const EventManagementPage = () => {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <TextField
                 name="name"
-                label="행사명 (자동 완성)"
+                label="행사명"
                 fullWidth
                 value={currentEvent?.name || ''}
                 onChange={(e) => handleChange(e.target.name, e.target.value)}
                 disabled={!hasPermission('events:edit')}
                 InputLabelProps={{ shrink: true }}
-                helperText="위에서 입력한 정보로 자동 생성됩니다."
+                helperText="위 정보로 자동 완성되며, 직접 입력·수정할 수 있습니다."
               />
               <TextField
                 name="order_url_slug"
