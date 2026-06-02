@@ -39,7 +39,7 @@
 > AI 산출물 시그니처 주의: 현재 그라데이션 배경은 CLAUDE.md "AI 산출물 시그니처" 절에서 차단 대상. 시안에서는 단색·토큰 패턴으로 교체 필요. 활동 7일 이내 사용자(`recentlyActiveCount`)는 계산만 되어 있고 카드로 노출되지 않음.
 
 #### 사용자 표 (line 539-679)
-- [ ] 컬럼: 사용자 / 역할 / 메모 / 생성일 / 마지막 로그인 / 액션
+- [ ] 컬럼: 사용자 / 역할 / 부서 / 메모 / 생성일 / 마지막 로그인 / 액션
 - [ ] 행마다 표시:
   - 사용자 셀: `Avatar`(첫 글자, primary 배경) + 이름(`u.name || '이름 없음'`, 굵게). 본인 행이면 옆에 "나" 칩(primary). 이메일은 화면 미노출.
   - 역할 셀: 칩(slug별 매핑)
@@ -48,10 +48,12 @@
     - `fulfillment_book` → "출고 (도서)" (secondary)
     - `fulfillment_test` → "출고 (검사)" (success)
     - 그 외 슬러그 → 슬러그 문자열 그대로 outlined 칩 ("알 수 없음" fallback)
+  - 부서 셀: `u.department || '마케팅운영팀'` (값 없으면 서버 기본값 노출). `list-users` 응답에 `department` 포함(2026-06-02 백엔드 추가).
   - 메모 셀: `u.memo || '-'`, 최대폭 200, ellipsis 한 줄
   - 생성일 셀: `format(created_at, 'yyyy.MM.dd')` + 아래 줄 `HH:mm`
   - 마지막 로그인 셀: `last_sign_in_at` 있으면 동일 포맷, 없으면 "N/A"
-  - 액션 셀(가운데): `VpnKeyIcon` 권한 관리(본인 master면 비활성) / `EditIcon` 메모 수정(info) / `DeleteIcon` 사용자 삭제(본인 비활성, error)
+  - 액션 셀(가운데): `VpnKeyIcon` 권한 관리(본인 master면 비활성) / **`BusinessIcon` 정보 수정(master 전용)** / **`PasswordIcon` PIN 재설정(master 전용)** / `EditIcon` 메모 수정 / `DeleteIcon` 사용자 삭제(본인 비활성, error)
+  - master 전용 두 액션(`BusinessIcon`/`PasswordIcon`)은 `hasPermission('master')` true일 때만 렌더(비-master는 비노출). 게이트 변수 `isMaster`.
 - [ ] 빈 상태: `EmptyState` "등록된 사용자가 없습니다" + "새 사용자를 초대하여 시작하세요" + "사용자 초대" 버튼
 
 ### 탭 1 — 역할 템플릿 (line 683-874)
@@ -112,6 +114,26 @@
 - [ ] 본문: "이 역할 템플릿을 삭제하시겠습니까? 이미 이 역할이 할당된 사용자에게는 영향이 없습니다."
 - [ ] 액션: "취소" / "삭제" error contained
 
+### 모달 7 — 사용자 정보 수정 (master 전용, 2026-06-02 신설)
+- [ ] 타이틀: "사용자 정보 수정"
+- [ ] 필드: "이름" (텍스트, required, placeholder "예: 홍길동", 빈 값이면 error·저장 비활성)
+- [ ] 필드: "부서" (텍스트, optional, placeholder "예: 마케팅운영팀")
+- [ ] 액션: "취소" / "저장" contained (저장 중 `CircularProgress`, 이름 공백이면 비활성)
+- [ ] 호출: `update-user-profile { userId, name, department }`. 성공 시 `fetchUsers` + 토스트.
+
+### 모달 8 — PIN 재설정 확인 (master 전용, 2026-06-02 신설)
+- [ ] 타이틀: "PIN 재설정"
+- [ ] 본문: "{이름} 님의 PIN을 새로 발급합니다. 기존 PIN은 즉시 사용할 수 없게 되며, 새 임시 PIN이 1회만 표시됩니다."
+- [ ] 액션: "취소" / "재설정" contained (재설정 중 `CircularProgress`)
+- [ ] 호출: `reset-user-pin { userId }` (newPin 미전달 = 서버 6자리 임시 PIN 자동발급). 성공 시 모달 9로 전환.
+
+### 모달 9 — 임시 PIN 표시 (1회용, master 전용, 2026-06-02 신설)
+- [ ] 타이틀: "임시 PIN 발급 완료"
+- [ ] 본문: "{이름} 님의 새 임시 PIN입니다. 이 PIN을 직원에게 직접 전달하세요. 이 창을 닫으면 다시 볼 수 없습니다."
+- [ ] PIN 박스: `h3` tnum + letterSpacing, primary 톤 박스(반환 `data.pin` 평문)
+- [ ] 액션: "확인 (창 닫기)" contained fullWidth → 닫으면 `issuedPin` state null로 폐기
+- [ ] **보안 제약: 반환 PIN을 콘솔로그·로컬스토리지·장기 state 보관 금지.** 표시용 임시 state(`issuedPin`)에만 담고 모달 닫으면 즉시 폐기.
+
 ## 액션·기능 (누락 금지)
 
 - [ ] 진입 시 `fetchUsers` + `fetchRoleTemplates` (line 154-158, `users:manage` 권한 보유 시)
@@ -126,6 +148,8 @@
   - 본인의 master를 다른 역할로 바꾸려 하면 차단(경고 토스트)
   - Edge function `update-user-role`
 - [ ] 사용자 메모 수정 (`handleSaveMemo`, line 390-414): Edge function `update-user-memo`
+- [ ] 사용자 정보 수정 (`handleSaveProfile`, master 전용): Edge function `update-user-profile { userId, name, department }`. 이름 공백 거부. 성공 시 `fetchUsers`.
+- [ ] PIN 재설정 (`handleResetPinConfirm` → 모달 8 확인 → 모달 9 표시, master 전용): Edge function `reset-user-pin { userId }`. 반환 `pin`은 1회용 모달에만 노출 후 `handleCloseIssuedPin`에서 폐기.
 - [ ] 사용자 삭제 (`handleDeleteUser` → 확인 모달 → `handleDeleteUserConfirm`, line 354-382):
   - 본인은 차단
   - Edge function `delete-user` (auth.users 삭제 → user_profiles cascade)
@@ -143,7 +167,7 @@
 
 ## 권한별 차이
 
-- master: 모든 기능 — 사용자 CRUD, 역할 변경, 역할 템플릿 신규/편집/삭제. 본인의 master 권한은 해제·삭제 불가(코드·UI 양쪽 차단).
+- master: 모든 기능 — 사용자 CRUD, 역할 변경, 역할 템플릿 신규/편집/삭제, **이름·부서 수정**, **PIN 재설정**. 본인의 master 권한은 해제·삭제 불가(코드·UI 양쪽 차단). 정보 수정·PIN 재설정 행 액션은 `isMaster`(=`hasPermission('master')`) true일 때만 렌더.
 - `users:manage` 권한 보유자: 페이지 진입 가능. Edge function 측에서도 master 또는 `users:manage` 명시 체크(list-users line 50). 그러나 `invite-user`/`update-user-role`/`delete-user`/`update-user-memo`는 Edge function 안에서 `userRole === 'master'`만 통과 — 확인 필요. `users:manage`만 가진 비-master는 페이지는 들어오지만 액션은 모두 403.
 - 그 외: 페이지 진입 차단 — "접근 권한이 없습니다." (line 452-458)
 
@@ -154,6 +178,7 @@
 - `id` (uuid, FK → `auth.users.id`)
 - `email` (text)
 - `name` (text)
+- `department` (text, nullable, 서버 기본값 "마케팅운영팀") — `list-users` 응답·`update-user-profile`로 노출/수정 (2026-06-02 추가)
 - `role` (text) — `role_templates.slug` 또는 fallback 슬러그
 
 ### `auth.users` (Supabase 내장)
@@ -201,6 +226,7 @@
 7. 권한 변경 직후 JWT 갱신 안내가 없다. 사용자 역할을 바꿔도 그 사용자가 다음 로그인까지는 옛 권한으로 살아 있다. 운영자가 "바뀌었는데 왜 그대로지" 혼란을 일으킬 수 있다.
 
 ## 변경 이력
+- 2026-06-02 master 전용 3종 추가 (건우님 승인) — (1) 부서 표시(표 컬럼 + 서버 기본값 "마케팅운영팀"), (2) 이름·부서 수정(모달 7, `update-user-profile`), (3) PIN 재설정(모달 8 확인 → 모달 9 1회용 PIN 표시, `reset-user-pin`). 행 액션 2종 `isMaster` 게이팅. 반환 PIN 비보관(콘솔·스토리지·장기 state 금지). **백엔드 Edge Function 미배포 — 배포 후 동작.**
 - 2026-05-28 신설 — design/m2-admin-rest 브랜치 5종 일괄 사전 정독. UserManagementPage.jsx 전수 + Edge functions 5종 + 권한 마이그레이션 정합 점검.
 - 2026-05-29 M3-5 시안 정합 — 합성 컴포넌트 5종 적용 (PageHeader / SectionCard / EmptyState / ActionSlot / 로컬 RoleChip+RowIconButton).
   - 헤더: 토큰 외 인라인 → PageHeader (icon + title + subtitle 통계 + 액션 분기 [사용자 추가 / 새 역할 추가])
