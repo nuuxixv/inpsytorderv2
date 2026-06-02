@@ -37,10 +37,10 @@ export const AuthProvider = ({ children }) => {
         }
         setUser(session.user);
         setAccessToken(session.access_token); // Set access token here
-        // Fetch display name from user_profiles table
+        // Fetch display name/role/department from user_profiles table
         supabase
           .from('user_profiles')
-          .select('name, role')
+          .select('name, role, department')
           .eq('id', session.user.id)
           .single()
           .then(({ data }) => { if (data) setProfile(data); });
