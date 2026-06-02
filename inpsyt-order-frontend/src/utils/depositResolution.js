@@ -11,6 +11,8 @@ import { computeRevenueByCategory } from './revenueByCategory';
 
 const TEMPLATE_URL = '/templates/deposit-resolution-template.xlsx';
 const TARGET_SHEET = '02.입금결의서 (템플릿)';
+const SAMPLE_SHEET = '02.입금결의서 (샘플)'; // 내보낼 때 제거할 참고용 시트
+const OUTPUT_SHEET_NAME = '02.입금결의서'; // 최종 파일의 시트명('(템플릿)' 표기 제거)
 const DEFAULT_DEPARTMENT = '마케팅운영팀';
 
 // 행사명은 event_season(예: "춘계학술대회")을 우선 사용한다(적요 샘플 정합).
@@ -113,6 +115,11 @@ export async function exportDepositResolution({ event, orders, productsMap, auth
 
   // 계
   ws.getCell('R16').value = total;
+
+  // 내보낼 파일에서 (샘플) 참고 시트 제거 + 남는 시트명의 '(템플릿)' 표기 제거
+  const sampleWs = wb.getWorksheet(SAMPLE_SHEET);
+  if (sampleWs) wb.removeWorksheet(sampleWs.id);
+  ws.name = OUTPUT_SHEET_NAME;
 
   const out = await wb.xlsx.writeBuffer();
   const blob = new Blob([out], {
