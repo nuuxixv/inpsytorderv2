@@ -72,7 +72,7 @@ serve(async (req) => {
       );
     }
 
-    // Update user's role
+    // 1) Auth app_metadata.role — 권한/RLS의 진짜 기준
     const { error } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
       { app_metadata: { role: newRole } },
@@ -81,6 +81,21 @@ serve(async (req) => {
     if (error) {
       console.error("Error updating user role:", error);
       return new Response(JSON.stringify({ error: error.message }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      });
+    }
+
+    // 2) user_profiles.role 동기화 — list-users가 profileInfo.role을 우선 표시하므로
+    //    이걸 안 바꾸면 역할 변경이 화면에 반영되지 않는다.
+    const { error: profileError } = await supabaseAdmin
+      .from("user_profiles")
+      .update({ role: newRole })
+      .eq("id", userId);
+
+    if (profileError) {
+      console.error("Error syncing user_profiles.role:", profileError);
+      return new Response(JSON.stringify({ error: profileError.message }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
       });

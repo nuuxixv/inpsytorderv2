@@ -44,14 +44,15 @@ serve(async (req: Request) => {
 
     const { userId, memo } = await req.json()
 
-    // Update memo in user_profiles
-    const { error: profileError } = await supabaseAdmin
-      .from('user_profiles')
-      .update({ memo })
-      .eq('id', userId)
+    // memo는 Auth user_metadata에 저장한다. list-users가 user_metadata.memo를 읽으며,
+    // user_profiles엔 memo 컬럼이 없어 거기 쓰면 schema cache 에러("memo column not found")가 났다.
+    const { error: metaError } = await supabaseAdmin.auth.admin.updateUserById(
+      userId,
+      { user_metadata: { memo } }
+    )
 
-    if (profileError) {
-      return new Response(JSON.stringify({ error: profileError.message }), {
+    if (metaError) {
+      return new Response(JSON.stringify({ error: metaError.message }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       })
