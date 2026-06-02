@@ -116,6 +116,17 @@ export async function exportDepositResolution({ event, orders, productsMap, auth
   // 계
   ws.getCell('R16').value = total;
 
+  // 헤더 정렬 정리 — '거래처'/'금액'이 균등분할(distributed)이라 글자가 테두리까지 벌어지던 것을
+  // 가운데 정렬 + 적당한 자간(계정과목 '계 정 과 목'과 동일 톤)으로.
+  ws.getCell('N8').value = '거 래 처';
+  ws.getCell('N8').alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getCell('R8').value = '금 액';
+  ws.getCell('R8').alignment = { horizontal: 'center', vertical: 'middle' };
+  // 거래처 값(N9~N15) 가운데 정렬
+  for (let r = 9; r <= 15; r++) {
+    ws.getCell(`N${r}`).alignment = { horizontal: 'center', vertical: 'middle' };
+  }
+
   // 내보낼 파일에서 (샘플) 참고 시트 제거 + 남는 시트명의 '(템플릿)' 표기 제거
   const sampleWs = wb.getWorksheet(SAMPLE_SHEET);
   if (sampleWs) wb.removeWorksheet(sampleWs.id);
