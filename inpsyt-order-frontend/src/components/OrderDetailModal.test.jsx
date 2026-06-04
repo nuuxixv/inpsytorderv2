@@ -2,7 +2,10 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ThemeProvider } from '@mui/material';
+import { MemoryRouter } from 'react-router-dom';
 import OrderDetailModal from './OrderDetailModal';
+import theme from '../theme';
 import { NotificationContext } from '../NotificationContext';
 import { supabase } from '../supabaseClient';
 
@@ -70,6 +73,8 @@ const mockProductsMap = {
 // 컴포넌트를 렌더링하는 헬퍼 함수
 const renderModal = (order, overrides = {}) => {
   return render(
+    <ThemeProvider theme={theme}>
+    <MemoryRouter>
     <NotificationContext.Provider value={{ addNotification }}>
       <OrderDetailModal
         open={true}
@@ -86,6 +91,8 @@ const renderModal = (order, overrides = {}) => {
         {...overrides}
       />
     </NotificationContext.Provider>
+    </MemoryRouter>
+    </ThemeProvider>
   );
 };
 
