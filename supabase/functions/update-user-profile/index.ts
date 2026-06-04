@@ -121,6 +121,22 @@ serve(async (req: Request) => {
       }
     }
 
+    // 감사 로그 기록 (성공 분기). 실패해도 본 작업은 성공 처리 — 기록 누락만.
+    try {
+      await supabaseAdmin.from('audit_log').insert({
+        actor_id: user.id,
+        actor_name: user.user_metadata?.name ?? 'system',
+        actor_role: user.app_metadata?.role ?? null,
+        action: 'profile_update',
+        target_table: 'user_auth',
+        target_id: userId,
+        after: updates,
+        summary: `${user.user_metadata?.name ?? '관리자'} 가 사용자(${userId}) 프로필을 수정 (${Object.keys(updates).join(', ')})`,
+      })
+    } catch (auditErr) {
+      console.error('audit_log insert failed (profile_update):', auditErr)
+    }
+
     return new Response(JSON.stringify({ message: 'User profile updated successfully' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,

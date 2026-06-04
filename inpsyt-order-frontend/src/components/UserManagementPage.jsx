@@ -53,7 +53,7 @@ import {
   updateRoleTemplate,
   deleteRoleTemplate,
 } from '../api/roleTemplates';
-import { PageHeader, SectionCard, EmptyState, ActionSlot } from './ui';
+import { PageHeader, SectionCard, EmptyState, ActionSlot, RoleChip } from './ui';
 
 // Permission definitions for the matrix
 // 실제 동작하는(메뉴 게이트·RLS에 연결된) 권한만. 동작 안 하던 가짜 컬럼 3종 제거(2026-06-01 건우님):
@@ -70,52 +70,6 @@ const PERMISSION_COLUMNS = [
   { key: 'products:edit', label: '상품 편집' },
   { key: 'users:manage', label: '사용자 관리' },
 ];
-
-// 역할 슬러그 4종 + fallback (사양 §핵심 발견 1)
-const ROLE_CHIP_META = {
-  master:           { label: '마스터',      colorKey: 'warning',   icon: ShieldIcon },
-  onsite:           { label: '현장 마케팅', colorKey: 'info',      icon: null },
-  fulfillment_book: { label: '출고 (도서)', colorKey: 'secondary', icon: null },
-  fulfillment_test: { label: '출고 (검사)', colorKey: 'success',   icon: null },
-};
-
-// 사양 §역할 셀: 4종 매핑 + 신규 슬러그 outlined fallback.
-const RoleChip = ({ role }) => {
-  const theme = useTheme();
-  const meta = ROLE_CHIP_META[role];
-  if (!meta) {
-    return (
-      <Chip
-        label={role || '알 수 없음'}
-        size="small"
-        variant="outlined"
-        sx={{ fontWeight: 600, color: 'text.secondary' }}
-      />
-    );
-  }
-  const palette = theme.palette[meta.colorKey]?.main || theme.gray[600];
-  const Icon = meta.icon;
-  return (
-    <Box
-      sx={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 0.5,
-        px: 1,
-        py: 0.5,
-        borderRadius: `${theme.radii.sm}px`,
-        bgcolor: alpha(palette, 0.1),
-        border: `1px solid ${alpha(palette, 0.2)}`,
-        color: palette,
-      }}
-    >
-      {Icon && <Icon sx={{ fontSize: 14 }} />}
-      <Typography variant="caption" sx={{ fontWeight: 700, color: palette, lineHeight: 1 }}>
-        {meta.label}
-      </Typography>
-    </Box>
-  );
-};
 
 // 행 액션 아이콘 — 시안 RowIconButton 패턴 (44 미만 touch 피함 — size small 32px 한계 vs 시안 36)
 const RowIconButton = ({ tooltip, icon, onClick, danger = false, disabled = false }) => {

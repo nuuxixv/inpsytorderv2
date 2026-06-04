@@ -27,6 +27,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import SettingsIcon from '@mui/icons-material/Settings';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import AnnouncementIcon from '@mui/icons-material/Announcement';
+import HistoryIcon from '@mui/icons-material/History';
 import { useAuth } from '../hooks/useAuth';
 import { getUnreadCount } from '../api/bulletins';
 
@@ -42,6 +43,7 @@ const allMenuItems = [
   { text: '사용자 관리', icon: <PeopleIcon />, path: '/admin/users', permissionKey: 'users:manage' },
   { text: '피드백', icon: <RateReviewIcon />, path: '/admin/feedback', permissionKey: 'master' },
   { text: '게시판', icon: <AnnouncementIcon />, path: '/admin/bulletins', permissionKey: null },
+  { text: '감사 로그', icon: <HistoryIcon />, path: '/admin/audit-log', permissionKey: 'master' },
   { text: '설정', icon: <SettingsIcon />, path: '/admin/settings', permissionKey: 'master' },
 ];
 

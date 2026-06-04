@@ -143,6 +143,24 @@ serve(async (req: Request) => {
       console.log(`User created and profile synced: ${data.user.id}`);
     }
 
+    // 감사 로그 기록 (성공 분기). 비밀번호/PIN 은 기록하지 않음.
+    if (data && data.user) {
+      try {
+        await supabaseAdmin.from('audit_log').insert({
+          actor_id: user.id,
+          actor_name: user.user_metadata?.name ?? 'system',
+          actor_role: user.app_metadata?.role ?? null,
+          action: 'user_invite',
+          target_table: 'user_auth',
+          target_id: data.user.id,
+          after: { email, name, role: profileRole },
+          summary: `${user.user_metadata?.name ?? '관리자'} 가 사용자 ${name}(${email})을(를) 생성 — 역할 ${profileRole}`,
+        });
+      } catch (auditErr) {
+        console.error('audit_log insert failed (user_invite):', auditErr);
+      }
+    }
+
     return new Response(JSON.stringify({ message: 'User created successfully', user: data.user }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
