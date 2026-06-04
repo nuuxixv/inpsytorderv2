@@ -13,6 +13,7 @@ import FulfillmentPage from './FulfillmentPage';
 import SettingsPage from './SettingsPage'; // SettingsPage 임포트
 import FeedbackManagementPage from './FeedbackManagementPage';
 import BulletinBoardPage from './BulletinBoardPage';
+import AuditLogPage from './AuditLogPage';
 import NotificationsDisplay from './NotificationsDisplay';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
@@ -104,6 +105,12 @@ const AdminLayout = () => {
 
             {/* 게시판 (모든 인증 사용자 접근 가능) */}
             <Route path="/bulletins" element={<BulletinBoardPage />} />
+
+            {/* 감사 로그 (Master 권한 필요, 읽기 전용) */}
+            <Route
+              path="/audit-log"
+              element={permissions.includes('master') ? <AuditLogPage /> : <Navigate to="/admin" replace />}
+            />
 
             {/* 설정 (Master 권한 필요) */}
             <Route

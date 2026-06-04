@@ -118,6 +118,22 @@ serve(async (req: Request) => {
 
     console.log(`PIN reset for user ${userId} by master ${user.id} (generated=${generated})`)
 
+    // 감사 로그 기록 (성공 분기). PIN 값은 절대 기록하지 않음 — action/대상만.
+    try {
+      await supabaseAdmin.from('audit_log').insert({
+        actor_id: user.id,
+        actor_name: user.user_metadata?.name ?? 'system',
+        actor_role: user.app_metadata?.role ?? null,
+        action: 'pin_reset',
+        target_table: 'user_auth',
+        target_id: userId,
+        after: { generated },
+        summary: `${user.user_metadata?.name ?? '관리자'} 가 사용자(${userId}) PIN을 재설정`,
+      })
+    } catch (auditErr) {
+      console.error('audit_log insert failed (pin_reset):', auditErr)
+    }
+
     // 6) master가 신규 PIN을 직접 전달할 수 있도록 평문 반환.
     //    (분실 대응 — 직원에게 즉시 안내. 응답은 master 화면에서만 1회 노출)
     return new Response(JSON.stringify({

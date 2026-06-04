@@ -10,3 +10,4 @@ export { default as InfoRow } from './InfoRow';
 export { default as PriceBlock } from './PriceBlock';
 export { default as ActionSlot } from './ActionSlot';
 export { default as EmptyState } from './EmptyState';
+export { default as RoleChip } from './RoleChip';

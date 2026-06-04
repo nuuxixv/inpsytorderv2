@@ -74,6 +74,22 @@ serve(async (req: Request) => {
       })
     }
 
+    // 감사 로그 기록 (성공 분기). 실패해도 본 작업은 성공 처리 — 기록 누락만.
+    try {
+      await supabaseAdmin.from('audit_log').insert({
+        actor_id: currentUser.id,
+        actor_name: currentUser.user_metadata?.name ?? 'system',
+        actor_role: currentUser.app_metadata?.role ?? null,
+        action: 'user_delete',
+        target_table: 'user_auth',
+        target_id: userId,
+        before: { userId },
+        summary: `${currentUser.user_metadata?.name ?? '관리자'} 가 사용자(${userId})를 삭제`,
+      })
+    } catch (auditErr) {
+      console.error('audit_log insert failed (user_delete):', auditErr)
+    }
+
     return new Response(JSON.stringify({ message: 'User deleted successfully' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,

@@ -101,6 +101,22 @@ serve(async (req) => {
       });
     }
 
+    // 감사 로그 기록 (성공 분기). 실패해도 본 작업은 성공 처리 — 기록 누락만.
+    try {
+      await supabaseAdmin.from("audit_log").insert({
+        actor_id: user.id,
+        actor_name: user.user_metadata?.name ?? "system",
+        actor_role: user.app_metadata?.role ?? null,
+        action: "role_change",
+        target_table: "user_auth",
+        target_id: userId,
+        after: { role: newRole },
+        summary: `${user.user_metadata?.name ?? "관리자"} 가 사용자(${userId}) 역할을 ${newRole} (으)로 변경`,
+      });
+    } catch (auditErr) {
+      console.error("audit_log insert failed (role_change):", auditErr);
+    }
+
     return new Response(
       JSON.stringify({ message: "User role updated successfully" }),
       {
