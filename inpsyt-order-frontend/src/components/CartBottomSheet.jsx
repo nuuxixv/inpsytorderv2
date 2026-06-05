@@ -94,8 +94,9 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
 
       <Divider />
 
-      {/* Cart items */}
-      <Box sx={{ overflowY: 'auto', flex: 1, px: 2.5, py: 1.5 }}>
+      {/* Cart items — minHeight:0 필수: 없으면 항목 많을 때 스크롤이 안 잡혀
+          하단 총액/버튼이 75vh 밖으로 밀림(OrderDetailModal과 동류 결함 예방) */}
+      <Box sx={{ overflowY: 'auto', flex: 1, minHeight: 0, px: 2.5, py: 1.5 }}>
         {validItems.length === 0 ? (
           <EmptyState icon={ShoppingCartIcon} title="장바구니가 비어있습니다" />
         ) : (
