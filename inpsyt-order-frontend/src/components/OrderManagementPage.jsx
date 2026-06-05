@@ -680,7 +680,7 @@ const OrderManagementPage = () => {
           </Box>
         )}
         {isMobile ? (
-          <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 1, py: 2 }}>
+          <Box sx={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', px: 1, py: 2 }}>
             {state.loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
             ) : displayedOrders.length === 0 ? (
