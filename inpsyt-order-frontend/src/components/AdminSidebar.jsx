@@ -43,7 +43,7 @@ const allMenuItems = [
   { text: '사용자 관리', icon: <PeopleIcon />, path: '/admin/users', permissionKey: 'users:manage' },
   { text: '피드백', icon: <RateReviewIcon />, path: '/admin/feedback', permissionKey: 'master' },
   { text: '게시판', icon: <AnnouncementIcon />, path: '/admin/bulletins', permissionKey: null },
-  { text: '감사 로그', icon: <HistoryIcon />, path: '/admin/audit-log', permissionKey: 'master' },
+  { text: '로그', icon: <HistoryIcon />, path: '/admin/audit-log', permissionKey: 'master' },
   { text: '설정', icon: <SettingsIcon />, path: '/admin/settings', permissionKey: 'master' },
 ];
 

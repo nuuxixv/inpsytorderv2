@@ -23,6 +23,7 @@ const ROUTE_LABELS = {
   '/admin/users':       '사용자 관리',
   '/admin/feedback':    '피드백 관리',
   '/admin/bulletins':   '게시판',
+  '/admin/audit-log':   '로그',
   '/admin/settings':    '설정',
 };
 

@@ -1,6 +1,7 @@
-# 사양 시트 — A9 감사 로그 (AuditLogPage)
+# 사양 시트 — A9 로그 (AuditLogPage)
 
-> 이 시트는 감사 로그 화면의 정보·기능·데이터 구조의 단일 진실 소스다.
+> 표시 라벨은 "로그". 내부 식별자/라우트/테이블명은 audit_log 유지 (감사 로그는 시스템 내부 명칭).
+> 이 시트는 로그 화면의 정보·기능·데이터 구조의 단일 진실 소스다.
 > 시안과 실서비스 구현은 이 시트의 모든 항목을 1:1로 반영해야 한다.
 > 임의 단순화·통합·생략은 건우님의 명시적 승인 후 이 시트를 먼저 갱신한 다음에만 허용된다.
 > 마지막 갱신: 2026-06-04 신설 (CPO 설계 기반, master 전용 읽기 전용 페이지).
@@ -20,7 +21,7 @@ master 권한자(주로 건우님)가 사고·분쟁·이상 징후가 생겼을
 
 ### 상단 헤더
 - [ ] 페이지 제목 아이콘: `HistoryIcon` (primary 색) — PageHeader icon
-- [ ] 페이지 제목 텍스트: "감사 로그"
+- [ ] 페이지 제목 텍스트: "로그"
 - [ ] 부제: "누가·언제·무엇을 바꿨는지 기록합니다. 읽기 전용입니다."
 - [ ] 우측 액션 버튼: **없음** (읽기 전용)
 
@@ -47,7 +48,13 @@ master 권한자(주로 건우님)가 사고·분쟁·이상 징후가 생겼을
     - 그 외 → 테이블명 그대로 outlined fallback
   - 대상: `{target_table 한글명} #{target_id}` (예 "주문 #1234"). target_id 없으면 한글명만
   - 요약: `summary` (없으면 "-")
-- [ ] **행 클릭 시 펼침**: `before`(jsonb) / `after`(jsonb)를 `JsonBlock` 2칸으로 펼쳐 표시. null이면 "—". JSON.stringify pretty(들여쓰기 2), monospace, gray.50 박스
+- [ ] **행 클릭 시 펼침**: `before`/`after`(jsonb)를 **필드 단위 diff**로 표시 (`DiffView`). GitHub/IDE식.
+  - 변경된 필드만 표시. `before[k] !== after[k]` (JSON 문자열 비교) 인 키만, 키 알파벳순.
+  - 각 변경 필드: 이전값 = `-` 빨강 음영(제거, error.main alpha 0.12 + 좌측 보더), 이후값 = `+` 초록 음영(추가, success.main alpha 0.12 + 좌측 보더).
+  - `action='create'`(before 없음): 모든 after 필드 초록(추가만). `action='delete'`(after 없음): 모든 before 필드 빨강(제거만).
+  - 값이 객체/배열이면 `JSON.stringify(v,null,2)` 들여쓰기, null은 `'null'` 문자열. monospace, 키 굵게.
+  - 변경 필드 0건이면 "변경된 필드가 없습니다." 안내.
+  - 색은 theme success/error alpha 만 (raw hex 금지, theme.js 미수정).
 - [ ] 빈 상태: `EmptyState` "기록이 없어요" + "선택한 조건에 해당하는 변경 기록이 없습니다." (액션 버튼 없음)
 
 ### 페이지네이션
@@ -76,7 +83,7 @@ master 권한자(주로 건우님)가 사고·분쟁·이상 징후가 생겼을
   - `actor_id` (uuid) — 행위자 사용자 id (행위자 필터 키)
   - `actor_name` (text) — 행위자 이름
   - `actor_role` (text) — 행위자 역할 슬러그 (RoleChip 매핑)
-  - `action` (text) — 동작 유형 (현재 UI 미표시, summary로 갈음)
+  - `action` (text) — 동작 유형 (`create`/`update`/`delete`). 목록 컬럼엔 미표시(summary로 갈음)하나 펼침 diff 렌더 분기에 사용(create=추가만, delete=제거만, 그 외=필드 비교)
   - `target_table` (text) — `orders` | `order_items` | `events` | `products` | `site_settings` | `user_auth`
   - `target_id` (text) — 대상 식별자
   - `before` (jsonb) — 변경 전 스냅샷
@@ -106,4 +113,5 @@ master 권한자(주로 건우님)가 사고·분쟁·이상 징후가 생겼을
 - 종류 칩 색은 A7 역할칩과 토큰을 일부 공유하나 컬럼·맥락이 완전 분리되어 혼동 없음
 
 ## 변경 이력
+- 2026-06-05: (1) 표시 라벨 "감사 로그" → "로그" (사이드바·PageHeader·AdminHeader ROUTE_LABELS·에러 토스트). 라우트 `/audit-log`·테이블 `audit_log`·내부 식별자 유지. (2) 펼침 before/after를 `JsonBlock` 2칸 → 필드 단위 `DiffView`(GitHub식 빨강 제거/초록 추가, theme success/error alpha)로 교체.
 - 2026-06-04: 신설 — CPO 설계 기반 A9 감사 로그 페이지. master 전용 읽기 전용. audit_log 테이블 RLS master SELECT. RoleChip을 `ui/RoleChip.jsx`로 공통 추출(A7와 단일 소스 공유), UserManagementPage 로컬 정의 제거. backend audit_log 마이그레이션 적용 후 동작.
