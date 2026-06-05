@@ -107,33 +107,102 @@ const KindChip = ({ table }) => {
   );
 };
 
-// before/after jsonb 펼침 표시 — 읽기 전용
-const JsonBlock = ({ title, value, theme }) => (
-  <Box sx={{ flex: '1 1 280px', minWidth: 0 }}>
-    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, display: 'block', mb: 0.5 }}>
-      {title}
-    </Typography>
+const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
+
+// jsonb 값을 읽기 쉬운 문자열로. 객체/배열은 들여쓰기 JSON, 원시값은 그대로.
+const formatValue = (v) => {
+  if (v === undefined) return undefined;
+  if (v === null) return 'null';
+  if (typeof v === 'object') return JSON.stringify(v, null, 2);
+  return String(v);
+};
+
+// before/after(jsonb) 를 필드 단위 diff 행 목록으로 변환.
+// action='create' → 모든 after 필드 added, 'delete' → 모든 before 필드 removed.
+// 그 외 → before[k] !== after[k] 인 키만(JSON 비교).
+const buildDiffRows = (before, after, action) => {
+  const b = before && typeof before === 'object' ? before : {};
+  const a = after && typeof after === 'object' ? after : {};
+  const keys = [...new Set([...Object.keys(b), ...Object.keys(a)])].sort();
+  const rows = [];
+  for (const key of keys) {
+    const inB = key in b;
+    const inA = key in a;
+    const bStr = inB ? formatValue(b[key]) : undefined;
+    const aStr = inA ? formatValue(a[key]) : undefined;
+    if (action === 'create') {
+      if (inA) rows.push({ key, before: undefined, after: aStr });
+      continue;
+    }
+    if (action === 'delete') {
+      if (inB) rows.push({ key, before: bStr, after: undefined });
+      continue;
+    }
+    if (bStr !== aStr) rows.push({ key, before: bStr, after: aStr });
+  }
+  return rows;
+};
+
+// GitHub/IDE식 diff 줄 — 빨강(제거)/초록(추가) 음영. 색은 theme success/error alpha 만.
+const DiffLine = ({ field, marker, value, theme }) => {
+  const isRemove = marker === '-';
+  const accent = isRemove ? theme.palette.error.main : theme.palette.success.main;
+  return (
     <Box
-      component="pre"
       sx={{
-        m: 0,
-        p: 1.5,
-        bgcolor: theme.gray[50],
-        border: `1px solid ${theme.gray[200]}`,
-        borderRadius: `${theme.radii.sm}px`,
-        fontSize: '0.75rem',
-        lineHeight: 1.6,
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-        color: theme.gray[700],
-        overflowX: 'auto',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-all',
+        display: 'flex',
+        bgcolor: alpha(accent, 0.12),
+        borderLeft: `2px solid ${alpha(accent, 0.5)}`,
+        px: 1,
+        py: 0.5,
       }}
     >
-      {value == null ? '—' : JSON.stringify(value, null, 2)}
+      <Box
+        component="span"
+        sx={{ width: 14, flexShrink: 0, color: accent, fontWeight: 700, fontFamily: MONO, userSelect: 'none' }}
+      >
+        {marker}
+      </Box>
+      <Box sx={{ minWidth: 0, fontFamily: MONO, fontSize: '0.75rem', lineHeight: 1.6, color: theme.gray[800] }}>
+        <Box component="span" sx={{ fontWeight: 700 }}>{field}: </Box>
+        <Box component="span" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{value}</Box>
+      </Box>
     </Box>
-  </Box>
-);
+  );
+};
+
+// 한 행의 변경 필드 diff 묶음. 변경 없음이면 안내.
+const DiffView = ({ before, after, action, theme }) => {
+  const rows = buildDiffRows(before, after, action);
+  if (rows.length === 0) {
+    return (
+      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+        변경된 필드가 없습니다.
+      </Typography>
+    );
+  }
+  return (
+    <Box
+      sx={{
+        border: `1px solid ${theme.gray[200]}`,
+        borderRadius: `${theme.radii.sm}px`,
+        overflow: 'hidden',
+        bgcolor: theme.palette.background.paper,
+      }}
+    >
+      {rows.map((row, i) => (
+        <Box key={row.key} sx={{ borderTop: i > 0 ? `1px solid ${theme.gray[100]}` : 'none' }}>
+          {row.before !== undefined && (
+            <DiffLine field={row.key} marker="-" value={row.before} theme={theme} />
+          )}
+          {row.after !== undefined && (
+            <DiffLine field={row.key} marker="+" value={row.after} theme={theme} />
+          )}
+        </Box>
+      ))}
+    </Box>
+  );
+};
 
 const AuditLogPage = () => {
   const theme = useTheme();
@@ -190,7 +259,7 @@ const AuditLogPage = () => {
       setLogs(data);
       setCount(total);
     } catch (err) {
-      addNotification(`감사 로그를 불러오지 못했습니다: ${err.message}`, 'error');
+      addNotification(`로그를 불러오지 못했습니다: ${err.message}`, 'error');
       setLogs([]);
       setCount(0);
     } finally {
@@ -231,7 +300,7 @@ const AuditLogPage = () => {
   return (
     <Box>
       <PageHeader
-        title="감사 로그"
+        title="로그"
         subtitle="누가·언제·무엇을 바꿨는지 기록합니다. 읽기 전용입니다."
         icon={HistoryIcon}
       />
@@ -409,17 +478,13 @@ const AuditLogPage = () => {
                       <TableRow>
                         <TableCell colSpan={6} sx={{ p: 0, borderBottom: open ? undefined : 'none' }}>
                           <Collapse in={open} timeout="auto" unmountOnExit>
-                            <Box
-                              sx={{
-                                display: 'flex',
-                                gap: 2,
-                                flexWrap: 'wrap',
-                                p: 2.5,
-                                bgcolor: theme.gray[50],
-                              }}
-                            >
-                              <JsonBlock title="변경 전 (before)" value={log.before} theme={theme} />
-                              <JsonBlock title="변경 후 (after)" value={log.after} theme={theme} />
+                            <Box sx={{ p: 2.5, bgcolor: theme.gray[50] }}>
+                              <DiffView
+                                before={log.before}
+                                after={log.after}
+                                action={log.action}
+                                theme={theme}
+                              />
                             </Box>
                           </Collapse>
                         </TableCell>
