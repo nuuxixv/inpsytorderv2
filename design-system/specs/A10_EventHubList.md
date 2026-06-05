@@ -2,81 +2,87 @@
 
 > 비전: **"학회 운영 OS — 한 학회의 모든 것이 한 페이지에."**
 > L1 연간 목록(이 문서) → L2 학회 통합 상세(비-P0) → L3 연차 자산 누적(비-P0)
-> 상태: **기획(draft).** §결정 확정 전 시안/구현 위임 금지.
+> 상태: **기획(2차 구체화).** §11 결정(Q1~Q3) 확정 후 시안/구현 위임.
 
 ## 1. 개요·목표
-- **한 줄:** 학회를 "운영 대상" 단위로 한 화면에 나열. 행 클릭 → L2 상세(비-P0)로 진입하는 단일 입구.
-- **목표:** ① 연간/반기 학회 현황 조망 ② 진행상태(기안~참석) 추적 ③ 신규 5필드 입력 ④ 현장 모바일/태블릿 접근.
-- **Pain:** 현장에서 두레이/노션 접속이 번거로움 → 학회 정보가 한 곳에 모이지 않아서. 데이터의 80%는 이미 이 시스템에 존재.
+- 학회를 "운영 대상" 단위로 한 화면에 나열 + 학회관리 CRUD 겸용(dual-purpose). 행 클릭 → L2(비-P0).
+- 목표: ① 연간/반기 현황 조망 ② 진행상태(기안/신청/지결) 추적 ③ 운영필드 입력 ④ 현장 모바일.
+- Pain: 현장에서 "내가 갈 다음 학회" 정보가 한 곳에 없음. 데이터 80%는 이미 시스템 내 존재.
 
-## 2. 컬럼 (건우님 확정 9종) + 데이터 출처 매핑
-| # | 컬럼 | 출처 | 비고 |
-|---|------|------|------|
-| 1 | 번호 | **행 순번(표시용)** | 영구 ID 아님(정렬·필터 따라 변동). 내부 키는 events.id |
-| 2 | 학회명 | `events.host_society` | 기존 |
-| 3 | 행사명 | `events.event_season` | 기존(예: 춘계학술대회) |
-| 4 | 날짜 | `events.start_date`~`end_date` | 기존 |
-| 5 | 장소 | **신규 `venue text`** | 신규 입력 |
-| 6 | 참석자 | **신규 `attendees text`** | 콤마 구분 문자열(참석자 드롭다운 source) |
-| 7 | 비고 | **신규 `note text`** | 자유 메모 1줄 |
-| 8 | 상태 | **신규 `progress_stage text`** | 기안→신청→지결→결제→참석 (시간상태와 별개) |
-| 9 | 비용 | **신규 `marketing_cost integer`** | 원 단위 |
+## 2. 컬럼 (9종) + 데이터 출처
+| # | 컬럼 | 출처 |
+|---|------|------|
+| 1 | 번호 | 행 순번(표시용, 영구 ID 아님) |
+| 2 | 학회명 | `events.host_society` |
+| 3 | 행사명 | `events.event_season` |
+| 4 | 날짜 | `events.start_date~end_date` |
+| 5 | 장소 | **신규 `venue text`** |
+| 6 | 참석자 | **신규 `attendee_ids uuid[]`** (어드민 user 멀티선택) |
+| 7 | 비고 | **신규 `note text`** |
+| 8 | 진행상태 | **신규 3 boolean** (기안/신청/지결) |
+| 9 | 비용 | **신규 `marketing_cost integer`** |
 
-> 기존 `events.name`(전체명)·`order_url_slug`·`discount_rate`·`estimated_delivery_date`는 이 목록에 미노출(학회관리 CRUD/L2에 잔존).
-> `status`/`getEventStatusKST`(예정/진행중/종료)는 **시간 기반 자동 상태**, 신규 `progress_stage`는 **운영 워크플로 상태** — 다른 축이며 공존(progress가 주, 시간상태는 보조 라벨).
-
-## 3. 신규 필드 스키마 (events에 ADD COLUMN — 수동 적용)
+## 3. 신규 필드 최종 스키마 (events ADD COLUMN, 멱등, 비운영일 적용)
 ```
-venue          text
-attendees      text
-note           text
-marketing_cost integer
-progress_stage text DEFAULT '기안'
+venue                    text
+attendee_ids             uuid[]            -- user_profiles.id 참조 배열
+note                     text
+marketing_cost           integer           -- 원
+draft_done               boolean DEFAULT false   -- 기안
+application_done         boolean DEFAULT false   -- 신청
+payment_resolution_done  boolean DEFAULT false   -- 지결(지출결의)
 ```
-- 멱등(IF NOT EXISTS) 마이그레이션, 비운영일 대시보드 SQL 적용.
-- RLS: 기존 events 정책 상속(읽기 events:view, 쓰기 events:edit/master).
+- (1차의 `progress_stage` 5단계 enum 폐기.) RLS: events 정책 상속.
 
-## 4. 진행상태(progress_stage)
-- 5단계 순차: **기안 → 신청 → 지결(지출결의) → 결제 → 참석(완료)**
-- 전이: 기본 순행, 자유 점프·되돌리기 허용(소수 master 운영).
-- 시각: StatusBadge 5색. 기안/신청=중립, 지결/결제=진행(앰버), 참석=완료(그린 약채도).
+## 4. 참석자 (어드민 멀티선택)
+- **저장 = `attendee_ids uuid[]`(참조).** 이름 변경에 강함(사용자관리 이름 변경 기능 존재). 표시 시 후보목록과 join → 항상 현재 이름. (연 800건이라 uuid[] 단일컬럼이 join테이블보다 적합 — 과설계 회피.)
+- **후보 source = `user_profiles` 클라이언트 SELECT** (RLS authenticated 허용 20260607 → list-users Edge Fn 불필요. feedback.js/bulletins.js의 profileMap 선례).
+- **후보 범위 = [Q1]** 권고: **현장마케팅(onsite)+master** (출고는 현장 미참석).
+- **표시:** 3명까지 이름 칩 / 4명+는 `{첫1명} 외 N명`. 미입력 "—".
+- **필터:** 드롭다운 source=후보목록 + **"나" 빠른필터 칩**.
+- **정합 방어:** 삭제된 user의 잔존 uuid는 join 실패 시 "(삭제)"로 표시·무시 (FK/트리거 미도입 — 표시단 방어로 충분).
 
-## 5. 행 인터랙션 / 위계
-- **행 클릭 → L2 학회 상세 라우트**(P0는 입구만, 내용은 비-P0).
-- **참석완료 행(`progress_stage='참석'`) = 음영 다운**(bg gray-50, 텍스트 secondary).
-- **Upcoming 하이라이트:** `오늘 < start_date` 중 **가장 가까운 1건**만 강조(좌측 brand 보더/약한 틴트). [결정3]
+## 5. 진행상태 (3 boolean 토글)
+- `draft_done`·`application_done`·`payment_resolution_done` 독립 3개(순차 강제 X — 실제로 별개 사무절차).
+- **표시: 인라인 3칩** `기안 ● 신청 ● 지결 ○` (완료=채워진 brand soft 칩, 미완=빈 중립 칩).
+- **인라인 토글 = [Q3]** 권고: events:edit 권한자 칩 직접 클릭 즉시 토글(낙관적+롤백). ⚠️ 현재 onsite는 events:view만 보유 → onsite도 토글하려면 events:edit 권한 추가 필요(Q3와 연결).
+- **다른 축 관계:** 시간상태(예정/진행중/종료)=getEventStatusKST 자동, 보조 라벨. **결제완료=주문 status에서 파생(L2, P0 아님)**, **참석완료=별도 추적 안 함**(시간상태 종료로 갈음).
 
-## 6. 검색 필터
-- **날짜 단축버튼:** 올해(`event_year=현재연도`) / 상반기(월 1~6) / 하반기(7~12). **기본=올해.** [결정2]
-- **학회명 드롭다운:** distinct `host_society`.
-- **참석자 드롭다운:** `attendees` 콤마 split → distinct.
-- **정렬 기본:** `start_date 오름차순`(다가오는 학회 위). [결정2]
+## 6. 행 인터랙션 / 위계
+- **행 본문 클릭 → L2 상세**(P0는 라우트 입구만). 인라인칩·⋯메뉴는 `stopPropagation`.
+- **음영(위계 다운) = 시간상태 '종료' 행** (bg gray-50, 텍스트 secondary). ※1차의 "참석완료 음영"은 progress 5단계 폐기로 변경됨.
+- **Upcoming 하이라이트 = [Q2]** 권고: **"로그인한 내가 attendee인 미래 가장 가까운 1건"**(master=전체 미래 1건, 내 참석 0건이면 전체 다음 1건 폴백). 좌측 brand 보더/약한 틴트.
 
-## 7. 현장 사용 (모바일/태블릿)
-- 9컬럼 → 모바일은 **카드 레이아웃**(OrderManagement 모바일 카드 패턴 재사용): 상단 학회명+행사명+진행상태 뱃지 / 중단 날짜·장소·참석자 / 하단 비고·비용. 음영·하이라이트는 카드 bg/보더로.
-- 태블릿 세로: 표 유지, 비고/비용 축약 가능.
+## 7. 검색 필터
+- 날짜 단축: 올해(`event_year`)/상반기(1~6월)/하반기(7~12). **기본=올해.**
+- 학회명 드롭다운: distinct `host_society`. 참석자 드롭다운: 후보목록 + "나".
+- **정렬 기본: `start_date 오름차순`**(다가오는 학회 위).
 
-## 8. 권한·빈상태·표시형식
-- 권한: events:view=읽기, events:edit=신규필드·CRUD, master=삭제(기존 A5 그대로).
-- 빈상태: 조건 0건 → EmptyState "해당 조건의 학회가 없어요" + 필터 해제.
-- 비용 `#,##0원`(미입력 "—"), 참석자 칩 N개/"외 N명" 축약.
+## 8. 현장 모바일/태블릿
+- 9컬럼 → 모바일 **카드**(OrderManagement 카드 패턴): 상단 학회명+행사명+진행상태칩 / 중단 날짜·장소·참석자 / 하단 비고·비용. 음영·하이라이트=카드 bg/보더.
 
-## 9. 연동 방식 [결정1 — 권고: 확장]
-- **권고: 별도 화면 신설 ❌ / 기존 "학회 관리(A5/EventManagementPage)"를 이 통합 목록으로 확장 ⭕.**
-- 근거: 이미 "학회=행" 표가 있음. 둘로 쪼개면 같은 데이터 이중관리·동기화 부담. 연 800건엔 단일 화면이 맞다.
-- 방식: A5→A10 진화. CRUD(추가/수정 다이얼로그·삭제·URL/QR)는 유지(다이얼로그에 "운영 정보" Step 신설). 표 컬럼을 9종으로 교체 + 행 클릭=L2 진입. URL/QR은 행 호버 액션 또는 L2 내부로 이동.
+## 9. Dual-purpose 화면 구조 (조망 + CRUD)
+| 작업 | 위치 | 위계 |
+|---|---|---|
+| 운영 조망(메인) | 표 9컬럼 | L1 |
+| 등록/수정 | 우상단 "추가" → 다이얼로그(CRUD + 운영필드 venue/note/marketing_cost/attendee_ids) | 모달 |
+| 진행상태 변경 | **인라인 칩 토글** | 인라인 |
+| 삭제·URL/QR | 행 우측 ⋯ 메뉴 | 행 액션 |
+| L2 진입 | 행 본문 클릭 | 라우트 |
+> 원칙: 보기=행 / 편집=다이얼로그 / 빠른상태=인라인칩 / 부가=⋯ / 깊이=행클릭.
 
-## 10. P0 범위 / 비-P0
-- **P0:** 9컬럼 목록 + 음영/하이라이트 + 3필터 + 신규 5필드 입력(다이얼로그) + 행 클릭→L2 라우트 진입.
-- **비-P0:** L2 상세 조립(field_reports·orders·매출·입금결의서·audit_log), 캘린더 뷰(만들지 않음), L3 자산누적, 메모/이미지 첨부.
+## 10. 권한·빈상태·표시형식
+- events:view=읽기, events:edit=운영필드·CRUD·진행토글, master=삭제(+전체 Upcoming).
+- 빈상태 EmptyState "해당 조건의 학회가 없어요"+필터해제. 비용 `#,##0원`("—"). 
 
 ## 11. 확정 필요 결정
-1. **연동방식:** 학회관리 표 확장(권고) vs 별도 화면.
-2. **기본 정렬·필터:** start_date 오름차순 + 기본 "올해"(권고) vs 현 desc 유지.
-3. **Upcoming 하이라이트 범위:** 다음 1건만(권고) vs 예정 전체.
-4. **progress_stage 입력 위치:** 학회관리 다이얼로그 신규 Step vs 목록 행 인라인 변경.
-5. **신규 5필드 ADD COLUMN 마이그레이션** 진행 승인(비운영일 적용).
+- **Q1 참석자 후보 범위:** (a)현장마케팅+master [권고] (b)전체 어드민 (c)출고 포함.
+- **Q2 Upcoming 범위:** 내 참석 다음 1건(master 전체·0건 폴백) [권고] / 항상 전체 다음 1건.
+- **Q3 진행상태 인라인 토글:** 허용[권고, onsite는 events:edit 권한 추가 시] / 다이얼로그에서만.
+
+## 12. P0 범위 / 비-P0
+- P0: 9컬럼 목록 + 음영(종료)/Upcoming + 3필터 + 신규필드 입력(다이얼로그) + 인라인 진행토글 + 행클릭→L2 라우트.
+- 비-P0: L2 상세 조립(field_reports·orders·매출·결의서), 캘린더, L3 자산, 메모/이미지.
 
 ## 조사 출처
-- events 실제 컬럼: EventManagementPage.jsx:92 SELECT (`id,name,discount_rate,order_url_slug,start_date,end_date,estimated_delivery_date,event_year,host_society,event_season,status`).
-- 시간상태: utils/date.js `getEventStatusKST`. 기존 사양: A5_EventManagementPage.md.
+AuthContext.jsx:26-44(로그인 user.id/role/permissions), feedback.js/bulletins.js(user_profiles id,name 클라SELECT 선례), 20260607(user_profiles authenticated SELECT), events 스키마(20260313060000), getEventStatusKST(utils/date.js).
