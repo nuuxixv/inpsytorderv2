@@ -443,8 +443,9 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
         </Box>
       </Box>
 
-      {/* Body */}
-      <Box sx={{ p: isMobile ? 2 : 3, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {/* Body — flex:1+minHeight:0 으로 스크롤 영역 확보, 자식 카드는 flexShrink:0 으로
+          90vh 초과 시 찌그러지지 않고 스크롤되게 (안 그러면 각 카드가 1줄로 잘림) */}
+      <Box sx={{ flex: 1, minHeight: 0, p: isMobile ? 2 : 3, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2, '& > *': { flexShrink: 0 } }}>
 
         {/* 주문 상세 정보 */}
         <SectionCard title="주문 상세 정보" padding={20}>
