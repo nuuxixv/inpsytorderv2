@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   HALF_RATE, FULL_RATE, TRIP_RATE,
   WEEKEND_SLOTS, DEFAULT_WEEKEND_SLOT_ID, getWeekendSlot,
-  dayDiff, weekendUnit, tripNights, perMemberAmount, blockTotal,
+  dayDiff, weekendUnit, tripWeekdays, perMemberAmount, blockTotal,
   grandTotal, blockDateSet, computeConflicts, paidMemberCount, sortMembers, summarize,
 } from './allowanceRules';
 
@@ -91,28 +91,48 @@ describe('주말출근비 블록 (slot 기반)', () => {
   });
 });
 
-describe('출장비 블록', () => {
+describe('출장비 블록 (평일수 — 토·일 제외)', () => {
+  // 2026-10: 16 금, 17 토, 18 일, 19 월, 22 목, 23 금, 24 토, 25 일.
   const block = {
-    type: 'trip', start: '2026-10-16', end: '2026-10-17',
+    type: 'trip', start: '2026-10-22', end: '2026-10-23', // 목~금
     members: [M('a', '정과장', '과장'), M('b', '이사원', '사원')],
   };
-  it('박수 = 범위(종료−시작) 그대로 (목~금 = 1박)', () => {
-    expect(tripNights(block)).toBe(1);
+  it('목~금 = 평일 2일 (목·금)', () => {
+    expect(tripWeekdays(block)).toBe(2);
   });
-  it('2박 이상도 범위로 (16~19 = 3박)', () => {
-    expect(tripNights({ ...block, end: '2026-10-19' })).toBe(3);
+  it('같은 날 1일 (금~금 = 평일 1)', () => {
+    expect(tripWeekdays({ ...block, start: '2026-10-23', end: '2026-10-23' })).toBe(1);
   });
-  it('평일 필터 없음 — 주말 포함 범위도 일수 그대로 (토~월 = 2박)', () => {
-    expect(tripNights({ ...block, start: '2026-10-17', end: '2026-10-19' })).toBe(2);
+  it('목~토 = 평일 2일 (토 제외)', () => {
+    expect(tripWeekdays({ ...block, start: '2026-10-22', end: '2026-10-24' })).toBe(2);
   });
-  it('1인 수당 = 20,000 × 박수 (20000×1=20000)', () => {
-    expect(perMemberAmount(block)).toBe(20000);
+  it('목~일 = 평일 2일 (토·일 제외)', () => {
+    expect(tripWeekdays({ ...block, start: '2026-10-22', end: '2026-10-25' })).toBe(2);
   });
-  it('블록합 = 20000×1×2 = 40000', () => {
-    expect(blockTotal(block)).toBe(40000);
+  it('금~토 = 평일 1일 (16금~17토, 토 제외)', () => {
+    expect(tripWeekdays({ ...block, start: '2026-10-16', end: '2026-10-17' })).toBe(1);
   });
-  it('범위 미선택이면 0박·0원', () => {
-    expect(tripNights({ ...block, start: null, end: null })).toBe(0);
+  it('토~일만(17토~18일) = 평일 0일', () => {
+    expect(tripWeekdays({ ...block, start: '2026-10-17', end: '2026-10-18' })).toBe(0);
+  });
+  it('금~월 주말 끼워 = 평일 2일 (16금~19월, 17토·18일 제외)', () => {
+    expect(tripWeekdays({ ...block, start: '2026-10-16', end: '2026-10-19' })).toBe(2);
+  });
+  it('월 경계 평일 카운트 (10-30 금 ~ 11-02 월 = 금·월 평일2, 토·일 제외)', () => {
+    // 2026-10-30 금, 31 토, 11-01 일, 11-02 월 → 금·월 = 평일 2.
+    expect(tripWeekdays({ ...block, start: '2026-10-30', end: '2026-11-02' })).toBe(2);
+  });
+  it('1인 수당 = 20,000 × 평일수 (목~금 20000×2=40000)', () => {
+    expect(perMemberAmount(block)).toBe(40000);
+  });
+  it('블록합 = 20000×2×2 = 80000 (목~금 2명)', () => {
+    expect(blockTotal(block)).toBe(80000);
+  });
+  it('주말만(토~일) 블록은 1인 0원', () => {
+    expect(perMemberAmount({ ...block, start: '2026-10-17', end: '2026-10-18' })).toBe(0);
+  });
+  it('범위 미선택이면 평일 0·0원', () => {
+    expect(tripWeekdays({ ...block, start: null, end: null })).toBe(0);
     expect(perMemberAmount({ ...block, start: null, end: null })).toBe(0);
   });
 });
@@ -120,42 +140,56 @@ describe('출장비 블록', () => {
 describe('grandTotal', () => {
   it('Σ 블록합', () => {
     const blocks = [
-      { type: 'weekend', slotId: 'full0917', dates: ['2026-10-18', '2026-10-19'], members: [M('a'), M('b')] }, // 280000
-      { type: 'trip', start: '2026-10-16', end: '2026-10-17', members: [M('a'), M('b')] }, // 40000
+      { type: 'weekend', slotId: 'full0917', dates: ['2026-10-17', '2026-10-18'], members: [M('a'), M('b')] }, // 토·일, 70000×2×2=280000
+      { type: 'trip', start: '2026-10-22', end: '2026-10-23', members: [M('a'), M('b')] }, // 목·금 평일2 → 20000×2×2=80000
     ];
-    expect(grandTotal(blocks)).toBe(320000);
+    expect(grandTotal(blocks)).toBe(360000);
   });
   it('빈 배열 0', () => {
     expect(grandTotal([])).toBe(0);
   });
 });
 
-describe('blockDateSet', () => {
+describe('blockDateSet (출장 = 평일만 — 토·일은 출장 점유 아님)', () => {
+  // 2026-10: 16 금, 17 토, 18 일, 19 월, 22 목, 23 금.
   it('weekend = dates 그대로', () => {
-    const set = blockDateSet({ type: 'weekend', dates: ['2026-10-18', '2026-10-19'] });
-    expect([...set].sort()).toEqual(['2026-10-18', '2026-10-19']);
+    const set = blockDateSet({ type: 'weekend', dates: ['2026-10-17', '2026-10-18'] });
+    expect([...set].sort()).toEqual(['2026-10-17', '2026-10-18']);
   });
-  it('trip = start~end 전 날짜 전개(귀가일 포함)', () => {
-    const set = blockDateSet({ type: 'trip', start: '2026-10-16', end: '2026-10-18' });
-    expect([...set].sort()).toEqual(['2026-10-16', '2026-10-17', '2026-10-18']);
+  it('trip = 범위 내 평일만 전개 (목~토 22목~24토 → 목·금, 토 제외)', () => {
+    const set = blockDateSet({ type: 'trip', start: '2026-10-22', end: '2026-10-24' });
+    expect([...set].sort()).toEqual(['2026-10-22', '2026-10-23']);
   });
-  it('월 경계 전개', () => {
-    const set = blockDateSet({ type: 'trip', start: '2026-10-31', end: '2026-11-01' });
-    expect([...set].sort()).toEqual(['2026-10-31', '2026-11-01']);
+  it('trip 토·일만이면 빈 집합 (17토~18일)', () => {
+    const set = blockDateSet({ type: 'trip', start: '2026-10-17', end: '2026-10-18' });
+    expect([...set]).toEqual([]);
+  });
+  it('월 경계 평일 전개 (10-31 토·11-01 일 제외)', () => {
+    // 2026-10-30 금, 31 토, 11-01 일, 11-02 월 → 금·월.
+    const set = blockDateSet({ type: 'trip', start: '2026-10-30', end: '2026-11-02' });
+    expect([...set].sort()).toEqual(['2026-10-30', '2026-11-02']);
   });
 });
 
-describe('computeConflicts (§2 같은날짜 중복지급)', () => {
-  it('같은 인원·같은 날짜 주말+출장 → 충돌', () => {
+describe('computeConflicts (§2 같은날짜 중복지급 — 출장 점유는 평일만)', () => {
+  // 2026-10: 16 금, 17 토, 18 일, 19 월, 22 목, 23 금.
+  it('같은 인원·같은 평일 주말블록+출장 → 충돌 (금 16 겹침)', () => {
     const blocks = [
-      { type: 'weekend', slotId: 'full0917', dates: ['2026-10-17'], members: [M('a', '정과장', '과장')] },
-      { type: 'trip', start: '2026-10-16', end: '2026-10-17', members: [M('a', '정과장', '과장')] }, // 16,17 포함 → 17 겹침
+      { type: 'weekend', slotId: 'full0917', dates: ['2026-10-16'], members: [M('a', '정과장', '과장')] }, // 금(이례적이나 날짜겹침 검증용)
+      { type: 'trip', start: '2026-10-16', end: '2026-10-17', members: [M('a', '정과장', '과장')] }, // 금·토 → 평일 {16} → 16 겹침
     ];
     const c = computeConflicts(blocks);
     expect(c.has('a')).toBe(true);
-    expect([...c.get('a')]).toEqual(['2026-10-17']);
+    expect([...c.get('a')]).toEqual(['2026-10-16']);
   });
-  it('금 출장 + 토·일 주말(날짜 다름) → 충돌 아님', () => {
+  it('출장 범위가 토·일을 포함해도 토·일 주말블록과는 충돌 아님 (토·일은 출장 점유 아님)', () => {
+    const blocks = [
+      { type: 'trip', start: '2026-10-16', end: '2026-10-18', members: [M('a')] }, // 금·토·일 → 평일 {16금}만 점유
+      { type: 'weekend', slotId: 'full0917', dates: ['2026-10-17', '2026-10-18'], members: [M('a')] }, // 토·일
+    ];
+    expect(computeConflicts(blocks).size).toBe(0);
+  });
+  it('평일 출장 + 토·일 주말(날짜 다름) → 충돌 아님', () => {
     const blocks = [
       { type: 'trip', start: '2026-10-16', end: '2026-10-16', members: [M('a')] }, // 금 16
       { type: 'weekend', slotId: 'full0917', dates: ['2026-10-17', '2026-10-18'], members: [M('a')] }, // 토·일
@@ -164,8 +198,8 @@ describe('computeConflicts (§2 같은날짜 중복지급)', () => {
   });
   it('다른 인원은 서로 충돌 아님', () => {
     const blocks = [
-      { type: 'weekend', slotId: 'full0917', dates: ['2026-10-17'], members: [M('a')] },
-      { type: 'trip', start: '2026-10-17', end: '2026-10-17', members: [M('b')] },
+      { type: 'weekend', slotId: 'full0917', dates: ['2026-10-16'], members: [M('a')] },
+      { type: 'trip', start: '2026-10-16', end: '2026-10-16', members: [M('b')] },
     ];
     expect(computeConflicts(blocks).size).toBe(0);
   });
@@ -177,8 +211,8 @@ describe('computeConflicts (§2 같은날짜 중복지급)', () => {
 describe('paidMemberCount (유니크·1인수당>0)', () => {
   it('여러 블록 중복 카운트 방지', () => {
     const blocks = [
-      { type: 'weekend', slotId: 'full0917', dates: ['2026-10-18'], members: [M('a'), M('b')] },
-      { type: 'trip', start: '2026-10-16', end: '2026-10-17', members: [M('a'), M('c')] }, // a 중복
+      { type: 'weekend', slotId: 'full0917', dates: ['2026-10-18'], members: [M('a'), M('b')] }, // 일
+      { type: 'trip', start: '2026-10-22', end: '2026-10-23', members: [M('a'), M('c')] }, // 목·금, a 중복
     ];
     expect(paidMemberCount(blocks)).toBe(3); // a,b,c
   });
@@ -207,18 +241,18 @@ describe('sortMembers (직급순>이름순)', () => {
 });
 
 describe('summarize', () => {
-  it('블록별 unit/nights/per/total + 총합·인원·충돌', () => {
+  it('블록별 unit/weekdays/per/total + 총합·인원·충돌', () => {
     const blocks = [
-      { type: 'weekend', slotId: 'full0917', dates: ['2026-10-18', '2026-10-19'], members: [M('a'), M('b')] },
-      { type: 'trip', start: '2026-10-16', end: '2026-10-17', members: [M('a')] },
+      { type: 'weekend', slotId: 'full0917', dates: ['2026-10-17', '2026-10-18'], members: [M('a'), M('b')] }, // 토·일
+      { type: 'trip', start: '2026-10-22', end: '2026-10-23', members: [M('a')] }, // 목·금 평일2 → 40000
     ];
     const s = summarize(blocks);
-    expect(s.total).toBe(280000 + 20000);
+    expect(s.total).toBe(280000 + 40000);
     expect(s.paidCount).toBe(2); // a,b
     expect(s.conflicts.size).toBe(0);
     expect(s.blocks[0]).toMatchObject({ unit: 70000, per: 140000, total: 280000 });
     expect(s.blocks[0].slot).toMatchObject({ id: 'full0917', rate: 70000 });
-    expect(s.blocks[1]).toMatchObject({ unit: 20000, nights: 1, per: 20000, total: 20000 });
+    expect(s.blocks[1]).toMatchObject({ unit: 20000, weekdays: 2, per: 40000, total: 40000 });
     expect(s.blocks[1].slot).toBeNull();
   });
 });

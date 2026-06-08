@@ -4,9 +4,10 @@
 // 실행: node scripts/check-receipt-export.mjs
 // 산출: scripts/_out/지불증_점검.xlsx + 콘솔 셀 덤프
 //
-// 시나리오: 주말출근비 블록(종일 slot 09:00~17:00, 2일, 멤버 3명) + 출장비 블록(1박, 멤버 2명).
-//   기대: 총합 = 70000×2×3 + 20000×1×2 = 420000 + 40000 = 460000.
-//   확인: B4="사십육만원정" · D4=460000 · B8="09:00 ~ 17:00 주말 근무".
+// 시나리오: 주말출근비 블록(종일 slot 09:00~17:00, 2일, 멤버 3명) + 출장비 블록(04/16 목~04/17 금 = 평일 2일, 멤버 2명).
+//   기대: 총합 = 70000×2×3 + 20000×2×2 = 420000 + 80000 = 500000.
+//   확인: B4="오십만원정" · D4=500000 · A8="...09:00 ~ 17:00 주말 근무"(B8 비움)
+//         · A14="04/16(목)~04/17(금) 출장비"(B14 비움) · C15·C16 = 40000.
 
 import ExcelJS from 'exceljs';
 import { fileURLToPath } from 'node:url';
@@ -30,7 +31,7 @@ const blocks = [
     ],
   },
   {
-    id: 't1', type: 'trip', start: '2026-10-16', end: '2026-10-17',
+    id: 't1', type: 'trip', start: '2026-04-16', end: '2026-04-17', // 목~금 = 평일 2일
     members: [
       { id: 'u1', name: '정마스터', position: '과장' },
       { id: 'u2', name: '김현장', position: '대리' },
@@ -57,20 +58,20 @@ const val = (addr) => {
 };
 
 console.log('=== 지불증 export 점검 (멤버3+멤버2 / 블록2) ===');
-console.log('총합(JS 계산):', total, '/ 기대 460000');
-console.log('B4(한글+원정):', val('B4'), '/ 기대 사십육만원정');
-console.log('D4(숫자):', val('D4'), '/ 기대 460000');
-console.log('--- 주말 블록 ---');
-console.log('A8(날짜):', val('A8'));
-console.log('B8(시간대):', val('B8'), '/ 기대 09:00 ~ 17:00 주말 근무');
+console.log('총합(JS 계산):', total, '/ 기대 500000');
+console.log('B4(한글+원정):', val('B4'), '/ 기대 오십만원정');
+console.log('D4(숫자):', val('D4'), '/ 기대 500000');
+console.log('--- 주말 블록 (A8에 날짜+시간대 병합, B8 비움) ---');
+console.log('A8(날짜+시간대):', val('A8'), '/ 기대 ...09:00 ~ 17:00 주말 근무');
+console.log('B8(비움):', val('B8'), '/ 기대 null');
 console.log('B9 C9:', val('B9'), '|', val('C9'));
 console.log('B10 C10:', val('B10'), '|', val('C10'));
 console.log('B11 C11:', val('B11'), '|', val('C11'));
-console.log('--- 출장 블록 ---');
-console.log('A14(날짜):', val('A14'));
-console.log('B14(라벨):', val('B14'));
-console.log('B15 C15:', val('B15'), '|', val('C15'));
-console.log('B16 C16:', val('B16'), '|', val('C16'));
+console.log('--- 출장 블록 (A14에 날짜+출장비 병합, B14 비움) ---');
+console.log('A14(날짜+출장비):', val('A14'), '/ 기대 04/16(목)~04/17(금) 출장비');
+console.log('B14(비움):', val('B14'), '/ 기대 null');
+console.log('B15 C15:', val('B15'), '|', val('C15'), '/ C15 기대 40000');
+console.log('B16 C16:', val('B16'), '|', val('C16'), '/ C16 기대 40000');
 console.log('B17 C17:', val('B17'), '|', val('C17'));
 console.log('--- 작성일·영수인 ---');
 console.log('C20/D20/E20:', val('C20'), '/', val('D20'), '/', val('E20'));

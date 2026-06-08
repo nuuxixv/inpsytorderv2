@@ -32,7 +32,7 @@ import { numberToKoreanCurrency } from '../utils/koreanCurrency';
  * A10b 지불증(수당 영수증) 생성 모달 시안 — 모달 열린 상태로 렌더(눈 확인용).
  *
  * 사양: design-system/specs/A10_PaymentReceiptModal.md
- *  - §2 수당규정(반일40k·종일70k·출장20k·평일1박) + 같은날짜 중복지급 금지
+ *  - §2 수당규정(반일40k·종일70k·출장20k·범위 내 평일수) + 같은날짜 중복지급 금지
  *  - §3 입력단위 = 「날짜/항목 블록」 (엑셀 양식 블록과 1:1)
  *  - §4 모달구조(블록 리스트 + 인원 + 하단 총합+한글)
  *  - §5 직급(차장>과장>대리>사원 고정 드롭다운, 정렬축)
@@ -40,7 +40,7 @@ import { numberToKoreanCurrency } from '../utils/koreanCurrency';
  * 축 전환(2026-06-08): 기존 "멤버 카드 중심" → "날짜/항목 블록 중심".
  *  - 양식(주말근무 블록 + 출장비 블록)과 1:1 매핑되어 export 동적행 생성과 직결.
  *  - 주말출근비 블록: 날짜 다중선택(여러 날) + 시간대(반일/종일) 공통 + 인원 리스트(각자 단가×날짜수).
- *  - 출장비 블록: 날짜 범위선택(시작~종료) → 박수 자동(종료−시작) + 인원 리스트(각자 20,000×박수).
+ *  - 출장비 블록: 날짜 범위선택(시작~종료) → 평일수 자동(범위 내 월~금) + 인원 리스트(각자 20,000×평일수).
  *  - 한 인원이 여러 블록 등장 가능. 같은 인원·같은 날짜가 주말+출장 양쪽이면 중복 경고(§2).
  *
  * datepicker: @mui/x-date-pickers 미설치 → date-fns 기반 자체 경량 캘린더 팝오버로 구현(시안).
@@ -51,7 +51,7 @@ import { numberToKoreanCurrency } from '../utils/koreanCurrency';
 // ─── 수당 규정 (고정 단가) — §2 ────────────────────────────────
 const HALF_RATE = 40000; // 반일
 const FULL_RATE = 70000; // 종일
-const TRIP_RATE = 20000; // 출장 평일 1박당
+const TRIP_RATE = 20000; // 출장 평일 1일당
 
 // ─── 주말출근 시간대 규정(고정) — slot 단위 선택 ─────────────────
 const WEEKEND_SLOTS = [
@@ -75,12 +75,12 @@ const POSITION_RANK = Object.fromEntries(POSITIONS.map((p, i) => [p, i]));
 const ME = { id: 'u-me', name: '김현장', position: '대리' };
 
 // ─── Mock: 학회(읽기) ──────────────────────────────────────────
-// 부산 지방 학회 가정 → 출장 발생. 10/16(목)~10/17(금) 출장 + 10/18(토)·10/19(일) 주말근무.
+// 부산 지방 학회 가정 → 출장 발생. 10/15(목)~10/16(금) 출장(평일2) + 10/17(토)·10/18(일) 주말근무.
 const MOCK_EVENT = {
   name: '2026 한국심리학회 추계학술대회',
   venue: '부산 BEXCO 제1전시장',
-  startDate: '2026-10-16',
-  endDate: '2026-10-19',
+  startDate: '2026-10-15',
+  endDate: '2026-10-18',
 };
 
 // ─── Mock: 참석자 후보(attendee_ids → user_profiles join, 직급 자동) ──
@@ -103,6 +103,7 @@ const dot = (iso) => iso.slice(5).replace('-', '.'); // 10-18 → 10.18
 const isWeekend = (iso) => [0, 6].includes(parseISO(iso).getDay());
 const won = (n) => `${n.toLocaleString()}원`;
 const dayDiff = (a, b) => Math.round((parseISO(b) - parseISO(a)) / 86400000); // b−a (일수)
+const isWeekday = (iso) => ![0, 6].includes(parseISO(iso).getDay()); // 월~금
 
 const sortMembers = (arr) =>
   [...arr].sort((a, b) => {
@@ -118,7 +119,7 @@ const INITIAL_BLOCKS = [
     id: nextBlockId(),
     type: 'weekend',
     slotId: 'full0917', // WEEKEND_SLOTS 규정 (블록 공통)
-    dates: ['2026-10-18', '2026-10-19'], // 다중선택
+    dates: ['2026-10-17', '2026-10-18'], // 토·일 다중선택
     members: [
       { id: 'u-004', name: '정마스터', position: '과장', adhoc: false },
       { id: 'u-me', name: '김현장', position: '대리', adhoc: false },
@@ -128,8 +129,8 @@ const INITIAL_BLOCKS = [
   {
     id: nextBlockId(),
     type: 'trip',
-    start: '2026-10-16', // 범위 시작
-    end: '2026-10-17',   // 범위 종료 → 박수 = end−start = 1박
+    start: '2026-10-15', // 범위 시작 (목)
+    end: '2026-10-16',   // 범위 종료 (금) → 평일 2일(목·금) = 40,000
     members: [
       { id: 'u-004', name: '정마스터', position: '과장', adhoc: false },
       { id: 'u-me', name: '김현장', position: '대리', adhoc: false },
@@ -139,26 +140,29 @@ const INITIAL_BLOCKS = [
 
 // ─── 블록 금액 계산 ────────────────────────────────────────────
 const weekendUnit = (block) => getWeekendSlot(block.slotId).rate;
-const tripNights = (block) => Math.max(0, dayDiff(block.start, block.end));
-const perMemberAmount = (block) =>
-  block.type === 'weekend'
-    ? weekendUnit(block) * (block.dates?.length || 0)
-    : TRIP_RATE * tripNights(block);
-const blockTotal = (block) => perMemberAmount(block) * (block.members?.length || 0);
-
-// 블록이 차지하는 날짜 집합 (중복 검증용)
-const blockDateSet = (block) => {
-  if (block.type === 'weekend') return new Set(block.dates || []);
-  const set = new Set();
-  if (!block.start || !block.end) return set;
+// 출장 평일 날짜 배열: 범위 [start..end] 포함, 월~금만(토·일 제외).
+const tripWeekdayDates = (block) => {
+  const out = [];
+  if (!block.start || !block.end) return out;
   const n = dayDiff(block.start, block.end);
   for (let i = 0; i <= n; i++) {
     const d = parseISO(block.start);
     d.setDate(d.getDate() + i);
-    set.add(toISO(d));
+    const iso = toISO(d);
+    if (isWeekday(iso)) out.push(iso);
   }
-  return set;
+  return out;
 };
+const tripWeekdays = (block) => tripWeekdayDates(block).length;
+const perMemberAmount = (block) =>
+  block.type === 'weekend'
+    ? weekendUnit(block) * (block.dates?.length || 0)
+    : TRIP_RATE * tripWeekdays(block);
+const blockTotal = (block) => perMemberAmount(block) * (block.members?.length || 0);
+
+// 블록이 차지하는 날짜 집합 (중복 검증용). 출장 = 평일만(토·일은 출장 점유 아님).
+const blockDateSet = (block) =>
+  block.type === 'weekend' ? new Set(block.dates || []) : new Set(tripWeekdayDates(block));
 
 // ─── 중복 검증: 같은 인원이 같은 날짜에 주말+출장 양쪽 ───────────
 // 반환: Map<memberId, Set<isoDate>> (충돌 날짜)
@@ -485,7 +489,7 @@ const BlockCard = ({ block, conflicts, onUpdate, onRemove }) => {
   const [addAnchor, setAddAnchor] = useState(null);
 
   const unit = isWeekendBlk ? weekendUnit(block) : TRIP_RATE;
-  const nights = isWeekendBlk ? 0 : tripNights(block);
+  const weekdays = isWeekendBlk ? 0 : tripWeekdays(block);
   const per = perMemberAmount(block);
   const total = blockTotal(block);
   const slot = isWeekendBlk ? getWeekendSlot(block.slotId) : null;
@@ -523,7 +527,7 @@ const BlockCard = ({ block, conflicts, onUpdate, onRemove }) => {
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             {isWeekendBlk
               ? `${slot.category === 'full' ? '종일' : '반일'} ${won(unit)} × ${block.dates?.length || 0}일`
-              : `${won(TRIP_RATE)} × ${nights}박`}
+              : `${won(TRIP_RATE)} × ${weekdays}일`}
           </Typography>
         </Box>
         <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -784,7 +788,7 @@ const PaymentReceiptModal = ({ open, onClose, onToast }) => {
           </MenuItem>
           <MenuItem onClick={() => addBlock('trip')} sx={{ minHeight: 48, gap: 1 }}>
             <ListItemIcon><FlightIcon sx={{ fontSize: 20, color: theme.palette.info.main }} /></ListItemIcon>
-            <ListItemText primary="출장비" secondary="기간 선택 · 20,000원/박" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+            <ListItemText primary="출장비" secondary="기간 선택 · 20,000원/평일" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
           </MenuItem>
         </Menu>
       </DialogContent>
@@ -818,7 +822,7 @@ const PaymentReceiptModal = ({ open, onClose, onToast }) => {
                 ? '항목을 추가하면 지급액이 계산됩니다.'
                 : noMembers
                   ? '각 항목에 인원을 추가하세요.'
-                  : '날짜·박수를 선택하면 지급액이 계산됩니다.'}
+                  : '날짜·기간을 선택하면 지급액이 계산됩니다.'}
             </Typography>
           )}
         </Box>

@@ -8,8 +8,8 @@
 //   A1               제목(양식 보유 — 미변경)
 //   A4 "금"          양식 보유 라벨
 //   B4 / D4          한글금액+원정 / 총합(숫자)  ← B4·D4 맞바꿈 + B4에 '원정'
-//   [주말근무 블록]   A8 날짜라벨 · B8 "{slot.start} ~ {slot.end} 주말 근무" · B9~B11 "이름 직급" · C9~C11 수당
-//   [출장 블록]       A14 날짜라벨 · B14 "출장비"   · B15~B17 "이름 직급" · C15~C17 수당
+//   [주말근무 블록]   A8 "{날짜라벨} {slot.start} ~ {slot.end} 주말 근무"(A열 병합) · B8 비움 · B9~B11 "이름 직급" · C9~C11 수당
+//   [출장 블록]       A14 "{날짜라벨} 출장비"(A열 병합) · B14 비움 · B15~B17 "이름 직급" · C15~C17 수당
 //   C20·D20·E20      작성일(YYYY/MM/DD)
 //   D21              영수인
 //
@@ -97,14 +97,14 @@ function fillMemberSlots(ws, slotStart, slotEnd, members) {
   return inserted;
 }
 
-// 주말 블록 B8 라벨: "{slot.start} ~ {slot.end} 주말 근무"(예 "09:00 ~ 17:00 주말 근무").
+// 주말 블록 시간대 라벨: "{slot.start} ~ {slot.end} 주말 근무"(예 "09:00 ~ 17:00 주말 근무"). A8 날짜라벨에 병합.
 function weekendSlotLabel(block) {
   const slot = getWeekendSlot(block.slotId);
   return `${slot.start} ~ ${slot.end} 주말 근무`;
 }
 
 // 1인 수당 부착 + 정렬(직급순>이름순). 같은 종류 블록을 하나로 합쳐 양식 슬롯에 넣는다.
-// slotLabel: 주말 블록의 B8 라벨(시간대 다르면 '; '로 병기 — 단일 블록이 일반).
+// slotLabel: 주말 블록의 시간대 라벨(시간대 다르면 '; '로 병기 — 단일 블록이 일반). A8 날짜라벨에 병합.
 function mergeSameType(blocks) {
   const members = [];
   const labels = [];
@@ -166,8 +166,9 @@ export function fillReceiptWorksheet(ws, { blocks, receiver, todayISO } = {}) {
     }
   } else {
     const trip = mergeSameType(tripBlocks);
-    ws.getCell(`A${TRIP_HEADER}`).value = trip.dateLabel;
-    ws.getCell(`B${TRIP_HEADER}`).value = '출장비';
+    // A열이 좁아 범위 날짜가 잘림 → A14에 "{날짜} 출장비"를 합치고 B14를 비워 빈 셀로 넘쳐 전체 표시.
+    ws.getCell(`A${TRIP_HEADER}`).value = trip.dateLabel ? `${trip.dateLabel} 출장비` : '출장비';
+    ws.getCell(`B${TRIP_HEADER}`).value = null;
     insertedBelow += fillMemberSlots(ws, TRIP_SLOT_START, TRIP_SLOT_END, trip.members);
   }
 
@@ -181,8 +182,9 @@ export function fillReceiptWorksheet(ws, { blocks, receiver, todayISO } = {}) {
     }
   } else {
     const wk = mergeSameType(weekendBlocks);
-    ws.getCell(`A${WK_HEADER}`).value = wk.dateLabel;
-    ws.getCell(`B${WK_HEADER}`).value = wk.slotLabel; // "09:00 ~ 17:00 주말 근무"
+    // A열 날짜가 좁아 잘림 → A8에 "{날짜} {시간대 라벨}"을 합치고 B8을 비워 전체 표시(출장 블록과 일관).
+    ws.getCell(`A${WK_HEADER}`).value = [wk.dateLabel, wk.slotLabel].filter(Boolean).join(' ');
+    ws.getCell(`B${WK_HEADER}`).value = null;
     // 주말 확장은 출장 영역·작성일·영수인을 함께 아래로 민다.
     insertedBelow += fillMemberSlots(ws, WK_SLOT_START, WK_SLOT_END, wk.members);
   }

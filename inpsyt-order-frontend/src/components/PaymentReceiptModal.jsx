@@ -28,7 +28,7 @@ import { numberToKoreanCurrency } from '../utils/koreanCurrency';
 import {
   TRIP_RATE, POSITIONS,
   WEEKEND_SLOTS, DEFAULT_WEEKEND_SLOT_ID, getWeekendSlot,
-  weekendUnit, tripNights, perMemberAmount, blockTotal,
+  weekendUnit, tripWeekdays, perMemberAmount, blockTotal,
   blockDateSet, computeConflicts, sortMembers,
 } from '../utils/allowanceRules';
 import { exportPaymentReceipt } from '../utils/paymentReceipt';
@@ -36,7 +36,7 @@ import { exportPaymentReceipt } from '../utils/paymentReceipt';
 /**
  * A10b 지불증(수당 영수증) 생성 모달 — 실 컴포넌트.
  * 사양: design-system/specs/A10_PaymentReceiptModal.md
- *  §2 수당규정(반일40k·종일70k·출장20k·박수=범위) + 같은날짜 중복지급 금지
+ *  §2 수당규정(반일40k·종일70k·출장20k·범위 내 평일수) + 같은날짜 중복지급 금지
  *  §3 입력단위 = 「날짜/항목 블록」(엑셀 양식 블록과 1:1)
  *  §4 모달구조(블록 리스트 + 인원 + 하단 총합+한글)
  *  §5 직급(차장>과장>대리>사원 고정 드롭다운, 정렬축)
@@ -364,7 +364,7 @@ const BlockCard = ({ block, conflicts, candidatePool, monthBase, onUpdate, onRem
   const [addAnchor, setAddAnchor] = useState(null);
 
   const unit = isWeekendBlk ? weekendUnit(block) : TRIP_RATE;
-  const nights = isWeekendBlk ? 0 : tripNights(block);
+  const weekdays = isWeekendBlk ? 0 : tripWeekdays(block);
   const per = perMemberAmount(block);
   const total = blockTotal(block);
   const slot = isWeekendBlk ? getWeekendSlot(block.slotId) : null;
@@ -399,7 +399,7 @@ const BlockCard = ({ block, conflicts, candidatePool, monthBase, onUpdate, onRem
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             {isWeekendBlk
               ? `${slot.category === 'full' ? '종일' : '반일'} ${won(unit)} × ${block.dates?.length || 0}일`
-              : `${won(TRIP_RATE)} × ${nights}박`}
+              : `${won(TRIP_RATE)} × ${weekdays}일`}
           </Typography>
         </Box>
         <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -686,7 +686,7 @@ const PaymentReceiptModal = ({ open, onClose, event, staff = [] }) => {
           </MenuItem>
           <MenuItem onClick={() => addBlock('trip')} sx={{ minHeight: 48, gap: 1 }}>
             <ListItemIcon><FlightIcon sx={{ fontSize: 20, color: theme.palette.info.main }} /></ListItemIcon>
-            <ListItemText primary="출장비" secondary="기간 선택 · 20,000원/박" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+            <ListItemText primary="출장비" secondary="기간 선택 · 20,000원/평일" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
           </MenuItem>
         </Menu>
       </DialogContent>
@@ -719,7 +719,7 @@ const PaymentReceiptModal = ({ open, onClose, event, staff = [] }) => {
                 ? '항목을 추가하면 지급액이 계산됩니다.'
                 : noMembers
                   ? '각 항목에 인원을 추가하세요.'
-                  : '날짜·박수를 선택하면 지급액이 계산됩니다.'}
+                  : '날짜·기간을 선택하면 지급액이 계산됩니다.'}
             </Typography>
           )}
         </Box>
