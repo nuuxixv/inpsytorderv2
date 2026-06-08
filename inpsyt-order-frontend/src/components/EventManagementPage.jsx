@@ -48,6 +48,7 @@ import {
   PersonOutline as PersonIcon,
   LocalOffer as LocalOfferIcon,
   StarBorder as StarBorderIcon,
+  ReceiptLong as ReceiptLongIcon,
 } from '@mui/icons-material';
 import QRCode from 'qrcode';
 import { supabase } from '../supabaseClient';
@@ -57,6 +58,7 @@ import { getTodayKST, getEventStatusKST } from '../utils/date';
 import { numberToKoreanCurrency } from '../utils/koreanCurrency';
 import TableSkeleton from './TableSkeleton';
 import SocietyManagementDialog from './SocietyManagementDialog';
+import PaymentReceiptModal from './PaymentReceiptModal';
 import { PageHeader, SectionCard, StatusBadge, EmptyState } from './ui';
 
 const dot = (iso) => (iso ? iso.replaceAll('-', '.') : '');
@@ -185,6 +187,9 @@ const EventManagementPage = () => {
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [menuEvent, setMenuEvent] = useState(null);
 
+  // 지불증(수당 영수증) 모달
+  const [receiptEvent, setReceiptEvent] = useState(null);
+
   // 필터
   const [dateFilter, setDateFilter] = useState('year'); // 'year'(기본) | 'h1' | 'h2'
   const [societyFilter, setSocietyFilter] = useState('all');
@@ -203,7 +208,7 @@ const EventManagementPage = () => {
         supabase.from('societies').select('id, name, slug_prefix').order('name', { ascending: true }),
         supabase
           .from('user_profiles')
-          .select('id, name, role')
+          .select('id, name, role, position')
           .in('role', ['master', 'onsite'])
           .order('name', { ascending: true }),
       ]);
@@ -418,6 +423,7 @@ const EventManagementPage = () => {
   };
   const handleMenuCopyUrl = () => { closeMenu(); handleCopyUrl(menuEvent.order_url_slug); };
   const handleMenuShowQr = () => { const ev = menuEvent; closeMenu(); handleOpenQrDialog(ev); };
+  const handleMenuReceipt = () => { const ev = menuEvent; closeMenu(); setReceiptEvent(ev); };
   const handleMenuDelete = async () => {
     setCurrentEvent(menuEvent);
     closeMenu();
@@ -828,6 +834,10 @@ const EventManagementPage = () => {
           <ListItemIcon><QrCode2Icon sx={{ fontSize: 18 }} /></ListItemIcon>
           <ListItemText primary="QR 코드" primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }} />
         </MenuItem>
+        <MenuItem onClick={handleMenuReceipt} sx={{ minHeight: 44 }}>
+          <ListItemIcon><ReceiptLongIcon sx={{ fontSize: 18 }} /></ListItemIcon>
+          <ListItemText primary="지불증 내보내기" primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }} />
+        </MenuItem>
         {/* MUI Menu는 Fragment 자식 불가 → 두 조건부 자식으로 분리 */}
         {isMaster && <Divider sx={{ my: 0.5 }} />}
         {isMaster && (
@@ -837,6 +847,14 @@ const EventManagementPage = () => {
           </MenuItem>
         )}
       </Menu>
+
+      {/* 지불증(수당 영수증) 모달 — A10b */}
+      <PaymentReceiptModal
+        open={Boolean(receiptEvent)}
+        onClose={() => setReceiptEvent(null)}
+        event={receiptEvent}
+        staff={staff}
+      />
 
       {/* 추가/수정 다이얼로그 */}
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>

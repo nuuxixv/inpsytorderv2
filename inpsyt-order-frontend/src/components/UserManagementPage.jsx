@@ -53,6 +53,7 @@ import {
   updateRoleTemplate,
   deleteRoleTemplate,
 } from '../api/roleTemplates';
+import { POSITIONS } from '../utils/allowanceRules';
 import { PageHeader, SectionCard, EmptyState, ActionSlot, RoleChip } from './ui';
 
 // Permission definitions for the matrix
@@ -130,6 +131,7 @@ const UserManagementPage = () => {
   const [openProfileModal, setOpenProfileModal] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [editedDepartment, setEditedDepartment] = useState('');
+  const [editedPosition, setEditedPosition] = useState('');
   const [profileSaving, setProfileSaving] = useState(false);
   // PIN 재설정 (master 전용). issuedPin은 모달 표시용 임시값 — 닫으면 폐기, 장기 보관 금지.
   const [pinResetTarget, setPinResetTarget] = useState(null);
@@ -481,6 +483,7 @@ const UserManagementPage = () => {
     setCurrentEditingUser(u);
     setEditedName(u.name || '');
     setEditedDepartment(u.department || '');
+    setEditedPosition(u.position || '');
     setOpenProfileModal(true);
   };
 
@@ -501,6 +504,7 @@ const UserManagementPage = () => {
           userId: currentEditingUser.id,
           name: editedName.trim(),
           department: editedDepartment.trim(),
+          position: editedPosition,
         },
       });
       if (invokeError) throw invokeError;
@@ -862,9 +866,25 @@ const UserManagementPage = () => {
                             <RoleChip role={u.role} />
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                              {u.department || '마케팅운영팀'}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                                {u.department || '마케팅운영팀'}
+                              </Typography>
+                              {u.position && (
+                                <Box
+                                  sx={{
+                                    px: 0.625,
+                                    py: 0.125,
+                                    borderRadius: `${theme.radii.sm}px`,
+                                    bgcolor: theme.gray[100],
+                                  }}
+                                >
+                                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                                    {u.position}
+                                  </Typography>
+                                </Box>
+                              )}
+                            </Box>
                           </TableCell>
                           <TableCell sx={{
                             maxWidth: 200,
@@ -1260,6 +1280,20 @@ const UserManagementPage = () => {
             onChange={(e) => setEditedDepartment(e.target.value)}
             placeholder="예: 마케팅운영팀"
           />
+          {/* 직급 — 지불증(수당 영수증) 정렬·표기용 고정 드롭다운(차장>과장>대리>사원). 미지정 허용. */}
+          <TextField
+            select
+            label="직급"
+            fullWidth
+            value={editedPosition}
+            onChange={(e) => setEditedPosition(e.target.value)}
+            helperText="지불증 작성 시 사용됩니다."
+          >
+            <MenuItem value="">미지정</MenuItem>
+            {POSITIONS.map((p) => (
+              <MenuItem key={p} value={p}>{p}</MenuItem>
+            ))}
+          </TextField>
         </DialogContent>
         <DialogActions sx={{ p: 2.5 }}>
           <Button onClick={() => setOpenProfileModal(false)}>취소</Button>
