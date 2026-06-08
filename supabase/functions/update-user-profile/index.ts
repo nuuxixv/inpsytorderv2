@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0'
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 
-// master가 타 사용자의 name / department 를 수정.
+// master가 타 사용자의 name / department / position(직급) 를 수정.
 // 권한(role)은 별도 함수(update-user-role)에서 처리하므로 여기서 변경하지 않음.
 serve(async (req: Request) => {
   const corsHeaders = {
@@ -47,7 +47,7 @@ serve(async (req: Request) => {
     }
 
     // 3) 입력 파싱
-    const { userId, name, department } = await req.json()
+    const { userId, name, department, position } = await req.json()
 
     if (!userId) {
       return new Response(JSON.stringify({ error: 'Missing userId' }), {
@@ -71,9 +71,12 @@ serve(async (req: Request) => {
     if (typeof department === 'string') {
       updates.department = department.trim()
     }
+    if (typeof position === 'string') {
+      updates.position = position.trim()
+    }
 
     if (Object.keys(updates).length === 0) {
-      return new Response(JSON.stringify({ error: 'Nothing to update (name or department required)' }), {
+      return new Response(JSON.stringify({ error: 'Nothing to update (name, department or position required)' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       })
