@@ -2,7 +2,14 @@
 
 > 비전: **"학회 운영 OS — 한 학회의 모든 것이 한 페이지에."**
 > L1 연간 목록(이 문서) → L2 학회 통합 상세(비-P0) → L3 연차 자산(비-P0)
-> 상태: **기획 확정.** 구현 위임 가능.
+> 상태: **P0 실구현 완료(2026-06-08).** `EventManagementPage.jsx`가 시안(EventHubListPreview) 대체. 시안은 레퍼런스로 유지.
+
+> **실 구현 단일 진실 소스:** `src/components/EventManagementPage.jsx` (라우트 `/admin/events/:slug?`, export default 유지).
+> - 데이터: events 14컬럼(기존 11 + 신규 venue·attendee_ids·note·marketing_cost) `start_date ASC`. societies. user_profiles(role IN master/onsite) 참석자 후보. realtime `events_channel`.
+> - 참석자: attendee_ids(uuid[]) ↔ staffMap join. 누락 uuid="(삭제)". 내 포함 시 "나" 칩 우선.
+> - Upcoming: getTodayKST 기준 미래 1건(master=전체 / 내 참석 0건이면 전체 폴백).
+> - 비용 입력: 천단위 콤마 + 인라인 한글 reading(numberToKoreanCurrency). 저장 정수(원), 0/빈값 reading 숨김.
+> - 권한: events:view 접근 · events:edit CRUD · master 삭제(주문 FK count 가드).
 
 ## 1. 개요·목표
 - 학회를 "운영 대상" 단위로 한 화면에 나열 + 학회관리 CRUD 겸용(dual-purpose). 행 클릭 → L2(비-P0).

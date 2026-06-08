@@ -285,14 +285,13 @@ const RowActionMenu = ({ anchorEl, onClose, onEdit, onOpenUrl, onCopyUrl, onShow
         <ListItemIcon><QrCode2Icon sx={{ fontSize: 18 }} /></ListItemIcon>
         <ListItemText primary="QR 코드" primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }} />
       </MenuItem>
+      {/* MUI Menu는 Fragment 자식 불가 → 두 조건부 자식으로 분리 */}
+      {isMaster && <Divider sx={{ my: 0.5 }} />}
       {isMaster && (
-        <>
-          <Divider sx={{ my: 0.5 }} />
-          <MenuItem onClick={onDelete} sx={{ minHeight: 44, color: 'error.main' }}>
-            <ListItemIcon><DeleteIcon sx={{ fontSize: 18, color: theme.palette.error.main }} /></ListItemIcon>
-            <ListItemText primary="삭제" primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }} />
-          </MenuItem>
-        </>
+        <MenuItem onClick={onDelete} sx={{ minHeight: 44, color: 'error.main' }}>
+          <ListItemIcon><DeleteIcon sx={{ fontSize: 18, color: theme.palette.error.main }} /></ListItemIcon>
+          <ListItemText primary="삭제" primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }} />
+        </MenuItem>
       )}
     </Menu>
   );
@@ -529,7 +528,7 @@ const EventDialog = ({ open, onClose, editing, isMaster, onSubmit, onDelete }) =
         >
           {editing ? <EditIcon sx={{ fontSize: 20, color: 'primary.main' }} /> : <AddIcon sx={{ fontSize: 20, color: 'primary.main' }} />}
         </Box>
-        <Typography variant="h4" sx={{ letterSpacing: '-0.02em' }}>
+        <Typography component="div" variant="h4" sx={{ letterSpacing: '-0.02em' }}>
           {editing ? '학회 수정' : '새 학회 추가'}
         </Typography>
       </DialogTitle>
@@ -713,7 +712,7 @@ const QrDialog = ({ open, event, onClose, onCopy }) => {
         <Box sx={{ width: 36, height: 36, borderRadius: `${theme.radii.sm}px`, bgcolor: alpha(theme.palette.primary.main, 0.1), border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <QrCode2Icon sx={{ fontSize: 20, color: 'primary.main' }} />
         </Box>
-        <Typography variant="h4" sx={{ letterSpacing: '-0.02em' }}>QR 코드</Typography>
+        <Typography component="div" variant="h4" sx={{ letterSpacing: '-0.02em' }}>QR 코드</Typography>
       </DialogTitle>
       <DialogContent sx={{ pb: 2 }}>
         {event && (
