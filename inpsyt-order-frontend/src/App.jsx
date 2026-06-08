@@ -20,6 +20,7 @@ import OrderManagementPreviewC3 from './components/OrderManagementPreviewC3';
 import OrderManagementPreviewC4 from './components/OrderManagementPreviewC4';
 import ProductManagementPreview from './components/ProductManagementPreview';
 import EventManagementPreview from './components/EventManagementPreview';
+import EventHubListPreview from './components/EventHubListPreview';
 import UserManagementPreview from './components/UserManagementPreview';
 import BulletinBoardPreview from './components/BulletinBoardPreview';
 import FeedbackManagementPreview from './components/FeedbackManagementPreview';
@@ -59,6 +60,7 @@ function AppRoutes() {
         <Route path="/preview/fulfillment" element={<FulfillmentPreview />} />
         <Route path="/preview/products" element={<ProductManagementPreview />} />
         <Route path="/preview/events" element={<EventManagementPreview />} />
+        <Route path="/preview/event-hub" element={<EventHubListPreview />} />
         <Route path="/preview/users" element={<UserManagementPreview />} />
         <Route path="/preview/bulletins" element={<BulletinBoardPreview />} />
         <Route path="/preview/feedback" element={<FeedbackManagementPreview />} />
