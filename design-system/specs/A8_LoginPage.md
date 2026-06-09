@@ -34,21 +34,30 @@
 - [ ] `Alert severity="error"` 풀너비, mb 3
 - [ ] `error` 메시지가 있을 때만 표시. PIN 불일치 시: "비밀번호(PIN)가 일치하지 않습니다."
 
-### Step 1 — 역할 선택 (line 139-167)
+### Step 1 — 역할 선택
 - [ ] 3개 역할 큰 버튼(outlined, large, fullWidth, py 2, flex column):
   - `master` — `ShieldIcon` large + "마스터"
   - `onsite` — `StoreIcon` large + "현장 마케팅"
   - `fulfillment` — `ShippingIcon` large + "출고" (출고는 슬러그 두 종을 합친 가상 키)
+- [ ] 각 버튼 좌상단 absolute 숫자 배지(`KbdBadge` 1·2·3) — 키보드 단축키 표시
 - [ ] hover 시 보더·텍스트 primary, 배경 primary.50
 - [ ] 비선택 시: 보더 divider, 텍스트 secondary
+- [ ] 키보드 `1`·`2`·`3` → 해당 역할 선택 (input 포커스 시 무시)
 
-### Step 2 — 담당자 선택 (line 168-189)
-- [ ] `selectedRole`로 필터된 사용자 버튼 목록 (contained, primary, large, py 1.5, fontSize 1.1rem)
-- [ ] 각 버튼: `PersonIcon` start + 이름 (`user.name`)
-- [ ] 필터링(`usersForRole`, line 88-93):
-  - `fulfillment`이면 `role === 'fulfillment' || 'fulfillment_book' || 'fulfillment_test'` 셋 다 포함
+### Step 2 — 담당자 선택
+- [ ] `selectedRole`로 필터된 사용자 버튼 목록 — **2열 CSS 그리드**(`repeat(2,1fr)`, gap). 장기 5→15명 확장 시 스크롤 없이 행 추가(15명=8행). maxHeight·overflow 두지 않음
+- [ ] 각 버튼(contained, primary, large, py 1.5, justifyContent flex-start): `KbdBadge`(1~9, 반투명 흰색) + `PersonIcon` + 이름(`user.name`) + 직급(`user.position`, 있을 때만 보조 caption "이름 · 직급")
+  - 10번째 이상 담당자: 배지·단축키 없음, 클릭만
+  - `position` 없으면 이름만 표시 (graceful — `get_login_directory` RPC가 곧 반환)
+- [ ] 필터링(`usersForRole`):
+  - `fulfillment`이면 `role === 'fulfillment_book' || 'fulfillment_test'` 포함
   - 그 외는 `role === selectedRole`
 - [ ] 빈 상태: `Alert severity="info"` "등록된 담당자가 없습니다."
+- [ ] 키보드 숫자키 `1`~`min(9, 담당자수)` → 해당 담당자 선택 (input 포커스 시 무시)
+
+### 스텝 콘텐츠 공통 래퍼
+- [ ] 역할/담당자/PIN 렌더 영역을 공통 래퍼로 감쌈: `minHeight 290px` + flex column + 세로 중앙(`justifyContent center`)
+- [ ] 역할·PIN·담당자 5명까지 290px 안정. 담당자 많을 때만 아래로 확장(스크롤 없음)
 
 ### Step 3 — PIN 입력 (line 190-249)
 - [ ] 안내 줄(text.secondary): `DialpadIcon` + "비밀번호(PIN)를 입력하세요"
@@ -57,8 +66,9 @@
   - placeholder "••••••" (가운데 점 6개 — 시각 안내용)
   - 가운데 정렬, fontSize 1.5rem, letterSpacing 0.5em
   - `inputMode=numeric`, `pattern=[0-9]*`, maxLength 6
-  - onChange: 숫자만 추출, 6자리 cap. 6자리 도달 시 100ms 후 자동 submit (line 220-228)
-  - helperText: 우측 정렬 "N / 6", 6 도달 시 색 `#10B981`
+  - onChange: 숫자만 추출, 6자리 cap. 6자리 도달 시 100ms 후 자동 submit
+  - helperText: 우측 정렬 "N / 6", 6 도달 시 색 `primary.main`
+  - PIN 단계는 숫자 단축키·배지 없음(숫자 입력은 PIN으로 소비). 단축키 useEffect는 step 2에서 early return
 - [ ] "로그인" 버튼 (contained, large, fullWidth, py 1.5, fontSize 1.1rem):
   - disabled 조건: 로딩 중 OR PIN 길이 != 6
   - 로딩 중: `CircularProgress` 24 inherit color
@@ -147,3 +157,4 @@
 ## 변경 이력
 - 2026-05-28 신설 — design/m2-admin-rest 브랜치 5종 일괄 사전 정독. user_profiles 익명 SELECT·dead fulfillment 분기·100ms 자동 제출 등 잠재 부채 8건 발견.
 - 2026-05-29 M3-9 시안 정합 — LoginPage.jsx 시안 답습(전체 화면 컨테이너, PreviewShell X). 보존: 멀티스텝 3단계·100ms 자동 제출·fulfillment dead branch·에러 한글화·user_profiles 익명 SELECT·PIN type=password. 신규: 토큰화 컨테이너(radii.lg + customShadows.lg + gray.200 border), 스텝 인디케이터(done/active/pending), handlingSubmitRef 중복 발화 방지(§발견 7 부채 흡수), 헤더 부제 "인싸이트 현장주문 어드민", PIN helperText "숫자 6자리 · N/6" 좌/우 분리. 미반영: 시안의 IP 로고 박스(실제 LOGO.svg 유지), 빈 역할 보안 안내 caption(사양 외 시안 전용).
+- 2026-06-09 4패치 — (1) 역할·담당자 단계 숫자 단축키(`KbdBadge` + window keydown useEffect, step 0·1만 동작, step 2 무시, input 포커스 무시, 담당자 1~9). (2) 색상 통일: StepIndicator done 색 + PIN helper 6도달 색 `success.main`→`primary.main`. (3) 담당자 2열 그리드 + 스텝 콘텐츠 공통 래퍼 minHeight 290px·세로 중앙. (4) 담당자 버튼 라벨에 `user.position` 직급 추가(graceful — 없으면 이름만). 라이브러리 0, theme 토큰만.

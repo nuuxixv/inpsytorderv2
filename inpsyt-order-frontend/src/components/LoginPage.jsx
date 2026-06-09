@@ -32,6 +32,35 @@ const ROLE_LABELS = {
 
 const AVAILABLE_ROLES = ['master', 'onsite', 'fulfillment'];
 
+// ─── 숫자 단축키 배지 (kbd) ─────────────────────────────────────
+const KbdBadge = ({ children, sx }) => {
+  const theme = useTheme();
+  return (
+    <Box
+      component="span"
+      sx={{
+        flexShrink: 0,
+        width: 18,
+        height: 18,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: `${theme.radii.xs}px`,
+        bgcolor: theme.gray[100],
+        color: theme.gray[600],
+        border: `1px solid ${theme.gray[200]}`,
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+        fontSize: '0.6875rem',
+        fontWeight: 700,
+        lineHeight: 1,
+        ...sx,
+      }}
+    >
+      {children}
+    </Box>
+  );
+};
+
 // ─── 스텝 인디케이터 (시안 답습) ─────────────────────────────────
 const StepIndicator = ({ currentStep }) => {
   const theme = useTheme();
@@ -46,7 +75,7 @@ const StepIndicator = ({ currentStep }) => {
         const done = currentStep > s.idx;
         const active = currentStep === s.idx;
         const color = done
-          ? theme.palette.success.main
+          ? theme.palette.primary.main
           : active
             ? theme.palette.primary.main
             : theme.gray[300];
@@ -195,6 +224,24 @@ const LoginPage = () => {
     }
   };
 
+  // 숫자 단축키 — step 0(역할)·1(담당자)에서만. PIN 단계(2)는 PIN 입력이므로 무시.
+  useEffect(() => {
+    if (currentStep === 2) return;
+    const onKeyDown = (e) => {
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.key < '1' || e.key > '9') return;
+      const k = Number(e.key);
+      if (currentStep === 0) {
+        if (k <= AVAILABLE_ROLES.length) setSelectedRole(AVAILABLE_ROLES[k - 1]);
+      } else if (currentStep === 1) {
+        if (k <= Math.min(9, usersForRole.length)) setSelectedUser(usersForRole[k - 1]);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [currentStep, usersForRole]);
+
   return (
     <Box
       sx={{
@@ -270,6 +317,15 @@ const LoginPage = () => {
           </Alert>
         )}
 
+        {/* 스텝 콘텐츠 공통 래퍼 — minHeight 290px 안정 + 세로 중앙 (담당자 많을 때만 아래 확장) */}
+        <Box
+          sx={{
+            minHeight: 290,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+          }}
+        >
         {loadingProfiles ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress />
@@ -277,7 +333,7 @@ const LoginPage = () => {
         ) : currentStep === 0 ? (
           /* Step 1 — 역할 선택 (사양 line 139-167) */
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-            {AVAILABLE_ROLES.map(role => {
+            {AVAILABLE_ROLES.map((role, i) => {
               const meta = ROLE_LABELS[role];
               const Icon = meta.icon;
               return (
@@ -288,6 +344,7 @@ const LoginPage = () => {
                   size="large"
                   onClick={() => setSelectedRole(role)}
                   sx={{
+                    position: 'relative',
                     py: 2,
                     flexDirection: 'column',
                     gap: 0.75,
@@ -300,6 +357,7 @@ const LoginPage = () => {
                     },
                   }}
                 >
+                  <KbdBadge sx={{ position: 'absolute', top: 8, left: 8 }}>{i + 1}</KbdBadge>
                   <Icon sx={{ fontSize: 28 }} />
                   <Typography variant="subtitle1" sx={{ color: 'inherit', lineHeight: 1 }}>
                     {meta.label}
@@ -309,31 +367,43 @@ const LoginPage = () => {
             })}
           </Box>
         ) : currentStep === 1 ? (
-          /* Step 2 — 담당자 선택 (사양 line 168-189) */
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {usersForRole.length === 0 ? (
-              <Alert severity="info" sx={{ borderRadius: `${theme.radii.md}px` }}>
-                등록된 담당자가 없습니다.
-              </Alert>
-            ) : (
-              usersForRole.map(user => (
+          /* Step 2 — 담당자 선택 (사양 line 168-189) — 2열 그리드 */
+          usersForRole.length === 0 ? (
+            <Alert severity="info" sx={{ borderRadius: `${theme.radii.md}px` }}>
+              등록된 담당자가 없습니다.
+            </Alert>
+          ) : (
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
+              {usersForRole.map((user, i) => (
                 <Button
                   key={user.id}
                   variant="contained"
                   fullWidth
                   size="large"
                   color="primary"
-                  startIcon={<PersonIcon sx={{ fontSize: 20 }} />}
                   onClick={() => setSelectedUser(user)}
-                  sx={{ py: 1.5, justifyContent: 'flex-start' }}
+                  sx={{ py: 1.5, justifyContent: 'flex-start', gap: 1, minWidth: 0 }}
                 >
-                  <Typography variant="subtitle1" sx={{ color: 'inherit', flex: 1, textAlign: 'left', ml: 1 }}>
-                    {user.name}
-                  </Typography>
+                  {i < 9 && (
+                    <KbdBadge sx={{ bgcolor: alpha('#fff', 0.22), color: 'common.white', borderColor: alpha('#fff', 0.35) }}>
+                      {i + 1}
+                    </KbdBadge>
+                  )}
+                  <PersonIcon sx={{ fontSize: 20, flexShrink: 0 }} />
+                  <Box sx={{ flex: 1, minWidth: 0, textAlign: 'left', display: 'flex', alignItems: 'baseline', gap: 0.5, overflow: 'hidden' }}>
+                    <Typography variant="subtitle1" component="span" sx={{ color: 'inherit', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {user.name}
+                    </Typography>
+                    {user.position && (
+                      <Typography variant="caption" component="span" sx={{ color: alpha('#fff', 0.7), flexShrink: 0 }}>
+                        {user.position}
+                      </Typography>
+                    )}
+                  </Box>
                 </Button>
-              ))
-            )}
-          </Box>
+              ))}
+            </Box>
+          )
         ) : (
           /* Step 3 — PIN 입력 (사양 line 190-249) */
           <Box component="form" noValidate onSubmit={handleLogin}>
@@ -381,7 +451,7 @@ const LoginPage = () => {
                     component="span"
                     sx={{
                       fontFeatureSettings: '"tnum" 1',
-                      color: password.length === 6 ? theme.palette.success.main : 'text.disabled',
+                      color: password.length === 6 ? theme.palette.primary.main : 'text.disabled',
                       fontWeight: 700,
                     }}
                   >
@@ -403,6 +473,7 @@ const LoginPage = () => {
             </Button>
           </Box>
         )}
+        </Box>
       </Box>
     </Box>
   );
