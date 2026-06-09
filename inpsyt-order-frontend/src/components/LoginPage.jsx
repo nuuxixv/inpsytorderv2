@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -16,12 +16,12 @@ import { alpha } from '@mui/material/styles';
 import {
   ArrowBack as ArrowBackIcon,
   Dialpad as DialpadIcon,
-  Person as PersonIcon,
   Shield as ShieldIcon,
   LocalShipping as ShippingIcon,
   Storefront as StoreIcon,
   CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
+import { sortMembers } from '../utils/allowanceRules';
 
 // 사양 §표시 정보 — Step 1 역할 큰 버튼 라벨/아이콘
 const ROLE_LABELS = {
@@ -183,7 +183,7 @@ const LoginPage = () => {
     }
   };
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (selectedUser) {
       setSelectedUser(null);
       setPassword('');
@@ -192,17 +192,16 @@ const LoginPage = () => {
       setSelectedRole(null);
       setError(null);
     }
-  };
+  }, [selectedUser, selectedRole]);
 
   // 사양 §필터: '출고' 역할은 fulfillment_book/fulfillment_test 두 슬러그를 묶어 노출
+  // 정렬: 직급순(차장>과장>대리>사원) → 이름순 (allowanceRules.sortMembers 재사용)
   const usersForRole = useMemo(() => {
     if (!selectedRole) return [];
-    if (selectedRole === 'fulfillment') {
-      return profiles.filter(
-        p => p.role === 'fulfillment_book' || p.role === 'fulfillment_test',
-      );
-    }
-    return profiles.filter(p => p.role === selectedRole);
+    const filtered = selectedRole === 'fulfillment'
+      ? profiles.filter(p => p.role === 'fulfillment_book' || p.role === 'fulfillment_test')
+      : profiles.filter(p => p.role === selectedRole);
+    return sortMembers(filtered);
   }, [profiles, selectedRole]);
 
   const currentStep = selectedUser ? 2 : selectedRole ? 1 : 0;
@@ -224,23 +223,37 @@ const LoginPage = () => {
     }
   };
 
-  // 숫자 단축키 — step 0(역할)·1(담당자)에서만. PIN 단계(2)는 PIN 입력이므로 무시.
+  // 단축키 — Esc: 뒤로(모든 단계, PIN 입력 중에도) / 숫자: 선택(step 0·1만, input 비포커스).
+  // preventDefault로 같은 키가 새로 포커스되는 PIN input에 흘러드는 누출 차단.
   useEffect(() => {
-    if (currentStep === 2) return;
     const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (selectedRole || selectedUser) {
+          e.preventDefault();
+          handleBack();
+        }
+        return;
+      }
+      if (currentStep === 2) return;
       const tag = document.activeElement?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       if (e.key < '1' || e.key > '9') return;
       const k = Number(e.key);
       if (currentStep === 0) {
-        if (k <= AVAILABLE_ROLES.length) setSelectedRole(AVAILABLE_ROLES[k - 1]);
+        if (k <= AVAILABLE_ROLES.length) {
+          e.preventDefault();
+          setSelectedRole(AVAILABLE_ROLES[k - 1]);
+        }
       } else if (currentStep === 1) {
-        if (k <= Math.min(9, usersForRole.length)) setSelectedUser(usersForRole[k - 1]);
+        if (k <= Math.min(9, usersForRole.length)) {
+          e.preventDefault();
+          setSelectedUser(usersForRole[k - 1]);
+        }
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [currentStep, usersForRole]);
+  }, [currentStep, usersForRole, selectedRole, selectedUser, handleBack]);
 
   return (
     <Box
@@ -382,24 +395,21 @@ const LoginPage = () => {
                   size="large"
                   color="primary"
                   onClick={() => setSelectedUser(user)}
-                  sx={{ py: 1.5, justifyContent: 'flex-start', gap: 1, minWidth: 0 }}
+                  sx={{ position: 'relative', py: 1.5, pl: 4, justifyContent: 'flex-start', gap: 0.5, minWidth: 0 }}
                 >
                   {i < 9 && (
-                    <KbdBadge sx={{ bgcolor: alpha('#fff', 0.22), color: 'common.white', borderColor: alpha('#fff', 0.35) }}>
+                    <KbdBadge sx={{ position: 'absolute', top: 8, left: 8, bgcolor: alpha('#fff', 0.22), color: 'common.white', borderColor: alpha('#fff', 0.35) }}>
                       {i + 1}
                     </KbdBadge>
                   )}
-                  <PersonIcon sx={{ fontSize: 20, flexShrink: 0 }} />
-                  <Box sx={{ flex: 1, minWidth: 0, textAlign: 'left', display: 'flex', alignItems: 'baseline', gap: 0.5, overflow: 'hidden' }}>
-                    <Typography variant="subtitle1" component="span" sx={{ color: 'inherit', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {user.name}
+                  <Typography variant="subtitle1" component="span" sx={{ color: 'inherit', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+                    {user.name}
+                  </Typography>
+                  {user.position && (
+                    <Typography variant="caption" component="span" sx={{ color: alpha('#fff', 0.7), flexShrink: 0 }}>
+                      {user.position}
                     </Typography>
-                    {user.position && (
-                      <Typography variant="caption" component="span" sx={{ color: alpha('#fff', 0.7), flexShrink: 0 }}>
-                        {user.position}
-                      </Typography>
-                    )}
-                  </Box>
+                  )}
                 </Button>
               ))}
             </Box>
