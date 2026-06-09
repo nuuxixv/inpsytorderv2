@@ -1,12 +1,13 @@
 
 import React, { useEffect, useState } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Box } from '@mui/material'; // Container 제거
 import AdminHeader from './AdminHeader';
 import AdminSidebar from './AdminSidebar';
 import DashboardPage from './DashboardPage';
 import OrderManagementPage from './OrderManagementPage';
 import EventManagementPage from './EventManagementPage';
+import EventDetailPage from './EventDetailPage';
 import ProductManagementPage from './ProductManagementPage';
 import UserManagementPage from './UserManagementPage'; // UserManagementPage 임포트
 import FulfillmentPage from './FulfillmentPage';
@@ -18,6 +19,12 @@ import NotificationsDisplay from './NotificationsDisplay';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import { supabase } from '../supabaseClient';
+
+// /admin/events/:slug? — slug 있으면 L2 학회 상세, 없으면 L1 학회 목록
+const EventsRoute = () => {
+  const { slug } = useParams();
+  return slug ? <EventDetailPage /> : <EventManagementPage />;
+};
 
 const AdminLayout = () => {
   const { hasPermission, permissions } = useAuth();
@@ -73,10 +80,10 @@ const AdminLayout = () => {
             <Route path="/dashboard" element={hasPermission('dashboard:view') ? <DashboardPage /> : <Navigate to="/admin" replace />} />
             <Route path="/orders" element={hasPermission('orders:view') ? <OrderManagementPage /> : <Navigate to="/admin" replace />} />
 
-            {/* 학회 관리 (권한 필요) */}
+            {/* 학회 관리 (권한 필요) — slug 있으면 L2 상세, 없으면 L1 목록 */}
             <Route
               path="/events/:slug?"
-              element={hasPermission('events:view') ? <EventManagementPage /> : <Navigate to="/admin" replace />}
+              element={hasPermission('events:view') ? <EventsRoute /> : <Navigate to="/admin" replace />}
             />
 
             {/* 상품 관리 (권한 필요) */}

@@ -17,6 +17,7 @@
     "@mui/icons-material": "^7.2.0",
     "@mui/material": "^7.2.0",
     "@supabase/supabase-js": "^2.76.0",
+    "@toast-ui/editor": "^3.2.2",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "date-fns": "^4.1.0",

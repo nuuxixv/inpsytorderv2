@@ -21,6 +21,7 @@ import OrderManagementPreviewC4 from './components/OrderManagementPreviewC4';
 import ProductManagementPreview from './components/ProductManagementPreview';
 import EventManagementPreview from './components/EventManagementPreview';
 import EventHubListPreview from './components/EventHubListPreview';
+import EventDetailPreview from './components/EventDetailPreview';
 import PaymentReceiptModalPreview from './components/PaymentReceiptModalPreview';
 import UserManagementPreview from './components/UserManagementPreview';
 import BulletinBoardPreview from './components/BulletinBoardPreview';
@@ -62,6 +63,7 @@ function AppRoutes() {
         <Route path="/preview/products" element={<ProductManagementPreview />} />
         <Route path="/preview/events" element={<EventManagementPreview />} />
         <Route path="/preview/event-hub" element={<EventHubListPreview />} />
+        <Route path="/preview/event-detail" element={<EventDetailPreview />} />
         <Route path="/preview/payment-receipt" element={<PaymentReceiptModalPreview />} />
         <Route path="/preview/users" element={<UserManagementPreview />} />
         <Route path="/preview/bulletins" element={<BulletinBoardPreview />} />

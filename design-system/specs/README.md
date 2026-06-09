@@ -41,6 +41,8 @@
 - `A7_FeedbackManagementPage.md` — 피드백 관리 (master 트리아지)
 - `A8_SettingsPage.md` — 설정 (리다이렉트 학회·배송비 정책)
 - `A8_LoginPage.md` — 어드민 로그인 (역할→이름→PIN 3단계)
+- `A10_EventHubList.md` — 학회 통합 목록 L1 (Event Hub List, 6컬럼·신규 4필드·Upcoming)
+- `L2_EventDetail.md` — 학회 통합 상세 L2 (개요·진행상태 3칩·매출 축약·현장 보고, **1차 시안 — 에디터 2차**)
 
 다른 화면의 시트가 필요하면 `_TEMPLATE.md` 를 복사해 같은 톤·포맷으로 추가한다.
 

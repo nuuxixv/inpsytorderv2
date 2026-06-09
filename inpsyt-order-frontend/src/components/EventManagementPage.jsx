@@ -51,6 +51,7 @@ import {
   ReceiptLong as ReceiptLongIcon,
 } from '@mui/icons-material';
 import QRCode from 'qrcode';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
@@ -161,6 +162,7 @@ const AttendeeCell = ({ ids = [], staffMap, myId }) => {
 
 const EventManagementPage = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { user, hasPermission } = useAuth();
   const { addNotification } = useNotification();
@@ -443,9 +445,13 @@ const EventManagementPage = () => {
     setDeleteConfirmOpen(true);
   };
 
-  // 행 본문 클릭 → L2 (P0 미구현, 라우트 입구만 — 사양 §10)
+  // 행 본문 클릭 → L2 학회 통합 상세(/admin/events/:slug)
   const handleRowClick = (event) => {
-    addNotification(`${event.name} · 학회 상세(L2)는 준비 중입니다.`, 'info');
+    if (!event.order_url_slug) {
+      addNotification('이 학회는 고유 주소가 없어 상세로 이동할 수 없습니다.', 'warning');
+      return;
+    }
+    navigate(`/admin/events/${event.order_url_slug}`);
   };
 
   if (!user || !hasPermission('events:view')) {
