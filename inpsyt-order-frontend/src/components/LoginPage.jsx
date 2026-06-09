@@ -11,6 +11,7 @@ import {
   CssBaseline,
   IconButton,
   useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
@@ -31,6 +32,9 @@ const ROLE_LABELS = {
 };
 
 const AVAILABLE_ROLES = ['master', 'onsite', 'fulfillment'];
+
+// 담당자 버튼: 이 인원을 넘으면 데스크톱에서만 2열. 그 이하/모바일은 1열.
+const STEP2_TWO_COL_THRESHOLD = 8;
 
 // ─── 숫자 단축키 배지 (kbd) ─────────────────────────────────────
 const KbdBadge = ({ children, sx }) => {
@@ -123,6 +127,7 @@ const StepIndicator = ({ currentStep }) => {
 
 const LoginPage = () => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [profiles, setProfiles] = useState([]);
   const [loadingProfiles, setLoadingProfiles] = useState(true);
   const [selectedRole, setSelectedRole] = useState(null);
@@ -380,39 +385,44 @@ const LoginPage = () => {
             })}
           </Box>
         ) : currentStep === 1 ? (
-          /* Step 2 — 담당자 선택 (사양 line 168-189) — 2열 그리드 */
+          /* Step 2 — 담당자 선택 (사양 line 168-189) — 기본 1열, 데스크톱 인원 초과 시 2열 */
           usersForRole.length === 0 ? (
             <Alert severity="info" sx={{ borderRadius: `${theme.radii.md}px` }}>
               등록된 담당자가 없습니다.
             </Alert>
           ) : (
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
-              {usersForRole.map((user, i) => (
-                <Button
-                  key={user.id}
-                  variant="contained"
-                  fullWidth
-                  size="large"
-                  color="primary"
-                  onClick={() => setSelectedUser(user)}
-                  sx={{ position: 'relative', py: 1.5, pl: 4, justifyContent: 'flex-start', gap: 0.5, minWidth: 0 }}
-                >
-                  {i < 9 && (
-                    <KbdBadge sx={{ position: 'absolute', top: 8, left: 8, bgcolor: alpha('#fff', 0.22), color: 'common.white', borderColor: alpha('#fff', 0.35) }}>
-                      {i + 1}
-                    </KbdBadge>
-                  )}
-                  <Typography variant="subtitle1" component="span" sx={{ color: 'inherit', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
-                    {user.name}
-                  </Typography>
-                  {user.position && (
-                    <Typography variant="caption" component="span" sx={{ color: alpha('#fff', 0.7), flexShrink: 0 }}>
-                      {user.position}
-                    </Typography>
-                  )}
-                </Button>
-              ))}
-            </Box>
+            (() => {
+              const cols = isMobile ? 1 : (usersForRole.length > STEP2_TWO_COL_THRESHOLD ? 2 : 1);
+              return (
+                <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 1 }}>
+                  {usersForRole.map((user, i) => (
+                    <Button
+                      key={user.id}
+                      variant="contained"
+                      fullWidth
+                      size="large"
+                      color="primary"
+                      onClick={() => setSelectedUser(user)}
+                      sx={{ position: 'relative', py: 1.5, px: 3.5, justifyContent: 'center', gap: 0.5, minWidth: 0 }}
+                    >
+                      {i < 9 && (
+                        <KbdBadge sx={{ position: 'absolute', top: 8, left: 8, bgcolor: alpha('#fff', 0.22), color: 'common.white', borderColor: alpha('#fff', 0.35) }}>
+                          {i + 1}
+                        </KbdBadge>
+                      )}
+                      <Typography variant="subtitle1" component="span" sx={{ color: 'inherit', lineHeight: 1.2, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+                        {user.name}
+                      </Typography>
+                      {user.position && (
+                        <Typography variant="caption" component="span" sx={{ color: alpha('#fff', 0.7), flexShrink: 0 }}>
+                          {user.position}
+                        </Typography>
+                      )}
+                    </Button>
+                  ))}
+                </Box>
+              );
+            })()
           )
         ) : (
           /* Step 3 — PIN 입력 (사양 line 190-249) */
