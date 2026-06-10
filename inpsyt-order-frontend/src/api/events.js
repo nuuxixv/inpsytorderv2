@@ -25,7 +25,7 @@ export const getEvents = async () => {
 const EVENT_DETAIL_COLUMNS =
   'id, name, discount_rate, order_url_slug, start_date, end_date, estimated_delivery_date, ' +
   'event_year, host_society, event_season, status, venue, attendee_ids, note, marketing_cost, ' +
-  'draft_done, application_done, payment_resolution_done, prep_note';
+  'draft_done, application_done, payment_resolution_done, prep_note, created_by';
 
 /**
  * order_url_slug 로 학회 1건을 가져옵니다. (L2 학회 상세)
@@ -96,4 +96,46 @@ export const getOrdersForEventRevenue = async (eventId) => {
     throw error;
   }
   return data || [];
+};
+
+/**
+ * L2 진입 열람 기록 — RPC `record_event_view`(upsert: 최초/최근 시각·횟수).
+ * 테이블 미적용 환경이면 throw — 호출부가 무시(페이지 차단 금지).
+ * @param {number} eventId - events.id (bigint)
+ */
+export const recordEventView = async (eventId) => {
+  if (!eventId) return;
+  const { error } = await supabase.rpc('record_event_view', { p_event_id: eventId });
+  if (error) throw error;
+};
+
+/**
+ * 열람 이력 + 열람자 프로필(이름·직급). SELECT는 RLS로 master만 허용.
+ * 미적용 환경/비-master면 throw — 호출부가 섹션 숨김.
+ * @param {number} eventId
+ * @returns {Promise<Array<{user_id, first_viewed_at, last_viewed_at, view_count, name, position}>>}
+ */
+export const getEventViewers = async (eventId) => {
+  if (!eventId) return [];
+  const { data, error } = await supabase
+    .from('event_views')
+    .select('user_id, first_viewed_at, last_viewed_at, view_count')
+    .eq('event_id', eventId)
+    .order('last_viewed_at', { ascending: false });
+  if (error) throw error;
+
+  const rows = data || [];
+  if (!rows.length) return rows;
+
+  // 탈퇴/삭제 계정은 프로필 미존재 → name null ("(삭제)" 표기는 UI 몫)
+  const { data: profiles } = await supabase
+    .from('user_profiles')
+    .select('id, name, position')
+    .in('id', rows.map((r) => r.user_id));
+  const byId = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
+  return rows.map((r) => ({
+    ...r,
+    name: byId[r.user_id]?.name || null,
+    position: byId[r.user_id]?.position || '',
+  }));
 };

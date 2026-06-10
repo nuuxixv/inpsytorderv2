@@ -37,7 +37,7 @@
 - [ ] `DashboardIcon` (primary.main, fontSize 1.4rem) — 페이지 제목 아이콘
 - [ ] 페이지 제목 텍스트: "대시보드" (Typography variant h6, fontWeight 700)
 - [ ] 새로고침 IconButton — `RefreshIcon`, 회전 애니메이션 (`refreshing` 상태), 비활성 조건 `refreshing || loading`
-- [ ] **입금결의서 내보내기 버튼** (2026-06-02 건우님) — `DownloadIcon`, outlined. **단일 상세 행사(`selectedEventIds.length === 1`) 선택 시에만 노출.** 클릭 → 그 행사의 결제완료 주문으로 `computeRevenueByCategory` → 회사 공통 양식(`public/templates/deposit-resolution-template.xlsx`)을 ExcelJS로 열어 셀만 채워 다운로드. 파일명 `입금결의서_{학회명}_{YYYY-MM}.xlsx`. 채울 셀(시트 "02.입금결의서 (템플릿)"): N4=연·Q4=월·S4=일(오늘), C5=한글금액(total), D6=total, Q5=부서(기본 "마케팅운영팀"), Q6=성명(profile.name/user), 도서행 E9/N9/R9(book), 검사행 E10/N10/R10(test), 계 R16(total). 0원이어도 도서·검사 둘 다 기재. 양식 데모 행(E11/E12 등)은 비움. 유틸: `src/utils/depositResolution.js`
+- [x] ~~입금결의서 내보내기 버튼~~ — **제거(2026-06-10 건우님 확정).** 진입점을 **L2 학회 상세(`L2_EventDetail.md` 헤더 액션)로 일원화.** 대시보드의 버튼·`handleExportDeposit`·`exporting` 상태·`DownloadIcon`·`profile/user` 의존 모두 소거. export 로직(`src/utils/depositResolution.js`)과 셀 매핑 사양은 L2 쪽에서 동일하게 사용(작성자/부서 자동 채움 포함).
 - [ ] (시안만 보유) 헤더 subtitle = `dashboardData.eventName` — 실 페이지는 헤더에 부제가 없고, 매출 카드 상단(line 685)에 별도 표시. **확인 필요** — 시안의 subtitle 위치로 옮길지 결정
 - [ ] (시안만 보유) "새로고침" 텍스트 + outlined Button — 실 페이지는 아이콘 단독 IconButton. 두 패턴 중 결정 필요
 
@@ -309,6 +309,7 @@ frontend 사이클(M3-12 본 작업)이 흡수해야 할 항목:
 6. **상품 전수 fetch 비용.** 진입 시 `fetchAllProducts`로 페이지네이션 1000씩 끝까지 끌어오고 `productsMap` 메모리 적재(line 374-384). 신상품 등록이 폭증하지 않는 한 부담 없는 규모(연 800건 운영). 단, 신규 환경에서 products가 수만 건이 된다면 N+1 위험. 부채 후보로 기록.
 
 ## 변경 이력
+- 2026-06-10 **입금결의서 진입점 L2 일원화 (건우님 확정).** 헤더의 "입금결의서 내보내기" 버튼·핸들러·상태 제거 — L2 학회 상세 헤더의 입금결의서(작성자/부서 자동 채움)가 단일 진입점. 대시보드는 그 외 무변경(회귀 없음). (frontend-engineer)
 - 2026-06-02 매출 합산 구조 변경 + 입금결의서 export (건우님 승인):
   - 매출 집계를 공용 유틸 `computeRevenueByCategory`로 교체. 별도 `shippingRevenue` 버킷 폐기 — 배송비를 검사/도서에 할당(검사 우선). 매출 카드 "검사 판매(배송비 포함)" / "도서 판매(배송비 포함)" / 총매출(=test+book) 2+hero 구조. 배송비 단독 StatCard 제거. `ShippingIcon` import 제거.
   - **매출·랭킹 기준 변경:** 결제완료(`paid`/`completed`)만. 이전엔 `cancelled/refunded`만 제외해 `pending` 매출 포함이었음 → 결제대기는 입금 전이라 매출 제외가 옳음(util `PAID_STATUSES` 단일 소스). 랭킹(`productSales`)도 동일 기준으로 정합(이전엔 매출↔랭킹 status 기준 불일치였음). YoY는 final_payment 기반 그대로(영향 없음).

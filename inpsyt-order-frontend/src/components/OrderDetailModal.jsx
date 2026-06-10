@@ -74,6 +74,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
   const [shippingFee, setShippingFee] = useState(0);
   const [finalTotal, setFinalTotal] = useState(0);
 
+  const [alimtalk, setAlimtalk] = useState({ status: null, sentAt: null, attemptedAt: null, error: null });
   const [linkedParent, setLinkedParent] = useState(null);
   const [linkedChildren, setLinkedChildren] = useState([]);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
@@ -115,6 +116,12 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
       setEditedEventId(order.event_id || '');
       setEditedAdminMemo(order.admin_memo || '');
       setEditedInpsytId(order.inpsyt_id || '');
+      setAlimtalk({
+        status: order.alimtalk_status || null,
+        sentAt: order.alimtalk_sent_at || null,
+        attemptedAt: order.alimtalk_attempted_at || null,
+        error: order.alimtalk_error || null,
+      });
       setIsEditing(false);
 
       // When not in editing mode, show the stored values.
@@ -251,8 +258,15 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
       if (newStatus === 'paid' && !order.is_on_site_sale) {
         sendAlimtalk(order.id).then(({ success, error: alimtalkError, skipped }) => {
           if (skipped) return;
-          if (!success) addNotification(`알림톡 발송 실패 — ${alimtalkError}`, 'warning');
-          else addNotification('알림톡 발송 완료', 'info');
+          const now = new Date().toISOString();
+          if (!success) {
+            addNotification(`알림톡 발송 실패 — ${alimtalkError}`, 'warning');
+            setAlimtalk(prev => ({ ...prev, status: 'failed', attemptedAt: now, error: alimtalkError }));
+          } else {
+            addNotification('알림톡 발송 완료', 'info');
+            setAlimtalk({ status: 'sent', sentAt: now, attemptedAt: now, error: null });
+          }
+          onUpdate();
         });
       }
     } catch (error) {
@@ -263,12 +277,15 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
 
   const handleResendAlimtalk = async () => {
     const { success, error: alimtalkError } = await sendAlimtalk(order.id);
+    const now = new Date().toISOString();
     if (success) {
       addNotification('알림톡 재발송 완료', 'success');
-      onUpdate();
+      setAlimtalk({ status: 'sent', sentAt: now, attemptedAt: now, error: null });
     } else {
       addNotification(`알림톡 재발송 실패 — ${alimtalkError}`, 'error');
+      setAlimtalk(prev => ({ ...prev, status: 'failed', attemptedAt: now, error: alimtalkError }));
     }
+    onUpdate();
   };
 
   const handleDeleteConfirm = async () => {
@@ -427,7 +444,13 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
             </IconButton>
           )}
           {canEdit && order.status === 'paid' && !order.is_on_site_sale && (
-            <Button size="small" variant="outlined" onClick={handleResendAlimtalk} sx={{ whiteSpace: 'nowrap' }}>
+            <Button
+              size="small"
+              variant="outlined"
+              color={alimtalk.status === 'failed' ? 'error' : 'primary'}
+              onClick={handleResendAlimtalk}
+              sx={{ whiteSpace: 'nowrap' }}
+            >
               알림톡 재발송
             </Button>
           )}
@@ -490,6 +513,23 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
                 </FormControl>
               )}
             />
+            {!order.is_on_site_sale && (
+              <InfoRow
+                label="알림톡"
+                labelWidth={96}
+                multiline={alimtalk.status === 'failed'}
+                muted={alimtalk.status !== 'failed' && alimtalk.status !== 'sent' && !alimtalk.sentAt}
+                value={
+                  alimtalk.status === 'failed' ? (
+                    <Typography variant="body2" component="span" sx={{ color: 'error.main', fontWeight: 600 }}>
+                      실패 {alimtalk.attemptedAt ? new Date(alimtalk.attemptedAt).toLocaleString('ko-KR') : ''}{alimtalk.error ? `: ${alimtalk.error}` : ''}
+                    </Typography>
+                  ) : (alimtalk.status === 'sent' || alimtalk.sentAt) ? (
+                    `발송됨 ${alimtalk.sentAt ? new Date(alimtalk.sentAt).toLocaleString('ko-KR') : ''}`
+                  ) : '미발송'
+                }
+              />
+            )}
           </Box>
         </SectionCard>
 

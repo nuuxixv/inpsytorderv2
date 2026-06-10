@@ -39,7 +39,7 @@
 ### 헤더 (line 346-380)
 - [ ] 모달 제목: “상품주문정보 조회” (Typography variant h6)
 - [ ] (조건부, `order.access_token`) `OpenInNewIcon` 외부 링크 — `/order/status/{access_token}` 새 탭, title “고객 주문 조회 페이지” — line 349-360
-- [ ] (조건부, `orders:edit` AND `status === 'paid'` AND `!is_on_site_sale`) “알림톡 재발송” 버튼 (outlined, fontSize 0.75rem) — line 362-371
+- [ ] (조건부, `orders:edit` AND `status === 'paid'` AND `!is_on_site_sale`) “알림톡 재발송” 버튼 (outlined) — `alimtalk_status === 'failed'`면 `color="error"`로 시각 강조, 그 외 primary — line 362-371
 - [ ] (조건부, `orders:edit`) “편집” / “저장” 토글 버튼 — line 372
 - [ ] (조건부, `master` AND `!isEditing`) `DeleteIcon` 삭제 아이콘 (error color) — line 373-377
 - [ ] 닫기 아이콘 `CloseIcon` — line 378
@@ -52,6 +52,11 @@
 - [ ] **주문일** — `new Date(order.created_at).toLocaleString('ko-KR')` 풀 포맷 (yyyy. M. d. 오전/오후 hh:mm:ss)
 - [ ] **학회명** — 조회 시 `events.find(e => e.id === order.event_id)?.name || 'N/A'` / 편집 시 학회 Select (전체 events 옵션, name만 표시)
 - [ ] **상태** — Select 상시 노출 (편집 모드 아닐 때도 변경 가능). `orders:edit` 없으면 disabled. **변경 즉시 저장** (`handleSaveStatusOnly`). 5개 옵션: `statusToKorean` 전체 (pending/paid/completed/cancelled/refunded)
+- [ ] **알림톡** (조건부, `!is_on_site_sale` — 현장수령은 발송 대상이 아니라 행 자체 비노출):
+  - failed: “실패 {alimtalk_attempted_at ko-KR}: {alimtalk_error}” — error.main, fontWeight 600
+  - sent (`alimtalk_status='sent'` 또는 레거시 `alimtalk_sent_at`만 존재): “발송됨 {alimtalk_sent_at ko-KR}”
+  - 그 외: “미발송” (muted)
+  - 재발송·paid 자동발송 결과로 로컬 상태(`alimtalk`) 즉시 갱신 — 모달 재오픈 없이 반영
 
 ### 상태 이력 섹션 (조건부, line 384-386, 544-604)
 - [ ] `order.status_history` 배열 길이 > 0일 때만 노출
@@ -138,8 +143,9 @@
 
 ### 알림톡 재발송
 - [ ] **노출 조건**: `orders:edit` AND `status === 'paid'` AND `!is_on_site_sale`
-- [ ] 동작: `sendAlimtalk(order.id)` → 결과 토스트 + 성공 시 `onUpdate()` (`alimtalk_sent_at` 갱신 반영)
-- [ ] **확인 필요** — UI에 `alimtalk_sent_at` 마지막 발송 시각이 표시되지 않음. 발송 이력은 DB에만 기록. 시안에서 “마지막 발송: yyyy-MM-dd HH:mm” 노출 추가 결정 필요
+- [ ] 동작: `sendAlimtalk(order.id)` → 결과 토스트 + 로컬 `alimtalk` 상태 갱신(성공=sent/실패=failed) + `onUpdate()` (성공·실패 모두 — 목록 실패 칩 동기화)
+- [ ] (해소 2026-06-10) “알림톡” InfoRow로 마지막 발송/실패 시각·사유 표시 — 위 표시 정보 섹션 참조
+- [ ] paid 자동발송(`handleSaveStatusOnly`)의 결과 콜백도 동일하게 로컬 `alimtalk` 갱신 + `onUpdate()`
 
 ### 삭제
 - [ ] **권한**: `master` 전용. editor·viewer 모두 노출 안 됨
@@ -204,7 +210,10 @@
 - `status_history` (jsonb) — 트리거 자동 갱신
 - `total_cost` / `discount_amount` / `delivery_fee` / `final_payment` (numeric)
 - `access_token` (uuid) — 외부 링크 노출에 사용
-- `alimtalk_sent_at` (timestamptz nullable) — **컴포넌트에서 표시되지 않음. 확인 필요**
+- `alimtalk_sent_at` (timestamptz nullable) — “알림톡” InfoRow의 발송 시각 (2026-06-10 표시 추가)
+- `alimtalk_status` (text nullable) — `'sent'` | `'failed'` | null. InfoRow 분기·재발송 버튼 강조 기준
+- `alimtalk_error` (text nullable) — 실패 사유 표시
+- `alimtalk_attempted_at` (timestamptz nullable) — 실패 시각 표시
 - `created_at` (timestamptz)
 
 ### `order_items` (조회·일괄 재삽입)
@@ -249,7 +258,7 @@
 
 3. **`linkOrders`는 무조건 `delivery_fee = 0`.** `api/orders.js:155` UPDATE에서 합산 금액이 무료배송 임계치 미만이어도 child의 배송비를 0으로 만든다. 반환값(`combinedListPrice`, `freeShipping`)은 계산하지만 실 UPDATE에는 반영 안 됨. 운영 의도가 “일단 묶으면 배송비 안 받는다”라면 의도대로지만, “무료배송 자격 충족 시에만 0”이라면 버그. **건우님 확인 필요**.
 
-4. **알림톡 발송 이력 UI 미노출.** `alimtalk_sent_at` 컬럼이 있고 `sendAlimtalk` 성공 시 갱신되는데, 이 모달의 어디에도 “마지막 발송 시각”이 표시되지 않는다. 어드민이 “이미 보냈는지” 모르고 재발송을 누르게 됨. 시안 작성 시 발송 이력 표시 위치 결정 필요.
+4. **(해소 2026-06-10) 알림톡 발송 이력 UI 미노출.** 주문 상세 정보 섹션 “알림톡” InfoRow로 발송됨/실패/미발송 + 시각·사유를 표시한다. 실패 시 재발송 버튼이 error 색으로 강조된다.
 
 5. **상태 셀이 편집 모드와 별개로 항상 활성.** 다른 필드는 “편집” 토글이 필요한데 상태만 그렇지 않다(line 382 안의 Select). 운영상 빠른 paid 전환을 위한 의도지만, “편집 모드 아닐 때 실수로 상태가 바뀌는” 사고 가능성. 시안에서 명시적 confirm 도입할지 결정 필요.
 
@@ -272,3 +281,4 @@
   - 정보 구조·필드·액션 전부 보존(7섹션 유지, 배송지 3필드 분리, 연계 주문 Alert→tone 카드, 상태 이력 Accordion).
   - 보존: 모든 API/RPC/Edge Function 호출(`update_order_details`, `linkOrders`, `searchOrdersForLinking`, `sendAlimtalk`, 삭제·status 단건 update, `site_settings` 조회), 권한별 분기, 편집 토글, 자동 알림톡, Daum 우편번호 Dialog.
   - 부채 5건은 손대지 않음(별도 사이클 — CTO 검수 권장).
+- 2026-06-10 알림톡 발송 결과 가시화 — 주문 상세 정보 섹션에 “알림톡” InfoRow 추가(발송됨 {시각} / 실패 {시각}: {사유} / 미발송, 현장수령은 행 비노출). `alimtalk_status='failed'`면 헤더 재발송 버튼 `color="error"` 강조. 재발송·paid 자동발송 결과를 로컬 상태로 즉시 반영 + `onUpdate()`로 목록 칩 동기화. 핵심 발견 4번 해소.

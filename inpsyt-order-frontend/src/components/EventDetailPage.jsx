@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, IconButton, CircularProgress, Dialog, useTheme,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
@@ -25,7 +26,9 @@ import {
   Close as CloseIcon,
   LockOutlined as LockIcon,
   Inventory2Outlined as PrepIcon,
+  VisibilityOutlined as ViewsIcon,
 } from '@mui/icons-material';
+import { format } from 'date-fns';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
@@ -34,10 +37,13 @@ import { numberToKoreanCurrency } from '../utils/koreanCurrency';
 import { computeRevenueByCategory } from '../utils/revenueByCategory';
 import {
   getEventBySlug, updateEventProgress, updateEventPrepNote, getOrdersForEventRevenue,
+  recordEventView, getEventViewers,
 } from '../api/events';
+import { encodeForStorage } from '../utils/prepNoteImages';
 import { PageHeader, SectionCard, StatCard, StatusBadge, EmptyState } from './ui';
 import FieldReportSection from './FieldReportSection';
 import PaymentReceiptModal from './PaymentReceiptModal';
+import EventFormDialog from './EventFormDialog';
 
 // Toast UI 에디터/뷰어 = 무거운 의존성 → 지연 로드(초기/공개 번들 0 영향)
 const PrepNoteEditor = lazy(() => import('./PrepNoteEditor'));
@@ -215,10 +221,12 @@ const EventDetailPage = () => {
   const { addNotification } = useNotification();
 
   const canEdit = hasPermission('events:edit');
+  const isMaster = hasPermission('master');
   const myId = user?.id || null;
 
   const [event, setEvent] = useState(null);
   const [staff, setStaff] = useState([]);
+  const [societies, setSocieties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -231,14 +239,19 @@ const EventDetailPage = () => {
   // 준비 노트
   const [editingNote, setEditingNote] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
-  const getNoteHtmlRef = React.useRef(() => '');
+  const getNoteHtmlRef = React.useRef(() => null); // 에디터 lazy 로드 전 = null(저장 가드)
 
   // 라이트박스
   const [lightboxSrc, setLightboxSrc] = useState(null);
 
-  // 학회 정보 수정 — A10 목록(다이얼로그 포함)으로 이동
+  // 학회 정보 수정 — 공용 EventFormDialog 인라인 오픈(2026-06-10, 목록 이동 폐기)
+  const [editOpen, setEditOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  // 열람 이력 — master만. null = 미조회/미적용 환경(섹션 숨김)
+  const [views, setViews] = useState(null);
+  const recordedIdRef = React.useRef(null);
 
   const staffMap = useMemo(() => Object.fromEntries(staff.map((s) => [s.id, s])), [staff]);
 
@@ -246,13 +259,14 @@ const EventDetailPage = () => {
     setLoading(true);
     setNotFound(false);
     try {
-      const [ev, staffRes] = await Promise.all([
+      const [ev, staffRes, societiesRes] = await Promise.all([
         getEventBySlug(slug),
         supabase
           .from('user_profiles')
           .select('id, name, role, position')
           .in('role', ['master', 'onsite'])
           .order('name', { ascending: true }),
+        supabase.from('societies').select('id, name, slug_prefix').order('name', { ascending: true }),
       ]);
       if (!ev) { setNotFound(true); setEvent(null); return; }
       setEvent(ev);
@@ -262,6 +276,7 @@ const EventDetailPage = () => {
         paymentResolution: !!ev.payment_resolution_done,
       });
       if (!staffRes.error && staffRes.data) setStaff(staffRes.data);
+      if (!societiesRes.error && societiesRes.data) setSocieties(societiesRes.data);
 
       // 매출 주문 — paid 필터는 util이 수행
       try {
@@ -278,6 +293,18 @@ const EventDetailPage = () => {
   }, [slug, addNotification]);
 
   useEffect(() => { loadEvent(); }, [loadEvent]);
+
+  // 열람 기록(진입 1회) + master 열람 이력 조회 — 테이블/RPC 미적용 환경이면 조용히 스킵
+  const eventId = event?.id || null;
+  useEffect(() => {
+    if (!eventId || recordedIdRef.current === eventId) return;
+    recordedIdRef.current = eventId;
+    (async () => {
+      try { await recordEventView(eventId); } catch { /* 미적용 환경 — 페이지 차단 금지 */ }
+      if (!isMaster) return;
+      try { setViews(await getEventViewers(eventId)); } catch { setViews(null); }
+    })();
+  }, [eventId, isMaster]);
 
   // 권한 가드
   if (user && !hasPermission('events:view')) {
@@ -327,9 +354,11 @@ const EventDetailPage = () => {
 
   const handleSaveNote = async () => {
     if (!canEdit) return;
+    const raw = getNoteHtmlRef.current();
+    if (raw === null) return; // 에디터 준비 전(lazy 로드·이미지 재서명 중) — 본문 유실 방지
     setSavingNote(true);
     try {
-      const html = getNoteHtmlRef.current();
+      const html = encodeForStorage(raw); // 서명 URL → 경로 플레이스홀더(만료 무관 저장형)
       await updateEventPrepNote(event.id, html);
       setEvent((e) => ({ ...e, prep_note: html }));
       setEditingNote(false);
@@ -369,7 +398,7 @@ const EventDetailPage = () => {
         <Button
           size="small" variant="outlined"
           startIcon={<EditIcon sx={{ fontSize: 16 }} />}
-          onClick={() => navigate('/admin/events')}
+          onClick={() => setEditOpen(true)}
           sx={{ minHeight: 36 }}
         >
           학회 정보 수정
@@ -606,7 +635,78 @@ const EventDetailPage = () => {
             />
           )}
         </SectionCard>
+
+        {/* ─── 열람 이력 (master만 · 게시판 읽음 현황 패턴) ─── */}
+        {isMaster && Array.isArray(views) && views.length > 0 && (
+          <SectionCard title="열람 이력" icon={ViewsIcon} subtitle="이 학회 상세를 연 직원 · 마스터에게만 보여요">
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 700 }}>이름</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>최초 열람</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>최근 열람</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>횟수</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {views.map((v) => (
+                    <TableRow key={v.user_id}>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 600 }}>
+                          {v.name || '(삭제)'}
+                          {v.position && (
+                            <Typography component="span" variant="caption" sx={{ color: 'text.secondary', fontWeight: 500, ml: 0.5 }}>
+                              {v.position}
+                            </Typography>
+                          )}
+                        </Typography>
+                      </TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontFeatureSettings: '"tnum" 1' }}>
+                          {v.first_viewed_at ? format(new Date(v.first_viewed_at), 'MM.dd HH:mm') : '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontFeatureSettings: '"tnum" 1' }}>
+                          {v.last_viewed_at ? format(new Date(v.last_viewed_at), 'MM.dd HH:mm') : '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontFeatureSettings: '"tnum" 1' }}>
+                          {v.view_count || 0}회
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </SectionCard>
+        )}
       </Box>
+
+      {/* 학회 정보 수정 — 공용 EventFormDialog 인라인 */}
+      {canEdit && (
+        <EventFormDialog
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          event={event}
+          societies={societies}
+          staff={staff}
+          canEdit={canEdit}
+          canDelete={isMaster || (canEdit && !!event.created_by && event.created_by === myId)}
+          onSaved={(saved) => {
+            // slug가 바뀌면 새 주소로 이동(구 slug 재조회 시 미발견 방지), 아니면 재조회
+            if (saved?.order_url_slug && saved.order_url_slug !== slug) {
+              navigate(`/admin/events/${saved.order_url_slug}`, { replace: true });
+            } else {
+              loadEvent();
+            }
+          }}
+          onDeleted={() => navigate('/admin/events', { replace: true })}
+        />
+      )}
 
       {/* 지불증 모달 */}
       <PaymentReceiptModal

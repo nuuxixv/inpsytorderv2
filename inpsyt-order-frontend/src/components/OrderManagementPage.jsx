@@ -29,6 +29,7 @@ import {
   useTheme,
   Menu,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { format, subDays } from 'date-fns';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
@@ -48,6 +49,30 @@ import { PageHeader, SectionCard, StatusBadge, EmptyState } from './ui';
 import { STATUS_TO_KOREAN } from '../constants/orderStatus';
 
 const statusToKorean = STATUS_TO_KOREAN;
+
+// 알림톡 발송 실패 칩 — failed만 표시 (미발송 null·sent는 표시 안 함)
+const AlimtalkFailBadge = ({ sx }) => {
+  const theme = useTheme();
+  const color = theme.palette.error.main;
+  return (
+    <Box
+      sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        px: 0.75,
+        py: 0.25,
+        borderRadius: `${theme.radii.sm}px`,
+        bgcolor: alpha(color, 0.1),
+        border: `1px solid ${alpha(color, 0.2)}`,
+        ...sx,
+      }}
+    >
+      <Typography variant="caption" sx={{ fontWeight: 600, color, lineHeight: 1, whiteSpace: 'nowrap' }}>
+        알림톡 실패
+      </Typography>
+    </Box>
+  );
+};
 
 const initialState = {
   orders: [],
@@ -415,6 +440,7 @@ const OrderManagementPage = () => {
           if (skipped) return;
           if (!success) addNotification(`알림톡 발송 실패 — ${alimtalkError}`, 'warning');
           else addNotification('알림톡 발송 완료', 'info');
+          fetchOrders();
         });
       }
     } catch (err) {
@@ -726,7 +752,10 @@ const OrderManagementPage = () => {
                               {format(new Date(order.created_at), 'yyyy-MM-dd')}
                             </Typography>
                           </Box>
-                          <StatusBadge value={order.status} size="sm" />
+                          <Box display="flex" alignItems="center" gap={0.75}>
+                            {order.alimtalk_status === 'failed' && <AlimtalkFailBadge />}
+                            <StatusBadge value={order.status} size="sm" />
+                          </Box>
                         </Box>
                         <Box display="flex" justifyContent="space-between" alignItems="flex-end">
                           <Box>
@@ -822,6 +851,9 @@ const OrderManagementPage = () => {
                               {Object.entries(statusToKorean).map(([key, value]) => <MenuItem key={key} value={key}>{value}</MenuItem>)}
                             </Select>
                           </FormControl>
+                          {order.alimtalk_status === 'failed' && (
+                            <Box sx={{ mt: 0.5 }}><AlimtalkFailBadge /></Box>
+                          )}
                         </TableCell>
                       </TableRow>
                     )

@@ -72,6 +72,7 @@
 - [ ] “총 금액” 컬럼 — `order.final_payment.toLocaleString()`원 (천 단위 콤마, 원 단위) — line 818
 - [ ] “주문일시” 컬럼 — `yyyy-MM-dd HH:mm` — line 819
 - [ ] “상태” 컬럼 — `Select` (5개 상태), `orders:edit` 없으면 disabled — line 820-826
+- [ ] (조건부, `alimtalk_status === 'failed'`) 상태 셀 하단 “알림톡 실패” 칩 — error 토큰(`palette.error.main` alpha 채움+보더), 미발송(null)·sent는 칩 없음
 - [ ] 행 클릭 시 (체크박스·상태 셀 제외) `OrderDetailModal` 오픈 — line 815-819 onClick
 - [ ] 체크박스는 행 클릭 이벤트 stopPropagation — line 194-212
 
@@ -79,6 +80,7 @@
 - [ ] 카드 stack (간격 2)
 - [ ] 카드 상단: (조건부 체크박스 + 주문일자 `yyyy-MM-dd`) ← → (상태 칩) — line 714-733
   - 상태 칩 색: `completed`=success / `pending`=warning / 그 외 default
+  - (조건부, `alimtalk_status === 'failed'`) 상태 칩 좌측에 “알림톡 실패” 칩 — 데스크톱과 동일 error 토큰
 - [ ] 카드 본문: 고객명 (fontWeight bold, 1.1rem) + 학회명 (body2 secondary), 우측에 결제금액 (fontWeight bold, primary.main) — line 734-740
 - [ ] 카드 클릭 → 상세 모달 오픈
 - [ ] 선택 시 테두리 primary.main + borderWidth 2 — line 711
@@ -123,7 +125,12 @@
 - [ ] `is_on_site_sale === true` 면 발송 skip (api/alimtalk.js:24)
 - [ ] `phone_number` 없으면 실패 반환
 - [ ] `result_code === 0` 만 성공으로 처리. 그 외 모두 실패 토스트 (api/alimtalk.js:53)
-- [ ] 성공 시 `orders.alimtalk_sent_at` 갱신
+- [ ] **발송 결과 DB 기록** (api/alimtalk.js `recordAlimtalkResult`):
+  - 성공: `alimtalk_status='sent'`, `alimtalk_sent_at=now`, `alimtalk_attempted_at=now`, `alimtalk_error=null`
+  - 실패(발송 시도 후): `alimtalk_status='failed'`, `alimtalk_error="{result_code} {원샷 메시지}"` (네트워크 예외면 err.message), `alimtalk_attempted_at=now`, `alimtalk_sent_at` 미변경
+  - skipped(현장수령)·발송 전 실패(주문 없음·번호 없음): 기록하지 않음
+  - 기록 update 실패 시 콘솔 경고만 — 발송 플로우 차단 금지 (컬럼 미적용 환경 graceful)
+- [ ] 단건 상태 변경의 알림톡 결과 수신 후 `fetchOrders()` 재호출 — 실패 배지 즉시 반영
 - [ ] **브라우저에서 직접 fetch** — Edge Function 호출 금지 (msgagent 구형 TLS, ONESHOT.md §60-62)
 - [ ] `OrderDetailModal`에 “알림톡 재발송” 버튼 별도 존재 — `status='paid'` 이고 `is_on_site_sale=false` 이고 `orders:edit` 권한 시 노출 (`OrderDetailModal.jsx:362-371`)
 
@@ -185,6 +192,10 @@
 - `delivery_fee` (numeric)
 - `access_token` (uuid, unique, default `gen_random_uuid()`) — 알림톡 링크에 사용
 - `alimtalk_sent_at` (timestamptz, nullable) — 발송 이력
+- `alimtalk_status` (text, nullable) — `'sent'` | `'failed'` | null(미발송). 목록 실패 칩·모달 상태 표시의 기준
+- `alimtalk_error` (text, nullable) — 실패 사유 (`"{result_code} {메시지}"`)
+- `alimtalk_attempted_at` (timestamptz, nullable) — 마지막 발송 시도 시각
+- 신규 3컬럼은 `getOrders`의 `select('*')`에 자동 포함 (별도 select 변경 불필요)
 - (참고) `contact`, `address`, `total_amount`, `shipping_cost` 는 `20250805_add_new_order_fields.sql`에서 추가되었으나 현재 화면 로직은 `phone_number` / `shipping_address` jsonb / `total_cost` / `delivery_fee` 를 사용 — **확인 필요**: 둘 다 컬럼이 살아 있는지, 사용 중단 컬럼이 있는지
 
 ### `order_items` (join)
@@ -276,3 +287,4 @@ frontend가 M3 사이클에서 흡수해야 할 항목:
 
 ## 변경 이력
 - 2026-05-28 신설 — M3 frontend 위임 사전 작성. 게이트 1.5 통과 목적. 시안(`OrderManagementPreview.jsx`) vs 실 페이지(`OrderManagementPage.jsx`) 차이 10건 적출. RPC 부채 1건, viewer 엑셀 권한 1건 부채 후보로 기록.
+- 2026-06-10 알림톡 발송 결과 가시화 — `alimtalk_status`/`alimtalk_error`/`alimtalk_attempted_at` 컬럼 추가(backend 병렬)에 맞춰 발송 결과 DB 기록 사양 신설. 데스크톱 상태 셀·모바일 카드에 “알림톡 실패” 칩(error 토큰) 추가. 단건 paid 전환 시 알림톡 결과 수신 후 목록 재조회. 차이 적출 10번(알림톡 발송 트리거 UI 시그널 없음) 부분 해소.

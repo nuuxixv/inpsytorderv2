@@ -3,6 +3,7 @@ import Editor from '@toast-ui/editor';
 import '@toast-ui/editor/dist/toastui-editor.css';
 import { supabase } from '../supabaseClient';
 import { sanitizePrepNoteHTML } from './prepNoteSanitizer';
+import { resolveForDisplay, createImageDisplayUrl } from '../utils/prepNoteImages';
 
 /**
  * 통합 준비 노트 에디터 (Toast UI Editor — 바닐라) — L2 학회 상세 전용.
@@ -13,8 +14,10 @@ import { sanitizePrepNoteHTML } from './prepNoteSanitizer';
  *    바닐라 Editor를 ref로 직접 인스턴스화(프레임워크 무관).
  *
  * - 준비물 = 에디터 task-list 체크박스
- * - 이미지(프로그램·부스배치도) = addImageBlobHook → event-images 버킷 업로드 → 서명 URL 삽입
+ * - 이미지(프로그램·부스배치도) = addImageBlobHook → event-images 버킷 업로드 → 표시용 서명 URL 삽입
  *   (dropImage 플러그인·md paste 핸들러가 양 모드 공통이라 Markdown 모드에서도 동작)
+ *   저장 시 EventDetailPage가 encodeForStorage로 경로 플레이스홀더로 치환(만료 무관),
+ *   진입 시 resolveForDisplay로 새 서명 URL 재발급(utils/prepNoteImages.js).
  * - 학회 정보(설치/철거 등) = 자유 텍스트
  *
  * 모드: WYSIWYG에는 마크다운 입력 룰이 없어 `##`·`- [ ]` 자동변환 불가 →
@@ -25,13 +28,13 @@ import { sanitizePrepNoteHTML } from './prepNoteSanitizer';
  * props:
  *  - eventId: string             (이미지 업로드 경로 prefix)
  *  - initialValue: string        (events.prep_note HTML — 마운트 시점 값으로 1회 주입)
- *  - onReady: (getHTML) => void  (저장 버튼이 본문을 읽을 수 있게 getHTML 접근자 전달)
+ *  - onReady: (getHTML) => void  (저장 버튼이 본문을 읽을 수 있게 getHTML 접근자 전달.
+ *                                 에디터 준비 전/해제 후 호출 시 null 반환 — 저장 가드용)
  *  - onImageError: (msg) => void (검증/업로드 실패 토스트)
  */
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
-const SIGNED_URL_TTL = 60 * 60 * 24 * 365; // 길게(1년) — 비공개 버킷 본문 표시용
 
 const PrepNoteEditor = ({ eventId, initialValue, onReady, onImageError }) => {
   const elRef = useRef(null);
@@ -69,43 +72,50 @@ const PrepNoteEditor = ({ eventId, initialValue, onReady, onImageError }) => {
           return;
         }
 
-        const { data, error: signErr } = await supabase.storage
-          .from('event-images')
-          .createSignedUrl(path, SIGNED_URL_TTL);
-        if (signErr || !data?.signedUrl) {
+        const signedUrl = await createImageDisplayUrl(path);
+        if (!signedUrl) {
           onImageErrorRef.current?.('이미지 주소 생성에 실패했어요.');
           return;
         }
-        callback(data.signedUrl, '학회 자료');
+        callback(signedUrl, '학회 자료');
       } catch (e) {
         console.error(e);
         onImageErrorRef.current?.('이미지 업로드 중 오류가 발생했어요.');
       }
     };
 
-    const editor = new Editor({
-      el: elRef.current,
-      initialValue: initialValue || '',
-      initialEditType: initialValue ? 'wysiwyg' : 'markdown',
-      previewStyle: 'tab',
-      height: '420px',
-      usageStatistics: false,
-      hideModeSwitch: false,
-      autofocus: false,
-      toolbarItems: [
-        ['heading', 'bold', 'italic'],
-        ['hr', 'quote'],
-        ['ul', 'ol', 'task'],
-        ['image', 'link'],
-      ],
-      hooks: { addImageBlobHook },
-      customHTMLSanitizer: sanitizePrepNoteHTML, // 최신 DOMPurify 주입(보안 검토 중2)
+    // getHTML 접근자는 호출 시점의 인스턴스를 참조 — 준비 전(재서명 중)/해제 후엔 null
+    onReadyRef.current?.(() => (instRef.current ? instRef.current.getHTML() || '' : null));
+
+    // 본문 내 경로 플레이스홀더(+레거시 서명 URL) → 새 서명 URL 재발급 후 에디터 생성
+    let editor = null;
+    let cancelled = false;
+    resolveForDisplay(initialValue || '').then((resolved) => {
+      if (cancelled || !elRef.current) return;
+      editor = new Editor({
+        el: elRef.current,
+        initialValue: resolved,
+        initialEditType: resolved ? 'wysiwyg' : 'markdown',
+        previewStyle: 'tab',
+        height: '420px',
+        usageStatistics: false,
+        hideModeSwitch: false,
+        autofocus: false,
+        toolbarItems: [
+          ['heading', 'bold', 'italic'],
+          ['hr', 'quote'],
+          ['ul', 'ol', 'task'],
+          ['image', 'link'],
+        ],
+        hooks: { addImageBlobHook },
+        customHTMLSanitizer: sanitizePrepNoteHTML, // 최신 DOMPurify 주입(보안 검토 중2)
+      });
+      instRef.current = editor;
     });
-    instRef.current = editor;
-    onReadyRef.current?.(() => editor.getHTML() || '');
 
     return () => {
-      editor.destroy();
+      cancelled = true;
+      editor?.destroy();
       instRef.current = null;
     };
     // 마운트 시 1회 생성(initialValue는 진입 시점 값). 콜백/eventId는 ref로 최신 참조.

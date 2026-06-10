@@ -44,8 +44,8 @@
 - [ ] 헤더 직하 한 줄: 시간상태 배지(`getEventStatusKST` → 예정/진행 중/종료, `StatusBadge`) + 할인율 칩(>0%, accent.revenue soft).
 - [ ] 뒤로: 헤더 위 text Button "학회 목록" → L1.
 - [ ] 우상단 액션 3 (outlined, 모두 동일 위계 — Primary 채움 없음):
-  - [ ] **학회 정보 수정** — A10 추가/수정 다이얼로그 재사용(`EventManagementPage` Dialog).
-  - [ ] **입금결의서** — `exportDepositResolution`(ExcelJS 동적 import). 실구현 시 단일 event 컨텍스트로 호출.
+  - [x] **학회 정보 수정** — **공용 `EventFormDialog.jsx` 인라인 오픈(2026-06-10 — L1 목록 이동 폐기).** 저장 → `loadEvent()` 재조회(slug 변경 시 새 주소로 replace 네비게이트 — 구 slug 미발견 방지). 삭제 가능 조건 = L1 정합(master 전부 / onsite 본인 생성, `created_by` — `EVENT_DETAIL_COLUMNS`에 추가). 삭제 성공 → 목록 이동.
+  - [x] **입금결의서** — `exportDepositResolution`(ExcelJS 동적 import) + 작성자/부서 자동 채움. **유일 진입점(2026-06-10 건우님 확정 — 대시보드 버튼 소거, L2 일원화).**
   - [ ] **지불증** — `PaymentReceiptModal`(A10b) 오픈. 실구현 시 event+staff 전달.
 
 > 확인 필요: 입금결의서/지불증은 결제완료 주문이 0건이거나 미래 학회일 때 노출 여부·disabled 처리. (1차 시안은 항상 노출.)
@@ -72,10 +72,11 @@
 - [x] 목적: 학회 준비물·자료·정보를 한 칸에 자유롭게 정리. 운영자 자체 관리(고객 비노출).
 - [x] 저장 = `events.prep_note text` — 에디터 HTML 본문. 마이그레이션 `20260608050000_add_event_prep_note_drop_prep_items.sql` 적용 완료(NULL 허용, anon 비노출).
 - [x] **에디터 = Toast UI Editor**(`@toast-ui/editor` + `@toast-ui/react-editor`). **React.lazy 지연 로드**(`PrepNoteEditor.jsx`/`PrepNoteViewer.jsx`) — 초기/공개 번들 0 영향. CSS import는 lazy 청크 내부.
-- [x] **준비물 = task-list 체크박스**(에디터 task 툴바). **이미지(프로그램·부스배치도) = addImageBlobHook** → `supabase.storage.from('event-images').upload()` → `createSignedUrl`(1년) → 본문 삽입. **학회정보(설치/철거 등) = 자유 텍스트.**
+- [x] **준비물 = task-list 체크박스**(에디터 task 툴바). **이미지(프로그램·부스배치도) = addImageBlobHook** → `supabase.storage.from('event-images').upload()` → 표시용 서명 URL(6시간) 본문 삽입. **학회정보(설치/철거 등) = 자유 텍스트.**
+- [x] **이미지 저장 = 경로, 렌더 = 재서명(2026-06-10 — 서명 URL 만료 리팩터):** DB 저장본의 img src는 **`storage://event-images/<path>` 경로 플레이스홀더**(토큰 없음 — 만료 무관). 저장 직전 `encodeForStorage(html)`가 본문 내 서명 URL을 경로로 치환(EventDetailPage handleSaveNote). 에디터/뷰어 진입 시 `resolveForDisplay(html)`가 경로(+레거시 서명 URL 직저장본)에서 path를 추출해 `createSignedUrls` **단일 배치 호출(TTL 6시간)** 후 실제 URL로 치환해 주입. 공용 유틸 = `src/utils/prepNoteImages.js`(단위테스트 `prepNoteImages.test.js`). **레거시(1년 서명 URL 직저장) 노트는 렌더 전처리에서 자연 치유, 재저장 시 경로형으로 갱신 — 마이그레이션 불필요.** 재서명 실패 시 해당 이미지만 깨진 채 표시 + 콘솔 경고(본문 차단 금지).
 - [x] 이미지 검증: jpg/png/webp, ≤5MB. 위반 시 토스트 안내(업로드 거부).
 - [x] **모드 전환(2026-06-10):** 하단 Markdown/WYSIWYG 탭 노출(`hideModeSwitch: false`). **신규(빈) 노트 = markdown 기본**(`## 제목`·`- [ ] 체크리스트` 등 마크다운 직접 입력 — WYSIWYG에는 마크다운 입력 룰이 없어 자동변환 불가). **기존 노트 = wysiwyg 기본**(HTML 저장본이라 markdown으로 열면 raw HTML 노출 — 탭 전환 시 convertor가 마크다운 변환). `previewStyle: 'tab'`. 이미지 paste/drop 업로드(addImageBlobHook)는 양 모드 동작(dist 검증). 에디터 하단 안내 1줄("Markdown 탭에서 ## 제목 · - [ ] 체크리스트를 바로 입력할 수 있어요").
-- [x] 저장 흐름: "편집" → 에디터 → "저장"(`getHTML()` → `updateEventPrepNote` — **마크다운 모드에서도 변환 HTML 반환**, 기존 데이터·Viewer 호환). 읽기 = Toast UI **Viewer**(기본 sanitize · XSS 방어).
+- [x] 저장 흐름: "편집" → 에디터 → "저장"(`getHTML()` → `encodeForStorage`(서명 URL→경로) → `updateEventPrepNote` — **마크다운 모드에서도 변환 HTML 반환**, 기존 데이터·Viewer 호환). 에디터 준비 전(lazy 로드·이미지 재서명 중) 저장 클릭 = no-op(getHTML 접근자 null 반환 가드 — 본문 유실 방지). 읽기 = Toast UI **Viewer**(기본 sanitize · XSS 방어).
 - [x] 편집 권한 = `events:edit`. 미보유자 = 읽기 전용(편집 버튼 비노출, Viewer만).
 - [x] **이미지 클릭 확대:** Viewer 본문 img 클릭 → MUI Dialog 라이트박스(maxWidth 90vw/90vh, contain, 클릭/× 닫기). 신규 라이브러리 0(MUI Dialog).
 - [x] **빈 상태**(prep_note 없음): EmptyState "준비 노트가 비어 있어요" + 안내 + "작성하기"(edit자).
@@ -102,6 +103,13 @@
 > 대시보드 hero의 YoY trend·오늘 접수 박스·상태바·판매 순위·최근 주문은 L2에 가져오지 않음(대시보드 고유 — L2는 이 학회 매출 합산만 축약).
 > 진행상태 ‘지결’ 칩과 매출 노출이 연동 — 칩을 켜면 같은 페이지에서 즉시 매출이 나타남(시안 시연 가능).
 
+## 10. 열람 이력 (블록 7 — master만 · 2026-06-10 신설)
+- [x] 테이블 `event_views(event_id, user_id, first_viewed_at, last_viewed_at, view_count)` PK(event_id, user_id) — backend 계약. SELECT는 RLS로 **master만**.
+- [x] 기록: L2 진입 시(event 로드 성공 후, slug당 1회 — `recordedIdRef` 가드) `record_event_view(p_event_id)` RPC 호출(`api/events.recordEventView`). **실패해도 무시(페이지 차단 금지).**
+- [x] 표시: **master만** 보이는 "열람 이력" SectionCard(맨 아래) — A7 게시판 "읽음 현황" 표 패턴. 컬럼 = 이름(+직급 caption) / 최초 열람 / 최근 열람(`MM.dd HH:mm`, tnum) / 횟수. 정렬 = 최근 열람 desc.
+- [x] 이름·직급 = `api/events.getEventViewers`가 `user_profiles(id,name,position)` 추가 조회로 병합(role 무관 — staffMap은 master/onsite만이라 미사용). 프로필 미존재 = "(삭제)".
+- [x] **graceful:** 테이블/RPC 미적용 환경·비-master = select 에러 무시 → 섹션 자체 숨김. 빈 목록도 숨김.
+
 ## 11. 재사용 매핑 (실구현)
 | 요소 | 출처 | 신규 여부 |
 |---|---|---|
@@ -121,6 +129,9 @@
 | 이미지 라이트박스 | MUI `Dialog` | 재사용(신규 라이브러리 0) |
 | 날짜 요일 포맷 | 헬퍼 `weekday`/`dotDay`/`formatRange` | `getDay()` KST 자정 파싱 |
 | 단건 fetch·진행상태·노트·매출주문 | `api/events.js` | **신규 함수 4종** |
+| 학회 정보 수정 다이얼로그 | `EventFormDialog.jsx` | **추출(공용)** — EventManagementPage·L2 import (2026-06-10) |
+| 열람 기록·열람자 조회 | `api/events.js` `recordEventView`/`getEventViewers` | **신규 함수 2종** (2026-06-10) |
+| 열람 이력 표 | A7 게시판 "읽음 현황" Table 패턴 | MUI Table(신규 0) |
 
 > ProgressChip·OverviewRow·AttendeePillRow는 페이지 로컬 소형 프리미티브(토큰만). 새 디자인 시스템 컴포넌트 추가 아님.
 > **신규 라이브러리:** Toast UI 에디터/뷰어 2종(CTO 승인). React.lazy 지연 로드로 초기/공개(고객 주문) 번들 0 영향. 그 외 라이트박스 등은 MUI로 처리(신규 0).
@@ -130,14 +141,14 @@
 |---|---|---|
 | 매출(검사/도서/전체) | 대시보드(전체·계층 필터로 학회 선택) | L2 매출 요약(이 학회 자동) |
 | 현장 보고(작성·수정) | 대시보드 Row4(상세 행사 선택 시) | L2 현장 보고 섹션 |
-| 입금결의서 | 대시보드 헤더(단일 행사 선택 시) | L2 헤더 액션 |
+| 입금결의서 | ~~대시보드 헤더(단일 행사 선택 시)~~ → 2026-06-10 대시보드 진입점 제거 | L2 헤더 액션(**유일 진입점**) |
 | 지불증 | A10 행 ⋯ 메뉴 | L2 헤더 액션(⋯에도 유지 — L1 빠른 접근) |
 | 개요 필드(장소·참석자·비용·비고) | A10 L1 표(압축)·다이얼로그 | L2 개요 카드(전체) |
 
 > 효과: "이 학회 어떻게 됐지?"를 답하려고 대시보드 필터 → 결의서 → A10 ⋯ 를 오가던 동선이 한 페이지로 수렴. A10 비전 "한 학회의 모든 것이 한 페이지에"의 첫 실체.
 
 ## 13. 권한·빈상태·표시형식
-- [x] `events:view` 접근. `events:edit` = 진행상태 토글 · 준비 노트 편집 · 보고 작성/수정 · (학회 정보 수정→L1 이동) · 결의서/지불증.
+- [x] `events:view` 접근. `events:edit` = 진행상태 토글 · 준비 노트 편집 · 보고 작성/수정 · 학회 정보 수정(인라인 다이얼로그) · 결의서/지불증. `master` = 열람 이력 열람 + 다이얼로그 삭제(onsite는 본인 생성만).
 - [x] 잘못된/없는 slug → EmptyState "학회를 찾을 수 없어요" + "학회 목록으로".
 - [x] 매출 0(지결 완료 후) / 보고 0 / 준비 노트 0 → 각 섹션 EmptyState(미래 학회 정상 케이스).
 - [x] 비용 `#,##0원`("—") + 한글금액. 날짜 `YYYY.MM.DD(요일)` 점 표기 + 요일. 숫자 tnum.
@@ -151,9 +162,11 @@
 - [ ] (Q6) ⋯행 메뉴(L1)와 L2 헤더 액션의 지불증 중복 — 둘 다 유지(현재). 일원화 여부 판단.
 - [x] (Q7) 매출 노출 조건 = 지결(payment_resolution_done) 단독.
 - [x] (Q8/Q9/Q10) 준비물 prep_items 폐기 → 통합 에디터 prep_note(text) 단일 컬럼. 체크 주체·시각 미기록(에디터 task). 이미지 = event-images 버킷 단일.
-- [ ] (Q11 신규) **학회 정보 수정** = 현재 L1 목록으로 이동(L1 다이얼로그가 페이지 로컬 상태라 L2 직접 재사용 불가). L2에서 인라인 수정 다이얼로그가 필요하면 다이얼로그를 별도 컴포넌트로 추출 필요(후속). 건우님 판단.
+- [x] (Q11) **학회 정보 수정** = ~~L1 목록 이동~~ → **해결(2026-06-10 건우님 "버그네, 수정하자").** 다이얼로그를 `EventFormDialog.jsx`로 추출해 L1·L2 공용. L2는 인라인 오픈 + 저장 시 재조회(slug 변경 시 새 주소 이동).
 
 ## 15. 결정 이력
 - 2026-06-08 — L2 1차 시안 신설(EventDetailPreview). 에디터·이미지 2차로 분리. 진행상태=3 독립 boolean(마이그레이션 적용). 매출=paid만 hero 축약. (product-designer)
 - 2026-06-08 — **1차 시안 v2(건우님 피드백 4건).** ①날짜 요일 ②매출=지결 완료 시에만 ③준비물 체크리스트 ④학회 자료 섹션. (product-designer)
 - 2026-06-08 — **실구현 완료(frontend-engineer).** 건우님 결정으로 **준비물 위젯+학회자료 → 통합 Toast UI 에디터 1칸**(prep_note·event-images 버킷)으로 대체. 진행상태 실 토글, 매출 실 집계, FieldReportSection 추출(공용), slug 라우팅 분기, 이미지 라이트박스(MUI). 섹션 순서 = 개요→진행→준비 노트→현장보고→매출.
+- 2026-06-10 — **준비노트 이미지 서명 URL 만료 리팩터(건우님 확정, frontend-engineer).** 본문 저장 = 1년 서명 URL 직저장 → **경로 플레이스홀더 저장 + 렌더 시 배치 재서명(TTL 6시간)**. 공용 유틸 `utils/prepNoteImages.js`(encodeForStorage/resolveForDisplay) + 단위테스트 17건. 레거시 노트 자연 치유(마이그레이션 불필요).
+- 2026-06-10 — **events 클러스터 4건(건우님 확정, frontend-engineer).** ① 학회 정보 수정 = `EventFormDialog.jsx` 공용 추출 → L2 인라인 수정(Q11 해결, 목록 이동 버그 폐기) ② 입금결의서 진입점 L2 일원화(대시보드 버튼 소거) ③ 다이얼로그 날짜 3필드(시작/종료/배송예정) = 공용 `ui/DateField`(single 캘린더, `YYYY.MM.DD(요일)` 표시·클리어 가능 — 빈 날짜는 null 저장) ④ 열람 이력 §10 신설(`event_views` + `record_event_view` RPC, master만, graceful).

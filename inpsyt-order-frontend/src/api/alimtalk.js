@@ -7,23 +7,35 @@ const TEMPLATE_CODE = 'inpsytorder_paid1';
 const FRONTEND_URL = import.meta.env.VITE_APP_URL ?? 'https://inpsytorder.vercel.app';
 
 /**
+ * 발송 결과를 orders에 기록합니다. 컬럼 미적용 환경에서는 콘솔 경고만 남기고
+ * 발송 플로우를 차단하지 않습니다.
+ */
+const recordAlimtalkResult = async (orderId, fields) => {
+  const { error } = await supabase.from('orders').update(fields).eq('id', orderId);
+  if (error) console.warn('[알림톡] 발송 결과 기록 실패:', error.message);
+};
+
+/**
  * 주문 ID를 받아 결제 완료 알림톡을 발송합니다.
  * 브라우저에서 직접 호출 (PC Chrome에서만 정상 동작, iOS는 msgagent 측 제한으로 101 에러).
+ * 발송 시도 결과는 orders.alimtalk_status/alimtalk_error/alimtalk_attempted_at에 기록.
+ * skipped(현장수령)·발송 전 실패(번호 없음 등)는 기록하지 않음.
  * @param {number} orderId
  * @returns {{ success: boolean, skipped?: boolean, error?: string }}
  */
 export const sendAlimtalk = async (orderId) => {
+  const { data: order, error: orderError } = await supabase
+    .from('orders')
+    .select('id, customer_name, phone_number, is_on_site_sale, access_token, events(name)')
+    .eq('id', orderId)
+    .single();
+
+  if (orderError || !order) return { success: false, error: '주문을 찾을 수 없습니다.' };
+  if (order.is_on_site_sale) return { success: true, skipped: true };
+  if (!order.phone_number) return { success: false, error: '수신자 연락처가 없습니다.' };
+
+  const attemptedAt = new Date().toISOString();
   try {
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .select('id, customer_name, phone_number, is_on_site_sale, access_token, events(name)')
-      .eq('id', orderId)
-      .single();
-
-    if (orderError || !order) return { success: false, error: '주문을 찾을 수 없습니다.' };
-    if (order.is_on_site_sale) return { success: true, skipped: true };
-    if (!order.phone_number) return { success: false, error: '수신자 연락처가 없습니다.' };
-
     const phone = order.phone_number.replace(/-/g, '');
     const name = order.customer_name ?? '';
     const eventName = order.events?.name ?? '';
@@ -48,18 +60,38 @@ export const sendAlimtalk = async (orderId) => {
     const text = await response.text();
 
     let resultCode;
-    try { resultCode = JSON.parse(text)?.result_code; } catch {}
+    let resultMessage = '';
+    try {
+      const parsed = JSON.parse(text);
+      resultCode = parsed?.result_code;
+      resultMessage = parsed?.result_message ?? parsed?.message ?? '';
+    } catch { resultMessage = text; }
 
     if (resultCode !== 0) {
       console.error('[알림톡] result_code:', resultCode, text);
+      await recordAlimtalkResult(orderId, {
+        alimtalk_status: 'failed',
+        alimtalk_error: [resultCode, resultMessage].filter(v => v !== undefined && v !== '').join(' ') || '알 수 없는 응답',
+        alimtalk_attempted_at: attemptedAt,
+      });
       return { success: false, error: `원샷 result_code: ${resultCode}` };
     }
 
-    await supabase.from('orders').update({ alimtalk_sent_at: new Date().toISOString() }).eq('id', orderId);
+    await recordAlimtalkResult(orderId, {
+      alimtalk_status: 'sent',
+      alimtalk_sent_at: attemptedAt,
+      alimtalk_attempted_at: attemptedAt,
+      alimtalk_error: null,
+    });
     return { success: true };
 
   } catch (err) {
     console.error('[알림톡] error:', err);
+    await recordAlimtalkResult(orderId, {
+      alimtalk_status: 'failed',
+      alimtalk_error: err.message,
+      alimtalk_attempted_at: attemptedAt,
+    });
     return { success: false, error: err.message };
   }
 };

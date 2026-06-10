@@ -41,7 +41,6 @@ import {
   EmojiEvents as TrophyIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
-  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { supabase } from '../supabaseClient';
 import { formatISO, startOfToday, format } from 'date-fns';
@@ -53,7 +52,7 @@ import { STATUS_TO_KOREAN as statusToKorean, STATUS_COLORS as statusColors } fro
 import { PageHeader, SectionCard, StatCard, StatusBadge, EmptyState } from './ui';
 import { computeRevenueByCategory, PAID_STATUSES } from '../utils/revenueByCategory';
 import FieldReportSection from './FieldReportSection';
-// exportDepositResolution(ExcelJS 의존)은 무거워서 버튼 클릭 시 동적 import (메인 번들 분리)
+// 입금결의서 내보내기는 L2 학회 상세(EventDetailPage) 헤더로 일원화 (2026-06-10 건우님)
 
 // 사양 시트: design-system/specs/A4_DashboardPage.md
 // (M3-12 시안 정합본. PR #10~#20 패턴.)
@@ -281,8 +280,7 @@ const DashboardPage = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const { hasPermission, profile, user } = useAuth();
+  const { hasPermission } = useAuth();
   const { addNotification } = useNotification();
 
   // Modal
@@ -513,35 +511,6 @@ const DashboardPage = () => {
   const handleRefresh = () => { setRefreshing(true); fetchData(); };
   const handleRowClick = (order) => { setSelectedOrder(order); setIsModalOpen(true); };
 
-  // 입금결의서 내보내기 — 단일 상세 행사 선택 시에만 노출(버튼 가드).
-  const handleExportDeposit = async () => {
-    if (selectedEventIds.length !== 1) return;
-    const eventId = selectedEventIds[0];
-    const event = events.find(e => e.id === eventId);
-    if (!event) { addNotification('행사 정보를 찾을 수 없습니다.', 'error'); return; }
-    setExporting(true);
-    try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('status, delivery_fee, order_items(product_id, category, price_at_purchase, quantity)')
-        .eq('event_id', eventId);
-      if (error) throw error;
-      const { exportDepositResolution } = await import('../utils/depositResolution');
-      await exportDepositResolution({
-        event,
-        orders: data || [],
-        productsMap,
-        authorName: profile?.name || user?.email || '',
-        department: profile?.department || '',
-      });
-      addNotification('입금결의서를 내보냈습니다.', 'success');
-    } catch (e) {
-      console.error(e);
-      addNotification(`입금결의서 내보내기 실패: ${e.message}`, 'error');
-    }
-    setExporting(false);
-  };
-
   // ─── Render ───
   if (events.length === 0 && loading) {
     return <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}><CircularProgress /></Box>;
@@ -559,36 +528,22 @@ const DashboardPage = () => {
         subtitle={dashboardData?.eventName || ''}
         icon={DashboardIcon}
         action={
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            {/* 입금결의서 — 단일 상세 행사 선택 시에만 노출(2026-06-02 건우님) */}
-            {selectedEventIds.length === 1 && (
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={handleExportDeposit}
-                disabled={exporting || loading}
-                startIcon={<DownloadIcon sx={{ fontSize: 16 }} />}
-              >
-                {exporting ? '생성중...' : '입금결의서 내보내기'}
-              </Button>
-            )}
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={handleRefresh}
-              disabled={refreshing || loading}
-              startIcon={
-                <RefreshIcon
-                  sx={{
-                    fontSize: 16,
-                    animation: refreshing ? 'spin 1s linear infinite' : 'none',
-                  }}
-                />
-              }
-            >
-              새로고침
-            </Button>
-          </Box>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={handleRefresh}
+            disabled={refreshing || loading}
+            startIcon={
+              <RefreshIcon
+                sx={{
+                  fontSize: 16,
+                  animation: refreshing ? 'spin 1s linear infinite' : 'none',
+                }}
+              />
+            }
+          >
+            새로고침
+          </Button>
         }
       />
 

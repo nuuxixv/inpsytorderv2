@@ -74,6 +74,9 @@
 
 ## 입력 폼 구조 (추가/수정 다이얼로그, line 562-725)
 
+> **2026-06-10 — 다이얼로그를 `src/components/EventFormDialog.jsx`로 공용 추출.** EventManagementPage(L1)·EventDetailPage(L2 인라인 수정) 양쪽에서 사용. 폼 구조·검증·자동 채우기 규칙은 아래 그대로 1:1 보존. props = open/onClose/event(null=신규)/societies/staff/canEdit/canDelete/onSaved/onDeleted. 다이얼로그 내부 삭제(주문 건수 확인→확인 다이얼로그)도 컴포넌트가 자체 처리하며, L1의 ⋯ 메뉴 삭제 확인은 페이지(`deleteTarget`)에 잔류.
+> **날짜 3필드(시작일·종료일·배송 예정일) = 공용 `ui/DateField`(single 모드 경량 캘린더)로 교체(2026-06-10).** 표시 `YYYY.MM.DD(요일)`, × 버튼으로 클리어 가능. 빈 날짜는 upsert 시 null 정규화(date 컬럼 — '' 저장 오류 방지, 배송 예정일 비우기 지원).
+
 > 폼은 두 블록(`Step 1: 구조화 정보` + `Step 2: 자동 생성 및 추가 정보`)으로 나뉘며, 두 블록 사이에 `Divider`. 두 블록 통합 금지.
 
 ### Step 1 — 행사명 형식 블록 (line 569-626, primary 색 옅은 배경 카드)

@@ -11,3 +11,6 @@ export { default as PriceBlock } from './PriceBlock';
 export { default as ActionSlot } from './ActionSlot';
 export { default as EmptyState } from './EmptyState';
 export { default as RoleChip } from './RoleChip';
+
+// 공용 경량 캘린더 + 단일 날짜 필드 (PaymentReceiptModal에서 추출, 2026-06-10)
+export { default as DateField, CalendarPopover } from './DateField';

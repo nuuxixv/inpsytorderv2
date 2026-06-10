@@ -18,10 +18,8 @@ import {
   WbSunny as WbSunnyIcon,
   Flight as FlightIcon,
   WarningAmberRounded as WarningIcon,
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
-import { EmptyState } from './ui';
+import { EmptyState, CalendarPopover } from './ui';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import { numberToKoreanCurrency } from '../utils/koreanCurrency';
@@ -43,7 +41,7 @@ import { exportPaymentReceipt } from '../utils/paymentReceipt';
  *
  * 계산·중복검증은 utils/allowanceRules.js(순수 함수) 단일 진실 소스.
  * 다운로드는 utils/paymentReceipt.js(ExcelJS) — 양식 동적 행.
- * 캘린더는 @mui/x-date-pickers 미설치 → 순수 JS 경량 캘린더(라이브러리 도입 안 함).
+ * 캘린더는 공용 ui/DateField.jsx의 CalendarPopover(multi/range) — 이 파일에서 추출됨(2026-06-10).
  *
  * props:
  *  - open, onClose
@@ -52,145 +50,13 @@ import { exportPaymentReceipt } from '../utils/paymentReceipt';
  */
 
 const WDAY = ['일', '월', '화', '수', '목', '금', '토'];
-const pad = (n) => String(n).padStart(2, '0');
-const toISO = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const parseISO = (iso) => new Date(`${iso}T00:00:00`);
 const dow = (iso) => WDAY[parseISO(iso).getDay()];
 const dot = (iso) => (iso ? iso.slice(5).replace('-', '.') : ''); // 2026-10-18 → 10.18
-const isWeekend = (iso) => [0, 6].includes(parseISO(iso).getDay());
 const won = (n) => `${(n || 0).toLocaleString()}원`;
 
 let _bid = 0;
 const nextBlockId = () => `blk-${++_bid}`;
-
-// ════════════════════════════════════════════════════════════════
-// 경량 캘린더 팝오버 (다중선택 / 범위선택)
-// ════════════════════════════════════════════════════════════════
-const CalendarPopover = ({ anchorEl, open, onClose, mode, value, onChange, monthBase }) => {
-  const theme = useTheme();
-  const [cursor, setCursor] = useState(() => {
-    const base = monthBase ? parseISO(monthBase) : new Date();
-    return new Date(base.getFullYear(), base.getMonth(), 1);
-  });
-
-  const year = cursor.getFullYear();
-  const month = cursor.getMonth();
-  const firstDow = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  const [rangeStart, setRangeStart] = useState(null);
-
-  const selectedSet = mode === 'multi' ? new Set(value || []) : null;
-  const rStart = mode === 'range' ? (value?.start || null) : null;
-  const rEnd = mode === 'range' ? (value?.end || null) : null;
-
-  const isInRange = (iso) => {
-    if (mode !== 'range') return false;
-    const s = rangeStart || rStart;
-    const e = rangeStart ? null : rEnd;
-    if (s && e) return parseISO(iso) >= parseISO(s) && parseISO(iso) <= parseISO(e);
-    return iso === s;
-  };
-
-  const handleDay = (iso) => {
-    if (mode === 'multi') {
-      const next = new Set(value || []);
-      if (next.has(iso)) next.delete(iso); else next.add(iso);
-      onChange([...next].sort());
-    } else {
-      if (!rangeStart) {
-        setRangeStart(iso);
-        onChange({ start: iso, end: iso });
-      } else {
-        const s = parseISO(rangeStart) <= parseISO(iso) ? rangeStart : iso;
-        const e = parseISO(rangeStart) <= parseISO(iso) ? iso : rangeStart;
-        onChange({ start: s, end: e });
-        setRangeStart(null);
-        onClose();
-      }
-    }
-  };
-
-  const cells = [];
-  for (let i = 0; i < firstDow; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(toISO(new Date(year, month, d)));
-
-  return (
-    <Popover
-      anchorEl={anchorEl}
-      open={open}
-      onClose={() => { setRangeStart(null); onClose(); }}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-      transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-      slotProps={{ paper: { sx: { p: 1.5, borderRadius: `${theme.radii.md}px`, mt: 0.5 } } }}
-    >
-      <Box sx={{ width: 280 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-          <IconButton size="small" onClick={() => setCursor(new Date(year, month - 1, 1))} aria-label="이전 달" sx={{ width: 36, height: 36 }}>
-            <ChevronLeftIcon sx={{ fontSize: 20 }} />
-          </IconButton>
-          <Typography variant="subtitle2" sx={{ fontFeatureSettings: '"tnum" 1' }}>{year}년 {month + 1}월</Typography>
-          <IconButton size="small" onClick={() => setCursor(new Date(year, month + 1, 1))} aria-label="다음 달" sx={{ width: 36, height: 36 }}>
-            <ChevronRightIcon sx={{ fontSize: 20 }} />
-          </IconButton>
-        </Box>
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', mb: 0.5 }}>
-          {WDAY.map((w, i) => (
-            <Typography key={w} variant="caption" align="center" sx={{ fontWeight: 700, color: i === 0 || i === 6 ? theme.palette.error.main : 'text.disabled', py: 0.5 }}>
-              {w}
-            </Typography>
-          ))}
-        </Box>
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0.25 }}>
-          {cells.map((iso, idx) => {
-            if (!iso) return <Box key={`e${idx}`} sx={{ height: 36 }} />;
-            const day = parseISO(iso).getDate();
-            const weekend = isWeekend(iso);
-            const selectedMulti = selectedSet?.has(iso);
-            const inRange = isInRange(iso);
-            const isEndpoint = mode === 'range' && (iso === rStart || iso === rEnd || iso === rangeStart);
-            const active = selectedMulti || inRange || isEndpoint;
-            return (
-              <Box
-                key={iso}
-                role="button"
-                tabIndex={0}
-                aria-pressed={active}
-                onClick={() => handleDay(iso)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleDay(iso); } }}
-                sx={{
-                  height: 36,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  borderRadius: `${theme.radii.sm}px`,
-                  cursor: 'pointer',
-                  fontSize: '0.8125rem',
-                  fontWeight: active ? 700 : 500,
-                  fontFeatureSettings: '"tnum" 1',
-                  color: active ? '#fff' : (weekend ? theme.palette.error.main : 'text.primary'),
-                  bgcolor: active ? theme.palette.primary.main : (inRange ? alpha(theme.palette.primary.main, 0.1) : 'transparent'),
-                  '&:hover': { bgcolor: active ? theme.palette.primary.dark : theme.gray[100] },
-                  '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 1 },
-                }}
-              >
-                {day}
-              </Box>
-            );
-          })}
-        </Box>
-        {mode === 'multi' && (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-            <Button size="small" onClick={() => { setRangeStart(null); onClose(); }} sx={{ minHeight: 40 }}>완료</Button>
-          </Box>
-        )}
-        {mode === 'range' && (
-          <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mt: 1, textAlign: 'center' }}>
-            {rangeStart ? '종료일을 선택하세요' : '시작일 → 종료일 순으로 선택'}
-          </Typography>
-        )}
-      </Box>
-    </Popover>
-  );
-};
 
 // ════════════════════════════════════════════════════════════════
 // 인원 추가 메뉴 (참석자 멀티선택 + 참관 직원 인라인)
