@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Box } from '@mui/material';
 import Editor from '@toast-ui/editor';
 import '@toast-ui/editor/dist/toastui-editor-viewer.css';
+import { sanitizePrepNoteHTML } from './prepNoteSanitizer';
 
 /**
  * 통합 준비 노트 읽기 뷰 (Toast UI Viewer — 바닐라) — L2 학회 상세 전용.
@@ -25,6 +26,7 @@ const PrepNoteViewer = ({ content, onImageClick }) => {
       viewer: true,
       initialValue: content || '',
       usageStatistics: false,
+      customHTMLSanitizer: sanitizePrepNoteHTML, // 최신 DOMPurify 주입(보안 검토 중2)
     });
     return () => viewer.destroy();
   }, [content]);

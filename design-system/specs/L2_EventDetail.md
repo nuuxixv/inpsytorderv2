@@ -74,7 +74,8 @@
 - [x] **에디터 = Toast UI Editor**(`@toast-ui/editor` + `@toast-ui/react-editor`). **React.lazy 지연 로드**(`PrepNoteEditor.jsx`/`PrepNoteViewer.jsx`) — 초기/공개 번들 0 영향. CSS import는 lazy 청크 내부.
 - [x] **준비물 = task-list 체크박스**(에디터 task 툴바). **이미지(프로그램·부스배치도) = addImageBlobHook** → `supabase.storage.from('event-images').upload()` → `createSignedUrl`(1년) → 본문 삽입. **학회정보(설치/철거 등) = 자유 텍스트.**
 - [x] 이미지 검증: jpg/png/webp, ≤5MB. 위반 시 토스트 안내(업로드 거부).
-- [x] 저장 흐름: "편집" → 에디터 → "저장"(`getHTML()` → `updateEventPrepNote`). 읽기 = Toast UI **Viewer**(기본 sanitize · XSS 방어).
+- [x] **모드 전환(2026-06-10):** 하단 Markdown/WYSIWYG 탭 노출(`hideModeSwitch: false`). **신규(빈) 노트 = markdown 기본**(`## 제목`·`- [ ] 체크리스트` 등 마크다운 직접 입력 — WYSIWYG에는 마크다운 입력 룰이 없어 자동변환 불가). **기존 노트 = wysiwyg 기본**(HTML 저장본이라 markdown으로 열면 raw HTML 노출 — 탭 전환 시 convertor가 마크다운 변환). `previewStyle: 'tab'`. 이미지 paste/drop 업로드(addImageBlobHook)는 양 모드 동작(dist 검증). 에디터 하단 안내 1줄("Markdown 탭에서 ## 제목 · - [ ] 체크리스트를 바로 입력할 수 있어요").
+- [x] 저장 흐름: "편집" → 에디터 → "저장"(`getHTML()` → `updateEventPrepNote` — **마크다운 모드에서도 변환 HTML 반환**, 기존 데이터·Viewer 호환). 읽기 = Toast UI **Viewer**(기본 sanitize · XSS 방어).
 - [x] 편집 권한 = `events:edit`. 미보유자 = 읽기 전용(편집 버튼 비노출, Viewer만).
 - [x] **이미지 클릭 확대:** Viewer 본문 img 클릭 → MUI Dialog 라이트박스(maxWidth 90vw/90vh, contain, 클릭/× 닫기). 신규 라이브러리 0(MUI Dialog).
 - [x] **빈 상태**(prep_note 없음): EmptyState "준비 노트가 비어 있어요" + 안내 + "작성하기"(edit자).

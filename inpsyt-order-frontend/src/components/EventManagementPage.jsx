@@ -170,6 +170,8 @@ const EventManagementPage = () => {
   const isMaster = hasPermission('master');
   const canEdit = hasPermission('events:edit');
   const myId = user?.id || null;
+  // 삭제 노출: master 전부 / onsite(events:edit)는 본인 생성만. created_by null(기존 행) = master만.
+  const canDeleteEvent = (ev) => isMaster || (canEdit && !!ev?.created_by && ev.created_by === myId);
 
   const [events, setEvents] = useState([]);
   const [staff, setStaff] = useState([]); // 참석자 후보 (user_profiles, role IN onsite/master)
@@ -205,7 +207,7 @@ const EventManagementPage = () => {
       const [eventsRes, societiesRes, staffRes] = await Promise.all([
         supabase
           .from('events')
-          .select('id, name, discount_rate, order_url_slug, start_date, end_date, estimated_delivery_date, event_year, host_society, event_season, status, venue, attendee_ids, note, marketing_cost')
+          .select('id, name, discount_rate, order_url_slug, start_date, end_date, estimated_delivery_date, event_year, host_society, event_season, status, venue, attendee_ids, note, marketing_cost, created_by')
           .order('start_date', { ascending: true }),
         supabase.from('societies').select('id, name, slug_prefix').order('name', { ascending: true }),
         supabase
@@ -326,7 +328,8 @@ const EventManagementPage = () => {
       return;
     }
 
-    const { id, _nameTouched, ...upsertData } = currentEvent;
+    // created_by는 소유권 컬럼 — 클라이언트가 덮어쓰지 않음 (insert 시 DB default).
+    const { id, _nameTouched, created_by: _createdBy, ...upsertData } = currentEvent;
     // 정합: 빈 배열/빈 비용 정규화 (uuid[]·integer 컬럼).
     upsertData.attendee_ids = Array.isArray(upsertData.attendee_ids) ? upsertData.attendee_ids : [];
     upsertData.marketing_cost =
@@ -845,8 +848,8 @@ const EventManagementPage = () => {
           <ListItemText primary="지불증 내보내기" primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }} />
         </MenuItem>
         {/* MUI Menu는 Fragment 자식 불가 → 두 조건부 자식으로 분리 */}
-        {isMaster && <Divider sx={{ my: 0.5 }} />}
-        {isMaster && (
+        {canDeleteEvent(menuEvent) && <Divider sx={{ my: 0.5 }} />}
+        {canDeleteEvent(menuEvent) && (
           <MenuItem onClick={handleMenuDelete} sx={{ minHeight: 44, color: 'error.main' }}>
             <ListItemIcon><DeleteIcon sx={{ fontSize: 18, color: theme.palette.error.main }} /></ListItemIcon>
             <ListItemText primary="삭제" primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }} />
@@ -1114,7 +1117,7 @@ const EventManagementPage = () => {
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          {isEditing && isMaster && (
+          {isEditing && canDeleteEvent(currentEvent) && (
             <Button onClick={handleDeleteClick} color="error" startIcon={<DeleteIcon />} sx={{ mr: 'auto' }}>
               삭제
             </Button>

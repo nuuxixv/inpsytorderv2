@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import Editor from '@toast-ui/editor';
 import '@toast-ui/editor/dist/toastui-editor.css';
 import { supabase } from '../supabaseClient';
+import { sanitizePrepNoteHTML } from './prepNoteSanitizer';
 
 /**
  * 통합 준비 노트 에디터 (Toast UI Editor — 바닐라) — L2 학회 상세 전용.
@@ -13,7 +14,13 @@ import { supabase } from '../supabaseClient';
  *
  * - 준비물 = 에디터 task-list 체크박스
  * - 이미지(프로그램·부스배치도) = addImageBlobHook → event-images 버킷 업로드 → 서명 URL 삽입
+ *   (dropImage 플러그인·md paste 핸들러가 양 모드 공통이라 Markdown 모드에서도 동작)
  * - 학회 정보(설치/철거 등) = 자유 텍스트
+ *
+ * 모드: WYSIWYG에는 마크다운 입력 룰이 없어 `##`·`- [ ]` 자동변환 불가 →
+ *   하단 Markdown/WYSIWYG 탭 노출. 신규(빈) 노트는 markdown 기본.
+ *   기존 노트는 HTML 저장본이라 markdown 모드로 열면 raw HTML이 노출되므로 wysiwyg 기본
+ *   (탭 전환 시 convertor가 마크다운으로 변환해 보여줌). 저장은 양 모드 모두 getHTML().
  *
  * props:
  *  - eventId: string             (이미지 업로드 경로 prefix)
@@ -79,11 +86,11 @@ const PrepNoteEditor = ({ eventId, initialValue, onReady, onImageError }) => {
     const editor = new Editor({
       el: elRef.current,
       initialValue: initialValue || '',
-      initialEditType: 'wysiwyg',
-      previewStyle: 'vertical',
+      initialEditType: initialValue ? 'wysiwyg' : 'markdown',
+      previewStyle: 'tab',
       height: '420px',
       usageStatistics: false,
-      hideModeSwitch: true,
+      hideModeSwitch: false,
       autofocus: false,
       toolbarItems: [
         ['heading', 'bold', 'italic'],
@@ -92,6 +99,7 @@ const PrepNoteEditor = ({ eventId, initialValue, onReady, onImageError }) => {
         ['image', 'link'],
       ],
       hooks: { addImageBlobHook },
+      customHTMLSanitizer: sanitizePrepNoteHTML, // 최신 DOMPurify 주입(보안 검토 중2)
     });
     instRef.current = editor;
     onReadyRef.current?.(() => editor.getHTML() || '');

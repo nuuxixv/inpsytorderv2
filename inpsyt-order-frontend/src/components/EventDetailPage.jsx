@@ -503,7 +503,10 @@ const EventDetailPage = () => {
                   onImageError={(msg) => addNotification(msg, 'warning')}
                 />
               </Suspense>
-              <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', mt: 2 }}>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 2 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', mr: 'auto' }}>
+                  Markdown 탭에서 ## 제목 · - [ ] 체크리스트를 바로 입력할 수 있어요
+                </Typography>
                 <Button size="small" onClick={() => setEditingNote(false)} disabled={savingNote}>취소</Button>
                 <Button size="small" variant="contained" onClick={handleSaveNote} disabled={savingNote}>
                   {savingNote ? '저장중...' : '저장'}
