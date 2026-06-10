@@ -162,13 +162,13 @@ export const CalendarPopover = ({ anchorEl, open, onClose, mode, value, onChange
  *
  * props:
  *  - label, value(ISO 'YYYY-MM-DD' | ''), onChange(iso | null)
- *  - disabled, clearable(기본 true), helperText, placeholder, fullWidth(기본 true)
+ *  - disabled, clearable(기본 true), helperText, placeholder, fullWidth(기본 true), sx, size
  */
 const formatKoDate = (iso) => (iso ? `${iso.replaceAll('-', '.')}(${WDAY[parseISO(iso).getDay()]})` : '');
 
 const DateField = ({
   label, value, onChange,
-  disabled = false, clearable = true, helperText, placeholder = '날짜 선택', fullWidth = true,
+  disabled = false, clearable = true, helperText, placeholder = '날짜 선택', fullWidth = true, sx, size,
 }) => {
   const [anchor, setAnchor] = useState(null);
 
@@ -183,6 +183,8 @@ const DateField = ({
         value={formatKoDate(value)}
         placeholder={placeholder}
         fullWidth={fullWidth}
+        sx={sx}
+        size={size}
         disabled={disabled}
         helperText={helperText}
         onClick={openCalendar}

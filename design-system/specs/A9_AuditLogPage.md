@@ -27,7 +27,7 @@ master 권한자(주로 건우님)가 사고·분쟁·이상 징후가 생겼을
 
 ### 필터 영역 (SectionCard)
 - [ ] 기간 드롭다운: "최근 7일" / "최근 30일" / "직접 범위" (기본값 최근 30일)
-- [ ] 직접 범위 선택 시: "시작일" / "종료일" date input 2개 노출
+- [ ] 직접 범위 선택 시: "시작일" / "종료일" `ui/DateField` 2개 노출 (캘린더 팝오버, native date 폐기, 2026-06-10 통일. state는 ISO yyyy-MM-dd 문자열 유지)
 - [ ] 행위자 드롭다운: "전체" + distinct 행위자 이름 목록 (`getAuditActors`)
 - [ ] 대상 검색 입력: placeholder "대상·요약 검색" (`SearchIcon` adornment) — target_id / summary 부분검색
 - [ ] 종류 칩 토글 5종: 주문 / 사용자 / 설정 / 학회 / 상품 (각 한글 라벨 + 색, 활성 시 채움)

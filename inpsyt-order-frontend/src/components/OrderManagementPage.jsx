@@ -45,7 +45,7 @@ import { getEvents } from '../api/events';
 import { fetchAllProducts } from '../api/products';
 import { getOrders, groupLinkedOrders } from '../api/orders';
 import { sendAlimtalk } from '../api/alimtalk';
-import { PageHeader, SectionCard, StatusBadge, EmptyState } from './ui';
+import { PageHeader, SectionCard, StatusBadge, EmptyState, DateField } from './ui';
 import { STATUS_TO_KOREAN } from '../constants/orderStatus';
 
 const statusToKorean = STATUS_TO_KOREAN;
@@ -557,25 +557,21 @@ const OrderManagementPage = () => {
         value={state.searchTerm}
         onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'searchTerm', value: e.target.value } })}
       />
-      <TextField
+      <DateField
         label="시작일"
-        type="date"
-        variant="outlined"
         size="small"
+        fullWidth={false}
+        sx={{ minWidth: 150 }}
         value={state.startDate ? format(state.startDate, 'yyyy-MM-dd') : ''}
-        onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'startDate', value: e.target.value ? new Date(e.target.value) : null } })}
-        InputLabelProps={{ shrink: true }}
-        sx={{ minWidth: 150 }}
+        onChange={(iso) => dispatch({ type: 'SET_FILTER', payload: { key: 'startDate', value: iso ? new Date(iso) : null } })}
       />
-      <TextField
+      <DateField
         label="종료일"
-        type="date"
-        variant="outlined"
         size="small"
-        value={state.endDate ? format(state.endDate, 'yyyy-MM-dd') : ''}
-        onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'endDate', value: e.target.value ? new Date(e.target.value) : null } })}
-        InputLabelProps={{ shrink: true }}
+        fullWidth={false}
         sx={{ minWidth: 150 }}
+        value={state.endDate ? format(state.endDate, 'yyyy-MM-dd') : ''}
+        onChange={(iso) => dispatch({ type: 'SET_FILTER', payload: { key: 'endDate', value: iso ? new Date(iso) : null } })}
       />
       <Button
         variant="outlined"

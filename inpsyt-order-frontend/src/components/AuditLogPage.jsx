@@ -27,7 +27,7 @@ import { format } from 'date-fns';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import { getAuditLogs, getAuditActors, AUDIT_PAGE_SIZE } from '../api/auditLog';
-import { PageHeader, SectionCard, EmptyState, RoleChip } from './ui';
+import { PageHeader, SectionCard, EmptyState, RoleChip, DateField } from './ui';
 
 // 종류(target_table) → 한글 라벨 + 색 토큰. A7 역할칩과 컬럼·맥락이 분리되어 혼동 없음.
 // raw hex 없이 theme 팔레트만 사용. orders/order_items 는 '주문' 한 칩으로 묶음.
@@ -323,23 +323,21 @@ const AuditLogPage = () => {
             </TextField>
             {datePreset === 'custom' && (
               <>
-                <TextField
-                  type="date"
-                  size="small"
+                <DateField
                   label="시작일"
-                  value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                  sx={{ minWidth: 160 }}
-                />
-                <TextField
-                  type="date"
                   size="small"
-                  label="종료일"
-                  value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
+                  fullWidth={false}
                   sx={{ minWidth: 160 }}
+                  value={customStart}
+                  onChange={(iso) => setCustomStart(iso || '')}
+                />
+                <DateField
+                  label="종료일"
+                  size="small"
+                  fullWidth={false}
+                  sx={{ minWidth: 160 }}
+                  value={customEnd}
+                  onChange={(iso) => setCustomEnd(iso || '')}
                 />
               </>
             )}

@@ -40,8 +40,8 @@
 - [ ] 학회 멀티 선택 드롭다운: 라벨 “학회 선택”, 기본값 “전체”, 1개 선택 시 학회명, 2개+ 시 “N개 선택” — line 490-513
 - [ ] 주문 상태 멀티 선택 드롭다운: 라벨 “주문 상태”, 5종(`pending`/`paid`/`completed`/`cancelled`/`refunded`) 멀티 체크 가능 — line 516-537
 - [ ] 고객명 검색 TextField: 라벨 “고객명 검색”, 부분 일치(`ilike %term%`) — line 539-546
-- [ ] 시작일 date 입력: 라벨 “시작일” (기본값 = today − 30) — line 547-556
-- [ ] 종료일 date 입력: 라벨 “종료일” (기본값 = today) — line 557-566
+- [ ] 시작일 입력: 라벨 “시작일” (기본값 = today − 30) — `ui/DateField`(캘린더 팝오버, native date 폐기, 2026-06-10 통일)
+- [ ] 종료일 입력: 라벨 “종료일” (기본값 = today) — `ui/DateField`
 - [ ] “초기화” 버튼 (`RestartAltIcon` 시작 아이콘) — 모든 필터·검색어를 기본값으로 — line 567-573
 - [ ] 상품명 검색 TextField: 라벨 “상품명 검색” — `order_items.product_name` 부분 일치 — line 577-584
 - [ ] 카테고리 칩 4종: “전체” / “검사 구매” / “도서 구매” / “도구 구매” — secondary 색, filled/outlined 토글 — line 585-604
@@ -94,7 +94,7 @@
 - [ ] 학회 멀티 선택 → `selectedEvents` 변경 → `currentPage=1` 리셋 → 재조회
 - [ ] 주문 상태 멀티 선택 → `selectedStatuses` 변경 → 재조회
 - [ ] 고객명 검색 → `searchTerm` 변경 → `ilike %term%` 조회
-- [ ] 시작일·종료일 → date 입력 (yyyy-MM-dd)
+- [ ] 시작일·종료일 → `ui/DateField`(캘린더 팝오버, ISO yyyy-MM-dd 주고받음). reducer는 Date 객체 저장 유지 — 컴포넌트 경계에서 Date↔ISO 어댑팅
 - [ ] 날짜 프리셋 클릭 → 즉시 두 날짜 모두 변경 (라이브 갱신)
 - [ ] 상품명 검색 → `productSearchTerm` 변경 → order_items.product_name `ilike` (Step 1로 주문 ID 추출 → Step 2로 본 쿼리)
 - [ ] 카테고리 칩 토글 → `selectedProductCategory` 변경 → order_items.category `eq` 필터
