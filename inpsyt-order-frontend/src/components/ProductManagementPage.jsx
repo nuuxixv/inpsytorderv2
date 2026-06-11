@@ -1077,7 +1077,7 @@ const ProductManagementPage = () => {
           {uploadLog.length > 0 && (
             <Box sx={{ maxHeight: 150, overflow: 'auto', mb: 2, bgcolor: 'grey.50', borderRadius: 1, p: 1.5 }}>
               {uploadLog.map((line, i) => (
-                <Typography key={i} variant="caption" sx={{ display: 'block', fontFamily: 'monospace', color: line.includes('실패') || line.includes('오류') ? 'error.main' : 'text.secondary' }}>
+                <Typography key={i} variant="caption" sx={{ display: 'block', color: line.includes('실패') || line.includes('오류') ? 'error.main' : 'text.secondary' }}>
                   {line}
                 </Typography>
               ))}

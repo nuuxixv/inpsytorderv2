@@ -357,10 +357,7 @@ const FeedbackManagementPage = () => {
                     <TableCell>
                       <Typography
                         variant="caption"
-                        sx={{
-                          color: 'text.secondary',
-                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                        }}
+                        sx={{ color: 'text.secondary' }}
                       >
                         {fb.location || '-'}
                       </Typography>
@@ -404,7 +401,6 @@ const FeedbackManagementPage = () => {
                 <InfoRow
                   label="위치"
                   value={selectedFeedback.location || '-'}
-                  mono
                   muted={!selectedFeedback.location}
                 />
                 <InfoRow

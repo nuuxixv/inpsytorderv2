@@ -163,8 +163,8 @@ const DiffLine = ({ field, marker, value, theme }) => {
       >
         {marker}
       </Box>
-      <Box sx={{ minWidth: 0, fontFamily: MONO, fontSize: '0.75rem', lineHeight: 1.6, color: theme.gray[800] }}>
-        <Box component="span" sx={{ fontWeight: 700 }}>{field}: </Box>
+      <Box sx={{ minWidth: 0, fontSize: '0.75rem', lineHeight: 1.6, color: theme.gray[800] }}>
+        <Box component="span" sx={{ fontFamily: MONO, fontWeight: 700 }}>{field}: </Box>
         <Box component="span" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{value}</Box>
       </Box>
     </Box>

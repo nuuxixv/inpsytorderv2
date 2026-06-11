@@ -148,3 +148,4 @@ master 권한자가 학회 직후 또는 한가한 시간에 들어와 학회장
   - 신규: 검색(content·제출자·location 클라이언트 필터) — 시안 답습
   - 보존: API 2종 (getFeedback, updateFeedbackStatus), 6상태 색 매핑, 3종 유형 매핑, 권한 미체크 (사양 §발견 3 — RLS 의존)
   - 자동 검출 5종 통과 (raw hex 0 / 인라인 fontSize rem-px 0 / weight 800 0 / 4배수 외 0 / touch 44 미만 0 — 아이콘 px 14/18은 시안 답습)
+- 2026-06-11 폰트 수정 — 위치(location) 한글 값에 적용돼 있던 monospace 제거(목록 셀·상세 모달 InfoRow mono prop). 한글이 monospace로 렌더돼 깨져 보이던 문제 해소. 생성일(순수 날짜 숫자)은 tnum 정렬 위해 유지. (동일 점검으로 AuditLogPage diff value·ProductManagementPage 업로드 로그의 한글 monospace도 제거)
