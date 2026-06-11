@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { supabase } from '../supabaseClient';
 import {
   Box,
@@ -31,7 +31,6 @@ import {
   useTheme,
 } from '@mui/material';
 import AnnouncementIcon from '@mui/icons-material/Announcement';
-import SimpleMarkdown from './SimpleMarkdown';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -40,6 +39,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
+import CloseIcon from '@mui/icons-material/Close';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useAuth } from '../hooks/useAuth';
@@ -52,7 +52,18 @@ import {
   markBulletinRead,
   getBulletinReaders,
 } from '../api/bulletins';
+import { encodeForStorage } from '../utils/prepNoteImages';
 import { PageHeader, SectionCard, EmptyState, ActionSlot } from './ui';
+
+// Toast UI 에디터/뷰어 = 무거운 의존성 → 지연 로드(초기 번들 0 영향, L2와 동일 패턴)
+const PrepNoteEditor = lazy(() => import('./PrepNoteEditor'));
+const PrepNoteViewer = lazy(() => import('./PrepNoteViewer'));
+const BULLETIN_BUCKET = 'bulletin-images';
+
+// 에디터/뷰어 로딩 폴백 (L2 EditorFallback 답습)
+const EditorFallback = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}><CircularProgress size={24} /></Box>
+);
 
 // 사양 §카테고리 필터 탭: 매뉴얼/패치노트/공지사항 인라인 hex.
 // 사양 §핵심 발견 3 + 시안 주석에 따라 D17 후속 토큰화는 별도 사이클 — 게시판 카테고리는 인라인 유지.
@@ -189,6 +200,11 @@ const BulletinBoardPage = () => {
     is_pinned: false,
   });
   const [saving, setSaving] = useState(false);
+  // 에디터 본문 접근자(getHTML). 준비 전/해제 후 null 반환 → 저장 가드 (L2 패턴)
+  const getContentHtmlRef = useRef(null);
+
+  // 본문 이미지 라이트박스 (L2 EventDetailPage 패턴)
+  const [lightboxSrc, setLightboxSrc] = useState(null);
 
   // Delete confirm
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -261,6 +277,7 @@ const BulletinBoardPage = () => {
 
   // Create / Edit handlers
   const handleOpenCreate = () => {
+    getContentHtmlRef.current = null;
     setEditMode(false);
     setFormData({ title: '', content: '', category: 'notice', is_pinned: false });
     setOpenDialog(true);
@@ -268,6 +285,7 @@ const BulletinBoardPage = () => {
 
   const handleOpenEdit = () => {
     if (!selectedBulletin) return;
+    getContentHtmlRef.current = null;
     setEditMode(true);
     setFormData({
       title: selectedBulletin.title,
@@ -283,20 +301,31 @@ const BulletinBoardPage = () => {
       addNotification('제목을 입력해주세요.', 'warning');
       return;
     }
-    if (!formData.content.trim()) {
+    // 에디터에서 본문 HTML 읽기. 준비 전(lazy 로드·이미지 재서명 중)이면 null → 저장 가드 (L2 패턴)
+    const raw = getContentHtmlRef.current?.();
+    if (raw === null || raw === undefined) {
+      addNotification('에디터를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.', 'warning');
+      return;
+    }
+    // 본문 텍스트 비었는지 검사(태그 제거 후 trim)
+    const plain = raw.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+    if (!plain) {
       addNotification('내용을 입력해주세요.', 'warning');
       return;
     }
+    // 서명 URL → 경로 플레이스홀더(만료 무관 저장형). L2와 동일.
+    const content = encodeForStorage(raw, BULLETIN_BUCKET);
 
     setSaving(true);
     try {
       if (editMode && selectedBulletin) {
-        const updated = await updateBulletin(selectedBulletin.id, formData);
+        const updated = await updateBulletin(selectedBulletin.id, { ...formData, content });
         setSelectedBulletin(updated);
         addNotification('게시글이 수정되었습니다.', 'success');
       } else {
         await createBulletin({
           ...formData,
+          content,
           author_id: user.id,
           author_name: profile?.name || user?.email?.split('@')[0] || '관리자',
         });
@@ -579,8 +608,14 @@ const BulletinBoardPage = () => {
                 )}
               </Box>
               <Divider sx={{ mb: 2 }} />
-              {/* 본문 — SimpleMarkdown 마크다운 렌더 (사양 §본문) */}
-              <SimpleMarkdown content={selectedBulletin.content} />
+              {/* 본문 — Toast UI Viewer (L2와 동일). 레거시 마크다운 글도 그대로 렌더. */}
+              <Suspense fallback={<EditorFallback />}>
+                <PrepNoteViewer
+                  content={selectedBulletin.content}
+                  bucket={BULLETIN_BUCKET}
+                  onImageClick={(src) => setLightboxSrc(src)}
+                />
+              </Suspense>
             </SectionCard>
           )}
         </Box>
@@ -604,11 +639,11 @@ const BulletinBoardPage = () => {
         </Fab>
       )}
 
-      {/* Create / Edit Dialog */}
+      {/* Create / Edit Dialog — 에디터(420px) 수용 위해 maxWidth md (필드 잘림 방지) */}
       <Dialog
         open={openDialog}
         onClose={() => setOpenDialog(false)}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
         PaperProps={{ sx: { borderRadius: `${theme.radii.lg}px` } }}
       >
@@ -638,14 +673,25 @@ const BulletinBoardPage = () => {
               </Select>
             </FormControl>
           </Box>
-          <TextField
-            label="내용 (마크다운)"
-            fullWidth
-            multiline
-            rows={10}
-            value={formData.content}
-            onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-          />
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5, fontWeight: 600 }}>
+              내용
+            </Typography>
+            {/* 본문 = Toast UI 에디터 (L2와 동일). 게시판은 WYSIWYG 기본, Markdown 탭 노출. */}
+            <Suspense fallback={<EditorFallback />}>
+              <PrepNoteEditor
+                bucket={BULLETIN_BUCKET}
+                idPrefix={editMode && selectedBulletin ? selectedBulletin.id : 'new'}
+                initialEditType="wysiwyg"
+                initialValue={formData.content}
+                onReady={(getHtml) => { getContentHtmlRef.current = getHtml; }}
+                onImageError={(msg) => addNotification(msg, 'warning')}
+              />
+            </Suspense>
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 1 }}>
+              Markdown 탭에서 ## 제목 · - [ ] 체크리스트를 바로 입력할 수 있어요
+            </Typography>
+          </Box>
           <FormControlLabel
             control={
               <Checkbox
@@ -776,6 +822,33 @@ const BulletinBoardPage = () => {
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setOpenReaders(false)} variant="contained">닫기</Button>
         </DialogActions>
+      </Dialog>
+
+      {/* 본문 이미지 라이트박스 (L2 EventDetailPage 패턴) */}
+      <Dialog
+        open={Boolean(lightboxSrc)}
+        onClose={() => setLightboxSrc(null)}
+        maxWidth={false}
+        slotProps={{ paper: { sx: { bgcolor: 'transparent', boxShadow: 'none', m: 2 } } }}
+      >
+        <Box sx={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <IconButton
+            onClick={() => setLightboxSrc(null)}
+            aria-label="닫기"
+            sx={{ position: 'absolute', top: 8, right: 8, color: '#fff', bgcolor: alpha('#000', 0.4), '&:hover': { bgcolor: alpha('#000', 0.6) } }}
+          >
+            <CloseIcon />
+          </IconButton>
+          {lightboxSrc && (
+            <Box
+              component="img"
+              src={lightboxSrc}
+              alt="게시글 이미지 확대"
+              onClick={() => setLightboxSrc(null)}
+              sx={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 1, cursor: 'zoom-out', display: 'block' }}
+            />
+          )}
+        </Box>
       </Dialog>
     </Box>
   );

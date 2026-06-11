@@ -167,3 +167,65 @@ describe('resolveForDisplay (배치 재서명)', () => {
     expect(DISPLAY_TTL).toBeLessThanOrEqual(60 * 60 * 24);
   });
 });
+
+describe('bucket 인자 일반화 (A7 게시판 bulletin-images)', () => {
+  const B_BASE = 'https://qnrojyamcrvikbezkzwk.supabase.co/storage/v1/object/sign/bulletin-images';
+  const bSigned = (path, token = 'eyJhbGciOiJIUzI1NiJ9.abc.def') => `${B_BASE}/${path}?token=${token}`;
+  const BPATH = 'post-1/1717990000002-q1w2e3.webp';
+
+  it('encodeForStorage: bulletin-images 서명 URL → storage://bulletin-images 플레이스홀더', () => {
+    const html = `<p>공지</p><img src="${bSigned(BPATH)}" alt="매뉴얼">`;
+    expect(encodeForStorage(html, 'bulletin-images')).toBe(
+      `<p>공지</p><img src="storage://bulletin-images/${BPATH}" alt="매뉴얼">`,
+    );
+  });
+
+  it('collectStoragePaths: bulletin-images 플레이스홀더+레거시 URL 수집', () => {
+    const html = [
+      `<img src="storage://bulletin-images/${BPATH}">`,
+      `<img src="${bSigned(BPATH)}">`,
+    ].join('');
+    expect(collectStoragePaths(html, 'bulletin-images')).toEqual([BPATH]);
+  });
+
+  it('applySignedUrls: bulletin-images 플레이스홀더 → 새 서명 URL', () => {
+    const fresh = bSigned(BPATH, 'newToken');
+    const html = `<img src="storage://bulletin-images/${BPATH}">`;
+    expect(applySignedUrls(html, { [BPATH]: fresh }, 'bulletin-images')).toBe(`<img src="${fresh}">`);
+  });
+
+  it('왕복: bulletin-images encode→apply→encode 안정', () => {
+    const original = `<p>매뉴얼</p><img src="${bSigned(BPATH, 'old')}" alt="첨부">`;
+    const stored = encodeForStorage(original, 'bulletin-images');
+    const fresh = bSigned(BPATH, 'fresh');
+    expect(applySignedUrls(stored, { [BPATH]: fresh }, 'bulletin-images')).toBe(
+      `<p>매뉴얼</p><img src="${fresh}" alt="첨부">`,
+    );
+    expect(encodeForStorage(applySignedUrls(stored, { [BPATH]: fresh }, 'bulletin-images'), 'bulletin-images')).toBe(stored);
+  });
+
+  it('버킷 격리: bulletin-images 함수는 event-images 플레이스홀더를 건드리지 않음', () => {
+    const evHtml = `<img src="storage://event-images/${PATH_A}">`;
+    expect(encodeForStorage(evHtml, 'bulletin-images')).toBe(evHtml); // 서명URL 아님 — 무변경
+    expect(collectStoragePaths(evHtml, 'bulletin-images')).toEqual([]); // 타 버킷 경로 미수집
+  });
+
+  it('하위호환: 기본값(event-images)은 인자 생략 시에도 동일 동작', () => {
+    const html = `<img src="${signed(PATH_A)}">`;
+    expect(encodeForStorage(html)).toBe(`<img src="storage://event-images/${PATH_A}">`);
+    expect(encodeForStorage(html)).toBe(encodeForStorage(html, 'event-images'));
+    expect(collectStoragePaths(html)).toEqual(collectStoragePaths(html, 'event-images'));
+  });
+
+  it('resolveForDisplay: bucket 인자로 해당 버킷에서 createSignedUrls 호출', async () => {
+    createSignedUrlsMock.mockReset();
+    const fresh = bSigned(BPATH, 'freshB');
+    createSignedUrlsMock.mockResolvedValue({
+      data: [{ path: BPATH, signedUrl: fresh, error: null }],
+      error: null,
+    });
+    const html = `<img src="storage://bulletin-images/${BPATH}">`;
+    expect(await resolveForDisplay(html, 'bulletin-images')).toBe(`<img src="${fresh}">`);
+    expect(createSignedUrlsMock).toHaveBeenCalledWith([BPATH], DISPLAY_TTL);
+  });
+});

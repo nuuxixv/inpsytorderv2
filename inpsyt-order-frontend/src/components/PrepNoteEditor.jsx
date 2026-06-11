@@ -6,18 +6,18 @@ import { sanitizePrepNoteHTML } from './prepNoteSanitizer';
 import { resolveForDisplay, createImageDisplayUrl } from '../utils/prepNoteImages';
 
 /**
- * 통합 준비 노트 에디터 (Toast UI Editor — 바닐라) — L2 학회 상세 전용.
- * React.lazy로 지연 로드(EventDetailPage에서 Suspense로 감쌈) → 초기/공개 번들 0 영향.
+ * 통합 Toast UI 에디터 (바닐라) — L2 학회 준비 노트 + A7 게시판 공용.
+ * React.lazy로 지연 로드(호출부에서 Suspense로 감쌈) → 초기/공개 번들 0 영향.
  * CSS import도 이 파일 안에 둬 lazy 청크에 포함시킴.
  *
  * ⚠️ @toast-ui/react-editor(React 17 전용)는 React 19와 비호환(findDOMNode 등) →
  *    바닐라 Editor를 ref로 직접 인스턴스화(프레임워크 무관).
  *
  * - 준비물 = 에디터 task-list 체크박스
- * - 이미지(프로그램·부스배치도) = addImageBlobHook → event-images 버킷 업로드 → 표시용 서명 URL 삽입
+ * - 이미지(프로그램·부스배치도) = addImageBlobHook → bucket 업로드 → 표시용 서명 URL 삽입
  *   (dropImage 플러그인·md paste 핸들러가 양 모드 공통이라 Markdown 모드에서도 동작)
- *   저장 시 EventDetailPage가 encodeForStorage로 경로 플레이스홀더로 치환(만료 무관),
- *   진입 시 resolveForDisplay로 새 서명 URL 재발급(utils/prepNoteImages.js).
+ *   저장 시 호출부가 encodeForStorage(html, bucket)로 경로 플레이스홀더로 치환(만료 무관),
+ *   진입 시 resolveForDisplay(html, bucket)로 새 서명 URL 재발급(utils/prepNoteImages.js).
  * - 학회 정보(설치/철거 등) = 자유 텍스트
  *
  * 모드: WYSIWYG에는 마크다운 입력 룰이 없어 `##`·`- [ ]` 자동변환 불가 →
@@ -26,8 +26,12 @@ import { resolveForDisplay, createImageDisplayUrl } from '../utils/prepNoteImage
  *   (탭 전환 시 convertor가 마크다운으로 변환해 보여줌). 저장은 양 모드 모두 getHTML().
  *
  * props:
- *  - eventId: string             (이미지 업로드 경로 prefix)
- *  - initialValue: string        (events.prep_note HTML — 마운트 시점 값으로 1회 주입)
+ *  - eventId: string             (L2 후방호환 — idPrefix 미전달 시 이미지 업로드 경로 prefix)
+ *  - idPrefix: string            (이미지 업로드 경로 prefix override. 미전달 시 eventId 사용)
+ *  - bucket: string              (이미지 업로드 버킷. 기본 'event-images' — L2 무영향)
+ *  - initialEditType: string     ('wysiwyg' | 'markdown' override. 미전달 시 현행 로직:
+ *                                 내용 있으면 wysiwyg, 빈 노트는 markdown)
+ *  - initialValue: string        (저장 HTML — 마운트 시점 값으로 1회 주입)
  *  - onReady: (getHTML) => void  (저장 버튼이 본문을 읽을 수 있게 getHTML 접근자 전달.
  *                                 에디터 준비 전/해제 후 호출 시 null 반환 — 저장 가드용)
  *  - onImageError: (msg) => void (검증/업로드 실패 토스트)
@@ -35,13 +39,16 @@ import { resolveForDisplay, createImageDisplayUrl } from '../utils/prepNoteImage
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
+const DEFAULT_BUCKET = 'event-images';
 
-const PrepNoteEditor = ({ eventId, initialValue, onReady, onImageError }) => {
+const PrepNoteEditor = ({ eventId, idPrefix, bucket = DEFAULT_BUCKET, initialEditType, initialValue, onReady, onImageError }) => {
   const elRef = useRef(null);
   const instRef = useRef(null);
   // 최신 props를 마운트-1회 훅 안에서 참조하기 위한 ref (에디터 재생성 방지)
-  const eventIdRef = useRef(eventId);
-  eventIdRef.current = eventId;
+  const prefixRef = useRef(idPrefix ?? eventId);
+  prefixRef.current = idPrefix ?? eventId;
+  const bucketRef = useRef(bucket);
+  bucketRef.current = bucket;
   const onImageErrorRef = useRef(onImageError);
   onImageErrorRef.current = onImageError;
   const onReadyRef = useRef(onReady);
@@ -62,17 +69,17 @@ const PrepNoteEditor = ({ eventId, initialValue, onReady, onImageError }) => {
           return;
         }
         const ext = type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg';
-        const path = `${eventIdRef.current || 'unknown'}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const path = `${prefixRef.current || 'unknown'}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
         const { error: upErr } = await supabase.storage
-          .from('event-images')
+          .from(bucketRef.current)
           .upload(path, blob, { contentType: type, upsert: false });
         if (upErr) {
           onImageErrorRef.current?.(`이미지 업로드 실패: ${upErr.message}`);
           return;
         }
 
-        const signedUrl = await createImageDisplayUrl(path);
+        const signedUrl = await createImageDisplayUrl(path, bucketRef.current);
         if (!signedUrl) {
           onImageErrorRef.current?.('이미지 주소 생성에 실패했어요.');
           return;
@@ -90,12 +97,13 @@ const PrepNoteEditor = ({ eventId, initialValue, onReady, onImageError }) => {
     // 본문 내 경로 플레이스홀더(+레거시 서명 URL) → 새 서명 URL 재발급 후 에디터 생성
     let editor = null;
     let cancelled = false;
-    resolveForDisplay(initialValue || '').then((resolved) => {
+    resolveForDisplay(initialValue || '', bucketRef.current).then((resolved) => {
       if (cancelled || !elRef.current) return;
       editor = new Editor({
         el: elRef.current,
         initialValue: resolved,
-        initialEditType: resolved ? 'wysiwyg' : 'markdown',
+        // override 우선. 미전달 시 현행 로직(내용 있으면 wysiwyg, 빈 노트는 markdown) — L2 무영향.
+        initialEditType: initialEditType || (resolved ? 'wysiwyg' : 'markdown'),
         previewStyle: 'tab',
         height: '420px',
         usageStatistics: false,
