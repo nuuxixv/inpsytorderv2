@@ -107,8 +107,6 @@ const KindChip = ({ table }) => {
   );
 };
 
-const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
-
 // jsonb 값을 읽기 쉬운 문자열로. 객체/배열은 들여쓰기 JSON, 원시값은 그대로.
 const formatValue = (v) => {
   if (v === undefined) return undefined;
@@ -159,12 +157,12 @@ const DiffLine = ({ field, marker, value, theme }) => {
     >
       <Box
         component="span"
-        sx={{ width: 14, flexShrink: 0, color: accent, fontWeight: 700, fontFamily: MONO, userSelect: 'none' }}
+        sx={{ width: 14, flexShrink: 0, color: accent, fontWeight: 700, userSelect: 'none' }}
       >
         {marker}
       </Box>
       <Box sx={{ minWidth: 0, fontSize: '0.75rem', lineHeight: 1.6, color: theme.gray[800] }}>
-        <Box component="span" sx={{ fontFamily: MONO, fontWeight: 700 }}>{field}: </Box>
+        <Box component="span" sx={{ fontWeight: 700 }}>{field}: </Box>
         <Box component="span" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{value}</Box>
       </Box>
     </Box>

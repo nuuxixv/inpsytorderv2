@@ -53,7 +53,7 @@ const KbdBadge = ({ children, sx }) => {
         bgcolor: theme.gray[100],
         color: theme.gray[600],
         border: `1px solid ${theme.gray[200]}`,
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+        fontFeatureSettings: '"tnum" 1',
         fontSize: '0.6875rem',
         fontWeight: 700,
         lineHeight: 1,

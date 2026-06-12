@@ -15,7 +15,7 @@ import { ContentCopy as ContentCopyIcon } from '@mui/icons-material';
  * @param {React.ReactNode} label
  * @param {React.ReactNode} value
  * @param {() => void} [onCopy] - 지정 시 우측에 복사 버튼 노출
- * @param {boolean} [mono=false] - 값을 monospace + tabular-nums로(연락처·ID·금액)
+ * @param {boolean} [mono=false] - 값을 tabular-nums 정렬로(연락처·ID·금액)
  * @param {boolean} [muted=false] - 값을 보조색으로(빈 값 '-' 등)
  * @param {boolean} [multiline=false] - 값이 여러 줄일 때 라벨을 상단 정렬(주소·요청·메모)
  * @param {number|string} [labelWidth=64] - 라벨 고정 폭(px)
@@ -62,9 +62,6 @@ const InfoRow = ({
           flex: 1,
           fontWeight: 500,
           color: muted ? 'text.secondary' : 'text.primary',
-          fontFamily: mono
-            ? 'ui-monospace, SFMono-Regular, Menlo, monospace'
-            : undefined,
           fontFeatureSettings: mono ? '"tnum" 1' : undefined,
           wordBreak: 'break-all',
         }}

@@ -794,7 +794,7 @@ const EventManagementPage = () => {
               <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{qrDialogEvent.name}</Typography>
               <Typography
                 variant="body2"
-                sx={{ color: 'text.secondary', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', mt: 0.5 }}
+                sx={{ color: 'text.secondary', mt: 0.5 }}
               >
                 {`${window.location.origin}/order?events=${qrDialogEvent.order_url_slug}`}
               </Typography>

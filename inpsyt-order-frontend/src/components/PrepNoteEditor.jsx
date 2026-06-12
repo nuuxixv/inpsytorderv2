@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { Box } from '@mui/material';
 import Editor from '@toast-ui/editor';
 import '@toast-ui/editor/dist/toastui-editor.css';
 import { supabase } from '../supabaseClient';
@@ -130,7 +131,24 @@ const PrepNoteEditor = ({ eventId, idPrefix, bucket = DEFAULT_BUCKET, initialEdi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return <div ref={elRef} />;
+  return (
+    <Box
+      ref={elRef}
+      sx={(theme) => ({
+        // Toast UI 자체 CSS가 font-family를 재선언하는 지점 전부를 Pretendard 토큰으로 교체
+        // (폰트 패밀리만 — 크기·굵기 무수정. 02_DESIGN_TOKENS 모노스페이스 폐기 결정)
+        '& .toastui-editor-defaultUI': { fontFamily: theme.typography.fontFamily },
+        '& .ProseMirror': { fontFamily: theme.typography.fontFamily }, // WYSIWYG·markdown 편집영역 공통
+        '& .toastui-editor-contents': { fontFamily: theme.typography.fontFamily }, // WYSIWYG 본문·md 미리보기
+        '& .toastui-editor-contents code, & .toastui-editor-contents pre': {
+          fontFamily: theme.typography.fontFamily,
+        },
+        '& .toastui-editor-md-code, & .toastui-editor-md-code-block': {
+          fontFamily: theme.typography.fontFamily, // markdown 모드 코드 토큰
+        },
+      })}
+    />
+  );
 };
 
 export default PrepNoteEditor;

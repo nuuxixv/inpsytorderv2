@@ -197,10 +197,7 @@ const SettingsPage = () => {
                     </Typography>
                     <Typography
                       variant="caption"
-                      sx={{
-                        color: 'text.disabled',
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                      }}
+                      sx={{ color: 'text.disabled' }}
                     >
                       {event.order_url_slug}
                     </Typography>
@@ -228,7 +225,6 @@ const SettingsPage = () => {
             <Typography
               variant="body2"
               sx={{
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
                 fontWeight: 500,
                 color: 'text.primary',
                 wordBreak: 'break-all',

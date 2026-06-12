@@ -63,9 +63,15 @@ const PrepNoteViewer = ({ content, bucket = DEFAULT_BUCKET, onImageClick }) => {
   return (
     <Box
       ref={elRef}
-      sx={{
+      sx={(theme) => ({
+        // Toast UI 자체 CSS의 Open Sans→맑은고딕 / Consolas→돋움 스택을 Pretendard 토큰으로 교체
+        // (폰트 패밀리만 — 크기·굵기 무수정. 02_DESIGN_TOKENS 모노스페이스 폐기 결정)
+        '& .toastui-editor-contents': { fontFamily: theme.typography.fontFamily },
+        '& .toastui-editor-contents code, & .toastui-editor-contents pre': {
+          fontFamily: theme.typography.fontFamily,
+        },
         '& .toastui-editor-contents img': { cursor: 'zoom-in', maxWidth: '100%', borderRadius: 1 },
-      }}
+      })}
     />
   );
 };

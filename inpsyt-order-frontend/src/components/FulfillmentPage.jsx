@@ -247,7 +247,6 @@ const FulfillmentGroupCard = ({
                     component="span"
                     sx={(t) => ({
                       ...t.typography.caption,
-                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
                       color: t.palette.text.secondary,
                       fontFeatureSettings: '"tnum" 1',
                     })}
