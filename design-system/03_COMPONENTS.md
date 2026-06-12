@@ -49,7 +49,7 @@ import { StatusBadge, InfoRow, PriceBlock, ActionSlot, EmptyState, SectionCard }
 
 ### 어디서 쓰는가
 
-주문 관리(상태 칼럼), 출고 현황(주문 행의 상태·분류 칩), 상품 관리(카테고리 칩), 주문 상태(고객) 등 상태·종류가 표시되는 모든 자리.
+주문 관리(상태 칼럼), 출고 관리(주문 행의 상태·분류 칩), 상품 관리(카테고리 칩), 주문 상태(고객) 등 상태·종류가 표시되는 모든 자리.
 
 ---
 
@@ -57,9 +57,9 @@ import { StatusBadge, InfoRow, PriceBlock, ActionSlot, EmptyState, SectionCard }
 
 ### 무엇을 의미하는가
 
-"연락처: 010-...", "도로명: ...", "인싸이트 ID: ..." 처럼 **라벨과 값이 한 줄로 짝지어 표시되는 자리**다. 출고 현황과 주문 상태 화면에서 가장 자주 등장한다. 시안마다 `DataLine`, `InfoRow`라는 이름으로 따로 정의돼 있던 걸 하나로 모았다. 우측에 복사 버튼을 옵션으로 달 수 있어, 출고 운영자가 값을 한 번에 클립보드로 가져간다.
+"연락처: 010-...", "도로명: ...", "인싸이트 ID: ..." 처럼 **라벨과 값이 한 줄로 짝지어 표시되는 자리**다. 출고 관리와 주문 상태 화면에서 가장 자주 등장한다. 시안마다 `DataLine`, `InfoRow`라는 이름으로 따로 정의돼 있던 걸 하나로 모았다. 복사를 옵션으로 달 수 있어, 출고 운영자가 값을 한 번에 클립보드로 가져간다.
 
-라벨은 `caption` 토큰, 값은 `small`(body2) 토큰을 쓴다. 인라인 사이즈는 없다(02 §운영 조항 2). 복사 버튼은 학회장 50대 손가락 기준으로 hit-area 44×44를 채운다(02 §운영 조항 8) — 아이콘 자체는 작아도 누르는 영역은 넉넉하다.
+라벨은 `caption` 토큰, 값은 `small`(body2) 토큰을 쓴다. 인라인 사이즈는 없다(02 §운영 조항 2). 복사는 **인라인 패턴**(2026-06-12 개정): 값 텍스트 직후에 16px 복사 아이콘(gray.400)이 **상시 노출**되고 — 태블릿이라 hover-reveal 금지 — 값+아이콘 전체가 단일 클릭 타깃이다(cursor copy). hover 시 알파 배경 하이라이트와 함께 아이콘이 primary로 바뀐다. 행 minHeight는 복사 행 40px, 일반 행 28px. 구 패턴(우측 끝 44×44 IconButton)은 폐기 — 값과 버튼이 멀어 시선·손가락이 두 번 이동하던 문제를 없앴다.
 
 ### props
 
@@ -67,8 +67,8 @@ import { StatusBadge, InfoRow, PriceBlock, ActionSlot, EmptyState, SectionCard }
 |---|---|---|
 | `label` | node | 라벨 |
 | `value` | node | 값(문자열 또는 커스텀 노드) |
-| `onCopy` | function | 지정 시 우측 복사 버튼 노출 |
-| `mono` | boolean | 값을 monospace + tabular-nums로(연락처·ID·금액) |
+| `onCopy` | function | 지정 시 값 직후 인라인 복사 아이콘 노출, 값 전체 클릭 복사 |
+| `mono` | boolean | 값을 tabular-nums 정렬로(연락처·ID·금액) |
 | `muted` | boolean | 값을 보조색으로(빈 값 `-` 등) |
 | `multiline` | boolean | 값이 여러 줄일 때 라벨 상단 정렬(주소·요청·메모) |
 | `labelWidth` | number\|string | 라벨 고정 폭(기본 64px) |
@@ -84,7 +84,7 @@ import { StatusBadge, InfoRow, PriceBlock, ActionSlot, EmptyState, SectionCard }
 
 ### 어디서 쓰는가
 
-출고 현황(고객 정보 6줄: 결제·연락처·ID·도로명·상세·요청·메모), 주문 상태(주문자 정보 카드), 주문 상세 드로어 등.
+출고 관리(고객 정보 5~6줄: 연락처·ID·도로명·상세·요청·메모 — onCopy 인라인 복사), 주문 상태(주문자 정보 카드), 주문 상세 드로어 등. 실서비스에서 onCopy를 쓰는 화면은 출고 관리뿐이다.
 
 ---
 
@@ -194,7 +194,7 @@ import { StatusBadge, InfoRow, PriceBlock, ActionSlot, EmptyState, SectionCard }
 
 ### 어디서 쓰는가
 
-출고 현황·상품 관리·주문 관리의 빈 리스트, 검색 결과 없음 등.
+출고 관리·상품 관리·주문 관리의 빈 리스트, 검색 결과 없음 등.
 
 ---
 

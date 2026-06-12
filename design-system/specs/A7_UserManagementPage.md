@@ -71,7 +71,7 @@
   - `events:view` 학회 조회 / `events:edit` 학회 편집
   - `products:view` 상품 조회 / `products:edit` 상품 편집 / `users:manage` 사용자 관리
 - [ ] **제거된 가짜 컬럼 3종(2026-06-01 건우님)** — 켜도 동작 안 하던 것:
-  - `fulfillment:view` → 출고 현황 메뉴는 `orders:view`로 열림(별도 키 미사용)
+  - `fulfillment:view` → 출고 관리 메뉴는 `orders:view`로 열림(별도 키 미사용)
   - `feedback:view` → 피드백은 master 전용 / `bulletins:manage` → 게시판 보기=전원·작성/수정=master 전용
   - 칩 미리보기도 유효 권한(PERMISSION_COLUMNS + master)만 표시하도록 필터(레거시 역할에 잔존해도 UI 비노출, DB값은 무해)
 - [ ] 마지막 컬럼 "액션": 비-시스템 템플릿만 편집/삭제 아이콘, 시스템은 "-"

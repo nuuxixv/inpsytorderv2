@@ -39,7 +39,7 @@ const allMenuItems = [
   { text: '주문 관리', icon: <ShoppingCartIcon />, path: '/admin/orders', permissionKey: 'orders:view' },
   { text: '학회 관리', icon: <EventIcon />, path: '/admin/events', permissionKey: 'events:view' },
   { text: '상품 관리', icon: <CategoryIcon />, path: '/admin/products', permissionKey: 'products:view' },
-  { text: '출고 현황', icon: <LocalShippingIcon />, path: '/admin/fulfillment', permissionKey: 'orders:view' },
+  { text: '출고 관리', icon: <LocalShippingIcon />, path: '/admin/fulfillment', permissionKey: 'orders:view' },
   { text: '사용자 관리', icon: <PeopleIcon />, path: '/admin/users', permissionKey: 'users:manage' },
   { text: '피드백', icon: <RateReviewIcon />, path: '/admin/feedback', permissionKey: 'master' },
   { text: '게시판', icon: <AnnouncementIcon />, path: '/admin/bulletins', permissionKey: null },

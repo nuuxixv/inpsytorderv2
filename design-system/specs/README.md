@@ -32,7 +32,7 @@
 - `A2_NewOrderModal.md` — 어드민 신규 주문 모달 (학회·현장판매·상품 검색·장바구니, **시안 부재 — 실 컴포넌트가 단일 진실 소스**)
 - `A2_OrderStatusPage.md` — 고객 주문 상태 (알림톡 링크·주문 직후 자동 진입)
 - `A2_OrderLookupPage.md` — 고객 주문 조회 (이름+연락처 검색, **(폐기) 2026-05-29 — 라우트 미등록·RLS 회수·보안 약함으로 건우님 결정 폐기, 실 컴포넌트 삭제**)
-- `A3_FulfillmentPage.md` — 출고 현황
+- `A3_FulfillmentPage.md` — 출고 관리 (2026-06-12 "출고 현황"에서 개칭)
 - `A4_DashboardPage.md` — 어드민 대시보드 (3단 계층 필터·매출 KPI·랭킹·현장 보고서·최근 주문)
 - `A5_EventManagementPage.md` — 학회 관리
 - `A6_ProductManagementPage.md` — 상품 관리

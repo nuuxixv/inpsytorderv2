@@ -1,110 +1,104 @@
-# 사양 시트 — A3 출고 현황 (FulfillmentPage)
+# 사양 시트 — A3 출고 관리 (FulfillmentPage)
 
-> 이 시트는 출고 현황 화면의 정보·기능·데이터 구조의 단일 진실 소스다.
+> 이 시트는 출고 관리 화면의 정보·기능·데이터 구조의 단일 진실 소스다.
 > 시안과 실서비스 구현은 이 시트의 모든 항목을 1:1로 반영해야 한다.
-> 마지막 갱신: 2026-05-13 신설 (PR #6 사고 대응).
+> 임의 단순화·통합·생략은 건우님의 명시적 승인 후 이 시트를 먼저 갱신한 다음에만 허용된다.
+> 마지막 갱신: 2026-06-12 전면 재작성 (그룹 카드 구조 + 출고 고도화 사이클 반영. 구 좌우 패널 구조 기술 폐기).
 
 ## 참조 파일
-- 실 컴포넌트: `inpsyt-order-frontend/src/components/FulfillmentPage.jsx` (617줄)
+- 실 컴포넌트: `inpsyt-order-frontend/src/components/FulfillmentPage.jsx`
+- 합성 컴포넌트: `inpsyt-order-frontend/src/components/ui/InfoRow.jsx` (인라인 복사), `ActionSlot.jsx`, `StatusBadge.jsx`, `EmptyState.jsx`, `SectionCard.jsx`, `PageHeader.jsx`
 - 관련 API: `inpsyt-order-frontend/src/api/orders.js` 의 `getFulfillmentOrders`, `groupLinkedOrders`
 - 관련 폼 컴포넌트(주소 입력 분리 구조 참조): `inpsyt-order-frontend/src/components/CustomerInfoStep.jsx`
 - DB 스키마: `supabase/migrations/20250722070000_create_orders_table.sql` + `20250805_add_new_order_fields.sql` + `20250808040516_add_admin_memo_to_orders.sql` (`orders` 테이블)
 
 ## 사용자 시나리오
-부스 운영자(학지사 마케팅팀·인싸이트 직원)가 학회 종료 후 사무실에서 또는 학회 중에 태블릿/PC로 연다. 결제완료된 주문(`status='paid'`)을 좌측 목록에서 골라 우측 상세를 확인하고, 정보가 맞으면 "출고 처리" 버튼을 눌러 `status='completed'`로 바꾼다. 주소·연락처·인싸이트 ID 같은 정보는 출고처(택배사 또는 인싸이트 시스템)에 전달하기 위해 개별 필드 단위로 복사한다.
+출고 담당자(도서/검사)가 학회 종료 후 사무실 PC에서, 또는 학회 중 태블릿으로 연다. 결제완료(`paid`) 주문을 그룹 카드로 확인하고, 연락처·인싸이트 ID·도로명/상세 주소를 필드 단위로 복사해 택배사/인싸이트 시스템에 붙여넣은 뒤 "출고 처리"(개별) 또는 체크박스 선택 후 "출고 완료 처리"(일괄)로 `status='completed'`로 바꾼다. 실수로 처리한 건은 완료 카드의 "출고 취소"로 `paid`로 되돌린다. 태블릿 겸용이므로 모든 복사 아이콘은 상시 노출(hover-reveal 금지).
 
 ## 표시 정보 (라벨 단위, 누락 금지)
 
-### 상단 필터바
-- [ ] 페이지 제목 아이콘: `LocalShippingIcon` (primary 색) — line 521
-- [ ] 페이지 제목 텍스트: "출고 현황" — line 522
-- [ ] 학회 선택 드롭다운: 라벨 "학회", 기본값 "전체 학회" + DB에서 가져온 학회 목록 — line 524-536
-- [ ] 대기 건수 칩: "{N}건 대기" (warning 색, N>0일 때 filled) — line 540
-- [ ] 완료 건수 칩: "{N}건 완료" (success 색 outlined) — line 541
-- [ ] 뷰 모드 토글 그룹 — 3개: "전체" / "도서 뷰"(#3B82F6) / "검사 뷰"(#6366F1) — line 546-555
+### 페이지 헤더 (PageHeader)
+- [ ] 제목: **"출고 관리"** + `LocalShippingIcon` (2026-06-12 "출고 현황"에서 개칭)
+- [ ] 서브타이틀: "총 {N}건 · 대기 {N}건 · 완료 {N}건" — 학회+뷰모드 적용 후·상태/검색 적용 전 기준, 로딩 중에는 빈 문자열
+- [ ] 헤더 우측 액션: "출고 완료 처리 (N)" 버튼 — `orders:edit` 권한 + 선택 건수>0일 때 활성
 
-### 좌측 주문 카드 (OrderCard, line 122-206)
-- [ ] 주문 유형 배지 — `book`/`test`/`mixed`/`other` 중 하나
-  - "도서전용" (#3B82F6) / "검사전용" (#6366F1) / "혼합" (#8B5CF6) / "기타" (#9CA3AF)
-- [ ] 연계 배지(조건부): "연계 {N+1}건" (#F59E0B, parent 주문에 자식이 있을 때만) — line 161-175
-- [ ] 출고처리 배지(조건부): "출고처리" + 체크 아이콘 (#10B981, `status='completed'`일 때만) — line 176-191
-- [ ] 고객명 (`customer_name`, 굵게) — line 193-195
-- [ ] 학회명 + 상품 개수: "{event.name} · {N}개 상품" — line 196-198
-- [ ] 결제금액 (mergedTotal ?? final_payment, primary 색, 원 단위 천 단위 콤마) — line 199-201
-- [ ] 출고처리 완료 카드는 opacity 0.7로 표시 — line 142
+### 필터 카드 (SectionCard)
+- [ ] 카드 제목: `FilterListIcon` + "필터"
+- [ ] 학회 선택 드롭다운: 라벨 "학회", 기본값 "전체 학회" + DB 학회 목록
+- [ ] 검색 TextField 1개: placeholder "이름·연락처·ID 검색" — customer_name·phone_number·inpsyt_id 부분일치(클라이언트, trim·소문자 비교)
+- [ ] 상태 세그먼트 (ToggleButtonGroup): "출고 대기 ({N})" / "출고 완료 ({N})" / "전체" — **기본값 '출고 대기'**. 카운트 N은 학회+뷰모드 적용 후·상태 필터 적용 전 기준(상태 토글을 눌러도 양쪽 N이 살아있음)
+- [ ] 뷰 모드 토글 그룹 — 3개: "전체" / "도서 뷰"(CATEGORY_COLORS.book) / "검사 뷰"(CATEGORY_COLORS.test)
 
-### 우측 주문자 정보 카드 (line 247-353)
-- [ ] 고객명 (`customer_name`, 클릭하여 복사) — line 250-255
-- [ ] 상태 칩: `statusLabel[status]` — paid="결제완료" / completed="처리완료" / pending="결제대기" / cancelled="주문취소" / refunded="결제취소" — line 257-262
-- [ ] 출고 처리 버튼(조건부): `status='paid'` 이고 `orders:edit` 권한 있을 때만 표시, success 색, 체크 아이콘 — line 263-274
-- [ ] 연락처 (`phone_number`, 라벨 "연락처", 클릭하여 복사) — line 280-288
-- [ ] 결제금액 (`mergedTotal ?? final_payment`, 라벨 "결제금액", primary 색) — line 289-294
-- [ ] 인싸이트 ID(조건부): `inpsyt_id` 존재 시 표시, 라벨 "인싸이트 ID", 클릭하여 복사 — line 296-306
-- [ ] 배송지 — **세 줄 분리 표시 필수** (절대 한 줄로 통합 금지). 우편번호·도로명주소·상세주소 각각 별도 복사 가능 — line 307-334
-  - 우편번호: `[{address.postcode}]` (monospace, text.disabled, 도로명주소 옆에 표시)
-  - 도로명주소: `address.address || address.roadAddress || address.jibunAddress` (한 줄, 우편번호와 같은 줄)
-  - 상세주소: `address.detailAddress || address.detail` (별도 줄, 단독 복사)
-  - 도구 팁: "도로명주소 복사 (우편번호 제외)", "상세주소 복사"
-- [ ] 요청사항 (`customer_request`, 라벨 "요청사항", 없으면 "-" disabled) — line 335-342
-- [ ] 관리자 메모 (`admin_memo`, 라벨 "관리자 메모", 없으면 "-" disabled) — line 343-350
+### 그룹 카드 — 헤더 (FulfillmentGroupCard)
+- [ ] 체크박스 (`orders:edit` 권한 보유 시만, 44×44 터치 영역)
+- [ ] 고객명 (`customer_name`) — **인라인 복사 타깃**: 이름 텍스트 직후 16px ContentCopy 아이콘 상시 노출, 이름+아이콘 전체가 단일 클릭 타깃(cursor:copy), hover 시 알파 배경+아이콘 primary. 체크박스와 오터치 간격 유지
+- [ ] StatusBadge: `status` 값 (paid/completed)
+- [ ] 연계 칩(조건부): "연계 {N}건" (warning 색, parent 주문에 linkedChildren 있을 때만, N=자식+1)
+- [ ] 결제금액: `mergedTotal ?? final_payment` 천 단위 콤마 + "원", tabular-nums, 우측 정렬
+- [ ] 학회명 + 상품 개수(조건부): "{event.name} · {N}개 상품" (caption)
+- [ ] 완료 카드는 카드 전체 opacity 0.7 — 별도 "출고처리 완료" 칩은 없음(StatusBadge가 상태 표시, 2026-06-12 중복 제거)
 
-### 우측 상품 목록 카드 (line 356-441)
-- [ ] 카드 제목: "상품 목록" — line 358
-- [ ] 표 컬럼: # / 상품명 / 분류 / 단가 / 수량 / 합계 — line 360-368
-- [ ] 행마다 표시:
-  - 번호(인덱스+1)
-  - 상품명 (`product_name || products.name`)
-  - **분류 칩 — 누락 금지.** `category` 값을 라벨로(원본값 사용: `rawCategory`), 색은 정규화 후 결정 — `검사`=#6366F1, `도서`=#3B82F6, 기타=#9CA3AF — line 394-409
-  - 단가 (`price_at_purchase`, 천 단위 콤마)
-  - 수량 (`quantity`)
-  - 합계 (`price_at_purchase × quantity`)
-- [ ] 뷰 모드별 그레이드 처리: book 뷰에서 검사 상품, test 뷰에서 도서 상품은 opacity 0.35 + grey.50 배경 — line 375-389
-- [ ] 합계 영역: 배송비 표시(조건부, `delivery_fee > 0`) "배송비 {N}원 포함" + 합계 "합계 {N}원" — line 428-438
+### 그룹 카드 — 데이터 라인 (InfoRow 5~6줄, 인라인 복사)
+- [ ] 연락처: `phone_number`, mono(tnum), 값 있으면 인라인 복사, 없으면 "-" muted
+- [ ] ID(조건부): `inpsyt_id` 존재 시만 렌더, mono, 인라인 복사 (복사 토스트 라벨 "인싸이트 ID")
+- [ ] 도로명: **우편번호 `[{postcode}]` 병기(caption·tnum) + 도로명주소 한 줄**. 복사는 도로명주소만(우편번호 제외), multiline
+- [ ] 상세: `detailAddress || detail`, multiline, 단독 복사. **도로명과 통합 금지** (핵심 발견 #1)
+- [ ] 요청: `customer_request`(trim), multiline, 값 있으면 복사
+- [ ] 메모: `admin_memo`(trim), multiline, 값 있으면 복사
+- [ ] InfoRow 복사 패턴: 값 텍스트 직후 16px ContentCopy 아이콘(gray[400]) 상시 노출, 값+아이콘 단일 클릭 타깃, hover 알파 배경+아이콘 primary, 행 minHeight 40. 우측 끝 44px IconButton 패턴은 폐기(2026-06-12)
 
-### 빈 상태
-- [ ] 주문 미선택 시 상세 패널: `LocalShippingIcon` (opacity 0.3) + "주문을 선택하면 상세 정보가 표시됩니다" — line 213-227
-- [ ] 목록이 비어 있을 때: 아이콘 + "해당 조건의 주문이 없습니다" — line 574-578
-- [ ] 로딩: `CircularProgress` size=32 — line 570-573
+### 그룹 카드 — 액션 행 (ActionSlot, 버튼 없으면 행 자체 미렌더)
+- [ ] "출고 처리" 버튼: `status='paid'` + `orders:edit`일 때만. contained success + CheckCircleIcon
+- [ ] "출고 취소" 버튼: `status='completed'` + `orders:edit`일 때만. outlined
+- [ ] 조회 전용(`orders:edit` 미보유) 사용자는 액션 행 자체가 보이지 않음
+- [ ] 구 "단축 복사" 5종 아이콘 버튼 행은 폐기(2026-06-12) — 인라인 복사로 일원화
+
+### 그룹 카드 — 상품 목록
+- [ ] 행 5컬럼 그리드: 상품명(ellipsis) / 분류 칩 / 단가 / ×수량 / 합계
+- [ ] 분류 칩 — **누락 금지** (핵심 발견 #2): `StatusBadge kind="category"`, 라벨은 원본 `rawCategory`, 색은 정규화 후 키('도구'→'검사'→test) — book/test 색은 CATEGORY_COLORS
+- [ ] 단가 `price_at_purchase`, 수량 `quantity`, 합계 = 단가×수량 — 모두 tabular-nums 우측 정렬
+- [ ] 뷰 모드별 그레이드: book 뷰에서 검사 상품, test 뷰에서 도서 상품은 opacity 0.35 + gray[50] 배경
+
+### 그룹 카드 — 합계 영역
+- [ ] 배송비(조건부): `delivery_fee > 0`일 때 "배송비 {N}원 포함" (caption, 우측 정렬)
 
 ## 액션·기능 (누락 금지)
+- [ ] 학회 필터 변경 → 서버 재조회 (`getFulfillmentOrders`) + 선택 초기화
+- [ ] 검색 입력 → 클라이언트 필터 (이름·연락처·ID 부분일치)
+- [ ] 상태 세그먼트 변경 → 클라이언트 필터 + 선택 초기화 (데이터 로드는 paid+completed 일괄 유지)
+- [ ] 뷰 모드 변경 → 카드 필터링(혼합은 양쪽에 표시) + 상품 행 그레이드 + 선택 초기화
+- [ ] 체크박스 선택/해제 (`orders:edit`만) → 헤더 "출고 완료 처리 (N)" 버튼 카운트 갱신
+- [ ] 일괄 출고: 헤더 버튼 → **확인 다이얼로그 "{N}건을 출고 완료 처리할까요?" (취소/처리, MUI Dialog — 전역 theme radii)** → 확인 시 `eligibleSelectedIds`(선택분 중 현재 표시 중인 paid만)에 한해 `status='completed'` 일괄 update → "{N}개 주문이 일괄 출고 처리되었습니다." 토스트 → 재조회
+- [ ] 개별 출고 처리: `status='completed'` update → "{이름}님의 주문이 출고 처리되었습니다." 토스트 → 재조회
+- [ ] 출고 취소: 완료 카드 버튼 → `status='paid'` update → "{이름}님의 주문을 출고 대기로 되돌렸습니다." 토스트 → 재조회
+- [ ] 인라인 복사(이름·연락처·인싸이트 ID·도로명주소·상세주소·요청사항·관리자 메모): `navigator.clipboard.writeText` → "{라벨}을(를) 복사했습니다." 토스트, 실패 시 "복사에 실패했습니다."
+- [ ] 재조회(`loadOrders`) 시마다 선택 초기화
+- [ ] 실시간 자동 갱신 없음(처리 후 명시적 reload만)
+- [ ] 상태 update 시 status_history·audit_log는 기존 DB 트리거가 기록 — 페이지에서 별도 호출 없음. 알림톡 발송 없음(알림톡은 주문관리/상세모달의 명시적 발송 플로우 전용)
 
-- [ ] 학회 필터 변경 → `filterEvent` 변경 → 주문 목록 재조회 — line 528-534
-- [ ] 뷰 모드 토글 변경 → `viewMode` 변경 → 목록 + 우측 상세 둘 다 필터링 — line 546-555
-- [ ] 주문 카드 클릭 → `selectedOrder` 설정, 모바일에서는 좌측 숨김 + 우측 표시 — line 564-589
-- [ ] 출고 처리 버튼 클릭 → `status='completed'` 업데이트, "{이름}님의 주문이 출고 처리되었습니다." 토스트, 선택 주문 유지 — line 482-493
-- [ ] 모든 `CopyableText` 클릭 → `navigator.clipboard.writeText` → "{필드명}을 복사했습니다." 토스트 (5종 — 이름·연락처·인싸이트 ID·도로명주소·상세주소·요청사항·관리자 메모)
-  - 도구 팁: "클릭하여 복사" 기본, 필드별 커스텀 (예: "도로명주소 복사 (우편번호 제외)")
-- [ ] 실시간 자동 갱신 없음(주문 처리 후 명시적 reload만)
-
-## 입력 폼 구조 (이 화면은 편집 폼 없음, 출고 처리 버튼만)
-
-주소 표시는 입력 폼이 아니지만, **입력 폼 분리 구조와 1:1 매칭돼야 함**:
-- `CustomerInfoStep.jsx` line 171-231에서 주소는 세 필드로 분리 입력
-  - `address` (도로명, Daum 우편번호 검색 결과)
-  - `detailAddress` (상세주소, 직접 입력)
-  - `postcode` (우편번호, readOnly)
-- 따라서 출고 화면 표시도 세 줄 분리 + 각각 독립 복사 가능해야 함
+## 입력 폼 구조 (이 화면은 편집 폼 없음 — 표시가 입력 분리 구조와 1:1 매칭돼야 함)
+- `CustomerInfoStep.jsx`에서 주소는 세 필드로 분리 입력: `address`(도로명, Daum 검색) / `detailAddress`(직접 입력) / `postcode`(readOnly)
+- 따라서 출고 화면 표시도 도로명(+우편번호 병기)·상세 분리 + 각각 독립 복사. **한 줄 통합 금지**
 
 ## 권한별 차이
-
-- master, editor (`orders:edit` 권한): "출고 처리" 버튼 표시
-- viewer: 버튼 미표시, 조회만 가능
-- 학회 필터·뷰 모드·복사 액션은 모든 권한에서 가능
+- `orders:edit` 보유(master, editor): 체크박스·개별 출고 처리·일괄 출고·출고 취소
+- 미보유(viewer 등): 조회·필터·검색·복사만. 체크박스와 액션 행 미렌더
+- 메뉴 접근 자체는 `orders:view` (AdminLayout 라우트 게이트)
 
 ## 데이터 모델
 
-### `orders` 테이블 (출고 화면에서 SELECT하는 필드)
+### `orders` 테이블 (SELECT 필드)
 - `id` (bigint)
-- `parent_order_id` (bigint, nullable) — 합배송 시 부모 주문 ID
+- `parent_order_id` (bigint, nullable) — 합배송 시 부모 주문 ID. 있으면 목록에서 숨김
 - `customer_name` (text)
-- `phone_number` (text) — 011/010 등 하이픈 포함 포맷
-- `shipping_address` (jsonb) — **객체 구조**:
+- `phone_number` (text) — 하이픈 포함 포맷
+- `shipping_address` (jsonb) — **객체 구조, 3요소 분리 유지**:
   - `postcode` (text)
-  - `address` (text) — 도로명주소 (또는 `roadAddress`, `jibunAddress`도 fallback)
-  - `detailAddress` (text) — 상세주소 (또는 `detail`도 fallback)
+  - `address` (text) — 도로명 (fallback: `roadAddress`, `jibunAddress`)
+  - `detailAddress` (text) — 상세 (fallback: `detail`)
 - `final_payment` (numeric)
 - `delivery_fee` (numeric)
-- `status` (text) — `pending`/`paid`/`completed`/`cancelled`/`refunded`
+- `status` (text) — 이 화면은 `paid`/`completed`만 조회
 - `created_at` (timestamptz)
 - `customer_request` (text, nullable)
 - `admin_memo` (text, nullable)
@@ -113,33 +107,35 @@
 
 ### join: `events(name)`, `order_items(...)`
 - `order_items`: `product_id`, `quantity`, `price_at_purchase`, `product_name`, `product_code`, `category`, `list_price`
-- `order_items.products(name, category)` (fallback용 — order_items 스냅샷이 없을 때)
+- `order_items.products(name, category)` — order_items 스냅샷이 없을 때 fallback
 
 ### 클라이언트 가공 (`groupLinkedOrders`)
 - parent 주문에 `linkedChildren`, `mergedItems`, `mergedTotal` 부여
-- child 주문은 `parent_order_id`가 있는 채로 그대로 반환됨 (목록 필터에서 `parent_order_id` 있으면 숨김)
+- child 주문은 `parent_order_id`가 있는 채로 반환 → 목록 필터에서 숨김
 
 ## 필터·뷰 모드
-
-- 학회 필터: 학회 ID 단일 선택 or 전체. 기본 `''` (전체)
-- 상태 필터: 코드에 박혀 있음 — `['paid', 'completed']`만 조회 (line 463-464)
-- 뷰 모드: `all`/`book`/`test`. 카드 필터링(혼합은 양쪽에 표시) + 상품 행 그레이드 처리
+- 학회 필터: 단일 선택 or 전체, 기본 `''` (서버 필터)
+- 데이터 로드 상태: 코드 고정 — `['paid', 'completed']` 일괄 조회
+- 상태 세그먼트: `paid`(출고 대기) / `completed`(출고 완료) / `all`. **기본 `paid`**. 클라이언트 필터
+- 검색: 이름·연락처·ID 부분일치. 클라이언트 필터
+- 뷰 모드: `all`/`book`/`test`. 카드 필터링 + 상품 행 그레이드. '도구' 카테고리는 '검사'로 정규화
+- 적용 순서: [서버] 학회 → [클라] parent 숨김 → 뷰모드 → (여기까지가 카운트 기준) → 상태 세그먼트 → 검색
 
 ## 빈 상태·로딩·오류 처리
+- 검색 결과 0건: `SearchOffIcon` + "검색 결과가 없습니다" / "이름·연락처·ID를 다시 확인해 보세요"
+- 대기 탭 0건(검색 없음): `CheckCircleIcon` + "출고 대기 주문이 없습니다" / "모두 처리됐어요"
+- 그 외 0건: `LocalShippingIcon` + "해당 조건의 주문이 없습니다" / "학회 필터 또는 뷰 모드를 변경해 보세요"
+- 로딩: `CircularProgress` size=32 중앙
+- 오류: 상단 `Alert severity="error"` (toast 아님, 화면 안 잔류)
 
-- 빈 상태(좌측 목록): `LocalShippingIcon` opacity 0.3 + "해당 조건의 주문이 없습니다"
-- 빈 상태(우측 상세, 미선택): `LocalShippingIcon` opacity 0.3 + "주문을 선택하면 상세 정보가 표시됩니다"
-- 로딩: 좌측에 `CircularProgress`
-- 오류: 상단 `Alert severity="error"` 형식 (toast 아님, 화면 안에 잔류)
-
-## 핵심 발견 (시안 검수 시 반드시 확인)
-
-1. **주소는 세 줄 분리 표시. 한 줄 통합 금지.** PR #6에서 통합된 한 줄로 시안이 만들어졌으나, 입력 폼이 도로명·상세·우편번호로 분리돼 있고 운영자가 출고처에 전달할 때 필드 단위로 복사하기 때문에 분리가 필수.
-2. **상품 행마다 카테고리 칩 필수.** "도서"/"검사" 칩이 없으면 출고 운영자가 도서/검사 분리 작업을 할 수 없다. 뷰 모드 토글 자체가 카테고리 기반으로 작동하므로 칩이 빠지면 시각적 정합이 깨진다.
-3. **주문자 보조 정보 4종(요청사항·관리자 메모·인싸이트 ID·연락처)은 동일한 라벨 + 값 패턴을 가져야 한다.** 한 카드 안에서 서식이 흩어지면 운영자는 위계를 다시 학습해야 한다.
-4. **모든 표시 텍스트는 클릭하여 복사 가능.** 도구 팁 + 복사 아이콘이 일관되게 붙는다.
-5. **합배송(parent_order_id) 상태는 좌측 카드의 "연계 N건" 배지로 노출.** 시안이 단일 주문만 가정하면 합배송 정보가 사라진다.
+## 핵심 발견 (시안·구현 검수 시 반드시 확인)
+1. **주소는 도로명(+우편번호 병기)·상세 분리 표시. 한 줄 통합 금지.** 입력 폼이 분리돼 있고 택배 접수 시 필드 단위 복사가 필요.
+2. **상품 행마다 카테고리 칩 필수.** 칩이 빠지면 도서/검사 분리 출고 작업과 뷰 모드 토글의 시각 정합이 깨진다.
+3. **복사는 인라인 단일 패턴.** 값 직후 상시 노출 아이콘 + 값 전체 클릭 타깃. hover-reveal·우측 끝 IconButton·단축 복사 행은 모두 폐기됨(2026-06-12).
+4. **합배송(parent_order_id)은 "연계 N건" 칩으로 노출.** 단일 주문만 가정하면 합배송 정보가 사라진다.
+5. **일괄 출고는 eligibleSelectedIds(표시 중인 paid 선택분)만 처리.** 필터 변경으로 화면에서 사라진 선택분이 처리되는 사고 방지 — 필터·재조회 시 선택 초기화와 한 쌍.
+6. **출고 취소는 completed→paid 단순 복귀.** 알림톡 재발송 없음(발송은 주문관리 플로우의 명시적 호출 전용). status_history·audit_log는 DB 트리거가 기록.
 
 ## 변경 이력
-
 - 2026-05-13 신설 — PR #6 출고 시안 검수 중 주소 통합·카테고리 누락·서식 불일치 3건 발견. 게이트 1.5 절차 신설과 함께 작성.
+- 2026-06-12 전면 재작성 — 구 좌우 패널 구조 기술 폐기, 현 그룹 카드 구조 반영. 출고 고도화 사이클: 명칭 "출고 관리" 개칭 / 상태 세그먼트(기본 출고 대기) / 검색 / InfoRow 인라인 복사(우측 IconButton·단축 복사 행 폐기) / 고객명 인라인 복사 / 일괄 처리 안전화(eligible만 + 확인 다이얼로그 + 선택 초기화) / 출고 취소 / "출고처리 완료" 중복 칩 제거.

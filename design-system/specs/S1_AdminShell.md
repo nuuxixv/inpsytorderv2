@@ -38,7 +38,7 @@
 - [ ] **주문 관리** — `ShoppingCartIcon` — `/admin/orders` — 권한 `orders:view`
 - [ ] **학회 관리** — `EventIcon` — `/admin/events` — 권한 `events:view`
 - [ ] **상품 관리** — `CategoryIcon` — `/admin/products` — 권한 `products:view`
-- [ ] **출고 현황** — `LocalShippingIcon` — `/admin/fulfillment` — 권한 `orders:view`
+- [ ] **출고 관리** — `LocalShippingIcon` — `/admin/fulfillment` — 권한 `orders:view` (2026-06-12 "출고 현황"에서 개칭)
 - [ ] **사용자 관리** — `PeopleIcon` — `/admin/users` — 권한 `users:manage`
 - [ ] **피드백** — `RateReviewIcon` — `/admin/feedback` — 권한 `master`
 - [ ] **게시판** — `AnnouncementIcon` — `/admin/bulletins` — 권한 `null`(모든 인증 사용자)
@@ -67,7 +67,7 @@
 - [ ] `/admin/orders` → "주문 관리"
 - [ ] `/admin/events` → "학회 관리"
 - [ ] `/admin/products` → "상품 관리"
-- [ ] `/admin/fulfillment` → "출고 현황"
+- [ ] `/admin/fulfillment` → "출고 관리"
 - [ ] `/admin/users` → "사용자 관리"
 - [ ] `/admin/feedback` → **"피드백 관리"** (사이드바는 "피드백")
 - [ ] `/admin/bulletins` → "게시판"

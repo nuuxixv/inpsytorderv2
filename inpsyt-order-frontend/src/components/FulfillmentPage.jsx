@@ -7,24 +7,25 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  TextField,
   ToggleButtonGroup,
   ToggleButton,
   CircularProgress,
   Alert,
   Button,
-  Tooltip,
-  IconButton,
   Checkbox,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   useTheme,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import PersonIcon from '@mui/icons-material/Person';
-import PhoneIcon from '@mui/icons-material/Phone';
-import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
+import SearchOffIcon from '@mui/icons-material/SearchOff';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { getFulfillmentOrders, groupLinkedOrders } from '../api/orders';
 import { getEvents } from '../api/events';
 import { supabase } from '../supabaseClient';
@@ -65,36 +66,6 @@ const isOrderVisible = (orderType, viewMode) => {
   return true;
 };
 
-// ─── 단축 복사 버튼 (사양 line 75: 5종 복사) ──────────────────────────────────
-const CopyIconButton = ({ tooltip, icon, onClick }) => {
-  const theme = useTheme();
-  return (
-    <Tooltip title={tooltip} placement="top" arrow>
-      <IconButton
-        size="small"
-        onClick={onClick}
-        sx={{
-          width: 44,
-          height: 44,
-          borderRadius: `${theme.radii.sm}px`,
-          color: theme.gray[600],
-          border: `1px solid ${theme.gray[200]}`,
-          bgcolor: 'background.paper',
-          cursor: 'copy',
-          transition: `all 0.15s ${theme.easing.toss}`,
-          '&:hover': {
-            bgcolor: alpha(theme.palette.primary.main, 0.06),
-            borderColor: alpha(theme.palette.primary.main, 0.3),
-            color: theme.palette.primary.main,
-          },
-        }}
-      >
-        {icon}
-      </IconButton>
-    </Tooltip>
-  );
-};
-
 // ─── 그룹 카드 (시안 FulfillmentGroupCard 정합) ──────────────────────────────
 const FulfillmentGroupCard = ({
   order,
@@ -104,6 +75,7 @@ const FulfillmentGroupCard = ({
   onSelectToggle,
   onCopy,
   onShip,
+  onUnship,
   canShip,
 }) => {
   const theme = useTheme();
@@ -126,6 +98,7 @@ const FulfillmentGroupCard = ({
 
   const requestNote = order.customer_request?.trim();
   const adminMemo = order.admin_memo?.trim();
+  const hasActions = canShip && (order.status === 'paid' || isCompleted);
 
   return (
     <SectionCard
@@ -165,10 +138,41 @@ const FulfillmentGroupCard = ({
           </Box>
         )}
         <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, gap: 0.25 }}>
-          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, flexWrap: 'wrap' }}>
-            <Typography variant="subtitle1" sx={{ color: 'text.primary' }}>
-              {order.customer_name}
-            </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+            {/* 고객명 인라인 복사 — 값+아이콘 단일 클릭 타깃 (체크박스와 오터치 간격 유지) */}
+            <Box
+              onClick={() => onCopy('이름', order.customer_name)}
+              role="button"
+              aria-label="이름 복사"
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.75,
+                px: 0.75,
+                py: 0.25,
+                mr: -0.75,
+                borderRadius: `${theme.radii.sm}px`,
+                cursor: 'copy',
+                transition: `all 0.15s ${theme.easing.toss}`,
+                '&:hover': {
+                  bgcolor: alpha(theme.palette.primary.main, 0.06),
+                  '& .FulfillmentCard-copyIcon': { color: theme.palette.primary.main },
+                },
+              }}
+            >
+              <Typography variant="subtitle1" sx={{ color: 'text.primary' }}>
+                {order.customer_name}
+              </Typography>
+              <ContentCopyIcon
+                className="FulfillmentCard-copyIcon"
+                sx={{
+                  fontSize: 16,
+                  flexShrink: 0,
+                  color: theme.gray[400],
+                  transition: `color 0.15s ${theme.easing.toss}`,
+                }}
+              />
+            </Box>
             <StatusBadge value={order.status} size="sm" />
             {isLinked && (
               <Chip
@@ -178,19 +182,6 @@ const FulfillmentGroupCard = ({
                   bgcolor: alpha(theme.palette.warning.main, 0.1),
                   color: theme.palette.warning.dark,
                   border: `1px solid ${alpha(theme.palette.warning.main, 0.25)}`,
-                }}
-              />
-            )}
-            {isCompleted && (
-              <Chip
-                icon={<CheckCircleIcon sx={{ fontSize: 14 }} />}
-                label="출고처리 완료"
-                size="small"
-                sx={{
-                  bgcolor: alpha(theme.status.paid, 0.1),
-                  color: theme.status.paid,
-                  border: `1px solid ${alpha(theme.status.paid, 0.25)}`,
-                  '& .MuiChip-icon': { color: theme.status.paid, ml: 0.5 },
                 }}
               />
             )}
@@ -285,60 +276,38 @@ const FulfillmentGroupCard = ({
         />
       </Box>
 
-      {/* 액션 행 (단축 복사 + 출고 처리) */}
-      <ActionSlot
-        sx={{
-          px: 3,
-          py: 1.25,
-          bgcolor: theme.gray[50],
-          borderBottom: `1px solid ${theme.gray[100]}`,
-        }}
-        leading={
-          <>
-            <Typography variant="subtitle2" sx={{ color: 'text.secondary', mr: 0.5 }}>
-              단축 복사
-            </Typography>
-            <CopyIconButton
-              tooltip={`이름 복사 — ${order.customer_name}`}
-              icon={<PersonIcon sx={{ fontSize: 18 }} />}
-              onClick={() => onCopy('이름', order.customer_name)}
-            />
-            {order.phone_number && (
-              <CopyIconButton
-                tooltip={`연락처 복사 — ${order.phone_number}`}
-                icon={<PhoneIcon sx={{ fontSize: 18 }} />}
-                onClick={() => onCopy('연락처', order.phone_number)}
-              />
-            )}
-            {order.inpsyt_id && (
-              <CopyIconButton
-                tooltip={`인싸이트 ID 복사 — ${order.inpsyt_id}`}
-                icon={<BadgeOutlinedIcon sx={{ fontSize: 18 }} />}
-                onClick={() => onCopy('인싸이트 ID', order.inpsyt_id)}
-              />
-            )}
-            {roadAddress && (
-              <CopyIconButton
-                tooltip={`도로명주소 복사 (우편번호 제외) — ${roadAddress}`}
-                icon={<LocationOnIcon sx={{ fontSize: 18 }} />}
-                onClick={() => onCopy('도로명주소', roadAddress)}
-              />
-            )}
-          </>
-        }
-      >
-        {canShip && order.status === 'paid' && (
-          <Button
-            size="small"
-            variant="contained"
-            color="success"
-            startIcon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
-            onClick={() => onShip(order.id)}
-          >
-            출고 처리
-          </Button>
-        )}
-      </ActionSlot>
+      {/* 액션 행 (출고 처리 / 출고 취소) — 버튼 없으면 미렌더 */}
+      {hasActions && (
+        <ActionSlot
+          sx={{
+            px: 3,
+            py: 1.25,
+            bgcolor: theme.gray[50],
+            borderBottom: `1px solid ${theme.gray[100]}`,
+          }}
+        >
+          {order.status === 'paid' && (
+            <Button
+              size="small"
+              variant="contained"
+              color="success"
+              startIcon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
+              onClick={() => onShip(order.id)}
+            >
+              출고 처리
+            </Button>
+          )}
+          {isCompleted && (
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => onUnship(order.id)}
+            >
+              출고 취소
+            </Button>
+          )}
+        </ActionSlot>
+      )}
 
       {/* 상품 목록 — 사양 핵심 발견 #2: 분류 칩 필수 */}
       <Box>
@@ -460,15 +429,19 @@ const FulfillmentPage = () => {
   const [events, setEvents] = useState([]);
   const [viewMode, setViewMode] = useState('all');
   const [filterEvent, setFilterEvent] = useState('');
+  const [statusFilter, setStatusFilter] = useState('paid');
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
 
   const canShip = hasPermission('orders:edit');
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setSelectedIds([]);
     try {
       const data = await getFulfillmentOrders({
         eventId: filterEvent || undefined,
@@ -509,21 +482,21 @@ const FulfillmentPage = () => {
     }
   }, [orders, addNotification, loadOrders]);
 
-  const handleBulkShip = useCallback(async () => {
-    if (selectedIds.length === 0) return;
+  const handleUnship = useCallback(async (orderId) => {
+    const order = orders.find(o => o.id === orderId);
+    const name = order?.customer_name || `#${orderId}`;
     try {
       const { error: updateError } = await supabase
         .from('orders')
-        .update({ status: 'completed' })
-        .in('id', selectedIds);
+        .update({ status: 'paid' })
+        .eq('id', orderId);
       if (updateError) throw updateError;
-      addNotification(`${selectedIds.length}개 주문이 일괄 출고 처리되었습니다.`, 'success');
-      setSelectedIds([]);
+      addNotification(`${name}님의 주문을 출고 대기로 되돌렸습니다.`, 'success');
       loadOrders();
     } catch (err) {
-      addNotification(`일괄 출고 처리 실패: ${err.message}`, 'error');
+      addNotification(`출고 취소 실패: ${err.message}`, 'error');
     }
-  }, [selectedIds, addNotification, loadOrders]);
+  }, [orders, addNotification, loadOrders]);
 
   const toggleSelect = (id) => {
     setSelectedIds(prev =>
@@ -539,19 +512,49 @@ const FulfillmentPage = () => {
     loadOrders();
   }, [loadOrders]);
 
-  const filteredOrders = useMemo(() => orders.filter(order => {
+  // 학회(서버) + 뷰모드 적용 후, 상태·검색 적용 전 — 상태 세그먼트 카운트의 기준
+  const baseOrders = useMemo(() => orders.filter(order => {
     if (order.parent_order_id) return false;
     const orderType = classifyOrder(order.mergedItems || order.order_items);
     return isOrderVisible(orderType, viewMode);
   }), [orders, viewMode]);
 
-  const pendingCount = filteredOrders.filter(o => o.status === 'paid').length;
-  const completedCount = filteredOrders.filter(o => o.status === 'completed').length;
-  const totalCount = filteredOrders.length;
+  const pendingCount = baseOrders.filter(o => o.status === 'paid').length;
+  const completedCount = baseOrders.filter(o => o.status === 'completed').length;
+  const totalCount = baseOrders.length;
+
+  const searchQuery = searchTerm.trim().toLowerCase();
+  const filteredOrders = useMemo(() => baseOrders.filter(order => {
+    if (statusFilter !== 'all' && order.status !== statusFilter) return false;
+    if (searchQuery) {
+      return [order.customer_name, order.phone_number, order.inpsyt_id]
+        .some(v => (v || '').toLowerCase().includes(searchQuery));
+    }
+    return true;
+  }), [baseOrders, statusFilter, searchQuery]);
 
   // 선택된 ID 중 실제로 paid 상태인 건만 일괄 처리 대상
-  const selectablePaidIds = filteredOrders.filter(o => o.status === 'paid').map(o => o.id);
-  const eligibleSelectedIds = selectedIds.filter(id => selectablePaidIds.includes(id));
+  const eligibleSelectedIds = useMemo(() => {
+    const paidIds = new Set(filteredOrders.filter(o => o.status === 'paid').map(o => o.id));
+    return selectedIds.filter(id => paidIds.has(id));
+  }, [filteredOrders, selectedIds]);
+
+  const handleBulkShip = useCallback(async () => {
+    if (eligibleSelectedIds.length === 0) return;
+    try {
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ status: 'completed' })
+        .in('id', eligibleSelectedIds);
+      if (updateError) throw updateError;
+      addNotification(`${eligibleSelectedIds.length}개 주문이 일괄 출고 처리되었습니다.`, 'success');
+      loadOrders();
+    } catch (err) {
+      addNotification(`일괄 출고 처리 실패: ${err.message}`, 'error');
+    } finally {
+      setBulkConfirmOpen(false);
+    }
+  }, [eligibleSelectedIds, addNotification, loadOrders]);
 
   const headerAction = (
     <Box sx={{ display: 'flex', gap: 1 }}>
@@ -561,7 +564,7 @@ const FulfillmentPage = () => {
           variant="contained"
           startIcon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
           disabled={eligibleSelectedIds.length === 0}
-          onClick={handleBulkShip}
+          onClick={() => setBulkConfirmOpen(true)}
         >
           출고 완료 처리
           {eligibleSelectedIds.length > 0 && ` (${eligibleSelectedIds.length})`}
@@ -570,10 +573,12 @@ const FulfillmentPage = () => {
     </Box>
   );
 
+  const isSearching = searchQuery.length > 0;
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
-        title="출고 현황"
+        title="출고 관리"
         subtitle={loading ? '' : `총 ${totalCount}건 · 대기 ${pendingCount}건 · 완료 ${completedCount}건`}
         icon={LocalShippingIcon}
         action={headerAction}
@@ -603,6 +608,39 @@ const FulfillmentPage = () => {
             </Select>
           </FormControl>
 
+          <TextField
+            size="small"
+            placeholder="이름·연락처·ID 검색"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            sx={{ flex: '1 1 200px', minWidth: 180 }}
+          />
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              상태
+            </Typography>
+            <ToggleButtonGroup
+              value={statusFilter}
+              exclusive
+              onChange={(_, val) => {
+                if (val) {
+                  setStatusFilter(val);
+                  setSelectedIds([]);
+                }
+              }}
+              size="small"
+            >
+              <ToggleButton value="paid" sx={{ px: 2 }}>
+                출고 대기 ({pendingCount})
+              </ToggleButton>
+              <ToggleButton value="completed" sx={{ px: 2 }}>
+                출고 완료 ({completedCount})
+              </ToggleButton>
+              <ToggleButton value="all" sx={{ px: 2 }}>전체</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               뷰 모드
@@ -610,7 +648,12 @@ const FulfillmentPage = () => {
             <ToggleButtonGroup
               value={viewMode}
               exclusive
-              onChange={(_, val) => { if (val) setViewMode(val); }}
+              onChange={(_, val) => {
+                if (val) {
+                  setViewMode(val);
+                  setSelectedIds([]);
+                }
+              }}
               size="small"
             >
               <ToggleButton value="all" sx={{ px: 2 }}>전체</ToggleButton>
@@ -648,11 +691,25 @@ const FulfillmentPage = () => {
         </Box>
       ) : filteredOrders.length === 0 ? (
         <SectionCard padding={0}>
-          <EmptyState
-            icon={LocalShippingIcon}
-            title="해당 조건의 주문이 없습니다"
-            description="학회 필터 또는 뷰 모드를 변경해 보세요"
-          />
+          {isSearching ? (
+            <EmptyState
+              icon={SearchOffIcon}
+              title="검색 결과가 없습니다"
+              description="이름·연락처·ID를 다시 확인해 보세요"
+            />
+          ) : statusFilter === 'paid' ? (
+            <EmptyState
+              icon={CheckCircleIcon}
+              title="출고 대기 주문이 없습니다"
+              description="모두 처리됐어요"
+            />
+          ) : (
+            <EmptyState
+              icon={LocalShippingIcon}
+              title="해당 조건의 주문이 없습니다"
+              description="학회 필터 또는 뷰 모드를 변경해 보세요"
+            />
+          )}
         </SectionCard>
       ) : (
         <Box>
@@ -666,11 +723,26 @@ const FulfillmentPage = () => {
               onSelectToggle={() => toggleSelect(order.id)}
               onCopy={handleCopy}
               onShip={handleShip}
+              onUnship={handleUnship}
               canShip={canShip}
             />
           ))}
         </Box>
       )}
+
+      {/* 일괄 출고 확인 다이얼로그 */}
+      <Dialog open={bulkConfirmOpen} onClose={() => setBulkConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>일괄 출고 처리</DialogTitle>
+        <DialogContent>
+          <Typography>
+            <strong>{eligibleSelectedIds.length}건</strong>을 출고 완료 처리할까요?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkConfirmOpen(false)}>취소</Button>
+          <Button variant="contained" onClick={handleBulkShip}>처리</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

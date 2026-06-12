@@ -92,7 +92,7 @@ const AdminLayout = () => {
               element={hasPermission('products:view') ? <ProductManagementPage /> : <Navigate to="/admin" replace />}
             />
 
-            {/* 출고 현황 */}
+            {/* 출고 관리 */}
             <Route
               path="/fulfillment"
               element={hasPermission('orders:view') ? <FulfillmentPage /> : <Navigate to="/admin" replace />}

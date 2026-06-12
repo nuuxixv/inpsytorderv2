@@ -93,7 +93,7 @@ export const getOrders = async (options) => {
 };
 
 /**
- * 출고 현황용 주문 목록을 가져옵니다 (order_items → products 중첩 join 포함).
+ * 출고 관리용 주문 목록을 가져옵니다 (order_items → products 중첩 join 포함).
  */
 export const getFulfillmentOrders = async ({ eventId, statuses, dateFrom, dateTo } = {}) => {
   let query = supabase

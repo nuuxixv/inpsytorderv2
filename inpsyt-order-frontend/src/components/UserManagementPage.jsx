@@ -58,7 +58,7 @@ import { PageHeader, SectionCard, EmptyState, ActionSlot, RoleChip } from './ui'
 
 // Permission definitions for the matrix
 // 실제 동작하는(메뉴 게이트·RLS에 연결된) 권한만. 동작 안 하던 가짜 컬럼 3종 제거(2026-06-01 건우님):
-//   - fulfillment:view → 출고 현황은 'orders:view'로 열림(별도 키 미사용)
+//   - fulfillment:view → 출고 관리는 'orders:view'로 열림(별도 키 미사용)
 //   - feedback:view    → 피드백은 master 전용
 //   - bulletins:manage → 게시판 보기=전원, 작성/수정=master 전용
 const PERMISSION_COLUMNS = [
@@ -158,7 +158,7 @@ const UserManagementPage = () => {
     'dashboard:view': '대시보드',
     'orders:view': '주문 조회',
     'orders:edit': '주문 편집',
-    'fulfillment:view': '출고 현황',
+    'fulfillment:view': '출고 관리',
     'events:view': '학회 조회',
     'events:edit': '학회 편집',
     'products:view': '상품 조회',
