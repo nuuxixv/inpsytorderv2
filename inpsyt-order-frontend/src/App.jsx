@@ -39,7 +39,7 @@ import {
 } from '@mui/material';
 
 function AppRoutes() {
-  const { user, loading } = useAuth();
+  const { user, loading, refreshing } = useAuth();
 
   if (loading) {
     return (
@@ -84,7 +84,7 @@ function AppRoutes() {
           <Route
             path="/admin/*"
             element={
-              <ProtectedRoute user={user}>
+              <ProtectedRoute user={user} refreshing={refreshing}>
                 <AdminLayout />
               </ProtectedRoute>
             }

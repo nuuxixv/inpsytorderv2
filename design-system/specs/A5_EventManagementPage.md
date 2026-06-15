@@ -75,7 +75,8 @@
 ## 입력 폼 구조 (추가/수정 다이얼로그, line 562-725)
 
 > **2026-06-10 — 다이얼로그를 `src/components/EventFormDialog.jsx`로 공용 추출.** EventManagementPage(L1)·EventDetailPage(L2 인라인 수정) 양쪽에서 사용. 폼 구조·검증·자동 채우기 규칙은 아래 그대로 1:1 보존. props = open/onClose/event(null=신규)/societies/staff/canEdit/canDelete/onSaved/onDeleted. 다이얼로그 내부 삭제(주문 건수 확인→확인 다이얼로그)도 컴포넌트가 자체 처리하며, L1의 ⋯ 메뉴 삭제 확인은 페이지(`deleteTarget`)에 잔류.
-> **날짜 3필드(시작일·종료일·배송 예정일) = 공용 `ui/DateField`(single 모드 경량 캘린더)로 교체(2026-06-10).** 표시 `YYYY.MM.DD(요일)`, × 버튼으로 클리어 가능. 빈 날짜는 upsert 시 null 정규화(date 컬럼 — '' 저장 오류 방지, 배송 예정일 비우기 지원).
+> **날짜 필드 = 공용 `ui/DateField`(경량 캘린더)로 교체(2026-06-10).** 표시 `YYYY.MM.DD(요일)`, × 버튼으로 클리어 가능. 빈 날짜는 upsert 시 null 정규화(date 컬럼 — '' 저장 오류 방지, 배송 예정일 비우기 지원).
+> **2026-06-15 datepicker 고도화:** ① 시작일·종료일 별도 2필드 → **`mode="range"` DateField 1개("행사 기간", 호텔 예약식 한 캘린더 2클릭)** 로 통합. `onChange({start,end})`를 `handleChange('start_date',start)`+`handleChange('end_date',end)` 2번 호출로 분해 → **DB 컬럼(start_date/end_date) 구조 그대로 유지.** range 캘린더가 start≤end를 자동 정렬하므로 시작>종료 입력 구조적 차단. ② 배송 예정일은 별개 single 유지. ③ 캘린더 공통: 오늘 셀 테두리 강조(자동선택 안 함), 항상 6행(42셀) 고정 높이(‹ › 위치 불변), single 필드 직접 타이핑 입력(`YYYY.MM.DD`/`YYYY-MM-DD`/`YYYYMMDD` 수용, blur·Enter 시 검증·정규화, 무효 날짜는 helperText 에러+값 미반영). range 필드는 타이핑 미지원(2클릭 전제, 아이콘 클릭으로 캘린더만).
 
 > 폼은 두 블록(`Step 1: 구조화 정보` + `Step 2: 자동 생성 및 추가 정보`)으로 나뉘며, 두 블록 사이에 `Divider`. 두 블록 통합 금지.
 
@@ -91,8 +92,8 @@
 - [ ] **행사명** (`name`, 텍스트, `InputLabelProps={shrink: true}`) — helperText "위 정보로 자동 완성되며, 직접 입력·수정할 수 있습니다." (2026-06-02 — 자유 입력 명확화. 행사명을 직접 수정하면 `_nameTouched` 플래그로 이후 자동완성이 덮어쓰지 않음. `_nameTouched`는 UI 전용, DB upsert에서 제외)
 - [ ] **주문 URL** (`order_url_slug`, 텍스트) — helperText "주문 페이지 주소로 사용됩니다. 영문, 숫자, 하이픈만 가능"
 - [ ] **할인율 (%)** (`discount_rate`, number) — UI는 0~100 정수, 저장은 `/100`해서 소수로. helperText "예: 15 = 15% 할인"
-- [ ] **시작일** (`start_date`, date) + **종료일** (`end_date`, date) — 가로 배치, 별도 필드
-- [ ] **배송 예정일** (`estimated_delivery_date`, date) — helperText "입력 시 고객 주문 조회 페이지에 도착 예정일이 표시됩니다."
+- [ ] **행사 기간** (`DateField mode="range"`) — `start_date`~`end_date` 단일 캘린더 2클릭. helperText "달력에서 시작일·종료일을 차례로 선택하세요." onChange 시 start_date/end_date 컬럼에 분해 저장(2026-06-15 통합)
+- [ ] **배송 예정일** (`estimated_delivery_date`, DateField single) — helperText "입력 시 고객 주문 조회 페이지에 도착 예정일이 표시됩니다."
 
 ### 다이얼로그 액션 (line 707-724)
 - [ ] master 권한 + 편집 모드일 때만 "삭제" 버튼 (error 색, `DeleteIcon`, 좌측 정렬 `mr: auto`)

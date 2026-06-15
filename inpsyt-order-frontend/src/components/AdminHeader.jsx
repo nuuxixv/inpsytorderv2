@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Typography, IconButton, Popover, List, ListItem, ListItemText,
-  Divider, Avatar, Menu, MenuItem, Dialog, DialogTitle, DialogContent,
-  DialogActions, TextField, Button, Chip, CircularProgress, useTheme,
+  ListItemButton, Divider, Avatar, Menu, MenuItem, Dialog, DialogTitle,
+  DialogContent, DialogActions, TextField, Button, Chip, CircularProgress,
+  Badge, Switch, useTheme,
 } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import ShoppingBagOutlinedIcon from '@mui/icons-material/ShoppingBagOutlined';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useNotification } from '../hooks/useNotification';
@@ -33,10 +35,20 @@ const FEEDBACK_TYPES = [
   { value: 'suggestion', label: '개선 제안' },
 ];
 
-const AdminHeader = ({ onMenuToggle }) => {
+const AdminHeader = ({
+  onMenuToggle,
+  newOrders = [],
+  unseenCount = 0,
+  onSeenNewOrders,
+  onOpenNewOrder,
+  browserNotif = false,
+  soundNotif = false,
+  onToggleBrowserNotif,
+  onToggleSoundNotif,
+}) => {
   const theme = useTheme();
   const { user, logout, profile } = useAuth();
-  const { addNotification, notifications } = useNotification();
+  const { addNotification } = useNotification();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -55,8 +67,16 @@ const AdminHeader = ({ onMenuToggle }) => {
   const [feedbackContent, setFeedbackContent] = useState('');
   const [feedbackSaving, setFeedbackSaving] = useState(false);
 
-  const handleNotificationClick = (event) => setNotificationAnchorEl(event.currentTarget);
+  const handleNotificationClick = (event) => {
+    setNotificationAnchorEl(event.currentTarget);
+    onSeenNewOrders?.(); // 드롭다운 열면 놓친 신규 주문 카운트 리셋(=확인)
+  };
   const handleNotificationClose = () => setNotificationAnchorEl(null);
+
+  const handleNewOrderItemClick = () => {
+    handleNotificationClose();
+    onOpenNewOrder?.();
+  };
   const handleUserMenuClick = (event) => setUserAnchorEl(event.currentTarget);
   const handleUserMenuClose = () => setUserAnchorEl(null);
 
@@ -177,7 +197,7 @@ const AdminHeader = ({ onMenuToggle }) => {
           <ChatBubbleOutlineIcon sx={{ fontSize: 20 }} />
         </IconButton>
 
-        {/* 알림 */}
+        {/* 알림 (종 + 놓친 신규 주문 뱃지) */}
         <IconButton
           onClick={handleNotificationClick}
           disableRipple
@@ -188,8 +208,11 @@ const AdminHeader = ({ onMenuToggle }) => {
             borderRadius: '8px',
             '&:hover': { bgcolor: theme.gray[50], color: theme.gray[900] },
           }}
+          aria-label={unseenCount > 0 ? `신규 주문 ${unseenCount}건` : '알림'}
         >
-          <NotificationsIcon sx={{ fontSize: 20 }} />
+          <Badge badgeContent={unseenCount} color="error" max={99}>
+            <NotificationsIcon sx={{ fontSize: 20 }} />
+          </Badge>
         </IconButton>
         <Popover
           open={openNotification}
@@ -199,28 +222,56 @@ const AdminHeader = ({ onMenuToggle }) => {
           transformOrigin={{ vertical: 'top', horizontal: 'right' }}
           PaperProps={{ sx: { mt: 1.5, borderRadius: `${theme.radii.lg}px`, boxShadow: '0 4px 12px rgba(0,0,0,0.10)', border: `1px solid ${theme.gray[100]}` } }}
         >
-          <List sx={{ width: 320, maxHeight: 400, overflow: 'auto' }}>
-            <ListItem>
-              <ListItemText primary="알림" primaryTypographyProps={{ fontWeight: 'bold' }} />
+          <Box sx={{ width: 340 }}>
+            <ListItem sx={{ py: 1.25 }}>
+              <ListItemText primary="신규 주문" primaryTypographyProps={{ variant: 'subtitle2' }} />
             </ListItem>
             <Divider />
-            {notifications.length === 0 ? (
-              <ListItem>
-                <ListItemText secondary="새로운 알림이 없습니다." secondaryTypographyProps={{ textAlign: 'center', py: 2 }} />
-              </ListItem>
-            ) : (
-              notifications.map((notification) => (
-                <ListItem key={notification.id}>
+
+            {/* 신규 주문 목록 (세션 내 휘발성) */}
+            <List sx={{ maxHeight: 320, overflow: 'auto', py: 0 }}>
+              {newOrders.length === 0 ? (
+                <ListItem sx={{ py: 3, justifyContent: 'center' }}>
                   <ListItemText
-                    primary={notification.message}
-                    secondary={format(notification.timestamp, 'yyyy-MM-dd HH:mm', { locale: ko })}
-                    primaryTypographyProps={{ variant: 'body2' }}
-                    secondaryTypographyProps={{ variant: 'caption' }}
+                    secondary="새로 들어온 주문이 없습니다."
+                    secondaryTypographyProps={{ variant: 'body2', textAlign: 'center' }}
                   />
                 </ListItem>
-              ))
-            )}
-          </List>
+              ) : (
+                newOrders.map((o) => (
+                  <ListItemButton key={`${o.id}-${o.at}`} onClick={handleNewOrderItemClick} sx={{ py: 1.25, px: 2 }}>
+                    <ShoppingBagOutlinedIcon sx={{ fontSize: 18, color: theme.gray[500], mr: 1.25 }} />
+                    <ListItemText
+                      primary={`${o.customerName} · ${o.amount.toLocaleString()}원`}
+                      secondary={format(o.at, 'M월 d일 HH:mm', { locale: ko })}
+                      primaryTypographyProps={{ variant: 'body2', sx: { fontWeight: 500 } }}
+                      secondaryTypographyProps={{ variant: 'caption' }}
+                    />
+                  </ListItemButton>
+                ))
+              )}
+            </List>
+
+            <Divider />
+
+            {/* 알림 설정 토글 */}
+            <Box sx={{ px: 2, py: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 0.5 }}>
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>브라우저 알림</Typography>
+                  <Typography variant="caption" color="text.secondary">화면 밖에 있어도 알려줍니다</Typography>
+                </Box>
+                <Switch size="small" checked={browserNotif} onChange={onToggleBrowserNotif} />
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 0.5 }}>
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>소리</Typography>
+                  <Typography variant="caption" color="text.secondary">신규 주문 시 알림음</Typography>
+                </Box>
+                <Switch size="small" checked={soundNotif} onChange={onToggleSoundNotif} />
+              </Box>
+            </Box>
+          </Box>
         </Popover>
 
         {/* 사용자 아바타 */}

@@ -78,12 +78,14 @@
 - [ ] 알림 아이콘 버튼: `NotificationsIcon`
 - [ ] 사용자 아바타 버튼: `<Avatar>` — 내용은 **이니셜** `(profile?.name || user?.email)?.[0]?.toUpperCase()` (line 217)
 
-### 1-H. AdminHeader — 알림 Popover (AdminHeader.jsx:182-212)
-- [ ] 제목 항목: "알림" (`fontWeight bold`)
-- [ ] 빈 상태: "새로운 알림이 없습니다." (`secondary`, center, py 2)
-- [ ] 알림 항목(있을 때): `notification.message`(primary) + `format(timestamp, 'yyyy-MM-dd HH:mm', ko)`(secondary)
-- [ ] Popover 폭 320px, maxHeight 400px
-- [ ] **시안에는 알림 Popover 콘텐츠가 없음** (시안은 벨 아이콘만, 클릭 동작 미구현) → §6 확인 필요
+### 1-H. AdminHeader — 종 아이콘 + 뱃지 + 알림 드롭다운 (2026-06-15 재구성)
+- [ ] 종 아이콘 `NotificationsIcon`에 `<Badge badgeContent={unseenCount} color="error" max={99}>` — 놓친 신규 주문 N건
+- [ ] 드롭다운 폭 340px. 제목 "신규 주문"(subtitle2) → Divider
+- [ ] **신규 주문 목록**(maxHeight 320, `newOrders`): 각 항목 `ShoppingBagOutlinedIcon` + "{고객명} · {금액}원"(body2 500) + `format(at, 'M월 d일 HH:mm', ko)`(caption). 클릭 시 `/admin/orders` 이동 + 드롭다운 닫힘
+- [ ] 빈 상태: "새로 들어온 주문이 없습니다." (body2, center, py 3)
+- [ ] **하단 알림 설정 토글 2종**: "브라우저 알림"(부제 "화면 밖에 있어도 알려줍니다") / "소리"(부제 "신규 주문 시 알림음") — 각 `Switch size="small"`
+- [ ] **드롭다운 열면 `unseenCount` 0으로 리셋**(= 확인). 목록은 유지
+- [ ] **변경 전**: 토스트 히스토리(`useNotification.notifications`) 표시였음 → 신규 주문 전용 드롭다운으로 교체. 토스트 히스토리는 `NotificationsDisplay`(우하단 Snackbar)가 담당
 
 ### 1-I. AdminHeader — 사용자 메뉴 (AdminHeader.jsx:220-237)
 - [ ] 상단 정보 블록: 이름 `profile?.name || user?.email?.split('@')[0] || '사용자'` (subtitle2 bold) + 이메일 `user?.email` (caption secondary)
@@ -147,9 +149,22 @@
 ### 2-H. 로그아웃 (AdminHeader.jsx:61-65)
 - [ ] `logout()` 후 `navigate('/login')`
 
-### 2-I. 실시간 신규주문 구독 (AdminLayout.jsx:31-47)
-- [ ] `realtime-orders` 채널 INSERT 구독 → "새로운 주문이 도착했습니다!" 토스트 (success)
-- [ ] **시각 무관 — 이식 시 절대 건드리지 말 것**
+### 2-I. 실시간 신규주문 구독 (AdminLayout.jsx)
+- [ ] `realtime-orders` 채널 INSERT 구독. **단일 콜백에서 4종 처리** (2026-06-15 강화):
+  1. **인앱 토스트** — "새로운 주문이 도착했습니다!" (success). 기존 동작 유지(즉시 인지)
+  2. **헤더 종 누적** — `newOrders`(세션 휘발성, 최근 20건) push + `unseenCount` +1. 놓쳐도 뱃지에 쌓임
+  3. **브라우저 알림** — 토글 ON + `Notification.permission === 'granted'`일 때 `new Notification('새 주문', { body: '고객명 · 금액원', icon: '/LOGO.svg', tag })`, `onclick` → `window.focus()` + `/admin/orders`
+  4. **소리** — 토글 ON일 때 WebAudio 내장 beep 1회(880Hz sine, 0.35s). 음원 파일·라이브러리 0
+- [ ] payload 필드: `payload.new.customer_name`, `payload.new.final_payment`, `payload.new.id` (orders 테이블)
+- [ ] 구독은 **1회만 생성**(deps `[addNotification, navigate]`), 토글 최신값은 ref(`browserRef`·`soundRef`)로 읽음
+- [ ] **시각 무관 — 토스트 메시지 자체는 건드리지 말 것**
+
+### 2-J. 신규 주문 알림 설정 (AdminLayout.jsx + AdminHeader.jsx, 2026-06-15 신설)
+- [ ] **localStorage 키 2종**: `notif:newOrder:browser`, `notif:newOrder:sound`
+- [ ] **역할별 디폴트**(`resolvePref`): `profile.role`이 `fulfillment*`로 시작하면 기본 **OFF**(학회 후 작업), 그 외(master·onsite)는 기본 **ON**. localStorage 저장값이 있으면 저장값 우선
+- [ ] **브라우저 알림 토글 ON 클릭 시**(사용자 제스처) `Notification.requestPermission()`. 미지원/거부 시 경고 토스트 + fallback(인앱은 항상 동작), 토글 OFF 유지
+- [ ] **소리 토글 ON 시** AudioContext `resume()`(자동재생 정책 대응 — 첫 상호작용에서 활성)
+- [ ] **Service Worker/Web Push 미사용** — 탭 열린 동안만 동작(학회 현장 시나리오 OK). 알림 DB 영속·풀 알림센터 없음
 
 ---
 
@@ -340,6 +355,7 @@
 
 ## 변경 이력
 
+- 2026-06-15 **신규 주문 알림 강화** (frontend) — 기존 `realtime-orders` INSERT 콜백(토스트만)을 4종 처리로 확장(§2-I). 헤더 종에 놓친 신규주문 뱃지 + 신규주문 드롭다운 + 알림설정 토글 2종 신설(§1-H). 브라우저 알림(ⓐ, `notif:newOrder:browser`)·소리(WebAudio beep, `notif:newOrder:sound`)·역할별 디폴트(fulfillment* 기본 OFF) 추가(§2-J). 변경 파일: AdminLayout.jsx(state 단일 소스·구독 콜백·토글 핸들러)·AdminHeader.jsx(종 뱃지·드롭다운·토글 UI, props 수신). Service Worker/Web Push 미도입, 신규 라이브러리 0. lint(touched 0 error)·build green.
 - 2026-06-01 **이식 완료** (frontend) — §3 After·§4 제거·§5/§6-R 정본대로 AdminSidebar·AdminHeader 시각 토큰 이식. AdminLayout은 §6-R #6(배경 gray[100] 유지)·maxWidth 1280 유지로 변경 없음(헤더 `mb:3` 제거는 AdminHeader에서 처리, 헤더-콘텐츠 간격은 레이아웃 `py`로 일원화). lint·build green.
   - **코드 vs 사양 diff (룰 F) — 메인 Claude 룰 C 리뷰에서 수정:** frontend가 임시로 쓴 `borderRadius: '14px'` 매직넘버 리터럴을 **`theme.radii.lg`(=16) 토큰 호출로 교체**(Popover·Menu). 16은 앱 전체 Card/Dialog/Drawer 컨벤션·이식 전 원래 헤더 값과도 일치 — 매직넘버 회피 + 플로팅 표면 일관성. **theme.radii.lg=16 ↔ Appendix radius-lg=14 불일치는 별도 토큰 정합 부채(CTO 영역).** 알림 Popover 본문 `fontSize: '0.9rem'/'0.75rem'` → `body2`/`caption` variant로 토큰화. MenuItem(비번/로그아웃) `fontSize`는 드롭다운 관용 표기라 유지.
   - 사이드바 메뉴 hover에서 시안의 t.gray[*]를 ListItemButton의 `sx={(t)=>...}` 콜백 인자(`t`=theme)로 접근 — 기존 코드 패턴 유지.

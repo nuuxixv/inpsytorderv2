@@ -73,6 +73,7 @@
 - [ ] 필드: "상단 고정" (`Checkbox` + `FormControlLabel`)
 - [ ] 액션: "취소" / 수정이면 "수정하기" 신규면 "작성하기" contained (저장 중 `CircularProgress` 14)
 - [ ] 저장 직후 `loadBulletins` 재호출
+- [ ] **임시저장(2026-06-15)**: 신규 작성(`!editMode`)만 localStorage 자동저장(`useFormDraft('bulletin', null)`, debounce 2초·24h 보존·userId 격리). 재진입 시 유효 draft 있으면 다이얼로그 상단 인라인 `DraftBanner`("작성 중이던 내용이 있어요" + 이어쓰기/새로쓰기) 노출. `DialogActions`에 "임시저장됨 HH:MM"(`DraftSavedHint`). 작성 성공 시 draft 즉시 삭제. **수정 모드는 제외**(DB 원본 존재 — 유령 복구 방지).
 
 ### 모달 2 — 게시글 삭제 확인 (line 548-557)
 - [ ] 타이틀: "게시글 삭제"

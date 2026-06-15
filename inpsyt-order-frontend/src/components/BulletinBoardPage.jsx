@@ -53,7 +53,8 @@ import {
   getBulletinReaders,
 } from '../api/bulletins';
 import { encodeForStorage } from '../utils/prepNoteImages';
-import { PageHeader, SectionCard, EmptyState, ActionSlot } from './ui';
+import { useFormDraft } from '../hooks/useFormDraft';
+import { PageHeader, SectionCard, EmptyState, ActionSlot, DraftBanner, DraftSavedHint } from './ui';
 
 // Toast UI 에디터/뷰어 = 무거운 의존성 → 지연 로드(초기 번들 0 영향, L2와 동일 패턴)
 const PrepNoteEditor = lazy(() => import('./PrepNoteEditor'));
@@ -202,6 +203,13 @@ const BulletinBoardPage = () => {
   const [saving, setSaving] = useState(false);
   // 에디터 본문 접근자(getHTML). 준비 전/해제 후 null 반환 → 저장 가드 (L2 패턴)
   const getContentHtmlRef = useRef(null);
+  // 에디터 재마운트 강제용 키(이어쓰기/새로쓰기 시 seed 교체).
+  const [editorKey, setEditorKey] = useState(0);
+  // 게시판 글쓰기 임시저장 — 신규 작성(new)만. 키 = bulletin:{userId}:new (type으로 L2와 격리).
+  // 다이얼로그 열렸고 신규일 때만 활성.
+  const newDraft = useFormDraft('bulletin', null, { enabled: openDialog && !editMode });
+  // 에디터 본문 최신값(onChange) — formData와 합쳐 draft에 저장.
+  const draftContentRef = useRef('');
 
   // 본문 이미지 라이트박스 (L2 EventDetailPage 패턴)
   const [lightboxSrc, setLightboxSrc] = useState(null);
@@ -275,17 +283,36 @@ const BulletinBoardPage = () => {
     [bulletins, readIds],
   );
 
+  // 신규 작성 자동저장 — title/content/category/is_pinned 변경 시 (빈 폼은 저장 안 함).
+  const handleEditorContentChange = useCallback((html) => {
+    draftContentRef.current = html;
+    if (!openDialog || editMode) return;
+    const plain = (html || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+    if (!formData.title.trim() && !plain) return;
+    newDraft.saveDraft({ ...formData, content: html });
+  }, [openDialog, editMode, formData, newDraft]);
+
+  useEffect(() => {
+    if (!openDialog || editMode) return;
+    const plain = (draftContentRef.current || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+    if (!formData.title.trim() && !plain) return;
+    newDraft.saveDraft({ ...formData, content: draftContentRef.current });
+  }, [openDialog, editMode, formData, newDraft]);
+
   // Create / Edit handlers
   const handleOpenCreate = () => {
     getContentHtmlRef.current = null;
+    draftContentRef.current = '';
     setEditMode(false);
     setFormData({ title: '', content: '', category: 'notice', is_pinned: false });
+    setEditorKey((k) => k + 1);
     setOpenDialog(true);
   };
 
   const handleOpenEdit = () => {
     if (!selectedBulletin) return;
     getContentHtmlRef.current = null;
+    draftContentRef.current = '';
     setEditMode(true);
     setFormData({
       title: selectedBulletin.title,
@@ -293,7 +320,28 @@ const BulletinBoardPage = () => {
       category: selectedBulletin.category,
       is_pinned: selectedBulletin.is_pinned,
     });
+    setEditorKey((k) => k + 1);
     setOpenDialog(true);
+  };
+
+  // 복구 배너 — 이어쓰기: draft 폼 주입 + 에디터 재마운트 / 새로쓰기: draft 삭제 후 빈 폼
+  const handleResumeDraft = () => {
+    const d = newDraft.draft || {};
+    setFormData({
+      title: d.title || '',
+      content: d.content || '',
+      category: d.category || 'notice',
+      is_pinned: !!d.is_pinned,
+    });
+    draftContentRef.current = d.content || '';
+    setEditorKey((k) => k + 1);
+    newDraft.dismiss();
+  };
+  const handleDiscardDraft = () => {
+    newDraft.clearDraft();
+    setFormData({ title: '', content: '', category: 'notice', is_pinned: false });
+    draftContentRef.current = '';
+    setEditorKey((k) => k + 1);
   };
 
   const handleSave = async () => {
@@ -329,6 +377,7 @@ const BulletinBoardPage = () => {
           author_id: user.id,
           author_name: profile?.name || user?.email?.split('@')[0] || '관리자',
         });
+        newDraft.clearDraft(); // 신규 작성 성공 → 임시저장 즉시 소거(유령 복구 방지)
         addNotification('게시글이 작성되었습니다.', 'success');
       }
       setOpenDialog(false);
@@ -651,6 +700,14 @@ const BulletinBoardPage = () => {
           {editMode ? '게시글 수정' : '새 글 작성'}
         </DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
+          {!editMode && newDraft.hasDraft && (
+            <DraftBanner
+              savedLabel={newDraft.savedLabel}
+              onResume={handleResumeDraft}
+              onDiscard={handleDiscardDraft}
+              sx={{ mb: 0 }}
+            />
+          )}
           <TextField
             label="제목"
             fullWidth
@@ -680,11 +737,13 @@ const BulletinBoardPage = () => {
             {/* 본문 = Toast UI 에디터 (L2와 동일). 게시판은 WYSIWYG 기본, Markdown 탭 노출. */}
             <Suspense fallback={<EditorFallback />}>
               <PrepNoteEditor
+                key={editorKey}
                 bucket={BULLETIN_BUCKET}
                 idPrefix={editMode && selectedBulletin ? selectedBulletin.id : 'new'}
                 initialEditType="wysiwyg"
                 initialValue={formData.content}
                 onReady={(getHtml) => { getContentHtmlRef.current = getHtml; }}
+                onChange={handleEditorContentChange}
                 onImageError={(msg) => addNotification(msg, 'warning')}
               />
             </Suspense>
@@ -703,6 +762,7 @@ const BulletinBoardPage = () => {
           />
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
+          {!editMode && <DraftSavedHint savedLabel={newDraft.savedLabel} sx={{ mr: 'auto' }} />}
           <Button onClick={() => setOpenDialog(false)} disabled={saving}>취소</Button>
           <Button
             onClick={handleSave}

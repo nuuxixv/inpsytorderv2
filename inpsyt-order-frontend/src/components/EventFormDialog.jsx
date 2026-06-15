@@ -300,20 +300,17 @@ const EventFormDialog = ({
                 disabled={!canEdit}
               />
 
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <DateField
-                  label="시작일"
-                  value={form?.start_date || ''}
-                  onChange={(iso) => handleChange('start_date', iso || '')}
-                  disabled={!canEdit}
-                />
-                <DateField
-                  label="종료일"
-                  value={form?.end_date || ''}
-                  onChange={(iso) => handleChange('end_date', iso || '')}
-                  disabled={!canEdit}
-                />
-              </Box>
+              <DateField
+                mode="range"
+                label="행사 기간"
+                value={{ start: form?.start_date || '', end: form?.end_date || '' }}
+                onChange={({ start, end }) => {
+                  handleChange('start_date', start || '');
+                  handleChange('end_date', end || '');
+                }}
+                helperText="달력에서 시작일·종료일을 차례로 선택하세요."
+                disabled={!canEdit}
+              />
 
               <DateField
                 label="배송 예정일"

@@ -24,6 +24,8 @@ import {
   Assignment as ReportIcon,
 } from '@mui/icons-material';
 import { supabase } from '../supabaseClient';
+import { useFormDraft } from '../hooks/useFormDraft';
+import { DraftBanner, DraftSavedHint } from './ui';
 
 /**
  * 현장 보고서 섹션 — CRUD 전체 보존.
@@ -50,6 +52,22 @@ const FieldReportSection = ({ eventId, eventName, revenueData, canEdit = true })
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // 임시저장 — 신규 작성(editingId 없음)만 대상. 키 = fieldReport:{userId}:{eventId}.
+  // 기존 보고서 수정분은 DB에 원본이 있어 제외(유령 복구 방지).
+  const isNewDraft = !editingId;
+  const validEventId = eventId && eventId !== 'all' ? eventId : null;
+  const { draft, hasDraft, savedLabel, saveDraft, clearDraft } = useFormDraft(
+    'fieldReport',
+    validEventId,
+    { enabled: canEdit && !!validEventId },
+  );
+  // 신규 작성 중 입력 변경 → 자동저장(빈 폼은 저장 안 함).
+  useEffect(() => {
+    if (!isEditing || !isNewDraft) return;
+    if (!editContent.trim() && !editAuthor.trim()) return;
+    saveDraft({ content: editContent, dayNumber: editDayNumber, author: editAuthor });
+  }, [isEditing, isNewDraft, editContent, editDayNumber, editAuthor, saveDraft]);
 
   const fetchReports = useCallback(async () => {
     if (!eventId || eventId === 'all') {
@@ -90,6 +108,7 @@ const FieldReportSection = ({ eventId, eventName, revenueData, canEdit = true })
           day_number: editDayNumber,
           author_name: editAuthor,
         });
+        clearDraft(); // 신규 작성 저장 성공 → 임시저장 즉시 소거(유령 복구 방지)
       }
       setIsEditing(false); setEditingId(null); fetchReports();
     } catch (e) { console.error(e); }
@@ -127,6 +146,15 @@ const FieldReportSection = ({ eventId, eventName, revenueData, canEdit = true })
     setIsEditing(true);
   };
 
+  // 복구 배너 — 이어쓰기: draft 주입 후 편집영역 열기 / 새로쓰기: draft 삭제(배너만 사라짐)
+  const handleResumeDraft = () => {
+    setEditingId(null);
+    setEditContent(draft?.content || '');
+    setEditDayNumber(draft?.dayNumber || 1);
+    setEditAuthor(draft?.author || '');
+    setIsEditing(true);
+  };
+
   // 행사 미선택 빈 상태 — 시안 안내문 패턴
   if (!eventId || eventId === 'all') {
     return (
@@ -139,6 +167,14 @@ const FieldReportSection = ({ eventId, eventName, revenueData, canEdit = true })
 
   return (
     <Box>
+      {!isEditing && canEdit && hasDraft && (
+        <DraftBanner
+          savedLabel={savedLabel}
+          onResume={handleResumeDraft}
+          onDiscard={clearDraft}
+        />
+      )}
+
       {!isEditing && canEdit && (
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
           <Button
@@ -182,7 +218,8 @@ const FieldReportSection = ({ eventId, eventName, revenueData, canEdit = true })
             onChange={e => setEditContent(e.target.value)}
             sx={{ mb: 1.5 }}
           />
-          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', justifyContent: 'flex-end' }}>
+            {isNewDraft && <DraftSavedHint savedLabel={savedLabel} sx={{ mr: 'auto' }} />}
             <Button size="small" onClick={() => setIsEditing(false)}>취소</Button>
             <Button
               size="small"

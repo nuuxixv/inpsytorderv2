@@ -80,12 +80,14 @@
 - [x] 편집 권한 = `events:edit`. 미보유자 = 읽기 전용(편집 버튼 비노출, Viewer만).
 - [x] **이미지 클릭 확대:** Viewer 본문 img 클릭 → MUI Dialog 라이트박스(maxWidth 90vw/90vh, contain, 클릭/× 닫기). 신규 라이브러리 0(MUI Dialog).
 - [x] **빈 상태**(prep_note 없음): EmptyState "준비 노트가 비어 있어요" + 안내 + "작성하기"(edit자).
+- [x] **임시저장(2026-06-15)**: 편집 중 에디터 `onChange` → localStorage 자동저장(`useFormDraft('prepNote', eventId)`, debounce 2초·24h 보존·userId 격리). 재진입(편집 열기) 시 유효 draft 있으면 에디터 위 인라인 `DraftBanner`(이어쓰기=draft seed로 에디터 재마운트 / 새로쓰기=draft 삭제 후 저장본). 액션 줄에 "임시저장됨 HH:MM"(`DraftSavedHint`). 저장 성공 시 draft 즉시 삭제. type `prepNote`로 게시판(`bulletin`)과 키 격리.
 - [ ] **이미지 업로드 라이브 검증**: event-images 버킷 적용 완료 → 메인 Claude 라이브 QA 예정. 버킷 미적용 시 업로드 토스트로 graceful 실패(페이지 정상).
 
 ## 8. 현장 보고 (블록 5 — FieldReportSection 공용 컴포넌트, plain text)
 - [x] 데이터 = `field_reports`(event_id로 필터, day_number ASC). 카드: 일차 칩 + 작성자 + content(pre-wrap) + 수정/삭제 IconButton.
 - [x] "보고서 작성" 버튼 → 인라인 편집 영역(plain `TextField` multiline). 대시보드 `handleNew` 템플릿(0.판매/1.도서/2.검사) — 이 학회 매출(검사/도서/합계·배송비)로 자동 채움.
 - [x] CRUD 전체 보존(작성·수정·삭제·누적) — Supabase 실 저장. **컴포넌트는 `FieldReportSection.jsx`(DashboardPage에서 추출 → 대시보드·L2 공용).** `canEdit` prop으로 events:edit 미보유자 읽기 전용.
+- [x] **임시저장(2026-06-15)**: 신규 작성(`!editingId`)만 localStorage 자동저장(`useFormDraft('fieldReport', eventId)`, content+dayNumber+author 묶음, debounce 2초·24h 보존·userId 격리). 편집영역 닫힌 상태에서 유효 draft 있으면 "보고서 작성" 위 인라인 `DraftBanner`(이어쓰기/새로쓰기). 편집영역 액션 줄에 "임시저장됨 HH:MM"(`DraftSavedHint`). 작성 성공 시 draft 즉시 삭제. **기존 보고서 수정은 제외**(DB 원본 존재). FieldReportSection은 대시보드·L2 공용이라 동일 동작.
 - [x] **빈 상태**: "생성된 보고서가 없습니다".
 
 ## 9. 매출 요약 (블록 6 — 대시보드 hero 축약판, paid만 · **지결 완료 시에만 노출**)

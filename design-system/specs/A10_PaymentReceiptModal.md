@@ -121,6 +121,7 @@
 - ⚠️ `@mui/x-date-pickers` **미설치**. 시안은 date-fns 미사용 순수 JS 경량 캘린더(다중/범위)로 구현 → **실서비스 라이브러리 도입 여부는 frontend-engineer 판단**(후속 요청).
 - 다중 모드: 날짜 토글 + 완료. 범위 모드: 시작→종료 2클릭, 사이 칸 음영. 주말 적색 토큰.
 - **2026-06-10 공용화(건우님 동의):** 모달 로컬 `CalendarPopover`를 **`src/components/ui/DateField.jsx`로 추출** + `single` 모드 추가(날짜 1개 선택 → 즉시 닫힘). 이 모달은 추출본을 import(multi/range 동작 1:1 보존). single 모드는 `DateField` 컴포넌트(학회 다이얼로그 시작일·종료일·배송 예정일)가 사용. 라이브러리 미도입 유지.
+- **2026-06-15 datepicker 고도화 (회귀 없음 확인):** `CalendarPopover`에 공통 변경 — ① 오늘 셀 테두리 강조(`aria-current`, inset ring, 자동선택 안 함) ② **항상 6행(42셀) 고정**(앞=이전달/뒤=다음달 placeholder 셀, 흐림·클릭불가) → ‹ › 버튼 상하 점프 제거. **이 모달의 multi(주말출근)·range(출장기간) 호출 인터페이스(`mode`/`monthBase`/`value`/`onChange`)는 무변경**, 토글·2클릭·사이칸 음영·완료 버튼 등 기존 동작 1:1 보존. `DateField`(single)에 직접 타이핑 입력 추가는 single 전용이라 이 모달과 무관.
 
 ### 9-8. AI 시그니처 차단 자가점검 (룰 E)
 - 그라데이션·가짜 통계·의미없는 좌/우 컬러바 **없음**. 색은 모두 의미 토큰(primary=선택/합계, error=주말·중복·주말블록, info=출장블록, attention=참관 배지, gray=중립).

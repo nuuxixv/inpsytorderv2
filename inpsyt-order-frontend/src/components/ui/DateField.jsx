@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box, Button, IconButton, InputAdornment, Popover, TextField, Typography, useTheme,
 } from '@mui/material';
@@ -17,7 +17,7 @@ import {
  * CalendarPopover mode:
  *  - 'single': 날짜 1개 선택 → onChange(iso) 후 즉시 닫힘
  *  - 'multi' : 여러 날 토글, value = iso[] (지불증 주말출근비)
- *  - 'range' : 시작→종료 2클릭, value = { start, end } (지불증 출장비)
+ *  - 'range' : 시작→종료 2클릭, value = { start, end } (지불증 출장비 / 학회 기간)
  */
 
 const WDAY = ['일', '월', '화', '수', '목', '금', '토'];
@@ -25,6 +25,7 @@ const pad = (n) => String(n).padStart(2, '0');
 const toISO = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const parseISO = (iso) => new Date(`${iso}T00:00:00`);
 const isWeekend = (iso) => [0, 6].includes(parseISO(iso).getDay());
+const TODAY_ISO = toISO(new Date());
 
 export const CalendarPopover = ({ anchorEl, open, onClose, mode, value, onChange, monthBase }) => {
   const theme = useTheme();
@@ -74,9 +75,19 @@ export const CalendarPopover = ({ anchorEl, open, onClose, mode, value, onChange
     }
   };
 
+  // 항상 6행(42셀) 렌더 — 앞은 이전달, 뒤는 다음달 placeholder 셀로 채워 그리드 높이 불변.
+  // placeholder 셀(inMonth=false)은 흐리게 표시·클릭 불가 → ‹ › 버튼 위치 고정.
   const cells = [];
-  for (let i = 0; i < firstDow; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(toISO(new Date(year, month, d)));
+  for (let i = 0; i < firstDow; i++) {
+    cells.push({ iso: toISO(new Date(year, month, 1 - (firstDow - i))), inMonth: false });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ iso: toISO(new Date(year, month, d)), inMonth: true });
+  }
+  let tail = 1;
+  while (cells.length < 42) {
+    cells.push({ iso: toISO(new Date(year, month + 1, tail++)), inMonth: false });
+  }
 
   return (
     <Popover
@@ -105,10 +116,18 @@ export const CalendarPopover = ({ anchorEl, open, onClose, mode, value, onChange
           ))}
         </Box>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0.25 }}>
-          {cells.map((iso, idx) => {
-            if (!iso) return <Box key={`e${idx}`} sx={{ height: 36 }} />;
+          {cells.map(({ iso, inMonth }, idx) => {
+            if (!inMonth) {
+              const day = parseISO(iso).getDate();
+              return (
+                <Box key={`o${idx}`} aria-hidden sx={{ height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8125rem', fontFeatureSettings: '"tnum" 1', color: 'text.disabled', opacity: 0.4 }}>
+                  {day}
+                </Box>
+              );
+            }
             const day = parseISO(iso).getDate();
             const weekend = isWeekend(iso);
+            const isToday = iso === TODAY_ISO;
             const selectedMulti = selectedSet?.has(iso);
             const selectedSingle = mode === 'single' && iso === value;
             const inRange = isInRange(iso);
@@ -120,6 +139,7 @@ export const CalendarPopover = ({ anchorEl, open, onClose, mode, value, onChange
                 role="button"
                 tabIndex={0}
                 aria-pressed={active}
+                aria-current={isToday ? 'date' : undefined}
                 onClick={() => handleDay(iso)}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleDay(iso); } }}
                 sx={{
@@ -128,10 +148,11 @@ export const CalendarPopover = ({ anchorEl, open, onClose, mode, value, onChange
                   borderRadius: `${theme.radii.sm}px`,
                   cursor: 'pointer',
                   fontSize: '0.8125rem',
-                  fontWeight: active ? 700 : 500,
+                  fontWeight: active || isToday ? 700 : 500,
                   fontFeatureSettings: '"tnum" 1',
                   color: active ? '#fff' : (weekend ? theme.palette.error.main : 'text.primary'),
                   bgcolor: active ? theme.palette.primary.main : (inRange ? alpha(theme.palette.primary.main, 0.1) : 'transparent'),
+                  boxShadow: isToday && !active ? `inset 0 0 0 1.5px ${theme.palette.primary.main}` : 'none',
                   '&:hover': { bgcolor: active ? theme.palette.primary.dark : theme.gray[100] },
                   '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 1 },
                 }}
@@ -157,60 +178,142 @@ export const CalendarPopover = ({ anchorEl, open, onClose, mode, value, onChange
 };
 
 /**
- * DateField — 단일 날짜 입력 필드 (TextField type="date" 대체).
- * 표시 "YYYY.MM.DD(요일)" · 클릭 → CalendarPopover(single) · 클리어 가능.
+ * DateField — 날짜 입력 필드 (TextField type="date" 대체).
+ *  - mode='single'(기본): value(ISO 'YYYY-MM-DD' | ''), onChange(iso | null)
+ *  - mode='range'        : value({ start, end }), onChange({ start, end }) — 한 캘린더 2클릭(호텔 예약식)
+ *
+ * 표시 "YYYY.MM.DD(요일)" · 달력 아이콘 클릭 → CalendarPopover · 직접 타이핑 가능(blur/Enter 시 검증·정규화).
  *
  * props:
- *  - label, value(ISO 'YYYY-MM-DD' | ''), onChange(iso | null)
- *  - disabled, clearable(기본 true), helperText, placeholder, fullWidth(기본 true), sx, size
+ *  - label, value, onChange
+ *  - mode(기본 'single'), disabled, clearable(기본 true), helperText, placeholder, fullWidth(기본 true), sx, size
  */
 const formatKoDate = (iso) => (iso ? `${iso.replaceAll('-', '.')}(${WDAY[parseISO(iso).getDay()]})` : '');
+const formatRange = (v) => {
+  const s = v?.start ? formatKoDate(v.start) : '';
+  const e = v?.end ? formatKoDate(v.end) : '';
+  if (!s && !e) return '';
+  return `${s} ~ ${e}`;
+};
+
+// 'YYYY.MM.DD' / 'YYYY-MM-DD' / 'YYYYMMDD' 수용 → 유효 ISO 반환, 무효면 null.
+const parseInput = (raw) => {
+  const t = (raw || '').trim();
+  if (!t) return null;
+  const m = t.match(/^(\d{4})[.\-/]?(\d{1,2})[.\-/]?(\d{1,2})/);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  const dt = new Date(y, mo - 1, d);
+  // 존재하지 않는 날짜(2026.02.30 등) 거부 — Date 롤오버 검사.
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+  return toISO(dt);
+};
 
 const DateField = ({
-  label, value, onChange,
-  disabled = false, clearable = true, helperText, placeholder = '날짜 선택', fullWidth = true, sx, size,
+  label, value, onChange, mode = 'single',
+  disabled = false, clearable = true, helperText, placeholder, fullWidth = true, sx, size,
 }) => {
   const [anchor, setAnchor] = useState(null);
+  const isRange = mode === 'range';
+
+  const display = isRange ? formatRange(value) : formatKoDate(value);
+  const hasValue = isRange ? Boolean(value?.start || value?.end) : Boolean(value);
+  const ph = placeholder || (isRange ? '기간 선택 (시작일 ~ 종료일)' : 'YYYY.MM.DD');
+
+  // 직접 입력 버퍼 — single 전용(range는 캘린더 2클릭). 미편집 시 display와 동기화.
+  const [draft, setDraft] = useState(display);
+  const [editing, setEditing] = useState(false);
+  const [inputError, setInputError] = useState('');
+
+  useEffect(() => {
+    if (!editing) { setDraft(display); setInputError(''); }
+  }, [display, editing]);
+
+  const commit = () => {
+    setEditing(false);
+    const t = draft.trim();
+    if (t === '') {
+      setInputError('');
+      if (value) onChange(null);
+      return;
+    }
+    const iso = parseInput(t);
+    if (!iso) {
+      setInputError('날짜 형식이 올바르지 않습니다. 예: 2026.05.01');
+      setDraft(display);
+      return;
+    }
+    setInputError('');
+    setDraft(formatKoDate(iso));
+    if (iso !== value) onChange(iso);
+  };
 
   const openCalendar = (e) => {
     if (!disabled) setAnchor(e.currentTarget);
   };
 
+  // range는 타이핑 미지원(2클릭 전제) → 클릭으로 캘린더 열고 readOnly 유지.
+  const inputProps = isRange
+    ? {
+        readOnly: true,
+        sx: { cursor: disabled ? 'default' : 'pointer', '& input': { cursor: 'inherit', caretColor: 'transparent', fontFeatureSettings: '"tnum" 1' } },
+      }
+    : {
+        sx: { '& input': { fontFeatureSettings: '"tnum" 1' } },
+      };
+
   return (
     <>
       <TextField
         label={label}
-        value={formatKoDate(value)}
-        placeholder={placeholder}
+        value={isRange ? display : (editing ? draft : display)}
+        placeholder={ph}
         fullWidth={fullWidth}
         sx={sx}
         size={size}
         disabled={disabled}
-        helperText={helperText}
-        onClick={openCalendar}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCalendar(e); } }}
+        error={Boolean(inputError)}
+        helperText={inputError || helperText}
+        onClick={isRange ? openCalendar : undefined}
+        onChange={isRange ? undefined : (e) => { setEditing(true); setDraft(e.target.value); }}
+        onFocus={isRange ? undefined : () => { setEditing(true); setDraft(display); }}
+        onBlur={isRange ? undefined : commit}
+        onKeyDown={isRange
+          ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCalendar(e); } }
+          : (e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); e.currentTarget.blur(); } }}
         InputLabelProps={{ shrink: true }}
         InputProps={{
-          readOnly: true,
+          ...inputProps,
           endAdornment: (
             <InputAdornment position="end">
-              {clearable && value && !disabled && (
+              {clearable && hasValue && !disabled && (
                 <IconButton
                   size="small"
-                  onClick={(e) => { e.stopPropagation(); onChange(null); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditing(false); setDraft(''); setInputError('');
+                    onChange(isRange ? { start: '', end: '' } : null);
+                  }}
                   aria-label={`${label || '날짜'} 지우기`}
                   sx={{ width: 28, height: 28, mr: 0.25 }}
                 >
                   <ClearIcon sx={{ fontSize: 16 }} />
                 </IconButton>
               )}
-              <CalendarMonthIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+              <IconButton
+                size="small"
+                onClick={(e) => { e.stopPropagation(); openCalendar(e); }}
+                disabled={disabled}
+                aria-label={`${label || '날짜'} 달력 열기`}
+                sx={{ width: 28, height: 28 }}
+              >
+                <CalendarMonthIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+              </IconButton>
             </InputAdornment>
           ),
-          sx: {
-            cursor: disabled ? 'default' : 'pointer',
-            '& input': { cursor: 'inherit', caretColor: 'transparent', fontFeatureSettings: '"tnum" 1' },
-          },
         }}
       />
       {anchor && (
@@ -218,10 +321,13 @@ const DateField = ({
           anchorEl={anchor}
           open
           onClose={() => setAnchor(null)}
-          mode="single"
-          value={value || null}
-          monthBase={value || null}
-          onChange={(iso) => onChange(iso)}
+          mode={isRange ? 'range' : 'single'}
+          value={isRange ? { start: value?.start || null, end: value?.end || null } : (value || null)}
+          monthBase={isRange ? (value?.start || null) : (value || null)}
+          onChange={(v) => {
+            if (isRange) onChange({ start: v.start, end: v.end });
+            else onChange(v);
+          }}
         />
       )}
     </>

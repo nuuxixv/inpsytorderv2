@@ -36,13 +36,14 @@ import { resolveForDisplay, createImageDisplayUrl } from '../utils/prepNoteImage
  *  - onReady: (getHTML) => void  (저장 버튼이 본문을 읽을 수 있게 getHTML 접근자 전달.
  *                                 에디터 준비 전/해제 후 호출 시 null 반환 — 저장 가드용)
  *  - onImageError: (msg) => void (검증/업로드 실패 토스트)
+ *  - onChange: (html) => void    (본문 변경 시 호출 — 임시저장(useFormDraft) 자동저장 연결용. 선택)
  */
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
 const DEFAULT_BUCKET = 'event-images';
 
-const PrepNoteEditor = ({ eventId, idPrefix, bucket = DEFAULT_BUCKET, initialEditType, initialValue, onReady, onImageError }) => {
+const PrepNoteEditor = ({ eventId, idPrefix, bucket = DEFAULT_BUCKET, initialEditType, initialValue, onReady, onImageError, onChange }) => {
   const elRef = useRef(null);
   const instRef = useRef(null);
   // 최신 props를 마운트-1회 훅 안에서 참조하기 위한 ref (에디터 재생성 방지)
@@ -54,6 +55,8 @@ const PrepNoteEditor = ({ eventId, idPrefix, bucket = DEFAULT_BUCKET, initialEdi
   onImageErrorRef.current = onImageError;
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   useEffect(() => {
     if (!elRef.current) return undefined;
@@ -116,6 +119,10 @@ const PrepNoteEditor = ({ eventId, idPrefix, bucket = DEFAULT_BUCKET, initialEdi
           ['ul', 'ol', 'task'],
           ['image', 'link'],
         ],
+        events: {
+          // 본문 변경 → 호출부 임시저장(useFormDraft) 연결. getHTML은 변경 직후 최신 본문 반환.
+          change: () => { onChangeRef.current?.(editor?.getHTML() || ''); },
+        },
         hooks: { addImageBlobHook },
         customHTMLSanitizer: sanitizePrepNoteHTML, // 최신 DOMPurify 주입(보안 검토 중2)
       });

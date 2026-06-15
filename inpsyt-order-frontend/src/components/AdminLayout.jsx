@@ -1,6 +1,6 @@
 
-import React, { useEffect, useState } from 'react';
-import { Routes, Route, Navigate, useParams } from 'react-router-dom';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
 import { Box } from '@mui/material'; // Container 제거
 import AdminHeader from './AdminHeader';
 import AdminSidebar from './AdminSidebar';
@@ -26,15 +26,123 @@ const EventsRoute = () => {
   return slug ? <EventDetailPage /> : <EventManagementPage />;
 };
 
+// 신규 주문 알림 설정 — localStorage 키 (탭 열린 동안만 동작, DB 영속 X)
+const PREF_BROWSER_KEY = 'notif:newOrder:browser';
+const PREF_SOUND_KEY = 'notif:newOrder:sound';
+
+// 역할별 디폴트: 출고(fulfillment_*)는 학회 후 작업이라 신규주문 불필요 → 기본 OFF.
+// 그 외(master·onsite 등)는 기본 ON. 저장값이 있으면 저장값 우선.
+const resolvePref = (storageKey, role) => {
+  const saved = localStorage.getItem(storageKey);
+  if (saved !== null) return saved === 'true';
+  return !(role && role.startsWith('fulfillment'));
+};
+
+// 짧은 알림음 1회 — WebAudio 내장 beep (음원 파일·라이브러리 0).
+const playBeep = (ctxRef) => {
+  try {
+    if (!ctxRef.current) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      ctxRef.current = new Ctx();
+    }
+    const ctx = ctxRef.current;
+    if (ctx.state === 'suspended') ctx.resume();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.36);
+  } catch { /* 자동재생 차단 등 — 무시(인앱 토스트가 fallback) */ }
+};
+
 const AdminLayout = () => {
-  const { hasPermission, permissions } = useAuth();
+  const { hasPermission, permissions, profile } = useAuth();
   const { addNotification } = useNotification();
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const role = profile?.role;
+  // 헤더 종: 놓친 신규 주문(세션 내 휘발성). 드롭다운 열면 0으로 리셋(=확인).
+  const [newOrders, setNewOrders] = useState([]); // [{ id, customerName, amount, at }]
+  const [unseenCount, setUnseenCount] = useState(0);
+  // 토글 ON/OFF (역할 디폴트 + localStorage 저장값)
+  const [browserNotif, setBrowserNotif] = useState(() => resolvePref(PREF_BROWSER_KEY, role));
+  const [soundNotif, setSoundNotif] = useState(() => resolvePref(PREF_SOUND_KEY, role));
+
+  const audioCtxRef = useRef(null);
+  // 콜백이 항상 최신 토글값을 읽도록 ref로 보관 (구독은 1회만 생성)
+  const browserRef = useRef(browserNotif);
+  const soundRef = useRef(soundNotif);
+  browserRef.current = browserNotif;
+  soundRef.current = soundNotif;
 
   const handleToggleCollapse = () => {
     setSidebarCollapsed(prev => !prev);
   };
+
+  // profile은 비동기 로드 → role이 늦게 도착할 수 있음. 저장값이 없을 때만
+  // role 디폴트를 1회 재적용(출고 역할이 mount 시점 undefined로 ON 되는 것 방지).
+  useEffect(() => {
+    if (!role) return;
+    if (localStorage.getItem(PREF_BROWSER_KEY) === null) setBrowserNotif(resolvePref(PREF_BROWSER_KEY, role));
+    if (localStorage.getItem(PREF_SOUND_KEY) === null) setSoundNotif(resolvePref(PREF_SOUND_KEY, role));
+  }, [role]);
+
+  // 브라우저 알림 토글 — ON 클릭 시점(사용자 제스처)에 권한 요청.
+  const handleToggleBrowserNotif = useCallback(async () => {
+    if (!browserNotif) {
+      if (!('Notification' in window)) {
+        addNotification('이 브라우저는 알림을 지원하지 않습니다. (앱 내 알림은 계속 동작합니다)', 'warning');
+        return;
+      }
+      let perm = Notification.permission;
+      if (perm === 'default') perm = await Notification.requestPermission();
+      if (perm !== 'granted') {
+        addNotification('브라우저 알림 권한이 거부되어 있습니다. (앱 내 알림은 계속 동작합니다)', 'warning');
+        return;
+      }
+      setBrowserNotif(true);
+      localStorage.setItem(PREF_BROWSER_KEY, 'true');
+    } else {
+      setBrowserNotif(false);
+      localStorage.setItem(PREF_BROWSER_KEY, 'false');
+    }
+  }, [browserNotif, addNotification]);
+
+  // 소리 토글 — ON 시 첫 상호작용에서 AudioContext 활성(자동재생 정책 대응).
+  const handleToggleSoundNotif = useCallback(() => {
+    setSoundNotif(prev => {
+      const next = !prev;
+      localStorage.setItem(PREF_SOUND_KEY, String(next));
+      if (next) {
+        try {
+          const Ctx = window.AudioContext || window.webkitAudioContext;
+          if (Ctx) {
+            if (!audioCtxRef.current) audioCtxRef.current = new Ctx();
+            audioCtxRef.current.resume();
+          }
+        } catch { /* noop */ }
+      }
+      return next;
+    });
+  }, []);
+
+  // 종 드롭다운 열림 → 확인 처리(카운트 0). 목록은 유지.
+  const handleSeenNewOrders = useCallback(() => setUnseenCount(0), []);
+
+  // 신규 주문 항목 클릭 → 주문관리 이동 + 확인 처리.
+  const handleOpenNewOrder = useCallback(() => {
+    setUnseenCount(0);
+    navigate('/admin/orders');
+  }, [navigate]);
 
   useEffect(() => {
     const channel = supabase
@@ -44,7 +152,34 @@ const AdminLayout = () => {
         { event: 'INSERT', schema: 'public', table: 'orders' },
         (payload) => {
           if (import.meta.env.DEV) console.log('New order received:', payload);
+          const row = payload.new || {};
+          const customerName = row.customer_name || '고객';
+          const amount = Number(row.final_payment) || 0;
+          const entry = { id: row.id, customerName, amount, at: Date.now() };
+
+          // ⓑ 인앱: 헤더 종 누적(놓쳐도 뱃지에 쌓임) + 토스트(즉시 인지) — 항상 동작
+          setNewOrders(prev => [entry, ...prev].slice(0, 20));
+          setUnseenCount(prev => prev + 1);
           addNotification('새로운 주문이 도착했습니다!', 'success');
+
+          // ⓐ 브라우저 알림 (권한 허용 + 토글 ON)
+          if (browserRef.current && 'Notification' in window && Notification.permission === 'granted') {
+            try {
+              const n = new Notification('새 주문', {
+                body: `${customerName} · ${amount.toLocaleString()}원`,
+                icon: '/LOGO.svg',
+                tag: 'inpsyt-new-order',
+              });
+              n.onclick = () => {
+                window.focus();
+                navigate('/admin/orders');
+                n.close();
+              };
+            } catch { /* 알림 생성 실패 — 인앱 fallback로 충분 */ }
+          }
+
+          // ③ 소리 (토글 ON)
+          if (soundRef.current) playBeep(audioCtxRef);
         }
       )
       .subscribe();
@@ -52,7 +187,7 @@ const AdminLayout = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [addNotification]);
+  }, [addNotification, navigate]);
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
@@ -72,7 +207,17 @@ const AdminLayout = () => {
           minWidth: 0,
         }}
       >
-        <AdminHeader onMenuToggle={() => setMobileOpen(prev => !prev)} />
+        <AdminHeader
+          onMenuToggle={() => setMobileOpen(prev => !prev)}
+          newOrders={newOrders}
+          unseenCount={unseenCount}
+          onSeenNewOrders={handleSeenNewOrders}
+          onOpenNewOrder={handleOpenNewOrder}
+          browserNotif={browserNotif}
+          soundNotif={soundNotif}
+          onToggleBrowserNotif={handleToggleBrowserNotif}
+          onToggleSoundNotif={handleToggleSoundNotif}
+        />
         <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', width: '100%' }}>
           <Box sx={{ width: '100%', maxWidth: 1280, px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}>
           <Routes>

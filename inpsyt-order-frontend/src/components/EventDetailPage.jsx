@@ -40,7 +40,8 @@ import {
   recordEventView, getEventViewers,
 } from '../api/events';
 import { encodeForStorage } from '../utils/prepNoteImages';
-import { PageHeader, SectionCard, StatCard, StatusBadge, EmptyState } from './ui';
+import { PageHeader, SectionCard, StatCard, StatusBadge, EmptyState, DraftBanner, DraftSavedHint } from './ui';
+import { useFormDraft } from '../hooks/useFormDraft';
 import FieldReportSection from './FieldReportSection';
 import PaymentReceiptModal from './PaymentReceiptModal';
 import EventFormDialog from './EventFormDialog';
@@ -240,6 +241,12 @@ const EventDetailPage = () => {
   const [editingNote, setEditingNote] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
   const getNoteHtmlRef = React.useRef(() => null); // 에디터 lazy 로드 전 = null(저장 가드)
+  // 준비 노트 임시저장 — 키 = prepNote:{userId}:{eventId} (게시판 bulletin draft와 type 구분).
+  // 에디터 진입 시점 주입값(prep_note 또는 이어쓰기한 draft). 에디터는 마운트 1회 생성 →
+  // seed 교체 시 editorKey 증가로 강제 재마운트(빈↔빈 등 동일 내용 재마운트도 보장).
+  const [noteSeed, setNoteSeed] = useState('');
+  const [editorKey, setEditorKey] = useState(0);
+  const noteDraft = useFormDraft('prepNote', event?.id, { enabled: canEdit && !!event?.id });
 
   // 라이트박스
   const [lightboxSrc, setLightboxSrc] = useState(null);
@@ -352,6 +359,25 @@ const EventDetailPage = () => {
     }
   };
 
+  // 준비 노트 편집 진입 — draft 유무는 배너로 분기. 에디터는 현재 저장본(prep_note)으로 시작.
+  const handleEditNote = () => {
+    setNoteSeed(event.prep_note || '');
+    setEditorKey((k) => k + 1);
+    setEditingNote(true);
+  };
+  // 이어쓰기: draft 본문을 에디터 seed로 주입(에디터 재마운트). 배너만 닫음(draft는 보존).
+  const handleResumeNote = () => {
+    setNoteSeed(noteDraft.draft || '');
+    setEditorKey((k) => k + 1);
+    noteDraft.dismiss();
+  };
+  // 새로쓰기: draft 삭제 후 현재 저장본으로 에디터 재마운트.
+  const handleDiscardNote = () => {
+    noteDraft.clearDraft();
+    setNoteSeed(event.prep_note || '');
+    setEditorKey((k) => k + 1);
+  };
+
   const handleSaveNote = async () => {
     if (!canEdit) return;
     const raw = getNoteHtmlRef.current();
@@ -362,6 +388,7 @@ const EventDetailPage = () => {
       await updateEventPrepNote(event.id, html);
       setEvent((e) => ({ ...e, prep_note: html }));
       setEditingNote(false);
+      noteDraft.clearDraft(); // 저장 성공 → 임시저장 즉시 소거(유령 복구 방지)
       addNotification('준비 노트를 저장했습니다.', 'success');
     } catch {
       addNotification('준비 노트 저장에 실패했습니다.', 'error');
@@ -514,7 +541,7 @@ const EventDetailPage = () => {
               <Button
                 size="small" variant="outlined"
                 startIcon={<PrepEditIcon sx={{ fontSize: 16 }} />}
-                onClick={() => setEditingNote(true)}
+                onClick={handleEditNote}
                 sx={{ minHeight: 36 }}
               >
                 편집
@@ -524,18 +551,28 @@ const EventDetailPage = () => {
         >
           {editingNote ? (
             <Box>
+              {noteDraft.hasDraft && (
+                <DraftBanner
+                  savedLabel={noteDraft.savedLabel}
+                  onResume={handleResumeNote}
+                  onDiscard={handleDiscardNote}
+                />
+              )}
               <Suspense fallback={<EditorFallback />}>
                 <PrepNoteEditor
+                  key={editorKey}
                   eventId={event.id}
-                  initialValue={event.prep_note || ''}
+                  initialValue={noteSeed}
                   onReady={(getHtml) => { getNoteHtmlRef.current = getHtml; }}
+                  onChange={(html) => noteDraft.saveDraft(html)}
                   onImageError={(msg) => addNotification(msg, 'warning')}
                 />
               </Suspense>
-              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 2 }}>
-                <Typography variant="caption" sx={{ color: 'text.secondary', mr: 'auto' }}>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 2, flexWrap: 'wrap' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   Markdown 탭에서 ## 제목 · - [ ] 체크리스트를 바로 입력할 수 있어요
                 </Typography>
+                <DraftSavedHint savedLabel={noteDraft.savedLabel} sx={{ ml: { sm: 'auto' } }} />
                 <Button size="small" onClick={() => setEditingNote(false)} disabled={savingNote}>취소</Button>
                 <Button size="small" variant="contained" onClick={handleSaveNote} disabled={savingNote}>
                   {savingNote ? '저장중...' : '저장'}
@@ -551,7 +588,7 @@ const EventDetailPage = () => {
               icon={PrepIcon}
               title="준비 노트가 비어 있어요"
               description="준비물 체크리스트, 프로그램·부스 배치도 이미지, 설치·철거 안내 등을 한 곳에 정리하세요"
-              action={canEdit ? { label: '작성하기', onClick: () => setEditingNote(true), startIcon: <PrepEditIcon sx={{ fontSize: 16 }} /> } : undefined}
+              action={canEdit ? { label: '작성하기', onClick: handleEditNote, startIcon: <PrepEditIcon sx={{ fontSize: 16 }} /> } : undefined}
             />
           )}
         </SectionCard>

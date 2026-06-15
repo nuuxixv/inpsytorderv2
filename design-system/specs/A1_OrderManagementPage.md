@@ -40,7 +40,7 @@
 - [ ] 학회 멀티 선택 드롭다운: 라벨 “학회 선택”, 기본값 “전체”, 1개 선택 시 학회명, 2개+ 시 “N개 선택” — line 490-513
 - [ ] 주문 상태 멀티 선택 드롭다운: 라벨 “주문 상태”, 5종(`pending`/`paid`/`completed`/`cancelled`/`refunded`) 멀티 체크 가능 — line 516-537
 - [ ] 고객명 검색 TextField: 라벨 “고객명 검색”, 부분 일치(`ilike %term%`) — line 539-546
-- [ ] 시작일 입력: 라벨 “시작일” (기본값 = today − 30) — `ui/DateField`(캘린더 팝오버, native date 폐기, 2026-06-10 통일)
+- [ ] 시작일 입력: 라벨 “시작일” (기본값 = today − 30) — `ui/DateField`(캘린더 팝오버, native date 폐기, 2026-06-10 통일. 2026-06-15: 직접 타이핑 입력+오늘 강조+6행 고정 캘린더)
 - [ ] 종료일 입력: 라벨 “종료일” (기본값 = today) — `ui/DateField`
 - [ ] “초기화” 버튼 (`RestartAltIcon` 시작 아이콘) — 모든 필터·검색어를 기본값으로 — line 567-573
 - [ ] 상품명 검색 TextField: 라벨 “상품명 검색” — `order_items.product_name` 부분 일치 — line 577-584
