@@ -124,3 +124,96 @@ fs.mkdirSync(OUT_DIR, { recursive: true });
 const outPath = path.join(OUT_DIR, '지불증_점검.xlsx');
 await wb.xlsx.writeFile(outPath);
 console.log('\n저장:', outPath);
+
+// ─────────────────────────────────────────────────────────────────────
+// placeholder 잔존·날짜 정렬 점검 — rowCount 끝까지 전체 행 덤프 + 토큰 0 단언.
+// 토큰: MM/DD(DDD)·{member·출장비·[object Object](양식 placeholder/객체값 잔재).
+// ─────────────────────────────────────────────────────────────────────
+const PLACEHOLDER_TOKENS = ['MM/DD(DDD)', 'MM/DD', '{member', '출장비', '[object Object]'];
+
+async function fillCase(blocks) {
+  const w = new ExcelJS.Workbook();
+  await w.xlsx.readFile(TEMPLATE);
+  const s = w.getWorksheet(TARGET_SHEET);
+  fillReceiptWorksheet(s, { blocks, receiver: { name: '관리자', position: '차장' }, todayISO: '2026-06-20' });
+  return s;
+}
+
+function cellText(s, addr) {
+  const v = s.getCell(addr).value;
+  if (v && typeof v === 'object') return v.richText ? v.richText.map((t) => t.text).join('') : (v.result ?? v.text ?? JSON.stringify(v));
+  return v;
+}
+
+// 전체 행(A~E)을 덤프하고, 출장비 헤더가 의도된 케이스인지(allowTrip)에 따라 토큰 잔존을 검사.
+function dumpAndAssert(label, s, { allowTrip }) {
+  const lastRow = s.rowCount; // 루프 중 getCell이 행을 materialize해 rowCount가 늘지 않도록 상한 고정.
+  console.log(`\n=== ${label} — 전체 행 덤프 (rowCount=${lastRow}) ===`);
+  const hits = [];
+  for (let r = 1; r <= lastRow + 3; r++) {
+    const cs = [];
+    ['A', 'B', 'C', 'D', 'E'].forEach((c) => {
+      const v = cellText(s, `${c}${r}`);
+      if (v != null && v !== '') cs.push(`${c}${r}=${JSON.stringify(v)}`);
+    });
+    if (cs.length) console.log(`R${r}: ${cs.join(' | ')}`);
+    // 토큰 검사: 의도된 '출장비' 헤더(allowTrip)는 정상이므로 제외.
+    ['A', 'B', 'C', 'D', 'E'].forEach((c) => {
+      const v = cellText(s, `${c}${r}`);
+      const t = typeof v === 'string' ? v : '';
+      PLACEHOLDER_TOKENS.forEach((tok) => {
+        if (!t.includes(tok)) return;
+        if (tok === '출장비' && allowTrip) return; // 출장 섹션 헤더는 정상.
+        hits.push(`R${r}/${c}: "${t}" (토큰 "${tok}")`);
+      });
+    });
+  }
+  if (hits.length) {
+    console.error(`[FAIL] ${label}: placeholder/잔재 토큰 ${hits.length}건 잔존`);
+    hits.forEach((h) => console.error('   -', h));
+    process.exitCode = 1;
+  } else {
+    console.log(`[OK] ${label}: placeholder/잔재 토큰 0건`);
+  }
+}
+
+// ① 주말만(출장 0개) — 하단에 출장 placeholder 0 잔존이어야 함.
+const weekendOnly = await fillCase([
+  { id: 'w1', type: 'weekend', slotId: 'full0917', dates: ['2026-06-14'],
+    members: [{ id: 'u1', name: '정마스터', position: '차장' }, { id: 'u2', name: '김현장', position: '과장' }] },
+]);
+dumpAndAssert('① 주말만(출장 0개)', weekendOnly, { allowTrip: false });
+
+// ② 출장만(주말 0개) — 주말 placeholder 0, '출장비' 헤더 1개는 정상(allowTrip).
+const tripOnly = await fillCase([
+  { id: 't1', type: 'trip', start: '2026-04-16', end: '2026-04-17',
+    members: [{ id: 'u7', name: '윤출장', position: '과장' }, { id: 'u8', name: '강지방', position: '사원' }] },
+]);
+dumpAndAssert('② 출장만(주말 0개)', tripOnly, { allowTrip: true });
+
+// ③ 날짜 역순 입력(06/14 → 06/13) → 출력은 06/13이 먼저(오름차순).
+const reversed = await fillCase([
+  { id: 'a', type: 'weekend', slotId: 'full0917', dates: ['2026-06-14'],
+    members: [{ id: 'u1', name: '나중사람', position: '대리' }] },
+  { id: 'b', type: 'weekend', slotId: 'full0917', dates: ['2026-06-13'],
+    members: [{ id: 'u2', name: '먼저사람', position: '대리' }] },
+]);
+console.log('\n=== ③ 날짜 역순 입력(06/14,06/13) → 오름차순 출력 ===');
+const head1 = cellText(reversed, 'A8');
+const reversedLast = reversed.rowCount; // 상한 고정(getCell materialize로 인한 폭주 방지).
+const head2Row = (() => { // 두번째 헤더(spacer 1행 뒤): R8 헤더 + R9 인원 + R10 spacer + R11 헤더.
+  for (let r = 9; r <= reversedLast; r++) {
+    const a = cellText(reversed, `A${r}`);
+    if (typeof a === 'string' && a.includes('주말 근무')) return r;
+  }
+  return null;
+})();
+const head2 = head2Row ? cellText(reversed, `A${head2Row}`) : null;
+console.log('첫 헤더(A8):', head1);
+console.log('둘째 헤더:', head2);
+if (typeof head1 === 'string' && head1.startsWith('06/13')) {
+  console.log('[OK] ③ 날짜 오름차순(06/13 먼저)');
+} else {
+  console.error(`[FAIL] ③ 날짜 오름차순 아님 — 첫 헤더="${head1}"`);
+  process.exitCode = 1;
+}

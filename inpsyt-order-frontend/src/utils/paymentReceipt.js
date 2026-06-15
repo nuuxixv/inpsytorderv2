@@ -48,11 +48,38 @@ const mmdd = (iso) => `${iso.slice(5, 7)}/${iso.slice(8, 10)}`; // 10-16 → 10/
 // 멤버 표시 = "{이름} {직급}"(직급 없으면 이름만).
 const memberLabel = (m) => (m.position ? `${m.name} ${m.position}` : m.name);
 
-// 주말 블록 날짜 라벨: "10/18(일), 10/19(월)".
+// 주말 블록 날짜 라벨: "10/18(일), 10/19(월)"(다중선택은 날짜 오름차순).
 function weekendDateLabel(block) {
   const ds = [...(block.dates || [])].sort();
   if (!ds.length) return '';
   return ds.map((d) => `${mmdd(d)}(${dow(d)})`).join(', ');
+}
+
+// 슬롯 시작 시각(HH:MM) → 분(정렬 보조키). 미지정/오류 시 0.
+function slotStartMinutes(block) {
+  const slot = getWeekendSlot(block.slotId);
+  if (!slot?.start) return 0;
+  const [h, m] = slot.start.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+// 블록 정렬 키: 주말 = min(dates), 출장 = start. 같은 날짜면 시간대 오름차순.
+function blockSortKey(block) {
+  if (block.type === 'weekend') {
+    const ds = [...(block.dates || [])].sort();
+    return { date: ds[0] || '', minutes: slotStartMinutes(block) };
+  }
+  return { date: block.start || '', minutes: 0 };
+}
+
+// 그룹(주말/출장) 내 날짜 오름차순 정렬. 같은 날짜면 시간대(slot start) 오름차순.
+function sortBlocksByDate(blocks) {
+  return [...blocks].sort((a, b) => {
+    const ka = blockSortKey(a);
+    const kb = blockSortKey(b);
+    if (ka.date !== kb.date) return ka.date < kb.date ? -1 : 1;
+    return ka.minutes - kb.minutes;
+  });
 }
 
 // 출장 블록 날짜 라벨: "10/16(목)~10/17(금)".
@@ -156,6 +183,16 @@ function findRowByLabel(ws, label, maxRow) {
   return null;
 }
 
+// [from..to] 행의 A~E 셀 값을 명시 null 클리어(spliceRows가 못 비우는 placeholder 값 잔재 제거).
+// 서식은 유지(value만 비움).
+function clearRowValues(ws, from, to) {
+  for (let r = from; r <= to; r++) {
+    ['A', 'B', 'C', 'D', 'E'].forEach((c) => {
+      ws.getCell(`${c}${r}`).value = null;
+    });
+  }
+}
+
 /**
  * 양식 워크시트(ws)에 블록·영수인·총합·작성일을 채운다(순수 ExcelJS — DOM 미접촉).
  * Node 점검 스크립트에서도 재사용 가능하도록 분리.
@@ -167,9 +204,10 @@ function findRowByLabel(ws, label, maxRow) {
  * @returns {{ total:number }}
  */
 export function fillReceiptWorksheet(ws, { blocks, receiver, todayISO } = {}) {
-  // 섹션 = 주말 블록 전부(입력순) → 출장 블록 전부(입력순). 같은 type도 합치지 않는다(2026-06-15 정책).
-  const weekendBlocks = (blocks || []).filter((b) => b.type === 'weekend');
-  const tripBlocks = (blocks || []).filter((b) => b.type === 'trip');
+  // 섹션 = 주말 그룹 → 출장 그룹(대분류 유지). 각 그룹 내 날짜 오름차순(같은 날짜면 시간대 오름차순).
+  // 같은 type도 합치지 않는다(2026-06-15 정책).
+  const weekendBlocks = sortBlocksByDate((blocks || []).filter((b) => b.type === 'weekend'));
+  const tripBlocks = sortBlocksByDate((blocks || []).filter((b) => b.type === 'trip'));
   const sections = [...weekendBlocks, ...tripBlocks].map(blockToSection);
   const total = grandTotal(blocks);
 
@@ -178,15 +216,27 @@ export function fillReceiptWorksheet(ws, { blocks, receiver, todayISO } = {}) {
   const planLen = Math.max(plan.length, 1);
 
   // ── 양식 내역 영역을 planLen행으로 결정적 재구성 ──
-  // 양식 원래 내역 블록 = SECTION_START(R8) ~ ORIG_AREA_END(R19, 출장 인원 마지막 + spacer 2행) = 12행.
-  // 인원 템플릿(MEMBER_TPL=R9) 서식을 캡처 → 원래 영역 제거 → 같은 자리에 인원 서식행 planLen개 삽입.
-  // → 내역이 항상 SECTION_START부터 연속. 작성일/영수인은 라벨 재탐색으로 추종(고정 행 가정 폐기).
-  const ORIG_AREA_END = TRIP_SLOT_END + 2; // R19.
-  const ORIG_AREA_LEN = ORIG_AREA_END - SECTION_START + 1; // 12행.
+  // 보존 영역(작성일/영수인/대표이사)을 먼저 '영수인' 라벨로 확보해, 내역 재구성이 그 위만 건드리게 한다.
+  // SECTION_START(R8) ~ (영수인 윗행=작성일행) 직전까지가 내역 영역. spliceRows 단독 의존 폐기:
+  //   1) 내역 영역의 셀 값을 명시 null 클리어(spliceRows가 못 비우는 placeholder 값 잔재 제거),
+  //   2) 영역 행수를 planLen에 맞게 splice로 증감(서식행 삽입/잉여행 삭제),
+  //   3) 클리어된 서식행에 값을 채움.
+  // → 출장/주말 어느 한쪽이 0개여도 placeholder(MM/DD·{member·출장비·[object Object]) 잔존 0.
+  const maxScan = ws.rowCount + 5;
+  const recRowOrig = findRowByLabel(ws, '영수인', maxScan); // 양식 R21.
+  const dateRowOrig = recRowOrig ? recRowOrig - 1 : null;   // 작성일 = 영수인 윗행(양식 R20).
+  // 내역 영역 끝 = 작성일행 직전(= 양식 R19). 보존 영역(작성일~대표이사)은 건드리지 않는다.
+  const areaEnd = dateRowOrig ? dateRowOrig - 1 : (TRIP_SLOT_END + 2);
+  const areaLen = areaEnd - SECTION_START + 1;
 
   const tpl = captureRowStyle(ws, MEMBER_TPL); // 인원행 서식(헤더행도 동일 서식 패턴 — 양식 확인).
-  ws.spliceRows(SECTION_START, ORIG_AREA_LEN); // 원래 내역 영역 제거.
-  insertFormattedRows(ws, SECTION_START, planLen, tpl); // 같은 자리에 서식행 planLen개 삽입.
+  clearRowValues(ws, SECTION_START, areaEnd);  // 내역 영역 값 전부 비움(placeholder 잔재 포함).
+  // 행수 정렬: 현재 areaLen행 → planLen행.
+  if (planLen > areaLen) {
+    insertFormattedRows(ws, SECTION_START, planLen - areaLen, tpl); // 부족분 서식행 삽입.
+  } else if (planLen < areaLen) {
+    ws.spliceRows(SECTION_START, areaLen - planLen); // 잉여행 제거(값은 이미 클리어됨).
+  }
 
   // ── 내역 값 채우기 ──
   plan.forEach((row, i) => {
@@ -220,7 +270,7 @@ export function fillReceiptWorksheet(ws, { blocks, receiver, todayISO } = {}) {
 
   // 영수인 행 = '영수인' 라벨 재탐색(주의: '영수'만 쓰면 C6 "정히 영수합니다"가 먼저 매칭됨).
   // 섹션 N개로 밀려도 라벨로 정확히 찾음. 실패 시 원래 영수인 행(21) + 재구성 행수 증감분 보정.
-  const recRow = findRowByLabel(ws, '영수인', maxRow) || (21 + (planLen - ORIG_AREA_LEN));
+  const recRow = findRowByLabel(ws, '영수인', maxRow) || (21 + (planLen - areaLen));
   ws.getCell(`D${recRow}`).value = receiver ? memberLabel(receiver) : '';
 
   // 작성일 = 영수인 바로 윗행(양식 고정 구조). C"YYYY년" · D"M월" · E"D일"(월/일 0 제거).
