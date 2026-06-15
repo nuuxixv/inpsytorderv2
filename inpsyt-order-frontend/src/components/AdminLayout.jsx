@@ -38,6 +38,10 @@ const resolvePref = (storageKey, role) => {
   return !(role && role.startsWith('fulfillment'));
 };
 
+// 현재 브라우저 알림 권한 상태. 미지원이면 'unsupported'.
+const readPermission = () =>
+  'Notification' in window ? Notification.permission : 'unsupported';
+
 // 짧은 알림음 1회 — WebAudio 내장 beep (음원 파일·라이브러리 0).
 const playBeep = (ctxRef) => {
   try {
@@ -76,6 +80,11 @@ const AdminLayout = () => {
   // 토글 ON/OFF (역할 디폴트 + localStorage 저장값)
   const [browserNotif, setBrowserNotif] = useState(() => resolvePref(PREF_BROWSER_KEY, role));
   const [soundNotif, setSoundNotif] = useState(() => resolvePref(PREF_SOUND_KEY, role));
+  // 브라우저 알림 권한 상태 (granted/denied/default/unsupported) — UI 표시·동기화용
+  const [notifPermission, setNotifPermission] = useState(() => readPermission());
+
+  // 토글 저장값이 켜져 있어도 권한이 granted가 아니면 OFF로 보이게(미스매치 방지).
+  const browserNotifOn = browserNotif && notifPermission === 'granted';
 
   const audioCtxRef = useRef(null);
   // 콜백이 항상 최신 토글값을 읽도록 ref로 보관 (구독은 1회만 생성)
@@ -96,26 +105,40 @@ const AdminLayout = () => {
     if (localStorage.getItem(PREF_SOUND_KEY) === null) setSoundNotif(resolvePref(PREF_SOUND_KEY, role));
   }, [role]);
 
+  // 마운트 시 권한 재확인(다른 탭·OS 설정에서 바뀌었을 수 있음).
+  useEffect(() => { setNotifPermission(readPermission()); }, []);
+
   // 브라우저 알림 토글 — ON 클릭 시점(사용자 제스처)에 권한 요청.
   const handleToggleBrowserNotif = useCallback(async () => {
-    if (!browserNotif) {
+    // 표시 기준(browserNotifOn)으로 동작 — 저장값이 켜져 있어도 권한이 없으면
+    // 화면엔 OFF로 보이므로, 클릭은 "켜기" 시도로 처리.
+    if (!browserNotifOn) {
       if (!('Notification' in window)) {
-        addNotification('이 브라우저는 알림을 지원하지 않습니다. (앱 내 알림은 계속 동작합니다)', 'warning');
-        return;
+        setNotifPermission('unsupported');
+        return; // 안내는 드롭다운 'unsupported' 분기에서 텍스트로 노출
       }
       let perm = Notification.permission;
       if (perm === 'default') perm = await Notification.requestPermission();
+      setNotifPermission(perm);
       if (perm !== 'granted') {
-        addNotification('브라우저 알림 권한이 거부되어 있습니다. (앱 내 알림은 계속 동작합니다)', 'warning');
+        // denied: 드롭다운 안 해제 안내가 노출됨(토스트 대신). default→denied도 동일.
         return;
       }
       setBrowserNotif(true);
       localStorage.setItem(PREF_BROWSER_KEY, 'true');
+      // 켜진 즉시 테스트 알림 1회 — 실제 주문 없이 작동 확인.
+      try {
+        new Notification('알림이 켜졌어요', {
+          body: '새 주문이 오면 이렇게 알려드릴게요',
+          icon: '/LOGO.svg',
+          tag: 'inpsyt-notif-test',
+        });
+      } catch { /* 알림 생성 실패 — 무시 */ }
     } else {
       setBrowserNotif(false);
       localStorage.setItem(PREF_BROWSER_KEY, 'false');
     }
-  }, [browserNotif, addNotification]);
+  }, [browserNotifOn]);
 
   // 소리 토글 — ON 시 첫 상호작용에서 AudioContext 활성(자동재생 정책 대응).
   const handleToggleSoundNotif = useCallback(() => {
@@ -130,13 +153,17 @@ const AdminLayout = () => {
             audioCtxRef.current.resume();
           }
         } catch { /* noop */ }
+        playBeep(audioCtxRef); // 켤 때 짧은 beep 1회로 작동 확인
       }
       return next;
     });
   }, []);
 
-  // 종 드롭다운 열림 → 확인 처리(카운트 0). 목록은 유지.
-  const handleSeenNewOrders = useCallback(() => setUnseenCount(0), []);
+  // 종 드롭다운 열림 → 확인 처리(카운트 0) + 권한 재확인. 목록은 유지.
+  const handleSeenNewOrders = useCallback(() => {
+    setUnseenCount(0);
+    setNotifPermission(readPermission());
+  }, []);
 
   // 신규 주문 항목 클릭 → 주문관리 이동 + 확인 처리.
   const handleOpenNewOrder = useCallback(() => {
@@ -213,7 +240,8 @@ const AdminLayout = () => {
           unseenCount={unseenCount}
           onSeenNewOrders={handleSeenNewOrders}
           onOpenNewOrder={handleOpenNewOrder}
-          browserNotif={browserNotif}
+          browserNotif={browserNotifOn}
+          notifPermission={notifPermission}
           soundNotif={soundNotif}
           onToggleBrowserNotif={handleToggleBrowserNotif}
           onToggleSoundNotif={handleToggleSoundNotif}

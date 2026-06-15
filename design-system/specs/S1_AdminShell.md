@@ -84,6 +84,14 @@
 - [ ] **신규 주문 목록**(maxHeight 320, `newOrders`): 각 항목 `ShoppingBagOutlinedIcon` + "{고객명} · {금액}원"(body2 500) + `format(at, 'M월 d일 HH:mm', ko)`(caption). 클릭 시 `/admin/orders` 이동 + 드롭다운 닫힘
 - [ ] 빈 상태: "새로 들어온 주문이 없습니다." (body2, center, py 3)
 - [ ] **하단 알림 설정 토글 2종**: "브라우저 알림"(부제 "화면 밖에 있어도 알려줍니다") / "소리"(부제 "신규 주문 시 알림음") — 각 `Switch size="small"`
+- [ ] **브라우저 알림 권한 상태 표시·동기화** (2026-06-15 추가):
+  - 권한 `denied`: "브라우저 알림" 라벨 옆에 회색 **"차단됨" Chip**(gray[100]/gray[600]) + 그 아래 인라인 해제 안내 영역(gray[50] 배경, caption) — "브라우저가 알림을 차단한 상태입니다. 주소창 왼쪽 자물쇠 → 알림 → 허용으로 바꾼 뒤 새로고침해 주세요. (Windows는 설정 → 알림에서 Chrome·집중 지원도 확인)". **텍스트만(룰 E)**, 토스트 대신 드롭다운 내 노출
+  - 권한 `unsupported`(`Notification` 미지원): Switch `disabled` + 인라인 안내 "이 브라우저는 알림을 지원하지 않습니다. 앱 내 알림(종·토스트)은 계속 동작합니다."
+  - 권한 `default`: 토글 켜면 `requestPermission()` 요청
+  - **Switch 표시-권한 동기화**: AdminLayout이 `browserNotifOn = browserNotif && notifPermission==='granted'`를 계산해 헤더 `browserNotif` prop으로 전달 → localStorage가 'true'여도 권한이 granted가 아니면 **OFF로 표시**(미스매치 방지: 켜진 줄 알았는데 안 오는 상황 차단)
+  - **권한 재확인 시점**: 마운트 시(effect) + 종 드롭다운 열 때(`handleSeenNewOrders` → `readPermission()`)
+- [ ] **토글 ON 성공 시 테스트 알림 1회**: 권한 granted로 켜지면 `new Notification('알림이 켜졌어요', { body:'새 주문이 오면 이렇게 알려드릴게요', icon:'/LOGO.svg', tag:'inpsyt-notif-test' })`. 실패 시 catch 무시
+- [ ] **소리 토글 ON 시 beep 1회**: AudioContext resume 후 `playBeep` 1회로 작동 즉시 확인
 - [ ] **드롭다운 열면 `unseenCount` 0으로 리셋**(= 확인). 목록은 유지
 - [ ] **변경 전**: 토스트 히스토리(`useNotification.notifications`) 표시였음 → 신규 주문 전용 드롭다운으로 교체. 토스트 히스토리는 `NotificationsDisplay`(우하단 Snackbar)가 담당
 
@@ -162,8 +170,9 @@
 ### 2-J. 신규 주문 알림 설정 (AdminLayout.jsx + AdminHeader.jsx, 2026-06-15 신설)
 - [ ] **localStorage 키 2종**: `notif:newOrder:browser`, `notif:newOrder:sound`
 - [ ] **역할별 디폴트**(`resolvePref`): `profile.role`이 `fulfillment*`로 시작하면 기본 **OFF**(학회 후 작업), 그 외(master·onsite)는 기본 **ON**. localStorage 저장값이 있으면 저장값 우선
-- [ ] **브라우저 알림 토글 ON 클릭 시**(사용자 제스처) `Notification.requestPermission()`. 미지원/거부 시 경고 토스트 + fallback(인앱은 항상 동작), 토글 OFF 유지
-- [ ] **소리 토글 ON 시** AudioContext `resume()`(자동재생 정책 대응 — 첫 상호작용에서 활성)
+- [ ] **브라우저 알림 토글 ON 클릭 시**(사용자 제스처) `default`면 `Notification.requestPermission()`. 결과를 `notifPermission` state에 반영. **`granted`만 토글 ON + localStorage 'true' + 테스트 알림 1회**. `denied`/`default(거부)`/`unsupported`는 토글 OFF 유지 + **드롭다운 내 인라인 안내**(토스트 아님, 1-H 참조). 한 번 denied면 JS `requestPermission()`이 재요청 불가(브라우저 정책)라 해제 안내가 유일한 경로
+- [ ] **권한 상태는 AdminLayout이 단일 소스**(`notifPermission`): `readPermission()`(= `'Notification' in window ? Notification.permission : 'unsupported'`). 마운트 + 드롭다운 열 때 재확인. 헤더엔 동기화된 `browserNotifOn`을 전달
+- [ ] **소리 토글 ON 시** AudioContext `resume()`(자동재생 정책 대응) + `playBeep` 1회(작동 확인)
 - [ ] **Service Worker/Web Push 미사용** — 탭 열린 동안만 동작(학회 현장 시나리오 OK). 알림 DB 영속·풀 알림센터 없음
 
 ---
@@ -355,6 +364,7 @@
 
 ## 변경 이력
 
+- 2026-06-15 **브라우저 알림 "차단됨" 개선** (frontend) — 라이브에서 `Notification.permission==='denied'`로 토글이 안 켜지던 문제. ① AdminLayout에 `notifPermission` state(granted/denied/default/unsupported, `readPermission()`로 산출, 마운트+드롭다운 열 때 재확인) 신설. ② `browserNotifOn = browserNotif && permission==='granted'`로 Switch 표시-권한 동기화(localStorage 'true'여도 권한 없으면 OFF 표시 → 미스매치 차단). ③ 토글 핸들러: granted만 ON+테스트 알림 1회(`'알림이 켜졌어요'`), denied/default거부/unsupported는 OFF 유지 + 드롭다운 내 인라인 안내(토스트 폐기, 룰 E 텍스트만). ④ 소리 토글 ON 시 `playBeep` 1회 추가. ⑤ AdminHeader: "차단됨" Chip(gray) + denied/unsupported 해제 안내 영역(gray[50], caption) + unsupported 시 Switch disabled. Service Worker/Web Push 미도입, 신규 라이브러리 0, theme 토큰만. 변경 파일: AdminLayout.jsx·AdminHeader.jsx만. **lint/build는 환경상 메인 Claude가 실행 검증 필요**(이 세션 Bash 차단).
 - 2026-06-15 **신규 주문 알림 강화** (frontend) — 기존 `realtime-orders` INSERT 콜백(토스트만)을 4종 처리로 확장(§2-I). 헤더 종에 놓친 신규주문 뱃지 + 신규주문 드롭다운 + 알림설정 토글 2종 신설(§1-H). 브라우저 알림(ⓐ, `notif:newOrder:browser`)·소리(WebAudio beep, `notif:newOrder:sound`)·역할별 디폴트(fulfillment* 기본 OFF) 추가(§2-J). 변경 파일: AdminLayout.jsx(state 단일 소스·구독 콜백·토글 핸들러)·AdminHeader.jsx(종 뱃지·드롭다운·토글 UI, props 수신). Service Worker/Web Push 미도입, 신규 라이브러리 0. lint(touched 0 error)·build green.
 - 2026-06-01 **이식 완료** (frontend) — §3 After·§4 제거·§5/§6-R 정본대로 AdminSidebar·AdminHeader 시각 토큰 이식. AdminLayout은 §6-R #6(배경 gray[100] 유지)·maxWidth 1280 유지로 변경 없음(헤더 `mb:3` 제거는 AdminHeader에서 처리, 헤더-콘텐츠 간격은 레이아웃 `py`로 일원화). lint·build green.
   - **코드 vs 사양 diff (룰 F) — 메인 Claude 룰 C 리뷰에서 수정:** frontend가 임시로 쓴 `borderRadius: '14px'` 매직넘버 리터럴을 **`theme.radii.lg`(=16) 토큰 호출로 교체**(Popover·Menu). 16은 앱 전체 Card/Dialog/Drawer 컨벤션·이식 전 원래 헤더 값과도 일치 — 매직넘버 회피 + 플로팅 표면 일관성. **theme.radii.lg=16 ↔ Appendix radius-lg=14 불일치는 별도 토큰 정합 부채(CTO 영역).** 알림 Popover 본문 `fontSize: '0.9rem'/'0.75rem'` → `body2`/`caption` variant로 토큰화. MenuItem(비번/로그아웃) `fontSize`는 드롭다운 관용 표기라 유지.

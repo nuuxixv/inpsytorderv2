@@ -42,6 +42,7 @@ const AdminHeader = ({
   onSeenNewOrders,
   onOpenNewOrder,
   browserNotif = false,
+  notifPermission = 'default',
   soundNotif = false,
   onToggleBrowserNotif,
   onToggleSoundNotif,
@@ -257,12 +258,39 @@ const AdminHeader = ({
             {/* 알림 설정 토글 */}
             <Box sx={{ px: 2, py: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 0.5 }}>
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>브라우저 알림</Typography>
-                  <Typography variant="caption" color="text.secondary">화면 밖에 있어도 알려줍니다</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>브라우저 알림</Typography>
+                    <Typography variant="caption" color="text.secondary">화면 밖에 있어도 알려줍니다</Typography>
+                  </Box>
+                  {notifPermission === 'denied' && (
+                    <Chip label="차단됨" size="small" sx={{ bgcolor: theme.gray[100], color: theme.gray[600], fontWeight: 600 }} />
+                  )}
                 </Box>
-                <Switch size="small" checked={browserNotif} onChange={onToggleBrowserNotif} />
+                <Switch
+                  size="small"
+                  checked={browserNotif}
+                  onChange={onToggleBrowserNotif}
+                  disabled={notifPermission === 'unsupported'}
+                />
               </Box>
+
+              {/* 권한 차단 시 해제 안내 (토스트 대신 인라인 텍스트) */}
+              {notifPermission === 'denied' && (
+                <Box sx={{ mt: 0.5, mb: 0.5, px: 1.25, py: 1, bgcolor: theme.gray[50], borderRadius: `${theme.radii.sm}px` }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.6 }}>
+                    브라우저가 알림을 차단한 상태입니다. 주소창 왼쪽 자물쇠 → 알림 → 허용으로 바꾼 뒤 새로고침해 주세요. (Windows는 설정 → 알림에서 Chrome·집중 지원도 확인)
+                  </Typography>
+                </Box>
+              )}
+              {notifPermission === 'unsupported' && (
+                <Box sx={{ mt: 0.5, mb: 0.5, px: 1.25, py: 1, bgcolor: theme.gray[50], borderRadius: `${theme.radii.sm}px` }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.6 }}>
+                    이 브라우저는 알림을 지원하지 않습니다. 앱 내 알림(종·토스트)은 계속 동작합니다.
+                  </Typography>
+                </Box>
+              )}
+
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 0.5 }}>
                 <Box>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>소리</Typography>
