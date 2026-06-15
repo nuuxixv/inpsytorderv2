@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 .vercel
 .env
+
+# 점검 스크립트 산출물(지불증 등 export 검증용 임시 .xlsx)
+scripts/_out/
