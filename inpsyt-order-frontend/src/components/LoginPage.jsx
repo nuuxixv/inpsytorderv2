@@ -23,6 +23,11 @@ import {
   CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { sortMembers } from '../utils/allowanceRules';
+import { useAuth } from '../hooks/useAuth';
+
+// 세션 적용 대기 한도(ms): signInWithPassword 성공 후 onAuthStateChange가
+// user를 채울 때까지 기다리는 최대 시간. 초과 시 조용한 무한대기 대신 에러 표시.
+const SESSION_WAIT_TIMEOUT_MS = 4000;
 
 // 사양 §표시 정보 — Step 1 역할 큰 버튼 라벨/아이콘
 const ROLE_LABELS = {
@@ -136,9 +141,13 @@ const LoginPage = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // signInWithPassword 성공 후 AuthContext의 user가 채워지기를 기다리는 중인지 여부.
+  // navigate를 즉시 호출하면 ProtectedRoute가 user=null로 평가해 /login으로 회귀하는 race를 막는다.
+  const [awaitingSession, setAwaitingSession] = useState(false);
   // 사양 §발견 7: 100ms 자동 제출 중복 발화 방지(7번째 키스트로크 회피)
   const handlingSubmitRef = useRef(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchProfiles = async () => {
@@ -174,19 +183,40 @@ const LoginPage = () => {
 
       if (signInError) throw signInError;
 
-      navigate('/admin');
+      // 인증 성공. 즉시 navigate하지 않고 user가 채워질 때까지 대기(아래 useEffect가 navigate).
+      // loading/handlingSubmitRef는 navigate 또는 타임아웃 시점까지 유지(중복 제출·버튼 활성화 방지).
+      setAwaitingSession(true);
     } catch (err) {
       if (err.message && err.message.includes('Invalid login credentials')) {
         setError('비밀번호(PIN)가 일치하지 않습니다.');
       } else {
-        setError(err.message);
+        // err.message가 빈 값/undefined여도 빈 Alert가 뜨지 않도록 fallback 메시지.
+        setError(err.message || '로그인 중 오류가 발생했습니다. 네트워크 상태를 확인 후 다시 시도해주세요.');
       }
       setPassword('');
-    } finally {
       setLoading(false);
       handlingSubmitRef.current = false;
     }
   };
+
+  // 세션 진입 감시: 인증 성공(awaitingSession) 후 AuthContext의 user가 채워지면 /admin으로 이동.
+  // 이미 로그인된 상태로 /login에 직접 들어온 경우(awaitingSession 없이 user 존재)도 /admin으로 보낸다.
+  useEffect(() => {
+    if (!user) return;
+    navigate('/admin', { replace: true });
+  }, [user, navigate]);
+
+  // 타임아웃 가드: 인증은 성공했는데 일정 시간 내 user가 안 채워지면 조용한 무한대기 대신 에러 표시.
+  useEffect(() => {
+    if (!awaitingSession) return;
+    const timer = setTimeout(() => {
+      setError('세션 적용에 실패했습니다. 새로고침 후 다시 시도해주세요.');
+      setAwaitingSession(false);
+      setLoading(false);
+      handlingSubmitRef.current = false;
+    }, SESSION_WAIT_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [awaitingSession]);
 
   const handleBack = useCallback(() => {
     if (selectedUser) {
