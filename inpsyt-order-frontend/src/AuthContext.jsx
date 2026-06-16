@@ -75,6 +75,12 @@ export const AuthProvider = ({ children }) => {
         return;
       }
       if (session) {
+        // 신규 로그인(SIGNED_IN)은 명백한 활동 → lastActivity를 지금으로 기록.
+        // 이걸 안 하면 직전 세션(수개월 전)의 옛 타임스탬프가 남아 진입 검사에서
+        // 8시간 초과로 판정 → 로그인 직후 곧바로 튕긴다. (복원 세션은 stamp 안 함)
+        if (event === 'SIGNED_IN') {
+          localStorage.setItem(ACTIVITY_KEY, String(Date.now()));
+        }
         setRefreshing(false);
         checkUserPermissions(session);
         return;
