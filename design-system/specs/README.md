@@ -24,27 +24,48 @@
 3. 표시 정보·액션·입력 폼 구조를 **실 코드에 박혀 있는 사실만** 옮긴다. 추측은 금지. 확인 불가 항목은 "확인 필요"로 표기.
 4. 사양 시트 자체에 대한 검수는 메인 Claude의 sampling check로 이뤄진다(CLAUDE.md C 절차).
 
-## 현재 보유한 시트
+## 번호 체계 (그룹 코드)
 
-- `C1_OrderPage.md` — 고객 주문서 (3-step)
-- `A1_OrderManagementPage.md` — 어드민 주문 관리 (필터·일괄·엑셀·신규/상세 모달)
-- `A2_OrderDetailModal.md` — 어드민 주문 상세 모달 (편집·연계·삭제·알림톡 재발송, **시안 부재 — 실 컴포넌트가 단일 진실 소스**)
-- `A2_NewOrderModal.md` — 어드민 신규 주문 모달 (학회·현장판매·상품 검색·장바구니, **시안 부재 — 실 컴포넌트가 단일 진실 소스**)
-- `A2_OrderStatusPage.md` — 고객 주문 상태 (알림톡 링크·주문 직후 자동 진입)
-- `A2_OrderLookupPage.md` — 고객 주문 조회 (이름+연락처 검색, **(폐기) 2026-05-29 — 라우트 미등록·RLS 회수·보안 약함으로 건우님 결정 폐기, 실 컴포넌트 삭제**)
+번호는 **화면 고유 ID가 아니라 영역 그룹 코드**다. 같은 번호에 여러 화면이 속할 수 있다(의도된 구조 — 화면 고유 ID로 오해해 재편하지 말 것).
+
+- `S` = 공통 셸 / `A` = 어드민 영역 / `C` = 고객 영역 / `L` = 학회 통합(Event Hub) 레이어
+- `A2` = 주문 묶음, `A7` = 관리 도구 묶음, `A8` = 시스템 설정 묶음, `A10` = 학회 허브 묶음
+
+## 현재 보유한 시트 (그룹순, 2026-06-24 현행화)
+
+**공통 셸 (S)**
+- `S1_AdminShell.md` — 어드민 공통 셸 (AdminLayout·Sidebar·Header, 시각 토큰 이식)
+
+**어드민 (A)**
+- `A1_OrderManagementPage.md` — 주문 관리 (필터·일괄·엑셀·신규/상세 모달)
+- `A2_OrderDetailModal.md` — 주문 상세 모달 (편집·연계·삭제·알림톡 재발송, **시안 부재 — 실 컴포넌트가 단일 진실 소스**)
+- `A2_NewOrderModal.md` — 신규 주문 모달 (학회·현장판매·상품 검색·장바구니, **시안 부재 — 실 컴포넌트가 단일 진실 소스**)
+- `A2_OrderStatusPage.md` — ⚠️ **중복 의심 — `C3_OrderStatusPage`와 동일 화면으로 보임. 확인 후 폐기 표기 필요(미확정).**
+- `A2_OrderLookupPage.md` — ⚠️ **(폐기) 고객 주문 조회 — `C2_OrderLookupPage`와 동일 폐기 화면. 히스토리 보존용.**
 - `A3_FulfillmentPage.md` — 출고 관리 (2026-06-12 "출고 현황"에서 개칭)
-- `A4_DashboardPage.md` — 어드민 대시보드 (3단 계층 필터·매출 KPI·랭킹·현장 보고서·최근 주문)
-- `A5_EventManagementPage.md` — 학회 관리
-- `A6_ProductManagementPage.md` — 상품 관리
+- `A4_DashboardPage.md` — 대시보드 (3단 계층 필터·매출 KPI·랭킹·현장 보고서·최근 주문)
+- `A5_EventManagementPage.md` — 학회 관리 *(2026-06-24 판매 대분류 선택 필드 추가)*
+- `A6_ProductManagementPage.md` — 상품 관리 *(2026-06-24 카테고리 계층·배지 동적화)*
 - `A7_UserManagementPage.md` — 사용자 관리 (멤버·역할 템플릿)
 - `A7_BulletinBoardPage.md` — 게시판 (매뉴얼·패치노트·공지)
 - `A7_FeedbackManagementPage.md` — 피드백 관리 (master 트리아지)
-- `A8_SettingsPage.md` — 설정 (리다이렉트 학회·배송비 정책)
 - `A8_LoginPage.md` — 어드민 로그인 (역할→이름→PIN 3단계)
-- `A10_EventHubList.md` — 학회 통합 목록 L1 (Event Hub List, 6컬럼·신규 4필드·Upcoming)
+- `A8_SettingsPage.md` — 설정 (리다이렉트 학회·배송비 정책) *(2026-06-24 소분류·배지 마스터 CRUD 추가)*
+- `A9_AuditLogPage.md` — 로그 (표시 라벨 "로그", 내부 audit_log)
+- `A10_EventHubList.md` — 학회 통합 목록 L1 (6컬럼·신규 4필드·Upcoming)
+- `A10_PaymentReceiptModal.md` — 지불증(수당 영수증) 생성 모달 (**기획 확정 — A10 P0 머지 후 착수**)
+
+**고객 (C)**
+- `C1_OrderPage.md` — 고객 주문서 (3-step) *(2026-06-24 소분류 칩 노출·배지 가드레일 추가)*
+- `C2_OrderLookupPage.md` — ⚠️ **(폐기) 2026-05-29 — 라우트 미등록·RLS 회수·보안 약함으로 건우님 결정 폐기, 실 컴포넌트 삭제. 히스토리 보존용.**
+- `C3_OrderStatusPage.md` — 고객 주문 상태 (알림톡 링크·주문 직후 자동 진입)
+
+**학회 통합 (L)**
 - `L2_EventDetail.md` — 학회 통합 상세 L2 (개요·진행상태 3칩·매출 축약·현장 보고, **1차 시안 — 에디터 2차**)
 
 다른 화면의 시트가 필요하면 `_TEMPLATE.md` 를 복사해 같은 톤·포맷으로 추가한다.
+
+> **잔여 정리 항목 (확인 필요):** `A2_OrderStatusPage`(↔`C3` 중복 의심)와 `A2_OrderLookupPage`(↔`C2` 폐기 중복)는 각 실 컴포넌트와 대조해 폐기 여부를 확정하면 된다. 오티즘 트랙과 분리된 별도 정리 사안.
 
 ## 톤 약속
 

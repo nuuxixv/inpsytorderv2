@@ -119,6 +119,7 @@ const ProductManagementPage = () => {
   const [open, setOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(createEmptyProduct());
+  const [categoryInvalid, setCategoryInvalid] = useState(false);
 
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -196,22 +197,31 @@ const ProductManagementPage = () => {
   const handleOpen = (product = null) => {
     setIsEditing(Boolean(product));
     setCurrentProduct(product ? { ...product } : createEmptyProduct());
+    setCategoryInvalid(false);
     setOpen(true);
   };
 
   const handleClose = () => {
     setOpen(false);
     setCurrentProduct(createEmptyProduct());
+    setCategoryInvalid(false);
   };
 
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target;
+    if (name === 'category' && value) setCategoryInvalid(false);
     setCurrentProduct((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
   const handleSave = async () => {
     if (!hasPermission('products:edit')) {
       addNotification('상품 수정 권한이 없습니다.', 'error');
+      return;
+    }
+
+    if (!categories.includes(currentProduct.category)) {
+      setCategoryInvalid(true);
+      addNotification('카테고리를 검사/도서/도구 중에서 선택해 주세요.', 'warning');
       return;
     }
 
@@ -376,7 +386,7 @@ const ProductManagementPage = () => {
         _rowNum: idx + 2, // Excel row number (1-indexed header + 1)
         name: getRowValue(row, ['상품명', 'name']),
         product_code: getRowValue(row, ['상품코드', 'product_code']),
-        category: getRowValue(row, ['카테고리', 'category']),
+        category: String(getRowValue(row, ['카테고리', 'category']) || '').trim(),
         sub_category: getRowValue(row, ['하위카테고리', 'sub_category']) || null,
         list_price: parsePrice(getRowValue(row, ['가격', '정가', 'list_price'])),
         notes: getRowValue(row, ['비고', 'notes']) || null,
@@ -401,6 +411,10 @@ const ProductManagementPage = () => {
         }
         if (!product.name) {
           validationErrors.push({ row: rowNum, product_code: product.product_code, name: '(빈값)', error: '상품명 필수' });
+          continue;
+        }
+        if (!categories.includes(product.category)) {
+          validationErrors.push({ row: rowNum, product_code: product.product_code, name: product.name, error: '카테고리는 검사/도서/도구만 허용' });
           continue;
         }
         if (seenCodes.has(product.product_code)) {
@@ -440,7 +454,11 @@ const ProductManagementPage = () => {
         const chunk = chunks[i];
         const chunkStart = i * CHUNK_SIZE;
         // Strip _rowNum before sending
-        const payload = chunk.map(({ _rowNum, ...rest }) => rest);
+        const payload = chunk.map((p) => {
+          const rest = { ...p };
+          delete rest._rowNum;
+          return rest;
+        });
 
         try {
           const { data, error } = await supabase.functions.invoke('upload-products-excel', {
@@ -916,7 +934,20 @@ const ProductManagementPage = () => {
             <TextField autoFocus name="name" label="상품명" fullWidth value={currentProduct.name} onChange={handleChange} disabled={!hasPermission('products:edit')} />
             <TextField name="product_code" label="상품 코드" fullWidth value={currentProduct.product_code} onChange={handleChange} disabled={!hasPermission('products:edit')} />
             <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField name="category" label="카테고리" fullWidth value={currentProduct.category} onChange={handleChange} disabled={!hasPermission('products:edit')} />
+              <FormControl fullWidth required error={categoryInvalid} disabled={!hasPermission('products:edit')}>
+                <InputLabel id="product-category-label">카테고리</InputLabel>
+                <Select
+                  labelId="product-category-label"
+                  name="category"
+                  label="카테고리"
+                  value={currentProduct.category || ''}
+                  onChange={handleChange}
+                >
+                  {categories.map((cat) => (
+                    <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
               <TextField name="sub_category" label="하위 카테고리" fullWidth value={currentProduct.sub_category || ''} onChange={handleChange} disabled={!hasPermission('products:edit')} />
             </Box>
             <TextField name="list_price" label="가격" type="number" fullWidth value={currentProduct.list_price} onChange={handleChange} disabled={!hasPermission('products:edit')} />

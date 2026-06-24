@@ -32,7 +32,7 @@
 | 3 | 진행 상태 | `SectionCard` "진행 상태" + 3 토글 칩(`ProgressChip`) → events update |
 | 4 | **준비 노트** | `SectionCard` "준비 노트" + **통합 리치 에디터(Toast UI)** 한 칸. 준비물(task 체크박스)+학회자료(이미지)+학회정보(자유 텍스트) 통합 |
 | 5 | 현장 보고 | `SectionCard` "현장 보고" + `FieldReportSection`(1차 plain text) |
-| 6 | 매출 요약 | `SectionCard` "매출 요약" — **지결 완료 시에만** hero `StatCard` + sub 2장(검사/도서). 미완료 = 안내 박스 |
+| 6 | 매출 요약 | `SectionCard` "매출 요약" — **지결 완료 시에만** hero `StatCard` + sub 1~3장(검사/도서/도구, 0원 숨김 동적 분할). 미완료 = 안내 박스 |
 
 > 단일 컬럼. 어드민 데이터 밀도 원칙(01)이되 한 학회 = 한 스토리이므로 세로 누적. 좌/우 컬러 인디케이터·그라데이션·가짜 통계 없음(룰 E).
 > **순서 의도(준비→진행→기록→정산):** 준비 노트(현장 전 준비) → 현장보고(현장 중 기록) → 매출(정산 결과는 흐름의 끝, 지결 완료 후 확정). 날짜는 헤더·개요 모두 `YYYY.MM.DD(요일)` 표기.
@@ -97,8 +97,8 @@
   - [ ] 입력 = 이 event의 `orders`(status·delivery_fee·order_items[{category, price_at_purchase, quantity}]).
   - [ ] `computeRevenueByCategory(orders)` — **PAID_STATUSES(paid·completed)만** 합산. 취소/환불/미결제 제외.
   - [ ] hero `StatCard` = **총 매출액**(`revenue.total`, accent.revenue, 원).
-  - [ ] sub 2장: **검사 판매**(배송비 `testShipping` 포함, accent.tests) / **도서 판매**(배송비 `bookShipping` 포함, accent.books).
-  - [ ] 배송비 할당 규칙 = util 정합(검사/혼합 주문 배송비→검사, 도서만→도서). 면세.
+  - [ ] sub **1~3장 동적 분할**(0원 버킷 숨김, flex:1 균등): **검사 판매**(배송비 `testShipping` 포함, accent.tests) / **도서 판매**(배송비 `bookShipping` 포함, accent.books) / **도구 판매**(배송비 `toolShipping` 포함, `CATEGORY_COLORS.tool` #6B7684, `ToolIcon`) — **도구 독립 버킷(2026-06-24 건우님 확정)**.
+  - [ ] 배송비 할당 규칙 = util 정합(우선순위 **검사>도구>도서**, 한 주문 배송비는 1곳만). 면세. total = test+book+tool+unclassified.
   - [ ] subtitle = "결제 완료 주문 기준 · 배송비 포함".
   - [ ] **빈 상태**(지결 완료인데 total=0): EmptyState "아직 매출이 없어요" + "결제 완료된 주문이 생기면 …".
 

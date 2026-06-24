@@ -37,8 +37,8 @@ import { DraftBanner, DraftSavedHint } from './ui';
  * props:
  *  - eventId: string | null  (null/'all' → 빈 안내)
  *  - eventName: string       (보고서 템플릿 머리말)
- *  - revenueData: { testRevenue, bookRevenue, totalRevenue, testShipping, bookShipping }
- *      (템플릿 자동 채움 — 없으면 0)
+ *  - revenueData: { testRevenue, bookRevenue, toolRevenue, totalRevenue, testShipping, bookShipping, toolShipping }
+ *      (템플릿 자동 채움 — 없으면 0. 도구 매출은 있을 때만 한 줄 추가)
  *  - canEdit: boolean        (작성·수정·삭제 노출. 기본 true — 대시보드 정합)
  */
 const FieldReportSection = ({ eventId, eventName, revenueData, canEdit = true }) => {
@@ -138,8 +138,12 @@ const FieldReportSection = ({ eventId, eventName, revenueData, canEdit = true })
     const totalRev = (revenueData?.totalRevenue || 0).toLocaleString();
     const testShip = (revenueData?.testShipping || 0).toLocaleString();
     const bookShip = (revenueData?.bookShipping || 0).toLocaleString();
+    const toolRevNum = revenueData?.toolRevenue || 0;
+    const toolLine = toolRevNum > 0
+      ? `\n도구 판매: ${toolRevNum.toLocaleString()}원 (배송비 ${(revenueData?.toolShipping || 0).toLocaleString()}원 포함)`
+      : '';
     setEditContent(
-      `${eventName || '전체'} 현장마케팅 보고드립니다.\n\n0. 판매\n검사 판매: ${testRev}원 (배송비 ${testShip}원 포함)\n도서 판매: ${bookRev}원 (배송비 ${bookShip}원 포함)\n합계: ${totalRev}원\n\n1. 도서 관련\n\n2. 검사 관련\n\n이상 현장마케팅 마무리하겠습니다.`
+      `${eventName || '전체'} 현장마케팅 보고드립니다.\n\n0. 판매\n검사 판매: ${testRev}원 (배송비 ${testShip}원 포함)\n도서 판매: ${bookRev}원 (배송비 ${bookShip}원 포함)${toolLine}\n합계: ${totalRev}원\n\n1. 도서 관련\n\n2. 검사 관련\n\n이상 현장마케팅 마무리하겠습니다.`
     );
     setEditDayNumber(1);
     setEditAuthor('');

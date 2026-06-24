@@ -69,12 +69,13 @@
 ### Row 1 — 매출 현황 카드 (시안 정합본: hero 총매출 + 오늘접수 박스 + sub 2장)
 > **2026-06-02 매출 합산 구조 변경 (건우님 승인):** 별도 `shippingRevenue` 버킷 폐기. 배송비를 검사/도서에 할당(검사 우선, 도서만 있는 주문이면 도서). `computeRevenueByCategory`(공용 유틸) 단일 소스. 매출 정의 = **결제완료(`['paid','completed']`)만** — 이전엔 `cancelled/refunded`만 제외해 `pending`(결제대기)도 매출·랭킹에 포함됐으나, 결제완료 기준으로 통일(매출·랭킹 정합).
 - [ ] 헤더 subtitle: `{dashboardData.eventName}` (예: "전체 기간 누적 합계", "2026년 한국심리학회 누적 합계", "3개 행사 합계", 행사 1건 선택 시 해당 학회명)
-- [ ] hero StatCard: **총 매출액** (`totalRevenue` = test + book) — `ReceiptIcon`, color `theme.accent.revenue`, **`yoyPct` trend pill (전년 동조건 비교, final_payment 기반)**
+- [ ] hero StatCard: **총 매출액** (`totalRevenue` = test + book + tool + unclassified) — `ReceiptIcon`, color `theme.accent.revenue`, **`yoyPct` trend pill (전년 동조건 비교, final_payment 기반)**
 - [ ] 오늘 접수 박스 (Row 1 우측) — `todayOrdersCount`, `CartIcon`, `theme.accent.attention`
-- [ ] sub StatCard 2장 (모바일 column, 데스크톱 row):
+- [ ] sub StatCard **1~3장 동적 분할** (모바일 column, 데스크톱 row, flex:1 균등). **0원 버킷은 숨김** (`.filter(b => b.revenue > 0)`) — 판매 대분류 수에 따라 1~3열:
   - **검사 판매 (배송비 포함)** (`testRevenue`) — `TestIcon`, color `theme.accent.tests`
   - **도서 판매 (배송비 포함)** (`bookRevenue`) — `BookIcon`, color `theme.accent.books`
-  - (배송비 단독 카드 폐기 — 검사/도서에 흡수)
+  - **도구 판매 (배송비 포함)** (`toolRevenue`) — `ToolIcon`(Build), color `CATEGORY_COLORS.tool` (#6B7684) — **도구 독립 버킷(2026-06-24 건우님 확정, 도구-검사 합산 정책 영구 폐지)**
+  - (배송비 단독 카드 폐기 — 검사/도구/도서 우선순위로 1곳 흡수)
 - [ ] `CompactKpi` 컴포넌트 형식 (line 51-72):
   - 아이콘 박스 (정사각, fontSize 28, color bg)
   - title (variant caption, fontWeight 600, text.secondary)
@@ -82,11 +83,12 @@
   - YoY Chip (`▲` / `▼` / `-` + 절대값 %, success/error 톤). `yoyPct` null이면 미노출
 - [ ] **확인 필요** — yoyPct 조건: `selectedYear !== 'all' && selectedEventIds.length === 0` 만 계산 (line 477). 학회를 골랐을 때만 의미 있는 비교(같은 학회 vs 전년 동학회) 동작인지 시안에서 분기 표시 필요
 
-### Row 2 — 판매 순위 50/50 (line 699-711)
-두 카드를 좌우 동일 너비, 각자 정렬 토글 보유.
+### Row 2 — 판매 순위 (판매 있는 대분류만 동적 분할, 1~3열)
+판매 내역 있는 버킷만 좌우 동일 너비(flex:1)로 노출. 전부 0건이면 검사·도서 두 빈 카드 기본 노출(빈 행 방지).
 
-- [ ] 검사 판매 순위 (`testTop5`) — `TestIcon`, color `#2B398F`
-- [ ] 도서 판매 순위 (`bookTop5`) — `BookIcon`, color `#3d4db0`
+- [ ] 검사 판매 순위 (`testTop5`) — `TrophyIcon`, color `theme.accent.tests` (#2B398F). 도구·도서 라벨 제외 후 검사 판정
+- [ ] 도서 판매 순위 (`bookTop5`) — `TrophyIcon`, color `theme.accent.books`
+- [ ] 도구 판매 순위 (`toolTop5`) — `TrophyIcon`, color `CATEGORY_COLORS.tool` (#6B7684). **도구는 검사보다 먼저 판정**(검사도구 라벨이 검사 그룹에 끼지 않게 — 매출 버킷과 정합)
 - [ ] `RankingBox` 내부 구조 (line 137-199):
   - 헤더: 아이콘 + 카드 제목 + "수량순" / "금액순" Chip 토글 (default 'quantity')
   - 행: 순위 숫자 (1~3위 컬러 강조), 상품명 (1~3위 fontWeight 600, 한 줄 ellipsis + Tooltip), 수량 Chip (`{totalQuantity}부`, 1위만 컬러 배경), 매출액(`totalAmount > 0` 시 caption)
@@ -172,11 +174,13 @@
 - [ ] `selectedEventIds.length >= 2` 시: `N개 행사 합계`
 - [ ] 일자 필터 활성 시: `created_at >= dateFrom (KST 0시)` and `<= dateTo (KST 23:59:59.999)` — 양 끝 포함 (line 465-466)
 - [ ] 매출 계산 — **결제완료(`['paid','completed']`)만** (`computeRevenueByCategory` 내부 `PAID_STATUSES`). `pending`/`cancelled`/`refunded`는 매출·랭킹에서 제외. `statusCounts`·`todayOrdersCount`에는 전체 포함. (2026-06-02 변경 — 이전엔 pending도 매출 포함이었음)
-- [ ] 카테고리 분류 (`computeRevenueByCategory`):
+- [ ] 카테고리 분류 (`computeRevenueByCategory`, 2026-06-24 도구 독립 3버킷):
+  - 도구 매출: category가 `도구` 또는 `tool` 포함 (`검사도구`처럼 검사+도구 동시 라벨은 **도구 우선**)
   - 도서 매출: category가 `도서` 또는 `book` 포함
-  - 검사 매출: category가 `검사`/`test`/`도구`/`tool` 포함 (도구는 검사 버킷). 미분류도 검사 버킷.
-  - 배송비 할당: 주문에 검사(도구 포함) 품목이 하나라도 있으면 배송비 → 검사, 도서만 있는 주문이면 → 도서.
-- [ ] `totalRevenue = bookRevenue + testRevenue` (각 버킷에 배송비 포함됨)
+  - 검사 매출: 도구·도서 아니면서 `검사`/`test` 포함
+  - **미분류(`unclassified`)**: 셋 중 어디에도 안 맞음 → 별도 버킷 + 콘솔 경고(집계 오염 방지). **"그 외=검사" fallback 영구 폐지**
+  - 배송비 할당(주문당 1회, 우선순위 **검사 > 도구 > 도서**): 가장 우선순위 높은 버킷 1곳으로만 귀속. 미분류만 있는 주문은 미분류로 귀속
+- [ ] `totalRevenue = testRevenue + bookRevenue + toolRevenue + unclassified` (각 버킷에 배송비 포함됨). **도구 분리 전후 total 불변**(미분류 0일 때 회귀 0 — 도구가 검사에서 빠져 tool로 이동할 뿐)
 - [ ] YoY 계산: `selectedYear !== 'all' && selectedEventIds.length === 0` 일 때만 전년 동조건 (같은 host_society·tags 매칭) 전체 매출 비교. `prevTotal > 0` 일 때만 표시
 - [ ] **확인 필요** — YoY는 전년 주문 fetch 시 `final_payment` 만 끌어와 합산하고 취소·환불 분리 안 함(line 488-491). 매출 정의 불일치 부채
 
@@ -244,11 +248,11 @@
 
 ### 집계 산출 객체 `dashboardData` (state)
 - `eventName` (string)
-- `totalRevenue`, `bookRevenue`, `testRevenue` (number, 원). **검사·도서는 배송비 포함값. `shippingRevenue` 폐기(2026-06-02).** total = test + book.
+- `totalRevenue`, `bookRevenue`, `testRevenue`, `toolRevenue` (number, 원). **검사·도서·도구는 배송비 포함값. `shippingRevenue` 폐기(2026-06-02).** `testShipping`/`bookShipping`/`toolShipping` 각 버킷 귀속 배송비. total = test + book + tool + unclassified (2026-06-24 도구 독립 3버킷).
 - `yoyPct` (number | null) — 전년 동조건 대비 % (절대값+삼각형은 표시 시 가공)
 - `totalOrders` (number) — 취소·환불 포함 전체 건수
 - `statusCounts` (object) — 5상태별 건수
-- `bookTop5`, `testTop5` (array) — 사실은 상한 없는 정렬된 전체 리스트. `RankingBox`에서 5건 잘라 노출
+- `bookTop5`, `testTop5`, `toolTop5` (array) — 사실은 상한 없는 정렬된 전체 리스트. `RankingBox`에서 5건 잘라 노출. 도구는 검사보다 먼저 판정해 분리
 - `todayOrdersCount` (number)
 - `recentOrders` (array) — 5건
 
@@ -309,6 +313,7 @@ frontend 사이클(M3-12 본 작업)이 흡수해야 할 항목:
 6. **상품 전수 fetch 비용.** 진입 시 `fetchAllProducts`로 페이지네이션 1000씩 끝까지 끌어오고 `productsMap` 메모리 적재(line 374-384). 신상품 등록이 폭증하지 않는 한 부담 없는 규모(연 800건 운영). 단, 신규 환경에서 products가 수만 건이 된다면 N+1 위험. 부채 후보로 기록.
 
 ## 변경 이력
+- 2026-06-24 **매출 3버킷화 — 도구 검사에서 분리 (건우님 확정, 도구-검사 합산 정책 영구 폐지).** `computeRevenueByCategory`가 검사/도서/도구 3버킷 + 미분류(unclassified, "그 외=검사" fallback 폐지·콘솔 경고) 반환. 배송비 우선순위 검사>도구>도서 한 곳 귀속. 반환 구조에 `tool`·`toolShipping`·`unclassified` 추가, `total` 정합 유지(도구 분리 전후 total 불변 — 수동 검증 1건 560,000원 동일). 매출 카드·판매 순위 모두 0원/0건 버킷 숨김으로 1~3열 동적 분할(flex:1). 입금결의서(`depositResolution.js`)에 도구 행(11행) 추가, placeholder 삭제 루프 12~15로 +1, 양식 .xlsx 무수정. 호출처 전부 수정: DashboardPage(집계·카드·랭킹), EventDetailPage(매출 카드·FieldReportSection revenueData), EventDetailPreview(시안 mock), FieldReportSection(보고서 자동 템플릿 — 도구 매출 있을 때만 한 줄 추가). `FulfillmentPage`의 도구→검사 정규화는 출고 물류 편의로 매출 무관·무변경. `categoryColors.js` 기존 `tool` 토큰 사용(변경 불필요). lint 클린(변경 6파일 신규 위반 0). `DashboardPage.test.jsx` 여전히 `describe.skip`. (frontend-engineer)
 - 2026-06-10 **입금결의서 진입점 L2 일원화 (건우님 확정).** 헤더의 "입금결의서 내보내기" 버튼·핸들러·상태 제거 — L2 학회 상세 헤더의 입금결의서(작성자/부서 자동 채움)가 단일 진입점. 대시보드는 그 외 무변경(회귀 없음). (frontend-engineer)
 - 2026-06-02 매출 합산 구조 변경 + 입금결의서 export (건우님 승인):
   - 매출 집계를 공용 유틸 `computeRevenueByCategory`로 교체. 별도 `shippingRevenue` 버킷 폐기 — 배송비를 검사/도서에 할당(검사 우선). 매출 카드 "검사 판매(배송비 포함)" / "도서 판매(배송비 포함)" / 총매출(=test+book) 2+hero 구조. 배송비 단독 StatCard 제거. `ShippingIcon` import 제거.

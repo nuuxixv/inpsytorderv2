@@ -19,6 +19,7 @@ import {
   Receipt as ReceiptIcon,
   Psychology as TestIcon,
   MenuBook as BookIcon,
+  Build as ToolIcon,
   Assignment as ReportIcon,
   LocalOffer as LocalOfferIcon,
   EditNote as EditNoteIcon,
@@ -35,6 +36,7 @@ import { useNotification } from '../hooks/useNotification';
 import { getEventStatusKST } from '../utils/date';
 import { numberToKoreanCurrency } from '../utils/koreanCurrency';
 import { computeRevenueByCategory } from '../utils/revenueByCategory';
+import { CATEGORY_COLORS } from '../constants/categoryColors';
 import {
   getEventBySlug, updateEventProgress, updateEventPrepNote, getOrdersForEventRevenue,
   recordEventView, getEventViewers,
@@ -601,9 +603,11 @@ const EventDetailPage = () => {
             revenueData={{
               testRevenue: revenue.test,
               bookRevenue: revenue.book,
+              toolRevenue: revenue.tool,
               totalRevenue: revenue.total,
               testShipping: revenue.testShipping,
               bookShipping: revenue.bookShipping,
+              toolShipping: revenue.toolShipping,
             }}
             canEdit={canEdit}
           />
@@ -647,21 +651,25 @@ const EventDetailPage = () => {
                   color={theme.accent.revenue}
                 />
               </Box>
+              {/* 검사/도서/도구 3버킷(도구 독립, 2026-06-24). 0원 버킷 숨김 → 1~3열 동적 분할. */}
               <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 2, sm: 3 } }}>
-                <StatCard
-                  label={`검사 판매 (배송비 ${won(revenue.testShipping)}원 포함)`}
-                  value={won(revenue.test)}
-                  unit="원"
-                  icon={TestIcon}
-                  color={theme.accent.tests}
-                />
-                <StatCard
-                  label={`도서 판매 (배송비 ${won(revenue.bookShipping)}원 포함)`}
-                  value={won(revenue.book)}
-                  unit="원"
-                  icon={BookIcon}
-                  color={theme.accent.books}
-                />
+                {[
+                  { key: 'test', label: '검사 판매', revenue: revenue.test, shipping: revenue.testShipping, icon: TestIcon, color: theme.accent.tests },
+                  { key: 'book', label: '도서 판매', revenue: revenue.book, shipping: revenue.bookShipping, icon: BookIcon, color: theme.accent.books },
+                  { key: 'tool', label: '도구 판매', revenue: revenue.tool, shipping: revenue.toolShipping, icon: ToolIcon, color: CATEGORY_COLORS.tool },
+                ]
+                  .filter(b => b.revenue > 0)
+                  .map(b => (
+                    <Box key={b.key} sx={{ flex: 1, minWidth: 0 }}>
+                      <StatCard
+                        label={`${b.label} (배송비 ${won(b.shipping)}원 포함)`}
+                        value={won(b.revenue)}
+                        unit="원"
+                        icon={b.icon}
+                        color={b.color}
+                      />
+                    </Box>
+                  ))}
               </Box>
             </Box>
           ) : (

@@ -67,7 +67,7 @@ function triggerDownload(blob, filename) {
  * @param {string} [args.department] - 부서(미지정 시 기본 "마케팅운영팀")
  */
 export async function exportDepositResolution({ event, orders, productsMap, authorName, department }) {
-  const { test, book, total } = computeRevenueByCategory(orders, { productsMap });
+  const { test, book, tool, total } = computeRevenueByCategory(orders, { productsMap });
 
   const society = (event?.host_society || '').trim();
   const eventTitle = (event?.event_season || '').trim()
@@ -101,7 +101,7 @@ export async function exportDepositResolution({ event, orders, productsMap, auth
   ws.getCell('Q5').value = department || DEFAULT_DEPARTMENT;
   ws.getCell('Q6').value = authorName || '';
 
-  // 적요 행 — 도서/검사 둘 다 0원이어도 기재(생략 금지).
+  // 적요 행 — 도서/검사/도구 모두 0원이어도 기재(생략 금지).
   const prefix = `${dateRange} ${society} ${eventTitle}`.replace(/\s+/g, ' ').trim();
   ws.getCell('E9').value = `${prefix} 도서 매출`;
   ws.getCell('N9').value = society;
@@ -109,10 +109,13 @@ export async function exportDepositResolution({ event, orders, productsMap, auth
   ws.getCell('E10').value = `${prefix} 검사 매출`;
   ws.getCell('N10').value = society;
   ws.getCell('R10').value = test;
+  ws.getCell('E11').value = `${prefix} 도구 매출`;
+  ws.getCell('N11').value = society;
+  ws.getCell('R11').value = tool;
 
-  // 양식 데모 행(11~15) 잔여 placeholder 제거 — 1학회=2행(도서/검사)만 사용.
+  // 양식 데모 행(12~15) 잔여 placeholder 제거 — 1학회=3행(도서/검사/도구)만 사용.
   // (템플릿엔 패턴 예시로 E11/E12 "{학회명}..." + R11/R12 "10000000" 등이 들어있음)
-  for (let r = 11; r <= 15; r++) {
+  for (let r = 12; r <= 15; r++) {
     ws.getCell(`E${r}`).value = null;
     ws.getCell(`N${r}`).value = null;
     ws.getCell(`R${r}`).value = null;
@@ -144,5 +147,5 @@ export async function exportDepositResolution({ event, orders, productsMap, auth
   const ymd = `${year}-${String(month).padStart(2, '0')}`;
   triggerDownload(blob, `입금결의서_${society || eventTitle || '행사'}_${ymd}.xlsx`);
 
-  return { test, book, total };
+  return { test, book, tool, total };
 }
