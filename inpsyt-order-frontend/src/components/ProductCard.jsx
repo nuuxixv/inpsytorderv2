@@ -6,9 +6,6 @@ import {
 } from '@mui/icons-material';
 import { getProductImageUrl } from '../api/productImages';
 
-// 카드당 표출하는 강조 배지 상한(C1 §배지 가드레일). 카테고리 배지는 이 카운트에서 제외.
-const MAX_EMPHASIS_BADGES = 2;
-
 // 상품 이미지 슬롯(C1 §카드 이미지). 1:1 정방형.
 // 이미지 없으면(또는 onError) 슬롯 자체 미렌더(null) — 플레이스홀더 폐기(건우님 2026-06-29).
 // 한 행사 내 이미지 유무 혼재 없음(도구=전부 있음 / 검사·도서=전부 없음). 빈 박스 0.
@@ -59,10 +56,10 @@ const BadgeBox = ({ bg, color, children }) => (
 );
 
 // 사양 §Step 0 — 상품 카드.
-// - 카테고리 / 인기 / 신규 / 동적 배지 (조건부)
+// - 카테고리 / 인기 / 신규 (조건부)
 // - 할인 시 원가 line-through + % 빨강 텍스트(칩 아님, /preview 목업 정합)
 // - 카트 없으면 '담기' outlined, 있으면 수량 스테퍼
-const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, badgeMetaByName = {}, hideCategoryBadge = false, onAdd, onIncrement, onDecrement }) => {
+const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, hideCategoryBadge = false, onAdd, onIncrement, onDecrement }) => {
   const theme = useTheme();
   const isInCart = cartQuantity > 0;
   const isDiscounted = product.is_discountable && discountRate > 0;
@@ -75,15 +72,11 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, badgeMetaByN
     ? null
     : (product.category === '도구' ? '검사' : product.category);
 
-  // 강조 배지 후보 — 인기/신규(boolean) + 동적 배지(마스터 등록된 것만).
-  // C1 가드레일: priority ASC 정렬 후 상위 2개만, 초과분은 조용히 컷(+N 표기 없음).
-  // 미등록 배지명(마스터에 없음)은 고객 화면에서 미표시(깨진 라벨 노출 금지).
-  // boolean 배지는 기존 시각 우선순위(인기→신규) 보존 위해 동적보다 항상 앞(음수 priority).
-  const emphasisBadges = [];
+  // 강조 배지 — 인기/신규(boolean). 시각 우선순위 인기→신규.
+  const visibleBadges = [];
   if (product.is_popular) {
-    emphasisBadges.push({
+    visibleBadges.push({
       key: 'popular',
-      priority: -2,
       label: '인기',
       icon: <StarIcon sx={{ fontSize: 11 }} />,
       bg: alpha(theme.accent.attention, 0.14),
@@ -91,28 +84,13 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, badgeMetaByN
     });
   }
   if (product.is_new) {
-    emphasisBadges.push({
+    visibleBadges.push({
       key: 'new',
-      priority: -1,
       label: 'NEW',
       bg: alpha(theme.palette.error.main, 0.12),
       color: theme.palette.error.main,
     });
   }
-  (product.badges || []).forEach((name) => {
-    const meta = badgeMetaByName[name];
-    if (!meta) return; // 미등록 배지 — 고객 화면 미표시
-    emphasisBadges.push({
-      key: `dyn-${name}`,
-      priority: meta.priority,
-      label: name,
-      bg: alpha(meta.color, 0.13),
-      color: meta.color,
-    });
-  });
-  const visibleBadges = emphasisBadges
-    .sort((a, b) => a.priority - b.priority)
-    .slice(0, MAX_EMPHASIS_BADGES);
 
   return (
     <Card
@@ -133,7 +111,7 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, badgeMetaByN
         {/* 이미지 슬롯(1:1) — image_filename 있으면 공개 URL, 없으면/onError면 슬롯 미렌더(null) */}
         <ProductImageSlot product={product} theme={theme} />
 
-        {/* 배지 — 소프트 틴트(목업 정합). 카테고리(분류) + 강조 배지 최대 2개(C1 가드레일) */}
+        {/* 배지 — 소프트 틴트(목업 정합). 카테고리(분류) + 인기/신규 */}
         <Box sx={{ display: 'flex', gap: 0.5, mb: 0.75, flexWrap: 'wrap', alignItems: 'center' }}>
           {displayCategory && (
             <BadgeBox
