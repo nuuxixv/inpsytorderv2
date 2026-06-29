@@ -205,7 +205,7 @@ const EventManagementPage = () => {
       const [eventsRes, societiesRes, staffRes] = await Promise.all([
         supabase
           .from('events')
-          .select('id, name, discount_rate, order_url_slug, start_date, end_date, estimated_delivery_date, event_year, host_society, event_season, status, venue, attendee_ids, note, marketing_cost, created_by')
+          .select('id, name, discount_rate, order_url_slug, start_date, end_date, estimated_delivery_date, event_year, host_society, event_season, status, venue, attendee_ids, note, marketing_cost, created_by, visible_categories')
           .order('start_date', { ascending: true }),
         supabase.from('societies').select('id, name, slug_prefix').order('name', { ascending: true }),
         supabase

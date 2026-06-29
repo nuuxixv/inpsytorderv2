@@ -2,7 +2,7 @@
 
 > 이 시트는 상품 관리 화면의 정보·기능·데이터 구조의 단일 진실 소스다.
 > 시안과 실서비스 구현은 이 시트의 모든 항목을 1:1로 반영해야 한다.
-> 마지막 갱신: 2026-06-24 대분류(category) 필수화 구현 — 폼 Select 강제 + 엑셀 업로드 검증 게이트 (실 코드 변경).
+> 마지막 갱신: 2026-06-29 소분류·배지 마스터 소비 **실 코드 구현** — 상품폼 소분류 Autocomplete(마스터 필터)·배지 멀티선택, 표 배지/소분류 색 칩, 엑셀 배지 열 추가.
 
 ## 참조 파일
 - 실 컴포넌트: `inpsyt-order-frontend/src/components/ProductManagementPage.jsx` (1149줄)
@@ -69,14 +69,14 @@
   - 체크박스(개별)
   - 상품명 (`name`, fontWeight 500)
   - 카테고리 칩 (primary outlined, 라벨=`category`) — **대분류(검사/도서/도구 고정 3)**
-  - 하위 카테고리 (`sub_category`, 없으면 "-") — **소분류. 동적 마스터(`subcategories`)와 이름 자연키로 연결.** 값이 마스터에 미등록이면 회색("미등록") 표시(FK 안 검·운영 마찰 방지 — PRD §엣지). 현재 코드는 평문 텍스트 표시(line 841) — 동적화 시 마스터 색 칩 + 미등록 회색 칩으로 확장 검토(P1, 색 토큰은 마스터에서 수동 지정).
+  - 하위 카테고리 (`sub_category`, 없으면 "-") — **소분류. 동적 마스터(`subcategories`)와 이름 자연키로 연결.** **(2026-06-29 구현)** 마스터에 등록된 이름이면 마스터 색 소프트 틴트 칩(`BadgeChip`), 미등록이면 회색 "· 미등록" 칩 표시(FK 안 검·운영 마찰 방지 — PRD §엣지).
   - 가격 (`list_price`, 천 단위 콤마 + "원", 굵게)
   - 비고 (`notes`, maxWidth 220, 한 줄 잘림)
   - **상태 태그 컬럼 — 누락 금지** (line 844-858):
     - "인기" 칩 (warning, `is_popular=true`일 때)
     - "신상품" 칩 (primary, `is_new=true`일 때)
     - "할인" 칩 (success 톤, `is_discountable=true`일 때)
-    - **동적 배지(`products.badges` text[], 마스터 `badges` 연동, P1)**: 마스터에 등록된 배지명마다 마스터 지정 색으로 칩 표시. 우선순위(`badges.priority`) 정렬. **기존 인기/신상품/할인 boolean 칩과 공존**(PRD: boolean 삭제 안 함). 미등록 배지명은 회색("미등록") 칩. 카드 표출 가드레일(최대 2개)은 고객 화면(C1) 한정 — 어드민 표에서는 운영자가 전수 확인해야 하므로 전량 노출.
+    - **동적 배지(`products.badges` text[], 마스터 `badges` 연동, P1 — 2026-06-29 구현)**: 마스터에 등록된 배지명마다 마스터 지정 색 소프트 틴트 칩 표시. 우선순위(`badges.priority`) ASC 정렬. **기존 인기/신상품/할인 boolean 칩과 공존**(boolean 삭제 안 함). 미등록 배지명은 회색 "· 미등록" 칩. 카드 표출 가드레일(최대 2개)은 고객 화면(C1) 한정 — 어드민 표에서는 전량 노출.
     - 셋 다 false이고 배지도 없으면 "-" (caption)
   - 태그 (앞 2개 칩 + "+N" 칩으로 나머지)
   - 작업: 편집 아이콘 (`EditIcon`)
@@ -113,7 +113,7 @@
 - [ ] 상품 코드 (`product_code`)
 - [ ] 카테고리 (`category`) + 하위 카테고리 (`sub_category`) — **두 필드 별도, 가로 배치, 분리 입력 필수**
   - **현재(2026-06-24 구현)**: 카테고리 = **필수 `Select`**(검사/도서/도구 고정 3, `categories` 상수). 자유 입력·빈값 불가. 미선택 저장 시 `handleSave`에서 차단 + `FormControl error`(붉은 보더) + 경고 토스트("카테고리를 검사/도서/도구 중에서 선택해 주세요."). 하위 카테고리 = 자유 텍스트 `TextField` 유지(소분류는 동적).
-  - **(P1 동적화) 하위 카테고리** = 소분류 마스터(`subcategories`, 선택된 대분류에 소속된 것만 필터) **Autocomplete freeSolo**로 전환 검토 — 마스터 선택을 우선하되 엑셀 호환 위해 직접 입력도 허용(미등록은 UI에서 회색 표시). 두 필드 **별도 유지·통합 금지**. (대분류 Select 전환은 본 갱신으로 완료.)
+  - **(P1 동적화 — 2026-06-29 구현) 하위 카테고리** = 소분류 마스터(`subcategories`, 선택된 대분류에 소속·`is_active` 것만 필터) **Autocomplete freeSolo**. 마스터 선택 우선·엑셀 호환 위해 직접 입력 허용(미등록은 회색 helperText 경고). 두 필드 **별도 유지**.
 - [ ] 가격 (`list_price`, type="number")
 - [ ] 비고 (`notes`, multiline rows=3)
 - [ ] 플래그 체크박스 — 세 개 별도(절대 통합 금지):
@@ -121,7 +121,7 @@
   - "인기 상품" (`is_popular`)
   - "신상품" (`is_new`)
 - [ ] 태그 (`tags`, Autocomplete multiple freeSolo, `availableTags` 옵션)
-- [ ] **(P1 동적화) 배지** (`badges` text[], Autocomplete multiple, 옵션 = 배지 마스터(`badges`)의 이름 목록) — 태그와 **별도 필드**(태그=검색 편의 / 배지=고객 노출 라벨). 마스터 선택 우선, freeSolo로 미등록 입력 시 회색 경고. boolean 플래그(인기/신상품)와 **공존**.
+- [ ] **(P1 동적화 — 2026-06-29 구현) 배지** (`badges` text[], `Autocomplete multiple freeSolo`, 옵션 = 배지 마스터 활성 이름) — 태그와 **별도 필드**(태그=검색 편의 / 배지=고객 노출 라벨). 마스터 선택 우선, 미등록 입력 시 회색 칩 "· 미등록" + helperText. boolean 플래그와 **공존**.
 
 ## 권한별 차이
 
@@ -196,6 +196,7 @@
 
 ## 변경 이력
 
+- 2026-06-29 **소분류·배지 마스터 소비 실 코드 구현 (P1)**. (1) **상품 폼**: 하위 카테고리 자유 텍스트 → `Autocomplete freeSolo`(옵션=소분류 마스터 중 현재 폼 대분류에 소속·`is_active=true`인 이름만 필터). 미등록 입력 시 회색 helperText 경고. 배지 = `Autocomplete multiple freeSolo`(옵션=배지 마스터 활성 이름) 신규 필드(태그와 별도). 미등록 배지 입력 시 회색 칩 "· 미등록". boolean 플래그(인기/신상품/할인)와 공존. `createEmptyProduct`에 `badges: []` 추가. (2) **상품 표**: 하위 카테고리 = 소분류 마스터 색 소프트 틴트 칩(미등록 회색 "· 미등록"). 상태 태그 컬럼에 동적 배지 추가 — 우선순위(`badges.priority`) 정렬, 어드민 **전량 노출**(C1 최대 2개 가드 미적용, §발견 12), 미등록 회색. boolean 칩과 공존, 셋 다 false+배지 0이면 "-". (3) **엑셀**: 양식·목록 다운로드에 "배지" 열(`badges.join(',')`) 추가, 업로드 파싱에 배지 열(콤마 split, tags 패턴 복제). 소분류는 기존 "하위카테고리" 열 그대로. (4) **회귀 방어(graceful)**: products.badges 컬럼 미존재(마이그레이션 미적용) 시 — 폼 저장은 빈 badges 제외 + `PGRST204` 감지 시 badges 빼고 재시도, 엑셀 업로드는 빈 badges 제외, 마스터 fetch는 테이블 없으면 빈 배열 → 기존 자유입력 동작 보존. (5) 색·칩 토큰은 `MASTER_COLOR_FALLBACK`(A8 신설). 핵심 발견 9~12 충족. 마스터 CRUD UI 자체는 A8 소관(본 화면은 소비). **C1 고객 카드 배지 칩은 별도 트랙(미구현).**
 - 2026-06-24 **대분류(category) 필수화 구현 (실 코드 변경)**. (1) **상품 폼**: 카테고리 자유 텍스트 `TextField` → 필수 `Select`(검사/도서/도구). `categoryInvalid` 상태 + `FormControl error`, `handleSave`에서 `categories.includes` 미충족 시 차단·경고 토스트. createEmptyProduct의 빈 category도 저장 차단. (2) **엑셀 업로드**: 매핑부 `category`를 `String().trim()` 정규화, 사전 검증 루프에 게이트 추가 — `categories.includes` false면 사유 "카테고리는 검사/도서/도구만 허용"으로 오류 표에 push·continue, 정상 행만 upsert. 기존 오류 표 구조 `{행,상품코드,상품명,사유}` 그대로. (3) `revenueByCategory.js` unclassified 콘솔 경고 유지(잔여 방어). (4) 동일 파일 사전 부채(`_rowNum` no-unused-vars) 정리. **하위카테고리·배지 동적화(P1)·다른 폼 필드 무변경.** 핵심 발견 1 갱신, 데이터 모델/엑셀 매핑/빈 상태 절에 게이트 명시.
 - 2026-06-24 카테고리·배지 동적화 PRD 반영 (`DOCS/PRD_오티즘_카테고리배지_동적화.md`, P1 트랙·기획 단계) — **사양만 갱신, 실 코드 미변경.** (1) **대분류 고정 3(검사/도서/도구) + 소분류(`sub_category`) 동적 마스터(`subcategories`) 연동** 명시. 도구-검사 합산 폐지 정책 주석(매출 소관은 Dashboard). (2) **상태 태그 컬럼에 동적 배지(`products.badges` text[], 마스터 `badges`) 공존** — boolean 인기/신상품/할인과 병존, 미등록 회색, 어드민은 전량 노출. (3) **상품 폼**: 카테고리=대분류 Select·하위카테고리=소분류 마스터 Autocomplete 전환 검토, 배지 멀티선택 필드 신규(별도). (4) **엑셀**: "배지" 열 1개 추가(10→11컬럼), 소분류는 기존 "하위카테고리" 열 그대로(신규 열 불필요). 매핑·양식·목록 3곳 동일 추가. (5) 데이터 모델에 `products.badges`·소분류 자연키 추가. 핵심 발견 9~12(노출 전용·자연키·boolean 공존·전량 노출) 신설. 라인 번호 1137→1149 갱신. **소분류·배지 마스터 CRUD UI 자체는 A8 시트 소관.**
 - 2026-05-13 신설.

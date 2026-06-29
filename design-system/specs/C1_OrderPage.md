@@ -3,7 +3,8 @@
 > 이 시트는 고객 주문서 화면의 정보·기능·데이터 구조의 단일 진실 소스다.
 > 시안과 실서비스 구현은 이 시트의 모든 항목을 1:1로 반영해야 한다.
 > 임의 단순화·통합·생략은 건우님의 명시적 승인 후 이 시트를 먼저 갱신한 다음에만 허용된다.
-> 마지막 갱신: 2026-06-24 카테고리·배지 동적화 PRD — 소분류 칩 노출·배지 가드레일(P1, 사양만, 실 코드 미변경).
+> 마지막 갱신: 2026-06-29 단일 대분류 행사(visible_categories 1종) 상품 카드 상위 카테고리 칩 숨김 — 전부 같은 대분류라 무의미·혼란(`도구`→`검사` 표기 오해 제거), 소분류 칩으로 탐색. 다른 행사(없음/NULL/복수)는 기존 칩 유지(회귀 0). `ProductCard.hideCategoryBadge` prop(`ProductSelectionStep.isSingleCategory` 전달). 건우님 결정.
+> 이전 갱신: 2026-06-29 상품 카드 동적 배지(`products.badges`) 표출 구현 — 강조 배지 최대 2개·priority 정렬·미등록 미표시·graceful(실 코드 변경 반영, P1 Open Question 4 확정).
 
 ## 참조 파일
 - 실 컴포넌트: `inpsyt-order-frontend/src/components/OrderPage.jsx` (418줄, 3-step 컨테이너)
@@ -81,12 +82,14 @@
 - [ ] 동적 목록 — `['검사', '도서']` + `allProducts`에서 추출한 `category`의 unique 합집합 (line 134-136) + 맨 앞 "전체"(`all`). **`도구`는 `검사`로 정규화 — 별도 칩 노출 안 함, `검사` 선택 시 도구도 포함 (2026-06-01 건우님 규칙)**
 - [ ] 선택 시 filled+secondary, 비선택 시 outlined default. **라운드 `radii.sm`(8px) — 뷰 모드 칩과 동일(2026-06-01 목업 정합)**
 
-> **(P1 카테고리 동적화 PRD — 2026-06-24, 기획 단계·미구현):** 행사가 "도구"만 파는 경우(오티즘 엑스포), 대분류 "도구" 칩을 숨기고 **그 하위 소분류 칩(인지/언어/상담 등, `products.sub_category` 기준)** 으로 탐색하게 한다.
-> - 대분류 "도구" 상위 칩은 **숨김** — 행사가 단일 대분류만 팔면 대분류 칩 자체가 무의미(전부 같은 대분류).
-> - 카테고리 칩 = **해당 행사 판매 대분류의 하위 소분류 목록**(마스터 `subcategories` 정렬 `sort` 순) + "전체". 소분류 칩 클릭 시 `sub_category` 일치 필터.
-> - 여러 대분류를 함께 파는 행사면 기존 대분류 칩 + (선택 시 그 하위 소분류) 2단으로 확장 검토 — 단 **오티즘 = 도구 단일이므로 1차 구현은 소분류 1단으로 충분.**
-> - 칩 시각(`radii.sm`·filled secondary)은 기존 패턴 유지. 소분류 색(`subcategories.color`)을 칩에 입힐지는 P1 후속(기본은 기존 칩 스타일 재사용 — AI 시그니처 컬러 인디케이터 금지).
-> - **저장 위치(events 판매 대분류) 확정 후 본 절 구현 갱신** — A5 §Step2 판매 대분류 "확인 필요" 항목과 연동.
+> **(구현 완료 — 2026-06-25, 행사별 판매 대분류 필터):** 행사가 "도구"만 파는 경우(오티즘 엑스포), 대분류 "도구" 칩을 숨기고 **그 하위 소분류 칩(인지/언어/상담 등, `products.sub_category` 기준)** 으로 탐색하게 한다.
+> - **노출 필터(1차)**: `eventInfo.visible_categories`(events 신규 text[] 컬럼)가 값 있으면 **원본 `product.category`**(검사/도서/도구) ∈ visible_categories 인 상품만 노출(`baseProducts`, `ProductSelectionStep.jsx`). ⚠️ 매칭은 **원본 category** 기준 — 도구→검사 정규화는 칩 표시 전용이라 필터에 미적용. NULL 또는 빈 배열 → 전체 노출(기존 행사 보존). 기존 `eventTags`(tags) 필터와 AND 공존.
+> - 대분류 "도구" 상위 칩은 **숨김** — 행사가 단일 대분류만 팔면(`visible_categories.length === 1`) 대분류 칩 자체가 무의미(전부 같은 대분류).
+> - **(2026-06-29 추가) 상품 카드 상위 카테고리 칩도 숨김**: 단일 대분류 행사(`isSingleCategory`)에서는 `ProductCard`에 `hideCategoryBadge={true}`를 넘겨 카드 상단 카테고리 배지(§아래 ProductCard 카테고리 배지, `도구`→`검사` 표기 포함)를 **렌더하지 않음**. 전부 같은 대분류라 칩 반복이 무의미하고, `도구`→`검사` 표기가 고객에게 혼란. **강조 배지(인기/신규/동적)·상품명·가격은 영향 없음.** `도구`→`검사` 정규화 로직 자체는 다른 행사용으로 유지(단일 대분류일 때만 칩 숨김). 다른 행사(visible_categories 없음/NULL/복수 대분류)는 기존대로 카드 카테고리 칩 표시(회귀 0). 건우님 결정.
+> - 단일 대분류 행사 카테고리 칩 = **`baseProducts`에서 추출한 `sub_category` 목록**(localeCompare 정렬) + "전체" + (미지정 상품 있으면 "기타"). 소분류 칩 클릭 시 `sub_category` 일치 필터(미지정은 "기타"로 매칭). **소분류 2종 미만이면 칩 줄 자체 숨김**(탐색 무의미).
+> - 여러 대분류를 함께 파는 행사·NULL·빈 배열이면 **기존 대분류 칩**(검사/도서, 도구→검사 정규화) 그대로 노출.
+> - 칩 시각(`radii.sm`·filled secondary)은 기존 패턴 유지. 소분류 색 칩 미적용(AI 시그니처 컬러 인디케이터 금지).
+> - **저장 위치 확정**: A5 판매 대분류 = `events.visible_categories` 신규 text[] 컬럼(tags 겸용 기각, `20260624000000_DRAFT` 마이그레이션). graceful: 컬럼/GRANT 미적용 환경에서는 OrderPage가 `visible_categories` 뺀 레거시 select로 fallback → 전체 노출 유지.
 
 #### 상품 진열 — 검사군 2뎁스 + 도서 그리드 (③ 상품 계층화, 2026-06-16)
 - [ ] **레이아웃 분기**: 검사·도구(`parent_code` truthy로 그룹핑됨) = **풀폭 1열 리스트**(`TestGroupCard`) / 도서·평면(`parent_code` null) = **기존 그리드**(`ProductCard`).
@@ -120,13 +123,15 @@
 - [ ] 보더 1.5px — 장바구니에 있으면 `primary.main`, 없으면 `divider`
 - [ ] 상단 배지 영역 (mb 0.75):
   - **배지 = 솔리드 칩 아님. 소프트 틴트 박스(높이 18, radius 4px, alpha 0.12~0.14 배경 + 컬러 텍스트). 2026-06-01 /preview 목업 정합.**
-  - 카테고리 배지 — `category` 있으면 표시(`도구`는 `검사`로). `검사`=`alpha(info.main,0.14)` 배경+`info.dark` 텍스트 / 그 외(`도서` 등)=`gray[200]` 배경+`text.secondary`
+  - 카테고리 배지 — `category` 있으면 표시(`도구`는 `검사`로). `검사`=`alpha(info.main,0.14)` 배경+`info.dark` 텍스트 / 그 외(`도서` 등)=`gray[200]` 배경+`text.secondary`. **단, `hideCategoryBadge=true`(단일 대분류 행사)면 이 배지 미렌더 — §행사별 판매 대분류 필터 규약 참조.**
   - 인기 배지 — `is_popular=true`일 때, `alpha(accent.attention,0.14)` 배경 + `accent.attention` 색 + **`StarIcon`(11px) + "인기" 텍스트** (★ 단독 아님)
   - 신규 배지 "NEW" — `is_new=true`일 때, `alpha(error.main,0.12)` 배경 + `error.main` 텍스트
-  - **(P1 동적화) 동적 배지(`products.badges`, 마스터 `badges`)** — 마스터 색(소프트 틴트, alpha 0.12~0.14, 기존 배지와 동일 패턴 — **솔리드 칩·그라데이션 금지**)로 표시. **가드레일(필수):**
-    - **카드당 배지 최대 2개.** is_popular/is_new(기존 boolean) + 동적 배지를 합쳐 노출 후보를 우선순위(`badges.priority`)로 정렬해 **상위 2개만** 표시. 초과분은 표시 안 함(말줄임·+N 표기 없이 조용히 컷 — 카드 시각 과밀 방지, 노안 부담 최소화).
-    - 우선순위 동률·boolean과 동적 배지 혼재 시 정렬 규약(예: 카테고리 배지 제외하고 강조 배지만 2개 셈)은 backend·디자이너 확정 — **확인 필요**(PRD Open Question 4). 카테고리 배지(검사/도서)는 "강조 배지 2개" 카운트에서 제외할지 결정 필요.
-    - 미등록 배지명(마스터에 없음)은 **고객 화면에서 미표시**(어드민 A6은 회색 "미등록"으로 보이지만, 고객에겐 깨진 라벨 노출 금지).
+  - **(P1 동적화 — 구현 완료 2026-06-29) 동적 배지(`products.badges`, 마스터 `badges`)** — 마스터 색(소프트 틴트, `alpha(color, 0.13)` 배경 + `color` 글자, 높이 18·radius 4 — 기존 배지와 동일 `BadgeBox` 패턴. **솔리드 칩·보더·그라데이션 금지**). 색·우선순위는 `ProductSelectionStep`이 `fetchBadges()`로 마스터를 1회 페치해 `badgeMetaByName`(이름→{color, priority}) 맵으로 카드에 전달. 색 없으면 `MASTER_COLOR_FALLBACK`(회색). **가드레일(필수):**
+    - **카드당 강조 배지 최대 2개**(`MAX_EMPHASIS_BADGES`). 강조 배지 후보 = is_popular(인기) + is_new(NEW) + 동적 배지(마스터 등록된 것만). priority ASC 정렬 후 **상위 2개만** 표시, 초과분은 조용히 컷(말줄임·+N 표기 없음 — 카드 과밀·노안 부담 방지).
+    - **카테고리 배지(검사/도서)는 상한 카운트에서 제외**(분류 정보로 강조 배지와 성격이 다름 — 검사군 카드 §line 108 패턴과 정합). 카테고리 배지는 항상 맨 앞에 별도 표시. (PRD Open Question 4 — 2026-06-29 이 규약으로 frontend 구현·확정.)
+    - **우선순위 규약**: boolean 배지가 동적 배지보다 항상 앞(인기=`-2`, 신규=`-1` 고정 — 기존 시각 순서·회귀 0 보존). 동적 배지는 `badges.priority` 값 사용(낮을수록 앞), 동률은 배열 안정 순서.
+    - 미등록 배지명(마스터에 없음 — `badgeMetaByName`에 키 부재)은 **고객 화면에서 미표시**(어드민 A6은 회색 "미등록"으로 보이지만, 고객에겐 깨진 라벨 노출 금지).
+    - **graceful**: `badges` 마스터 미적용(테이블 없음 → `fetchBadges` []) 또는 `products.badges` 컬럼 부재 시 → 기존 인기/신규 boolean 배지만 표출(회귀 0).
 - [ ] 상품명 — `variant="body2"`, `fontWeight: 600`, 토큰 외 인라인 `fontSize: '0.8125rem'` 사용 중(13px) → 02 §타이포 §사용 규칙 약속 2에 따라 시안에서는 14(`body2`)로 흡수
 - [ ] 가격 영역:
   - 할인 시(상품이 `is_discountable=true` AND `discountRate > 0`): 원가 line-through(`text.disabled`) + `{N}%` **빨강 텍스트**(`caption`, `error.main`, fontWeight 700 — **칩 아님**, 2026-06-01 /preview 목업 정합)
@@ -376,6 +381,7 @@
 
 ### `events` 테이블 (조회만)
 - `id`, `name`, `discount_rate`, `tags` (jsonb 배열), `start_date`, `end_date`, `order_url_slug`, `estimated_delivery_date`
+- `visible_categories` (text[], nullable — `20260624000000_DRAFT`): 행사 주문서 노출 대분류 화이트리스트. NULL/빈 배열=전체 노출. 값 있으면 원본 `products.category` ∈ 이 배열인 상품만. anon 공개 컬럼(GRANT 화이트리스트 포함). **graceful**: 컬럼/GRANT 미적용 시 OrderPage가 레거시 select fallback → 전체 노출.
 
 ### `products` 테이블 (조회만)
 - `id`, `name`, `product_code`, `category`, `list_price`, `is_discountable`, `is_popular`, `is_new`, `tags`
@@ -431,6 +437,7 @@
 17. **(P1) 미등록 배지명은 고객 화면 미표시.** 마스터에 없는 배지명은 어드민(A6)에선 회색 "미등록"으로 보이지만, **고객 화면엔 깨진 라벨을 노출하지 않는다**(조용히 생략). 가법·graceful — badges 컬럼 미적용 환경에서도 기존 카드 동작 보존.
 
 ## 변경 이력
+- 2026-06-25 행사별 판매 대분류 필터 **구현**(`feature/product-hierarchy`) — **실 코드 변경**: (1) `OrderPage.jsx` events select에 `visible_categories` 추가 + 컬럼/GRANT 미적용 graceful fallback(레거시 select 재조회), `ProductSelectionStep`에 `visibleCategories` prop 전달. (2) `ProductSelectionStep.jsx` `baseProducts` 필터 — **원본 category** 기준(도구→검사 정규화 전), NULL/빈 배열=전체 노출(기존 동작 보존), eventTags와 AND 공존. 단일 대분류 행사(`length===1`)는 대분류 칩 숨기고 `sub_category` 칩(localeCompare 정렬·미지정 "기타"·2종 미만 시 칩 줄 숨김), 카테고리 필터도 sub_category 기준. (3) 데이터 모델 `events.visible_categories` 추가. **보존(무변경)**: 도구→검사 정규화(칩 표시·다중/NULL/빈 행사 fallback), eventTags 필터, 뷰모드/검색/정렬/페이지네이션, ProductCard 동작. **검증**: lint(변경 4파일 0 이슈, 기존 send-alimtalk 9에러는 무관)·build 통과. 라이브 검증은 마이그레이션 적용 후.
 - 2026-06-24 카테고리·배지 동적화 PRD 반영 (`DOCS/PRD_오티즘_카테고리배지_동적화.md`, P1·기획 단계) — **사양만 갱신, 실 코드 미변경.** (1) **카테고리 칩**: 단일 대분류 행사("도구"만)는 대분류 칩 숨기고 **소분류 칩(`sub_category`, 마스터 `subcategories` 정렬)** 노출 규칙 추가. 저장 위치(A5 판매 대분류 "확인 필요")와 연동. (2) **ProductCard 배지**: 동적 배지(`products.badges`) 소프트 틴트 노출 + **가드레일(카드당 최대 2개·우선순위)** 추가. 미등록은 고객 화면 미표시. (3) 데이터 모델에 `products.sub_category`·`badges` 추가. (4) 핵심 발견 15~17 신설. **보존**: 도구→검사 정규화는 다중 대분류 행사 fallback으로 잔존(단일 대분류 행사에서만 소분류 칩 우선), 소프트 틴트 배지 패턴·radii.sm 칩·검사군 진열 전부 무변경.
 - 2026-06-16 ③ 상품 계층화 — 검사 2뎁스 진열 (`feature/product-hierarchy` 브랜치, main 격리) — **신규**: `utils/productGroup.js`(그룹핑·파싱·할인가), `TestGroupCard.jsx`(검사군 3상태 카드), `ProductSelectionStep.jsx` 계층 진열(검사 리스트 ↔ 도서 그리드 분기·미니헤더·검사군 단위 검색·펼침 상태). **데이터**: `products.parent_code`/`option_type` 가법 컬럼(`20260616000000`). **graceful**: parent_code 미적용 시 전부 평면(기존 동작). **보존(무변경)**: cart·order_items 4필드 스냅샷·CartBottomSheet 풀네임·트리플탭·hasOnlineCode 조건부 인싸이트ID·주소 3필드·무료배송/할인 로직·검색 멀티키워드·도구→검사 정규화·`ProductCard` 도서 그리드 동작·뷰모드/카테고리 칩. **검증**: lint(신규 3파일 0)·build·vitest(105 passed, 신규 11). 라이브 검증은 마이그레이션 적용 후.
 - 2026-06-01 주문 흐름 UX 5건 (건우님) — (1) 단계 인디케이터 **Step0 포함 전 단계 표시**(OrderStepIndicator는 이미 3단계, OrderPage가 막던 것 해제). (2) **헤더 전부 중앙정렬**(Step1 CustomerInfoStep·Step2 OrderReviewStep도 `textAlign:center`). (3) **우편번호 칸 히든**(데이터·출고정보 보존). (4) **배송 모드 배송지(도로명+상세) 필수** — `isCustomerInfoValid`에 추가, 미입력 시 '다음'/제출 차단·필드 `required` 표시. 현장구매는 성함·연락처만. (5) **0→1 전환 시 장바구니 확인 바텀시트**(토스트 폐기·건우님) — CTA가 step1로 직행하지 않고 `CartBottomSheet`를 열어 카트 요약 + 무료배송 업셀. 배송비 부과 시: `총 N건 구매 · X원 더 구매하시면 무료배송이에요` + `[그래도 주문하기]`(회색 outlined) `[상품 추가하기]`(파랑 contained = 유도 행동). 무료배송/현장구매: `총 N건 구매` + `[주문하기]`(파랑) `[상품 추가하기]`(회색). 주문하기/그래도주문하기→step1(onProceed), 상품 추가하기→시트 닫고 step0. 파일: OrderPage·CustomerInfoStep·OrderReviewStep·CartBottomSheet.

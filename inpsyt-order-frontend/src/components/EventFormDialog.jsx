@@ -11,6 +11,7 @@ import {
 import { supabase } from '../supabaseClient';
 import { useNotification } from '../hooks/useNotification';
 import { numberToKoreanCurrency } from '../utils/koreanCurrency';
+import { fetchProductCountByCategory } from '../api/products';
 import { DateField } from './ui';
 
 /**
@@ -28,6 +29,9 @@ import { DateField } from './ui';
  *  - onDeleted(): 삭제 성공 후 (L1 재조회 / L2 목록 이동)
  */
 
+// 판매 대분류 — 고정 3종(products.category 도메인과 동일). 소분류는 여기서 선택하지 않음.
+const VISIBLE_CATEGORY_OPTIONS = ['검사', '도서', '도구'];
+
 const SEASON_OPTIONS = ['춘계학술대회', '추계학술대회', '연수강좌', '보수교육', '세미나', '기타'];
 const SEASON_SLUG_MAP = {
   '춘계학술대회': 'spring', '추계학술대회': 'fall', '연수강좌': 'training',
@@ -38,6 +42,7 @@ const SEASON_SLUG_MAP = {
 const FORM_FIELDS = [
   'name', 'discount_rate', 'order_url_slug', 'start_date', 'end_date', 'estimated_delivery_date',
   'event_year', 'host_society', 'event_season', 'venue', 'attendee_ids', 'note', 'marketing_cost',
+  'visible_categories',
 ];
 const DATE_FIELDS = ['start_date', 'end_date', 'estimated_delivery_date'];
 
@@ -45,6 +50,7 @@ const emptyEvent = () => ({
   name: '', discount_rate: 0, order_url_slug: '', start_date: '', end_date: '',
   estimated_delivery_date: '', event_year: new Date().getFullYear(), host_society: '',
   event_season: '', venue: '', attendee_ids: [], note: '', marketing_cost: null,
+  visible_categories: [],
 });
 
 const EventFormDialog = ({
@@ -57,10 +63,21 @@ const EventFormDialog = ({
   const isEditing = !!event?.id;
   const [form, setForm] = useState(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [categoryCounts, setCategoryCounts] = useState(null); // { 검사: N, 도서: M, 도구: K }
 
   useEffect(() => {
     if (open) setForm(event ? { ...event } : emptyEvent());
   }, [open, event]);
+
+  // 판매 대분류 미리보기용 — 대분류별 상품 수 1회 집계(실 카운트만, 가짜 통계 금지)
+  useEffect(() => {
+    if (!open || categoryCounts) return;
+    let cancelled = false;
+    fetchProductCountByCategory()
+      .then((counts) => { if (!cancelled) setCategoryCounts(counts); })
+      .catch(() => { if (!cancelled) setCategoryCounts({}); });
+    return () => { cancelled = true; };
+  }, [open, categoryCounts]);
 
   const handleChange = (name, value) => {
     setForm((prev) => {
@@ -132,6 +149,10 @@ const EventFormDialog = ({
     const upsertData = Object.fromEntries(FORM_FIELDS.map((k) => [k, form[k]]));
     // 정합: 빈 배열/빈 비용/빈 날짜 정규화 (uuid[]·integer·date 컬럼).
     upsertData.attendee_ids = Array.isArray(upsertData.attendee_ids) ? upsertData.attendee_ids : [];
+    // 빈 배열 = 전체 노출(NULL과 동일 의미, 마이그레이션 §의미 규칙). 빈 배열 그대로 저장.
+    upsertData.visible_categories = Array.isArray(upsertData.visible_categories)
+      ? upsertData.visible_categories
+      : [];
     upsertData.marketing_cost =
       upsertData.marketing_cost === '' || upsertData.marketing_cost == null
         ? null
@@ -319,6 +340,48 @@ const EventFormDialog = ({
                 helperText="입력 시 고객 주문 조회 페이지에 도착 예정일이 표시됩니다."
                 disabled={!canEdit}
               />
+
+              {/* 판매 대분류 — 고객 주문서 노출 필터(검사/도서/도구 다중 토글) */}
+              <Box>
+                <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 1 }}>
+                  판매 대분류
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+                  {VISIBLE_CATEGORY_OPTIONS.map((cat) => {
+                    const selected = (form?.visible_categories || []).includes(cat);
+                    return (
+                      <Chip
+                        key={cat}
+                        label={cat}
+                        variant={selected ? 'filled' : 'outlined'}
+                        color={selected ? 'primary' : 'default'}
+                        onClick={canEdit ? () => {
+                          const cur = form?.visible_categories || [];
+                          handleChange('visible_categories',
+                            selected ? cur.filter((c) => c !== cat) : [...cur, cat]);
+                        } : undefined}
+                        sx={{ fontWeight: selected ? 700 : 500, borderRadius: `${theme.radii.sm}px` }}
+                      />
+                    );
+                  })}
+                </Box>
+                {(form?.visible_categories || []).length === 0 ? (
+                  <Typography variant="caption" sx={{ color: 'text.secondary', mt: 1, display: 'block' }}>
+                    선택하지 않으면 전체 상품이 노출됩니다.
+                  </Typography>
+                ) : (
+                  <Typography variant="caption" sx={{ color: 'text.secondary', mt: 1, display: 'block' }}>
+                    선택한 대분류 상품만 이 행사의 주문서에 노출됩니다.
+                    {categoryCounts && (() => {
+                      const parts = (form?.visible_categories || [])
+                        .map((c) => `${c} ${categoryCounts[c] ?? 0}개`);
+                      const total = (form?.visible_categories || [])
+                        .reduce((sum, c) => sum + (categoryCounts[c] ?? 0), 0);
+                      return ` 노출 대상: ${parts.join(' · ')} (총 ${total}개)`;
+                    })()}
+                  </Typography>
+                )}
+              </Box>
             </Box>
 
             <Divider />

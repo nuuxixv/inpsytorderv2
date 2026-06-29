@@ -2,7 +2,7 @@
 
 > 이 시트는 학회 관리 화면의 정보·기능·데이터 구조의 단일 진실 소스다.
 > 시안과 실서비스 구현은 이 시트의 모든 항목을 1:1로 반영해야 한다.
-> 마지막 갱신: 2026-06-24 카테고리 동적화 PRD — 판매 대분류 선택 필드(P0) + 폼 3블록 정정(사양만, 실 코드 미변경).
+> 마지막 갱신: 2026-06-25 판매 대분류 선택 필드 **구현**(`events.visible_categories`) — 빈 선택 의미 정정(빈/NULL=전체 노출, PRD 초기 "0개" 기각) + 실 코드 변경 반영.
 
 ## 참조 파일
 - 실 컴포넌트: `inpsyt-order-frontend/src/components/EventManagementPage.jsx` (799줄)
@@ -98,12 +98,13 @@
 - [ ] **할인율 (%)** (`discount_rate`, number) — UI는 0~100 정수, 저장은 `/100`해서 소수로. helperText "예: 15 = 15% 할인"
 - [ ] **행사 기간** (`DateField mode="range"`) — `start_date`~`end_date` 단일 캘린더 2클릭. helperText "달력에서 시작일·종료일을 차례로 선택하세요." onChange 시 start_date/end_date 컬럼에 분해 저장(2026-06-15 통합)
 - [ ] **배송 예정일** (`estimated_delivery_date`, DateField single) — helperText "입력 시 고객 주문 조회 페이지에 도착 예정일이 표시됩니다."
-- [ ] **(P0 신규) 판매 대분류** — Step 2 **말미**(배송 예정일 아래)에 **멀티선택 필드** 추가. 이 행사에서 고객 주문서에 노출할 **대분류(검사/도서/도구)** 집합을 고른다.
-  - UI: 대분류 3종 **토글 칩**(다중 선택) 또는 `Autocomplete multiple` 중 택1 — 후보가 고정 3개이므로 **칩 3개 토글이 직관적**(권장). 선택 시 filled+primary, 비선택 outlined default. (※ 소분류는 여기서 선택하지 않음 — 대분류 선택이 그 하위 소분류 전부를 자동 포함. 고객 화면이 소분류 칩으로 탐색하게 함.)
-  - helperText: "선택한 대분류 상품만 이 행사의 주문서에 노출됩니다. 비우면 노출 0개(빈 화면)입니다." — **빈 선택 = 전체 노출이 아니라 노출 0개**(PRD §엣지). 빈 선택은 저장 허용하되 **"노출 0개" 경고** 표시.
-  - **미리보기**(권장, P0 부속): 선택 즉시 "노출 대상: 검사 N개 · 도구 M개" 같은 카운트 미리보기 라인. 카운트는 `products`에서 선택 대분류로 집계. (가짜 통계 금지 — 실 집계만.)
-  - **저장 위치 = 확인 필요(backend 디테일):** 기존 `events.tags`(jsonb 배열) 겸용 vs `events.visible_categories` 신규 컬럼. PRD Open Question 1. 어느 쪽이든 본 필드는 **대분류 문자열 배열**을 저장. → 메인 Claude가 backend-engineer에 "가벼운 안" 질의 필요.
-  - **현행 `events.tags` 관계 주의:** C1 주문서는 이미 `eventInfo.tags`로 학회 태그 필터를 건다(C1 §필터). 판매 대분류 저장을 tags에 겸용하면 기존 태그 필터 의미와 충돌·혼선 가능 — 별도 컬럼이 안전할 수 있음(확인 필요 항목으로 backend 위임).
+- [ ] **(구현 완료 2026-06-25) 판매 대분류** — Step 2 **말미**(배송 예정일 아래)에 **멀티선택 토글 칩** 필드. 이 행사에서 고객 주문서에 노출할 **대분류(검사/도서/도구)** 집합을 고른다(`EventFormDialog.jsx`).
+  - UI: 대분류 3종 **토글 칩**(`VISIBLE_CATEGORY_OPTIONS = ['검사','도서','도구']` 고정 상수). 선택 시 filled+primary, 비선택 outlined default, `radii.sm`. (※ 소분류는 여기서 선택하지 않음 — 대분류 선택이 그 하위 소분류 전부를 자동 포함. 고객 화면이 소분류 칩으로 탐색.)
+  - **빈 선택 = 전체 노출**(NULL과 동일 의미, `20260624000000` 마이그레이션 §의미 규칙·CTO 위임 지시서 확정). PRD 초기 "빈=노출 0개" 안은 기각됨 — 기존 운영 행사(전부 NULL) 보호·graceful 위해 빈/NULL=전체노출로 통일. helperText 분기:
+    - 빈 선택: "선택하지 않으면 전체 상품이 노출됩니다."
+    - 1개 이상: "선택한 대분류 상품만 이 행사의 주문서에 노출됩니다. 노출 대상: 검사 N개 · ... (총 M개)"
+  - **미리보기**(구현): 선택 1개 이상이면 helperText에 실 집계 카운트 라인 append. `api/products.fetchProductCountByCategory()`(다이얼로그 open 시 1회, 대분류별 상품 수). 가짜 통계 아님 — products 실 집계.
+  - **저장 위치 = `events.visible_categories` 신규 text[] 컬럼**(tags 겸용 기각 — C1 태그 필터 의미 충돌 회피, backend 확정). `FORM_FIELDS`에 `visible_categories` 추가, upsert 시 배열 보장(빈 배열 그대로 저장). 미지정 환경 graceful은 C1 OrderPage select fallback이 담당.
 
 ### Step 3 — 운영 정보 (line 326-423)
 - [ ] 캡션: "운영 정보" (`overline` 스타일, text.secondary 굵게)
@@ -150,7 +151,7 @@
 - `discount_rate` (numeric) — 0~1 소수 (UI는 % 정수로 표시)
 - `estimated_delivery_date` (date, nullable)
 - `venue` (text, nullable) / `attendee_ids` (uuid[]) / `note` (text, nullable) / `marketing_cost` (integer, nullable) — Step 3 운영 정보 컬럼 (`20260313060000_add_event_structured_fields.sql` 등). `EventFormDialog.FORM_FIELDS`에 포함돼 upsert.
-- **판매 대분류 — 저장 컬럼 확인 필요 (P0, backend 디테일):** 기존 `tags` (jsonb 배열) 겸용 vs `visible_categories` 신규 text[] 컬럼. PRD Open Question 1. 어느 쪽이든 `EventFormDialog.FORM_FIELDS`에 키 1개 추가 필요. **현 `tags` 컬럼은 C1 주문서 태그 필터가 이미 사용** — 겸용 시 의미 충돌 위험(별도 컬럼 권장, backend 판단).
+- **판매 대분류 = `visible_categories` (text[], nullable — `20260624000000_DRAFT`):** 고객 주문서 노출 대분류 화이트리스트. NULL/빈 배열=전체 노출. 값 있으면 원본 `products.category` ∈ 배열인 상품만 C1 노출. `EventFormDialog.FORM_FIELDS`에 추가됨(upsert). tags 겸용 기각(C1 태그 필터 충돌 회피). anon 공개 컬럼(GRANT 화이트리스트 포함).
 
 ### `societies` 테이블 (참조용)
 - `id`, `name`, `slug_prefix`
@@ -188,12 +189,13 @@
 7. **master만 삭제 가능, 그리고 연결 주문 있으면 차단.** 시안이 모든 행에 삭제 아이콘을 직접 노출하면 안 됨(현재는 수정 다이얼로그 안에 숨겨져 있음).
 8. **그라데이션 배경은 신 디자인 시스템에서 제거 대상.** 통계 카드 4장의 그라데이션은 시안에서 유지하지 말 것.
 9. **(P0) 판매 대분류는 Step 2 말미에 둔다 — 대분류만 선택(소분류 선택 아님).** 대분류 선택이 그 하위 소분류 전부를 자동 포함. 시안이 소분류까지 고르게 하면 운영 부담·기획 충돌. 후보는 고정 3(검사/도서/도구).
-10. **(P0) 빈 선택 = 노출 0개(빈 화면), 전체 노출 아님.** 시안/구현이 "비우면 전체"로 해석하면 PRD §엣지 위반. 빈 선택은 저장 허용 + "노출 0개" 경고 + 미리보기로 운영자에게 경각.
-11. **(P0) 판매 대분류 저장 위치는 backend 미확정.** `tags` 겸용 시 C1 주문서 태그 필터와 충돌 위험 — 별도 컬럼이 안전. 사양은 "확인 필요"로 두고 backend-engineer 결정 후 본 시트·C1 동기 갱신.
+10. **(정정·확정) 빈 선택 = 전체 노출(NULL과 동일).** PRD 초기 "빈=노출 0개" 안은 기각됨 — 기존 운영 행사(전부 NULL=전체노출) 보호·graceful 위해 빈/NULL=전체노출로 통일(`20260624000000` 마이그레이션·CTO 지시서). 빈 선택 helperText는 "선택 안 하면 전체 노출" 안내.
+11. **(확정) 판매 대분류 저장 = `events.visible_categories` 신규 text[] 컬럼.** tags 겸용 기각(C1 태그 필터 충돌). 마이그레이션 적용 + anon GRANT 필요(미적용 시 C1 OrderPage가 레거시 select fallback).
 12. **폼은 3블록(행사명형식/기본정보/운영정보).** 이전 시트의 "2블록" 기재는 2026-06-10 공용 추출 시점 이후 부정확 — 본 갱신에서 정정. Step 통합 금지.
 
 ## 변경 이력
 
+- 2026-06-25 판매 대분류 선택 필드 **구현**(`feature/product-hierarchy`, `EventFormDialog.jsx`) — **실 코드 변경**: (1) Step 2 말미(배송 예정일 아래)에 **판매 대분류 토글 칩**(검사/도서/도구 고정 상수) 추가, A5 핵심발견 2의 3블록·Divider 구조 보존. (2) `FORM_FIELDS`·`emptyEvent`에 `visible_categories` 추가, upsert 배열 보장(빈 배열 그대로 저장). (3) **빈 선택 의미 정정**: PRD "빈=0개" → **빈/NULL=전체 노출**(마이그레이션·CTO 지시서 확정, 기존 행사 보호). helperText 분기 + 1개 이상 시 실 집계 미리보기(`fetchProductCountByCategory`). (4) 데이터 모델·핵심 발견 10·11 정정. **보존(무변경)**: 자동완성·slug 생성·날짜 range·운영정보 블록·삭제 로직·권한 분기. **검증**: lint(변경 0 이슈)·build 통과.
 - 2026-06-24 카테고리·배지 동적화 PRD 반영 (`DOCS/PRD_오티즘_카테고리배지_동적화.md`, P0 트랙·기획 단계) — **사양만 갱신, 실 코드 미변경.** (1) **Step 2 말미에 "판매 대분류 선택" 멀티선택 필드** 추가 — 대분류(검사/도서/도구) 다중 칩, 빈 선택=노출 0개 경고+미리보기. 선택 대분류만 C1 주문서 노출. (2) 저장 위치(events.tags 겸용 vs visible_categories 신규 컬럼)는 **backend 디테일로 "확인 필요"** 표기 — tags 겸용 시 C1 태그 필터 충돌 위험 주석. (3) **폼 구조 2블록 → 3블록 정정**(EventFormDialog 현행: 행사명형식/기본정보/운영정보), 누락됐던 Step 3 운영정보(장소/참석자/비용/비고) 표시정보 추가. (4) 라인 번호 EventFormDialog.jsx 기준으로 갱신. (5) 핵심 발견 9~12 신설. **A5 핵심발견 2(2블록 분리·Divider) 준수**하여 기존 블록 구조·자동완성 의도 보존.
 - 2026-05-13 신설.
 - 2026-05-28 M3-4 정합: 통계 카드 4장 외형 → 헤더 subtitle + 상태 토글 칩으로 통합 (정보 1:1 보존, 그라데이션 제거). 표 영역은 `SectionCard padding=0`으로 래핑. 헤더는 `PageHeader`, 상태 칩은 `StatusBadge(value=paid|pending|completed)`, URL 액션 묶음은 `ActionSlot`, 빈 상태는 `ui/EmptyState`로 교체. 폼 2블록 분리·할인율 단위 변환·QR 다운로드·권한 분기 보존.

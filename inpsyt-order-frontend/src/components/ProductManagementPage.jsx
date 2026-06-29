@@ -21,11 +21,12 @@ import {
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import { fetchAllProducts } from '../api/products';
+import { fetchSubcategories, fetchBadges } from '../api/masters';
 import { useNotification } from '../hooks/useNotification';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../supabaseClient';
 import { matchesSearch } from '../utils/search';
-import { CATEGORY_COLORS, CATEGORY_KEY_BY_LABEL } from '../constants/categoryColors';
+import { CATEGORY_COLORS, CATEGORY_KEY_BY_LABEL, MASTER_COLOR_FALLBACK } from '../constants/categoryColors';
 import { PageHeader, SectionCard, ActionSlot, EmptyState } from './ui';
 import TableSkeleton from './TableSkeleton';
 
@@ -43,6 +44,7 @@ const createEmptyProduct = () => ({
   is_popular: false,
   is_new: false,
   tags: [],
+  badges: [],
 });
 
 const parseBool = (value) => {
@@ -72,6 +74,23 @@ const parsePrice = (value) => {
     return Number.isFinite(parsed) ? parsed : 0;
   }
   return 0;
+};
+
+// 동적 배지 소프트 틴트 칩(C1 §배지 패턴). 미등록·색없음은 회색 폴백.
+const BadgeChip = ({ label, color }) => {
+  const c = color || MASTER_COLOR_FALLBACK;
+  return (
+    <Chip
+      label={label}
+      size="small"
+      sx={{
+        bgcolor: alpha(c, 0.12),
+        color: c,
+        border: `1px solid ${alpha(c, 0.3)}`,
+        fontWeight: 600,
+      }}
+    />
+  );
 };
 
 const TriStateToggle = ({ label, value, onChange }) => (
@@ -108,6 +127,8 @@ const ProductManagementPage = () => {
   const [uploadSuccessCount, setUploadSuccessCount] = useState(0);
 
   const [allProducts, setAllProducts] = useState([]);
+  const [subcategories, setSubcategories] = useState([]); // 소분류 마스터(A8 관리)
+  const [badgeMaster, setBadgeMaster] = useState([]);      // 배지 마스터(A8 관리)
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [productQuickFilter, setProductQuickFilter] = useState(null);
@@ -148,6 +169,44 @@ const ProductManagementPage = () => {
   }, [addNotification]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
+
+  // 소분류·배지 마스터 로드 (A8 설정에서 관리, 여기선 선택용으로 소비).
+  // 마이그레이션 미적용 시 빈 배열 → 기존 자유입력 폴백.
+  useEffect(() => {
+    fetchSubcategories().then(setSubcategories).catch(() => {});
+    fetchBadges().then(setBadgeMaster).catch(() => {});
+  }, []);
+
+  // 활성 소분류 이름 옵션(현재 폼 대분류에 소속된 것만). is_active=false는 신규 선택지에서 숨김.
+  const subOptionsForCategory = useMemo(() => {
+    const cat = currentProduct.category;
+    return subcategories
+      .filter((s) => s.is_active && (!cat || s.parent_category === cat))
+      .map((s) => s.name);
+  }, [subcategories, currentProduct.category]);
+
+  // 활성 배지 이름 옵션.
+  const badgeOptions = useMemo(
+    () => badgeMaster.filter((b) => b.is_active).map((b) => b.name),
+    [badgeMaster],
+  );
+
+  // 이름 → 색 룩업(미등록·색없음은 폴백 회색).
+  const subColorByName = useMemo(() => {
+    const m = {};
+    subcategories.forEach((s) => { m[s.name] = s.color || MASTER_COLOR_FALLBACK; });
+    return m;
+  }, [subcategories]);
+  const badgeColorByName = useMemo(() => {
+    const m = {};
+    badgeMaster.forEach((b) => { m[b.name] = b.color || MASTER_COLOR_FALLBACK; });
+    return m;
+  }, [badgeMaster]);
+  const badgePriorityByName = useMemo(() => {
+    const m = {};
+    badgeMaster.forEach((b) => { m[b.name] = b.priority ?? 0; });
+    return m;
+  }, [badgeMaster]);
 
   // 검색어·카테고리·태그 변경 시 1페이지로 리셋
   useEffect(() => { setCurrentPage(1); }, [searchTerm, selectedCategory, productQuickFilter, selectedTags]);
@@ -227,14 +286,27 @@ const ProductManagementPage = () => {
 
     try {
       const payload = { ...currentProduct, list_price: Number(currentProduct.list_price) || 0 };
-      if (isEditing) {
-        const { id, ...updates } = payload;
-        const { error } = await supabase.from('products').update(updates).eq('id', id);
+      // badges 마이그레이션 미적용(컬럼 없음) 시 graceful — 빈 배열이면 payload에서 제외.
+      // 값이 있는데 컬럼이 없으면 mutate 함수가 PGRST204 감지 후 badges 빼고 재시도.
+      if (Array.isArray(payload.badges) && payload.badges.length === 0) delete payload.badges;
+
+      const mutate = async (data) => {
+        const run = async (body) => {
+          if (isEditing) {
+            const { id, ...updates } = body;
+            return supabase.from('products').update(updates).eq('id', id);
+          }
+          return supabase.from('products').insert([body]);
+        };
+        let { error } = await run(data);
+        if (error && error.code === 'PGRST204' && 'badges' in data) {
+          const rest = { ...data };
+          delete rest.badges;
+          ({ error } = await run(rest));
+        }
         if (error) throw error;
-      } else {
-        const { error } = await supabase.from('products').insert([payload]);
-        if (error) throw error;
-      }
+      };
+      await mutate(payload);
 
       addNotification('상품이 저장되었습니다.', 'success');
       handleClose();
@@ -396,6 +468,9 @@ const ProductManagementPage = () => {
         tags: getRowValue(row, ['태그', 'tags'])
           ? String(getRowValue(row, ['태그', 'tags'])).split(',').map((tag) => tag.trim()).filter(Boolean)
           : [],
+        badges: getRowValue(row, ['배지', 'badges'])
+          ? String(getRowValue(row, ['배지', 'badges'])).split(',').map((b) => b.trim()).filter(Boolean)
+          : [],
       }));
 
       // Phase 2: Client-side validation
@@ -453,10 +528,11 @@ const ProductManagementPage = () => {
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
         const chunkStart = i * CHUNK_SIZE;
-        // Strip _rowNum before sending
+        // Strip _rowNum before sending. badges 빈 배열은 제외(미적용 환경 회귀 방지).
         const payload = chunk.map((p) => {
           const rest = { ...p };
           delete rest._rowNum;
+          if (Array.isArray(rest.badges) && rest.badges.length === 0) delete rest.badges;
           return rest;
         });
 
@@ -526,6 +602,7 @@ const ProductManagementPage = () => {
       인기상품: 'FALSE',
       신상품여부: 'TRUE',
       태그: '신경정신,치매',
+      배지: '추천,한정',
     }];
 
     const worksheet = XLSX.utils.json_to_sheet(template);
@@ -549,6 +626,7 @@ const ProductManagementPage = () => {
         인기상품: product.is_popular ? 'TRUE' : 'FALSE',
         신상품여부: product.is_new ? 'TRUE' : 'FALSE',
         태그: product.tags?.join(',') || '',
+        배지: product.badges?.join(',') || '',
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(rows);
@@ -856,7 +934,13 @@ const ProductManagementPage = () => {
                     )}
                     <TableCell sx={{ fontWeight: 500 }}>{product.name}</TableCell>
                     <TableCell><Chip label={product.category} size="small" color="primary" variant="outlined" /></TableCell>
-                    <TableCell>{product.sub_category || '-'}</TableCell>
+                    <TableCell>
+                      {product.sub_category
+                        ? (subColorByName[product.sub_category]
+                            ? <BadgeChip label={product.sub_category} color={subColorByName[product.sub_category]} />
+                            : <BadgeChip label={`${product.sub_category} · 미등록`} color={MASTER_COLOR_FALLBACK} />)
+                        : '-'}
+                    </TableCell>
                     <TableCell align="right" sx={{ fontWeight: 700, fontFeatureSettings: '"tnum" 1' }}>{(product.list_price || 0).toLocaleString()}원</TableCell>
                     <TableCell sx={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product.notes || '-'}</TableCell>
                     <TableCell align="center">
@@ -870,7 +954,17 @@ const ProductManagementPage = () => {
                             sx={{ bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main', border: 0 }}
                           />
                         )}
-                        {!product.is_popular && !product.is_new && !product.is_discountable && (
+                        {/* 동적 배지 — 우선순위 정렬, 어드민은 전량 노출(C1 최대 2개 가드는 고객 화면 한정) */}
+                        {[...(product.badges || [])]
+                          .sort((a, b) => (badgePriorityByName[a] ?? 999) - (badgePriorityByName[b] ?? 999))
+                          .map((name) => (
+                            <BadgeChip
+                              key={name}
+                              label={badgeColorByName[name] ? name : `${name} · 미등록`}
+                              color={badgeColorByName[name]}
+                            />
+                          ))}
+                        {!product.is_popular && !product.is_new && !product.is_discountable && (product.badges || []).length === 0 && (
                           <Typography variant="caption" color="text.secondary">-</Typography>
                         )}
                       </Box>
@@ -948,7 +1042,27 @@ const ProductManagementPage = () => {
                   ))}
                 </Select>
               </FormControl>
-              <TextField name="sub_category" label="하위 카테고리" fullWidth value={currentProduct.sub_category || ''} onChange={handleChange} disabled={!hasPermission('products:edit')} />
+              <Autocomplete
+                freeSolo
+                fullWidth
+                options={subOptionsForCategory}
+                value={currentProduct.sub_category || ''}
+                onInputChange={(_, value) => setCurrentProduct((prev) => ({ ...prev, sub_category: value }))}
+                disabled={!hasPermission('products:edit')}
+                renderInput={(params) => {
+                  const v = (currentProduct.sub_category || '').trim();
+                  const unregistered = Boolean(v) && !subOptionsForCategory.includes(v) && !subcategories.some((s) => s.name === v);
+                  return (
+                    <TextField
+                      {...params}
+                      label="하위 카테고리"
+                      placeholder="소분류 선택 또는 입력"
+                      helperText={unregistered ? '마스터에 미등록된 소분류입니다 (설정에서 추가 가능)' : ' '}
+                      FormHelperTextProps={{ sx: { color: unregistered ? 'text.disabled' : 'transparent' } }}
+                    />
+                  );
+                }}
+              />
             </Box>
             <TextField name="list_price" label="가격" type="number" fullWidth value={currentProduct.list_price} onChange={handleChange} disabled={!hasPermission('products:edit')} />
             <TextField name="notes" label="비고" fullWidth multiline rows={3} value={currentProduct.notes || ''} onChange={handleChange} disabled={!hasPermission('products:edit')} />
@@ -966,7 +1080,39 @@ const ProductManagementPage = () => {
               renderTags={(value, getTagProps) => value.map((option, index) => (
                 <Chip key={index} variant="outlined" label={option} {...getTagProps({ index })} />
               ))}
-              renderInput={(params) => <TextField {...params} label="태그" placeholder="태그 추가" fullWidth />}
+              renderInput={(params) => <TextField {...params} label="태그 (검색 편의)" placeholder="태그 추가" fullWidth />}
+              disabled={!hasPermission('products:edit')}
+            />
+            {/* 배지 — 마스터(badges) 멀티선택. 태그와 별도(태그=검색 / 배지=고객 노출). freeSolo로 미등록 입력 허용. */}
+            <Autocomplete
+              multiple
+              freeSolo
+              options={badgeOptions}
+              value={currentProduct.badges || []}
+              onChange={(_, value) => setCurrentProduct((prev) => ({ ...prev, badges: value }))}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => {
+                  const registered = badgeColorByName[option];
+                  const c = registered || MASTER_COLOR_FALLBACK;
+                  return (
+                    <Chip
+                      key={index}
+                      label={registered ? option : `${option} · 미등록`}
+                      {...getTagProps({ index })}
+                      sx={{ bgcolor: alpha(c, 0.12), color: c, border: `1px solid ${alpha(c, 0.3)}`, fontWeight: 600 }}
+                    />
+                  );
+                })
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="배지 (고객 노출 라벨)"
+                  placeholder="배지 선택 또는 입력"
+                  fullWidth
+                  helperText="설정 > 배지 관리에서 등록한 배지를 선택하세요. 미등록 입력 시 회색으로 표시됩니다."
+                />
+              )}
               disabled={!hasPermission('products:edit')}
             />
           </Box>

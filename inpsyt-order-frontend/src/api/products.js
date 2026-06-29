@@ -80,3 +80,38 @@ export const fetchAllProducts = async () => {
   
   return allProducts;
 };
+
+/**
+ * 대분류(category)별 상품 개수를 집계합니다. (행사 판매 대분류 미리보기용)
+ * @returns {Promise<Object>} { [category]: count } 형태. 예) { 검사: 340, 도서: 120, 도구: 25 }
+ * @throws {Error} 조회 실패 시 에러 발생
+ */
+export const fetchProductCountByCategory = async () => {
+  const counts = {};
+  const limit = 1000;
+  let offset = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from('products')
+      .select('category')
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error('Error counting products by category:', error);
+      throw error;
+    }
+
+    if (data && data.length > 0) {
+      data.forEach((p) => {
+        if (p.category) counts[p.category] = (counts[p.category] || 0) + 1;
+      });
+      offset += data.length;
+    } else {
+      hasMore = false;
+    }
+  }
+
+  return counts;
+};

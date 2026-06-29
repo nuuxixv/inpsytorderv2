@@ -44,7 +44,7 @@
 - [ ] 헤더 직하 한 줄: 시간상태 배지(`getEventStatusKST` → 예정/진행 중/종료, `StatusBadge`) + 할인율 칩(>0%, accent.revenue soft).
 - [ ] 뒤로: 헤더 위 text Button "학회 목록" → L1.
 - [ ] 우상단 액션 3 (outlined, 모두 동일 위계 — Primary 채움 없음):
-  - [x] **학회 정보 수정** — **공용 `EventFormDialog.jsx` 인라인 오픈(2026-06-10 — L1 목록 이동 폐기).** 저장 → `loadEvent()` 재조회(slug 변경 시 새 주소로 replace 네비게이트 — 구 slug 미발견 방지). 삭제 가능 조건 = L1 정합(master 전부 / onsite 본인 생성, `created_by` — `EVENT_DETAIL_COLUMNS`에 추가). 삭제 성공 → 목록 이동.
+  - [x] **학회 정보 수정** — **공용 `EventFormDialog.jsx` 인라인 오픈(2026-06-10 — L1 목록 이동 폐기).** 저장 → `loadEvent()` 재조회(slug 변경 시 새 주소로 replace 네비게이트 — 구 slug 미발견 방지). 삭제 가능 조건 = L1 정합(master 전부 / onsite 본인 생성, `created_by` — `EVENT_DETAIL_COLUMNS`에 추가). **다이얼로그가 `event` 객체로 초기화하므로 `visible_categories`(판매 대분류 노출 필터)도 `EVENT_DETAIL_COLUMNS`에 포함(2026-06-25 핫픽스 — 누락 시 수정 저장 때 빈 배열로 덮어써 기존 노출 설정 소거되는 회귀).** 삭제 성공 → 목록 이동.
   - [x] **입금결의서** — `exportDepositResolution`(ExcelJS 동적 import) + 작성자/부서 자동 채움. **유일 진입점(2026-06-10 건우님 확정 — 대시보드 버튼 소거, L2 일원화).**
   - [ ] **지불증** — `PaymentReceiptModal`(A10b) 오픈. 실구현 시 event+staff 전달.
 
@@ -171,4 +171,5 @@
 - 2026-06-08 — **1차 시안 v2(건우님 피드백 4건).** ①날짜 요일 ②매출=지결 완료 시에만 ③준비물 체크리스트 ④학회 자료 섹션. (product-designer)
 - 2026-06-08 — **실구현 완료(frontend-engineer).** 건우님 결정으로 **준비물 위젯+학회자료 → 통합 Toast UI 에디터 1칸**(prep_note·event-images 버킷)으로 대체. 진행상태 실 토글, 매출 실 집계, FieldReportSection 추출(공용), slug 라우팅 분기, 이미지 라이트박스(MUI). 섹션 순서 = 개요→진행→준비 노트→현장보고→매출.
 - 2026-06-10 — **준비노트 이미지 서명 URL 만료 리팩터(건우님 확정, frontend-engineer).** 본문 저장 = 1년 서명 URL 직저장 → **경로 플레이스홀더 저장 + 렌더 시 배치 재서명(TTL 6시간)**. 공용 유틸 `utils/prepNoteImages.js`(encodeForStorage/resolveForDisplay) + 단위테스트 17건. 레거시 노트 자연 치유(마이그레이션 불필요).
+- 2026-06-25 — **회귀 핫픽스(B1, frontend-engineer).** 공용 `EventFormDialog`가 `event`로 초기화하는데 event 공급 select(L2 `EVENT_DETAIL_COLUMNS` / L1 `EventManagementPage` 목록)에 `visible_categories`가 없어, 운영자가 다른 필드만 고쳐 저장해도 `form.visible_categories===undefined`→`[]` 저장으로 기존 노출 대분류가 소거되던 데이터 손실 수정. 두 select에 `visible_categories` 추가(authenticated 어드민 컨텍스트). FORM_FIELDS·handleSave·emptyEvent는 이미 정상이라 미변경. 빈 배열/NULL=전체노출 의미 규칙 유지.
 - 2026-06-10 — **events 클러스터 4건(건우님 확정, frontend-engineer).** ① 학회 정보 수정 = `EventFormDialog.jsx` 공용 추출 → L2 인라인 수정(Q11 해결, 목록 이동 버그 폐기) ② 입금결의서 진입점 L2 일원화(대시보드 버튼 소거) ③ 다이얼로그 날짜 3필드(시작/종료/배송예정) = 공용 `ui/DateField`(single 캘린더, `YYYY.MM.DD(요일)` 표시·클리어 가능 — 빈 날짜는 null 저장) ④ 열람 이력 §10 신설(`event_views` + `record_event_view` RPC, master만, graceful).

@@ -25,7 +25,7 @@ export const getEvents = async () => {
 const EVENT_DETAIL_COLUMNS =
   'id, name, discount_rate, order_url_slug, start_date, end_date, estimated_delivery_date, ' +
   'event_year, host_society, event_season, status, venue, attendee_ids, note, marketing_cost, ' +
-  'draft_done, application_done, payment_resolution_done, prep_note, created_by';
+  'draft_done, application_done, payment_resolution_done, prep_note, created_by, visible_categories';
 
 /**
  * order_url_slug 로 학회 1건을 가져옵니다. (L2 학회 상세)

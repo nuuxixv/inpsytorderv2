@@ -31,3 +31,29 @@ export const CATEGORY_LABELS = {
 export const CATEGORY_KEY_BY_LABEL = Object.fromEntries(
   Object.entries(CATEGORY_LABELS).map(([key, label]) => [label, key])
 );
+
+// ─────────────────────────────────────────────
+// 소분류·배지 마스터 색 프리셋 (A8 설정 화면 — 카테고리 동적화 PRD P1)
+//
+// 자유 hex 입력은 AA 대비·디자인 토큰 정합을 깨므로 금지(A8 §핵심 발견 10).
+// 운영자는 아래 프리셋 중에서만 색을 고른다. 칩은 소프트 틴트(배경 alpha 0.12 +
+// 진한 글자색)로 렌더 — C1 §배지 패턴 정합. 진한 값은 글자/보더에, 자체는 색 견본에 쓴다.
+//
+// 값은 theme.js 팔레트(primary/secondary/category/status accent)·gray 계열에서
+// AA(흰 배경 위 글자 대비 4.5:1 이상 — 모두 충분히 진한 톤) 통과하는 색만 선별.
+// 마스터 color 컬럼에는 이 hex 문자열이 저장된다(미등록·NULL은 기본 회색 폴백).
+// ─────────────────────────────────────────────
+export const MASTER_COLOR_PRESETS = [
+  { value: '#2B398F', label: '남보라' }, // primary.main
+  { value: '#3B82F6', label: '파랑' },   // category-book
+  { value: '#6366F1', label: '인디고' }, // category-test
+  { value: '#0764C7', label: '하늘' },   // info.dark
+  { value: '#00A884', label: '초록' },   // success.dark
+  { value: '#D97706', label: '주황' },   // warning.dark
+  { value: '#D63031', label: '빨강' },   // error.dark
+  { value: '#C026D3', label: '자주' },
+  { value: '#6B7684', label: '회색' },   // category-tool / gray.600
+];
+
+// 마스터에 색이 없거나 미등록 라벨일 때의 기본 폴백 색(중립 회색).
+export const MASTER_COLOR_FALLBACK = '#6B7684';

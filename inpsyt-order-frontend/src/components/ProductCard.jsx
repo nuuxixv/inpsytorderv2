@@ -3,11 +3,32 @@ import { Box, Typography, Card, CardContent, Button, IconButton, useTheme } from
 import { alpha } from '@mui/material/styles';
 import { Add as AddIcon, Remove as RemoveIcon, Delete as DeleteIcon, Star as StarIcon } from '@mui/icons-material';
 
+// 카드당 표출하는 강조 배지 상한(C1 §배지 가드레일). 카테고리 배지는 이 카운트에서 제외.
+const MAX_EMPHASIS_BADGES = 2;
+
+// 소프트 틴트 배지 박스(C1 §배지 패턴 — 솔리드 칩·그라데이션 금지, 높이 18·radius 4).
+const BadgeBox = ({ bg, color, children }) => (
+  <Box
+    sx={{
+      height: 18,
+      px: 0.75,
+      borderRadius: '4px',
+      bgcolor: bg,
+      color,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 0.25,
+    }}
+  >
+    {children}
+  </Box>
+);
+
 // 사양 §Step 0 — 상품 카드.
-// - 카테고리 / 인기 / 신규 배지 (조건부)
+// - 카테고리 / 인기 / 신규 / 동적 배지 (조건부)
 // - 할인 시 원가 line-through + % 빨강 텍스트(칩 아님, /preview 목업 정합)
 // - 카트 없으면 '담기' outlined, 있으면 수량 스테퍼
-const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onIncrement, onDecrement }) => {
+const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, badgeMetaByName = {}, hideCategoryBadge = false, onAdd, onIncrement, onDecrement }) => {
   const theme = useTheme();
   const isInCart = cartQuantity > 0;
   const isDiscounted = product.is_discountable && discountRate > 0;
@@ -15,7 +36,49 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
     ? Math.round(product.list_price * (1 - discountRate))
     : product.list_price;
   // 도구는 검사 하위로 본다 — 배지·필터 모두 '검사'로 표기
-  const displayCategory = product.category === '도구' ? '검사' : product.category;
+  // 단일 대분류 행사(hideCategoryBadge)에서는 카드 상위 카테고리 칩 숨김(전부 같은 대분류라 무의미·혼란)
+  const displayCategory = hideCategoryBadge
+    ? null
+    : (product.category === '도구' ? '검사' : product.category);
+
+  // 강조 배지 후보 — 인기/신규(boolean) + 동적 배지(마스터 등록된 것만).
+  // C1 가드레일: priority ASC 정렬 후 상위 2개만, 초과분은 조용히 컷(+N 표기 없음).
+  // 미등록 배지명(마스터에 없음)은 고객 화면에서 미표시(깨진 라벨 노출 금지).
+  // boolean 배지는 기존 시각 우선순위(인기→신규) 보존 위해 동적보다 항상 앞(음수 priority).
+  const emphasisBadges = [];
+  if (product.is_popular) {
+    emphasisBadges.push({
+      key: 'popular',
+      priority: -2,
+      label: '인기',
+      icon: <StarIcon sx={{ fontSize: 11 }} />,
+      bg: alpha(theme.accent.attention, 0.14),
+      color: theme.accent.attention,
+    });
+  }
+  if (product.is_new) {
+    emphasisBadges.push({
+      key: 'new',
+      priority: -1,
+      label: 'NEW',
+      bg: alpha(theme.palette.error.main, 0.12),
+      color: theme.palette.error.main,
+    });
+  }
+  (product.badges || []).forEach((name) => {
+    const meta = badgeMetaByName[name];
+    if (!meta) return; // 미등록 배지 — 고객 화면 미표시
+    emphasisBadges.push({
+      key: `dyn-${name}`,
+      priority: meta.priority,
+      label: name,
+      bg: alpha(meta.color, 0.13),
+      color: meta.color,
+    });
+  });
+  const visibleBadges = emphasisBadges
+    .sort((a, b) => a.priority - b.priority)
+    .slice(0, MAX_EMPHASIS_BADGES);
 
   return (
     <Card
@@ -33,61 +96,26 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, onAdd, onInc
       onClick={!isInCart ? onAdd : undefined}
     >
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 }, display: 'flex', flexDirection: 'column', height: '100%' }}>
-        {/* Category / popular / new badges — 소프트 틴트(목업 정합). 솔리드 칩 폐기 */}
+        {/* 배지 — 소프트 틴트(목업 정합). 카테고리(분류) + 강조 배지 최대 2개(C1 가드레일) */}
         <Box sx={{ display: 'flex', gap: 0.5, mb: 0.75, flexWrap: 'wrap', alignItems: 'center' }}>
           {displayCategory && (
-            <Box
-              sx={{
-                height: 18,
-                px: 0.75,
-                borderRadius: '4px',
-                bgcolor: displayCategory === '검사' ? alpha(theme.palette.info.main, 0.14) : theme.gray[200],
-                color: displayCategory === '검사' ? 'info.dark' : 'text.secondary',
-                display: 'flex',
-                alignItems: 'center',
-              }}
+            <BadgeBox
+              bg={displayCategory === '검사' ? alpha(theme.palette.info.main, 0.14) : theme.gray[200]}
+              color={displayCategory === '검사' ? theme.palette.info.dark : theme.palette.text.secondary}
             >
-              <Typography variant="caption" sx={{ fontWeight: 700, lineHeight: 1 }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, lineHeight: 1, color: 'inherit' }}>
                 {displayCategory}
               </Typography>
-            </Box>
+            </BadgeBox>
           )}
-          {product.is_popular && (
-            <Box
-              sx={{
-                height: 18,
-                px: 0.75,
-                borderRadius: '4px',
-                bgcolor: alpha(theme.accent.attention, 0.14),
-                color: theme.accent.attention,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.25,
-              }}
-            >
-              <StarIcon sx={{ fontSize: 11 }} />
+          {visibleBadges.map((badge) => (
+            <BadgeBox key={badge.key} bg={badge.bg} color={badge.color}>
+              {badge.icon}
               <Typography variant="caption" sx={{ fontWeight: 700, lineHeight: 1, color: 'inherit' }}>
-                인기
+                {badge.label}
               </Typography>
-            </Box>
-          )}
-          {product.is_new && (
-            <Box
-              sx={{
-                height: 18,
-                px: 0.75,
-                borderRadius: '4px',
-                bgcolor: alpha(theme.palette.error.main, 0.12),
-                color: 'error.main',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              <Typography variant="caption" sx={{ fontWeight: 700, lineHeight: 1 }}>
-                NEW
-              </Typography>
-            </Box>
-          )}
+            </BadgeBox>
+          ))}
         </Box>
 
         {/* Product name — 02 §타이포 약속 2: 13px 인라인 → body2(14)로 흡수 */}
