@@ -1,0 +1,60 @@
+-- =====================================================================
+-- [초안 / DRAFT — 적용 금지] 동적 배지 기능 폐기 — DB 객체 제거
+-- =====================================================================
+-- 상태: 설계 검토용 초안. CTO 검수 + 건우님 승인 전 SQL Editor 실행 금지.
+--
+-- 배경(건우님 결정):
+--   동적 배지 기능(배지 마스터 테이블 + products.badges 라벨 배열)을 완전 폐기.
+--   대상 객체:
+--     - public.badges            (배지 마스터, 20260625010000_DRAFT에서 생성)
+--     - public.products.badges   (배지 라벨 배열 컬럼, 20260619000000_DRAFT에서 추가)
+--
+-- *** 순서 의존 — 코드 배포 후 적용 (엄수) ***
+--   products.badges 컬럼을 DROP하기 전에, 그 컬럼을 참조하는 frontend가
+--   먼저 수정·배포되어 있어야 함. 그렇지 않으면 운영 중인 (구) 프론트가
+--   존재하지 않는 컬럼을 SELECT/upsert → PostgREST 42703 (column does not
+--   exist) 에러로 상품 조회·엑셀 업로드가 깨짐.
+--   (drop 시점 기준) badges 참조 코드 위치:
+--     - inpsyt-order-frontend/src/api/masters.js
+--     - inpsyt-order-frontend/src/components/ProductManagementPage.jsx
+--     - inpsyt-order-frontend/src/components/ProductCard.jsx
+--   => 위 3개 파일에서 badges 참조 제거 → 배포 완료 확인 후에만 본 SQL 실행.
+--   Edge Function(supabase/functions/*) 에는 badges 참조 없음(확인 완료).
+--
+-- 영향 점검(무영향 확인 완료):
+--   - is_popular / is_new / is_recommend (boolean) : 별개 컬럼, 건드리지 않음. 유지.
+--   - public.subcategories (소분류 마스터)           : 별개 테이블, 건드리지 않음. 유지.
+--   - order_items 스냅샷(product_name/code/category/list_price) : badges 미포함.
+--     배지는 카드 표시 전용이었으므로 주문 스냅샷·매출 집계 영향 0.
+--   - 매출 대시보드/집계 : category만 사용. badges 무관 → 무영향.
+--
+-- RLS / GRANT:
+--   - public.badges DROP 시 테이블에 붙은 RLS 정책·GRANT 자동 소멸(객체 동반 제거).
+--     CASCADE 명시는 혹시 모를 의존 뷰/제약 동반 제거용(현재 의존 객체 없음).
+--   - products.badges 컬럼 DROP은 products 테이블의 다른 컬럼 권한·RLS에 무영향.
+--   - 어떤 RLS 정책도 "완화/삭제"하지 않음 — 기능 제거에 따른 객체 동반 소멸만.
+--
+-- 멱등:
+--   - DROP TABLE IF EXISTS / DROP COLUMN IF EXISTS → 미생성/미적용 상태여도 안전.
+--   - 재실행 안전(2회 이상 실행해도 오류 없음).
+--
+-- ---------------------------------------------------------------------
+-- [적용] (코드 배포 후) Supabase 대시보드 → SQL Editor → 본 파일 전문 1회 실행.
+-- ---------------------------------------------------------------------
+--
+-- [롤백] 배지 기능을 되살리려면 원본 생성 마이그레이션 2개를 재실행:
+--   1) 20260619000000_DRAFT_add_product_badges.sql      (products.badges 컬럼)
+--   2) 20260625010000_DRAFT_create_badges_master.sql    (badges 마스터 + RLS + GRANT)
+--   * 단, 본 DROP으로 두 객체의 데이터는 영구 삭제됨(되살려도 값은 빈 상태).
+--     배지 데이터 보존이 필요하면 적용 전 pg_dump 등으로 백업할 것.
+-- =====================================================================
+
+-- 1) 배지 마스터 테이블 제거 (RLS 정책·GRANT 동반 소멸)
+DROP TABLE IF EXISTS public.badges CASCADE;
+
+-- 2) 상품 배지 라벨 컬럼 제거 (products 다른 컬럼·RLS 무영향)
+ALTER TABLE public.products DROP COLUMN IF EXISTS badges;
+
+-- =====================================================================
+-- 끝. is_popular/is_new/is_recommend·subcategories·order_items 스냅샷·매출 집계 전부 불변.
+-- =====================================================================

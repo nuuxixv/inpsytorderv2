@@ -10,8 +10,6 @@ import {
 } from '@mui/material';
 import { Search as SearchIcon, Star as StarIcon, FiberNew as NewIcon } from '@mui/icons-material';
 import { fetchAllProducts } from '../api/products';
-import { fetchBadges } from '../api/masters';
-import { MASTER_COLOR_FALLBACK } from '../constants/categoryColors';
 import { useNotification } from '../hooks/useNotification';
 import { matchesSearch } from '../utils/search';
 import ProductCard from './ProductCard';
@@ -22,7 +20,6 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
   const theme = useTheme();
   const { addNotification } = useNotification();
   const [allProducts, setAllProducts] = useState([]);
-  const [badgeMaster, setBadgeMaster] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('popular'); // 'all' | 'popular' | 'new'
@@ -47,30 +44,6 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
     })();
     return () => { cancelled = true; };
   }, [addNotification]);
-
-  // 배지 마스터 — 동적 배지 색·우선순위 룩업용. 마이그레이션 미적용 시 [](회귀 0).
-  // 마스터 로드 실패가 상품 진열을 막지 않도록 상품 페치와 분리.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await fetchBadges();
-        if (!cancelled) setBadgeMaster(data || []);
-      } catch {
-        if (!cancelled) setBadgeMaster([]);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  // 배지명 → 색·우선순위 룩업(미등록 배지는 맵에 없음 → 카드에서 미표시).
-  const badgeMetaByName = useMemo(() => {
-    const m = {};
-    badgeMaster.forEach((b) => {
-      m[b.name] = { color: b.color || MASTER_COLOR_FALLBACK, priority: b.priority ?? 0 };
-    });
-    return m;
-  }, [badgeMaster]);
 
   // 행사 판매 대분류 화이트리스트 — NULL/빈 배열이면 미적용(전체 노출, 기존 동작 보존).
   // 매칭은 원본 product.category(검사/도서/도구) 기준 — 도구→검사 정규화는 칩 표시 전용.
@@ -330,7 +303,6 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
                   product={product}
                   discountRate={discountRate}
                   cartQuantity={getCartQuantity(product.id)}
-                  badgeMetaByName={badgeMetaByName}
                   hideCategoryBadge={isSingleCategory}
                   onAdd={() => handleAddProduct(product)}
                   onIncrement={() => handleIncrement(product.id)}
