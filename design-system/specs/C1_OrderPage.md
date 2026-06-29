@@ -3,7 +3,8 @@
 > 이 시트는 고객 주문서 화면의 정보·기능·데이터 구조의 단일 진실 소스다.
 > 시안과 실서비스 구현은 이 시트의 모든 항목을 1:1로 반영해야 한다.
 > 임의 단순화·통합·생략은 건우님의 명시적 승인 후 이 시트를 먼저 갱신한 다음에만 허용된다.
-> 마지막 갱신: 2026-06-29 **상품 카드 1:1 이미지 슬롯 + 미등록/onError 플레이스홀더 추가**(PRD `DOCS/PRD_상품이미지.md`, P1). `products.image_filename`→`product-images` 공개 버킷 `getPublicUrl`. 미등록(NULL)이 정상 다수 — 카테고리 색 틴트 플레이스홀더. graceful(컬럼·버킷 미적용 환경 회귀 0). §상품 카드 절 참조. 건우님 확정.
+> 마지막 갱신: 2026-06-29 **상품 카드 이미지 플레이스홀더 폐기 — 이미지 없으면 슬롯 자체 미렌더**(건우님 결정). 기존 카테고리 색 틴트 박스+ImageIcon 플레이스홀더 제거, `getProductImageUrl(image_filename)`이 null이거나 onError면 `ProductImageSlot`이 `return null`(슬롯 미렌더, 빈 박스 0). 상품명/배지/가격이 카드 상단부터 자연 배치. 이유: 행사 단위로 이미지 유무가 갈림(도구=전부 있음 / 검사·도서=전부 없음, 혼재 없음), 도서·검사는 상품명·옵션 직관성이 이미지보다 중요. **혼재 처리 로직 추가 안 함(오버엔지니어링 방어).** §상품 카드 절 참조.
+> 이전 갱신: 2026-06-29 상품 카드 1:1 이미지 슬롯 추가(PRD `DOCS/PRD_상품이미지.md`, P1). `products.image_filename`→`product-images` 공개 버킷 `getPublicUrl`. graceful(컬럼·버킷 미적용 환경 회귀 0). (※ 플레이스홀더는 위 결정으로 폐기.)
 > 이전 갱신: 2026-06-29 배지 "최대 2개"는 **표출 정책(본 카드 한정)** 임을 명시 — 입력단(A6 폼·엑셀)은 무제한, 상위 2개 선별 책임은 본 카드 가드레일에 있음(건우님 확정 #1·#2, §상품 카드 동적 배지 절). 카드 코드 변경 없음(정책 문서화).
 > 이전 갱신: 2026-06-29 단일 대분류 행사(visible_categories 1종) 상품 카드 상위 카테고리 칩 숨김 — 전부 같은 대분류라 무의미·혼란(`도구`→`검사` 표기 오해 제거), 소분류 칩으로 탐색. 다른 행사(없음/NULL/복수)는 기존 칩 유지(회귀 0). `ProductCard.hideCategoryBadge` prop(`ProductSelectionStep.isSingleCategory` 전달). 건우님 결정.
 > 이전 갱신: 2026-06-29 상품 카드 동적 배지(`products.badges`) 표출 구현 — 강조 배지 최대 2개·priority 정렬·미등록 미표시·graceful(실 코드 변경 반영, P1 Open Question 4 확정).
@@ -123,12 +124,12 @@
 
 #### 상품 카드 (`ProductCard.jsx`)
 - [ ] 보더 1.5px — 장바구니에 있으면 `primary.main`, 없으면 `divider`
-- [ ] **상품 이미지 슬롯 (배지 영역 위, mb 1) — (2026-06-29 구현, PRD `DOCS/PRD_상품이미지.md`):**
+- [ ] **상품 이미지 슬롯 (배지 영역 위, mb 1) — (2026-06-29 구현, PRD `DOCS/PRD_상품이미지.md`; 2026-06-29 플레이스홀더 폐기, 건우님 결정):**
   - **1:1 정방형**(`aspectRatio: '1 / 1'`, 풀폭), `radii.sm` 라운드, `overflow: hidden`. 카드 상단에 위치(배지·상품명·가격 위).
   - `products.image_filename` 있으면 `getProductImageUrl(filename)`(`api/productImages.js` — `product-images` 공개 버킷 `getPublicUrl`, 서명URL 아님)로 `<img objectFit:cover loading:lazy>`. 배경 `gray[50]`.
-  - **플레이스홀더(미등록 또는 onError)**: 카테고리 색 틴트 배경(`검사`/`도구`=`alpha(info.main,0.08)` / 그 외=`alpha(text.secondary,0.08)`) + 가운데 `ImageIcon`(28px, 틴트 alpha 0.45). **깨진 이미지 아이콘 금지.**
-  - `onError` 시 `failed` state로 플레이스홀더 전환. **대부분 상품이 미등록(NULL)이 정상** — 플레이스홀더는 예외가 아니라 단정한 기본 상태.
-  - graceful: `image_filename` 컬럼·`product-images` 버킷 미적용 환경에서도 회귀 0(URL null → 플레이스홀더만). AI 시그니처·그라데이션 없음.
+  - **이미지 없으면(URL null) 또는 onError면 슬롯 자체 미렌더(`ProductImageSlot`이 `return null`).** 플레이스홀더(카테고리 색 틴트 박스·ImageIcon) **폐기**(2026-06-29). 빈 박스·여백 0 — 배지/상품명/가격이 카드 상단부터 자연 배치(CardContent flex column 첫 요소가 배지 영역). **대부분 상품이 미등록(NULL)이 정상** — 슬롯 미표시가 기본.
+  - 이유: 행사 단위로 이미지 유무가 갈림(도구=전부 있음 / 검사·도서=전부 없음, **한 행사 내 혼재 없음**), 도서·검사는 상품명·옵션 직관성이 이미지보다 중요. **혼재 처리 로직 추가 안 함(오버엔지니어링 방어).**
+  - graceful: `image_filename` 컬럼·`product-images` 버킷 미적용 환경에서도 회귀 0(URL null → 슬롯 미렌더). AI 시그니처·그라데이션 없음.
   - 레이아웃 = **현재 평면 그리드 기준**(③ 검사 2뎁스 미머지 — 머지 시 `TestGroupCard` 이미지 적용 여부 재검토, PRD 명시).
 - [ ] 상단 배지 영역 (mb 0.75):
   - **배지 = 솔리드 칩 아님. 소프트 틴트 박스(높이 18, radius 4px, alpha 0.12~0.14 배경 + 컬러 텍스트). 2026-06-01 /preview 목업 정합.**
@@ -447,6 +448,7 @@
 17. **(P1) 미등록 배지명은 고객 화면 미표시.** 마스터에 없는 배지명은 어드민(A6)에선 회색 "미등록"으로 보이지만, **고객 화면엔 깨진 라벨을 노출하지 않는다**(조용히 생략). 가법·graceful — badges 컬럼 미적용 환경에서도 기존 카드 동작 보존.
 
 ## 변경 이력
+- 2026-06-29 **상품 카드 이미지 플레이스홀더 폐기 (실 코드 변경, 건우님 결정)**. `ProductCard.jsx` `ProductImageSlot` — `getProductImageUrl(image_filename)`이 null이거나 `onError`면 `return null`(슬롯 미렌더). 기존 카테고리 색 틴트 박스 + `ImageIcon`(28px) 플레이스홀더 코드·`isTest`/`tint` 분기 제거, `ImageIcon` import 삭제. 슬롯 없을 때 배지 영역이 CardContent flex column 첫 요소로 자연 상단 배치(레이아웃 안 깨짐, 빈 박스 0). **이미지 있는 상품은 1:1 슬롯 정상(회귀 0).** 이유: 행사 단위 이미지 유무 분리(혼재 없음)·도서/검사 상품명 직관성 우선. **혼재 처리 로직 추가 안 함(오버엔지니어링 방어), theme.js 무수정, AI 시그니처 없음.** A6 `ProductThumb`도 동형(미등록 셀 비움). **검증**: lint(변경 파일 신규 위반 0, 기존 send-alimtalk 9에러 무관)·vite build 통과. §상품 카드 절·핵심 발견 17 갱신.
 - 2026-06-25 행사별 판매 대분류 필터 **구현**(`feature/product-hierarchy`) — **실 코드 변경**: (1) `OrderPage.jsx` events select에 `visible_categories` 추가 + 컬럼/GRANT 미적용 graceful fallback(레거시 select 재조회), `ProductSelectionStep`에 `visibleCategories` prop 전달. (2) `ProductSelectionStep.jsx` `baseProducts` 필터 — **원본 category** 기준(도구→검사 정규화 전), NULL/빈 배열=전체 노출(기존 동작 보존), eventTags와 AND 공존. 단일 대분류 행사(`length===1`)는 대분류 칩 숨기고 `sub_category` 칩(localeCompare 정렬·미지정 "기타"·2종 미만 시 칩 줄 숨김), 카테고리 필터도 sub_category 기준. (3) 데이터 모델 `events.visible_categories` 추가. **보존(무변경)**: 도구→검사 정규화(칩 표시·다중/NULL/빈 행사 fallback), eventTags 필터, 뷰모드/검색/정렬/페이지네이션, ProductCard 동작. **검증**: lint(변경 4파일 0 이슈, 기존 send-alimtalk 9에러는 무관)·build 통과. 라이브 검증은 마이그레이션 적용 후.
 - 2026-06-24 카테고리·배지 동적화 PRD 반영 (`DOCS/PRD_오티즘_카테고리배지_동적화.md`, P1·기획 단계) — **사양만 갱신, 실 코드 미변경.** (1) **카테고리 칩**: 단일 대분류 행사("도구"만)는 대분류 칩 숨기고 **소분류 칩(`sub_category`, 마스터 `subcategories` 정렬)** 노출 규칙 추가. 저장 위치(A5 판매 대분류 "확인 필요")와 연동. (2) **ProductCard 배지**: 동적 배지(`products.badges`) 소프트 틴트 노출 + **가드레일(카드당 최대 2개·우선순위)** 추가. 미등록은 고객 화면 미표시. (3) 데이터 모델에 `products.sub_category`·`badges` 추가. (4) 핵심 발견 15~17 신설. **보존**: 도구→검사 정규화는 다중 대분류 행사 fallback으로 잔존(단일 대분류 행사에서만 소분류 칩 우선), 소프트 틴트 배지 패턴·radii.sm 칩·검사군 진열 전부 무변경.
 - 2026-06-16 ③ 상품 계층화 — 검사 2뎁스 진열 (`feature/product-hierarchy` 브랜치, main 격리) — **신규**: `utils/productGroup.js`(그룹핑·파싱·할인가), `TestGroupCard.jsx`(검사군 3상태 카드), `ProductSelectionStep.jsx` 계층 진열(검사 리스트 ↔ 도서 그리드 분기·미니헤더·검사군 단위 검색·펼침 상태). **데이터**: `products.parent_code`/`option_type` 가법 컬럼(`20260616000000`). **graceful**: parent_code 미적용 시 전부 평면(기존 동작). **보존(무변경)**: cart·order_items 4필드 스냅샷·CartBottomSheet 풀네임·트리플탭·hasOnlineCode 조건부 인싸이트ID·주소 3필드·무료배송/할인 로직·검색 멀티키워드·도구→검사 정규화·`ProductCard` 도서 그리드 동작·뷰모드/카테고리 칩. **검증**: lint(신규 3파일 0)·build·vitest(105 passed, 신규 11). 라이브 검증은 마이그레이션 적용 후.

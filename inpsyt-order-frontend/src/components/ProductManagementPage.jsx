@@ -24,7 +24,6 @@ import {
   Check as CheckIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
-  Image as ImageIcon,
   PhotoLibrary as PhotoLibraryIcon,
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
@@ -101,12 +100,12 @@ const parsePrice = (value) => {
   return 0;
 };
 
-// 상품 표 썸네일(A6 §표 썸네일). 1:1 작은 정방형. 미등록·onError면 플레이스홀더.
-// 대부분 미등록(NULL)이 정상.
+// 상품 표 썸네일(A6 §표 썸네일). 1:1 작은 정방형.
+// 미등록·onError면 셀 비움(null) — 플레이스홀더 폐기(건우님 2026-06-29). 대부분 미등록(NULL)이 정상.
 const ProductThumb = ({ filename, name }) => {
   const [failed, setFailed] = useState(false);
   const url = getProductImageUrl(filename);
-  const show = url && !failed;
+  if (!url || failed) return null;
   return (
     <Box
       sx={{
@@ -115,24 +114,17 @@ const ProductThumb = ({ filename, name }) => {
         borderRadius: 1,
         overflow: 'hidden',
         bgcolor: 'grey.100',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
         flexShrink: 0,
       }}
     >
-      {show ? (
-        <Box
-          component="img"
-          src={url}
-          alt={name}
-          loading="lazy"
-          onError={() => setFailed(true)}
-          sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-        />
-      ) : (
-        <ImageIcon sx={{ fontSize: 18, color: 'grey.400' }} />
-      )}
+      <Box
+        component="img"
+        src={url}
+        alt={name}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+      />
     </Box>
   );
 };

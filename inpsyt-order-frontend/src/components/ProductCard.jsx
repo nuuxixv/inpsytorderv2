@@ -3,7 +3,6 @@ import { Box, Typography, Card, CardContent, Button, IconButton, useTheme } from
 import { alpha } from '@mui/material/styles';
 import {
   Add as AddIcon, Remove as RemoveIcon, Delete as DeleteIcon, Star as StarIcon,
-  Image as ImageIcon,
 } from '@mui/icons-material';
 import { getProductImageUrl } from '../api/productImages';
 
@@ -11,43 +10,32 @@ import { getProductImageUrl } from '../api/productImages';
 const MAX_EMPHASIS_BADGES = 2;
 
 // 상품 이미지 슬롯(C1 §카드 이미지). 1:1 정방형.
-// image_filename 없으면 / onError면 카테고리 색 틴트 플레이스홀더(깨진 이미지 아이콘 금지).
-// 대부분 미등록(NULL)이 정상 — 플레이스홀더는 예외가 아니라 단정한 기본 상태.
+// 이미지 없으면(또는 onError) 슬롯 자체 미렌더(null) — 플레이스홀더 폐기(건우님 2026-06-29).
+// 한 행사 내 이미지 유무 혼재 없음(도구=전부 있음 / 검사·도서=전부 없음). 빈 박스 0.
 const ProductImageSlot = ({ product, theme }) => {
   const [failed, setFailed] = useState(false);
   const url = getProductImageUrl(product.image_filename);
-  const isTest = product.category === '검사' || product.category === '도구';
-  const tint = isTest ? theme.palette.info.main : theme.palette.text.secondary;
-
-  const showImage = url && !failed;
+  if (!url || failed) return null;
 
   return (
     <Box
       sx={{
-        position: 'relative',
         width: '100%',
         aspectRatio: '1 / 1',
         borderRadius: `${theme.radii.sm}px`,
         overflow: 'hidden',
         mb: 1,
-        bgcolor: showImage ? theme.gray[50] : alpha(tint, 0.08),
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        bgcolor: theme.gray[50],
       }}
     >
-      {showImage ? (
-        <Box
-          component="img"
-          src={url}
-          alt={product.name}
-          loading="lazy"
-          onError={() => setFailed(true)}
-          sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-        />
-      ) : (
-        <ImageIcon sx={{ fontSize: 28, color: alpha(tint, 0.45) }} />
-      )}
+      <Box
+        component="img"
+        src={url}
+        alt={product.name}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+      />
     </Box>
   );
 };
@@ -142,7 +130,7 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, badgeMetaByN
       onClick={!isInCart ? onAdd : undefined}
     >
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 }, display: 'flex', flexDirection: 'column', height: '100%' }}>
-        {/* 이미지 슬롯(1:1) — image_filename 있으면 공개 URL, 없으면/onError면 플레이스홀더 */}
+        {/* 이미지 슬롯(1:1) — image_filename 있으면 공개 URL, 없으면/onError면 슬롯 미렌더(null) */}
         <ProductImageSlot product={product} theme={theme} />
 
         {/* 배지 — 소프트 틴트(목업 정합). 카테고리(분류) + 강조 배지 최대 2개(C1 가드레일) */}
