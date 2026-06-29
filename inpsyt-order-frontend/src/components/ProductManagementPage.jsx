@@ -24,9 +24,12 @@ import {
   Check as CheckIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  Image as ImageIcon,
+  PhotoLibrary as PhotoLibraryIcon,
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import { fetchAllProducts } from '../api/products';
+import { getProductImageUrl, uploadProductImage } from '../api/productImages';
 import {
   fetchSubcategories, fetchBadges,
   createSubcategory, updateSubcategory, deleteSubcategory,
@@ -51,6 +54,9 @@ const DELETE_ALL_CONFIRM_TEXT = '삭제합니다';
 
 // 카드 노출 정책: 고객 카드엔 priority 상위 2개만 노출(C1). 입력단(폼·엑셀)은 무제한.
 const CARD_BADGE_LIMIT = 2;
+
+// 이미지 파일명 안전 문자 — 영숫자·대시·언더스코어·점만. 한글·공백·특수문자는 Storage 키가 깨진다.
+const SAFE_IMAGE_FILENAME = /^[A-Za-z0-9._-]+$/;
 
 const createEmptyProduct = () => ({
   name: '',
@@ -93,6 +99,42 @@ const parsePrice = (value) => {
     return Number.isFinite(parsed) ? parsed : 0;
   }
   return 0;
+};
+
+// 상품 표 썸네일(A6 §표 썸네일). 1:1 작은 정방형. 미등록·onError면 플레이스홀더.
+// 대부분 미등록(NULL)이 정상.
+const ProductThumb = ({ filename, name }) => {
+  const [failed, setFailed] = useState(false);
+  const url = getProductImageUrl(filename);
+  const show = url && !failed;
+  return (
+    <Box
+      sx={{
+        width: 40,
+        height: 40,
+        borderRadius: 1,
+        overflow: 'hidden',
+        bgcolor: 'grey.100',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      {show ? (
+        <Box
+          component="img"
+          src={url}
+          alt={name}
+          loading="lazy"
+          onError={() => setFailed(true)}
+          sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+      ) : (
+        <ImageIcon sx={{ fontSize: 18, color: 'grey.400' }} />
+      )}
+    </Box>
+  );
 };
 
 // 동적 배지 소프트 틴트 칩(C1 §배지 패턴). 미등록·색없음은 회색 폴백.
@@ -175,6 +217,12 @@ const ProductManagementPage = () => {
   const { user, hasPermission } = useAuth();
   const { addNotification } = useNotification();
   const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
+
+  // 이미지 일괄 업로드(product-images 공개 버킷)
+  const [imageUploadOpen, setImageUploadOpen] = useState(false);
+  const [imageUploadProgress, setImageUploadProgress] = useState({ current: 0, total: 0, running: false });
+  const [imageUploadResults, setImageUploadResults] = useState([]); // [{ name, ok, error }]
 
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, phase: 'idle' });
@@ -392,9 +440,10 @@ const ProductManagementPage = () => {
 
     try {
       const payload = { ...currentProduct, list_price: Number(currentProduct.list_price) || 0 };
-      // badges 마이그레이션 미적용(컬럼 없음) 시 graceful — 빈 배열이면 payload에서 제외.
-      // 값이 있는데 컬럼이 없으면 mutate 함수가 PGRST204 감지 후 badges 빼고 재시도.
+      // badges/image_filename 마이그레이션 미적용(컬럼 없음) 시 graceful — 빈값이면 payload에서 제외.
+      // 값이 있는데 컬럼이 없으면 mutate 함수가 PGRST204 감지 후 해당 키 빼고 재시도.
       if (Array.isArray(payload.badges) && payload.badges.length === 0) delete payload.badges;
+      if (payload.image_filename === '' || payload.image_filename == null) delete payload.image_filename;
 
       const mutate = async (data) => {
         const run = async (body) => {
@@ -405,9 +454,10 @@ const ProductManagementPage = () => {
           return supabase.from('products').insert([body]);
         };
         let { error } = await run(data);
-        if (error && error.code === 'PGRST204' && 'badges' in data) {
+        if (error && error.code === 'PGRST204' && ('badges' in data || 'image_filename' in data)) {
           const rest = { ...data };
           delete rest.badges;
+          delete rest.image_filename;
           ({ error } = await run(rest));
         }
         if (error) throw error;
@@ -566,6 +616,7 @@ const ProductManagementPage = () => {
         product_code: getRowValue(row, ['상품코드', 'product_code']),
         category: String(getRowValue(row, ['카테고리', 'category']) || '').trim(),
         sub_category: getRowValue(row, ['하위카테고리', 'sub_category']) || null,
+        image_filename: getRowValue(row, ['이미지', 'image_filename']) || null,
         list_price: parsePrice(getRowValue(row, ['가격', '정가', 'list_price'])),
         notes: getRowValue(row, ['비고', 'notes']) || null,
         is_discountable: parseBool(getRowValue(row, ['할인여부', 'is_discountable'])),
@@ -647,6 +698,7 @@ const ProductManagementPage = () => {
           const rest = { ...p };
           delete rest._rowNum;
           if (Array.isArray(rest.badges) && rest.badges.length === 0) delete rest.badges;
+          if (rest.image_filename == null) delete rest.image_filename;
           return rest;
         });
 
@@ -704,6 +756,44 @@ const ProductManagementPage = () => {
     }
   };
 
+  // 이미지 일괄 업로드 — 다중 파일을 product-images 공개 버킷에 파일명 그대로 올린다.
+  // 와박팀 엑셀 "이미지" 열과 파일명이 일치하면 카드에 즉시 매칭된다.
+  const handleImageUpload = async (event) => {
+    if (!hasPermission('products:edit')) {
+      addNotification('이미지 업로드 권한이 없습니다.', 'error');
+      return;
+    }
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    setImageUploadResults([]);
+    setImageUploadProgress({ current: 0, total: files.length, running: true });
+    setImageUploadOpen(true);
+
+    const results = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      // 업로드 전 파일명 검증 — 한글·공백·특수문자면 Storage 키가 깨진다. 위반 파일은 시도 없이 실패 기록.
+      if (!SAFE_IMAGE_FILENAME.test(file.name)) {
+        results.push({ name: file.name, ok: false, error: '파일명에 한글·공백·특수문자 불가 — 영문/숫자 파일명 권장' });
+      } else {
+        const { error } = await uploadProductImage(file);
+        results.push({ name: file.name, ok: !error, error: error?.message });
+      }
+      setImageUploadResults([...results]);
+      setImageUploadProgress({ current: i + 1, total: files.length, running: true });
+    }
+
+    setImageUploadProgress((prev) => ({ ...prev, running: false }));
+    const failCount = results.filter((r) => !r.ok).length;
+    if (failCount === 0) {
+      addNotification(`이미지 ${results.length}개 업로드 완료`, 'success');
+    } else {
+      addNotification(`이미지 업로드 완료 — 성공 ${results.length - failCount}, 실패 ${failCount}`, 'warning');
+    }
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  };
+
   const handleDownloadTemplate = () => {
     const template = [{
       상품명: '예시 상품',
@@ -717,6 +807,7 @@ const ProductManagementPage = () => {
       신상품여부: 'TRUE',
       태그: '신경정신,치매',
       배지: '추천,한정',
+      이미지: 'sample.webp',
     }];
 
     const worksheet = XLSX.utils.json_to_sheet(template);
@@ -741,6 +832,7 @@ const ProductManagementPage = () => {
         신상품여부: product.is_new ? 'TRUE' : 'FALSE',
         태그: product.tags?.join(',') || '',
         배지: product.badges?.join(',') || '',
+        이미지: product.image_filename || '',
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(rows);
@@ -959,6 +1051,12 @@ const ProductManagementPage = () => {
             <IconButton component="label" sx={{ bgcolor: alpha(theme.palette.warning.main, 0.1) }}>
               <UploadIcon />
               <input ref={fileInputRef} hidden type="file" accept=".xlsx,.xls" onChange={handleFileUpload} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="상품 이미지 일괄 업로드 (파일명 그대로 — 엑셀 '이미지' 열과 일치 · 권장: 파일명을 상품코드로(영문/숫자))">
+            <IconButton component="label" sx={{ bgcolor: alpha(theme.palette.secondary.main, 0.1) }}>
+              <PhotoLibraryIcon />
+              <input ref={imageInputRef} hidden type="file" accept="image/*" multiple onChange={handleImageUpload} />
             </IconButton>
           </Tooltip>
           <Tooltip title="소분류·배지 관리">
@@ -1271,6 +1369,7 @@ const ProductManagementPage = () => {
                     />
                   </TableCell>
                 )}
+                <TableCell sx={{ fontWeight: 'bold' }} align="center">이미지</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>상품명</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>카테고리</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>하위 카테고리</TableCell>
@@ -1283,10 +1382,10 @@ const ProductManagementPage = () => {
             </TableHead>
             <TableBody>
               {loading ? (
-                <TableSkeleton rows={10} columns={hasPermission('products:edit') ? 9 : 8} />
+                <TableSkeleton rows={10} columns={hasPermission('products:edit') ? 10 : 9} />
               ) : displayedProducts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={hasPermission('products:edit') ? 9 : 8} sx={{ border: 0, py: 4 }}>
+                  <TableCell colSpan={hasPermission('products:edit') ? 10 : 9} sx={{ border: 0, py: 4 }}>
                     <EmptyState
                       icon={InventoryIcon}
                       title={hasFilters ? '검색 결과가 없습니다' : '등록된 상품이 없습니다'}
@@ -1313,6 +1412,11 @@ const ProductManagementPage = () => {
                         <Checkbox size="small" checked={selectedIds.has(product.id)} onChange={() => handleToggleOne(product.id)} />
                       </TableCell>
                     )}
+                    <TableCell align="center">
+                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                        <ProductThumb filename={product.image_filename} name={product.name} />
+                      </Box>
+                    </TableCell>
                     <TableCell sx={{ fontWeight: 500 }}>{product.name}</TableCell>
                     <TableCell><Chip label={product.category} size="small" color="primary" variant="outlined" /></TableCell>
                     <TableCell>
@@ -1613,6 +1717,54 @@ const ProductManagementPage = () => {
           <Button onClick={() => setBulkEditOpen(false)} disabled={bulkSaving}>취소</Button>
           <Button onClick={handleBulkSave} variant="contained" disabled={bulkSaving} startIcon={bulkSaving ? <CircularProgress size={14} /> : null}>
             {bulkSaving ? '적용 중...' : '적용'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 이미지 일괄 업로드 진행/결과 다이얼로그 */}
+      <Dialog
+        open={imageUploadOpen}
+        onClose={imageUploadProgress.running ? undefined : () => setImageUploadOpen(false)}
+        disableEscapeKeyDown={imageUploadProgress.running}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {imageUploadProgress.running ? '이미지 업로드 중' : '이미지 업로드 완료'}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                {imageUploadProgress.current} / {imageUploadProgress.total}
+              </Typography>
+              {!imageUploadProgress.running && (
+                <Typography variant="body2" color="text.secondary">
+                  실패 {imageUploadResults.filter((r) => !r.ok).length}건
+                </Typography>
+              )}
+            </Box>
+            <LinearProgress
+              variant="determinate"
+              value={imageUploadProgress.total ? (imageUploadProgress.current / imageUploadProgress.total) * 100 : 0}
+            />
+          </Box>
+          {imageUploadResults.some((r) => !r.ok) && (
+            <Box sx={{ maxHeight: 220, overflow: 'auto' }}>
+              {imageUploadResults.filter((r) => !r.ok).map((r) => (
+                <Typography key={r.name} variant="caption" color="error.main" sx={{ display: 'block' }}>
+                  {r.name}: {r.error || '실패'}
+                </Typography>
+              ))}
+            </Box>
+          )}
+          <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1.5 }}>
+            권장: 파일명을 상품코드로(영문/숫자). 한글·공백·특수문자 파일명은 업로드되지 않습니다.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setImageUploadOpen(false)} disabled={imageUploadProgress.running}>
+            닫기
           </Button>
         </DialogActions>
       </Dialog>

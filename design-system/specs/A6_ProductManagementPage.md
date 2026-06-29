@@ -2,12 +2,14 @@
 
 > 이 시트는 상품 관리 화면의 정보·기능·데이터 구조의 단일 진실 소스다.
 > 시안과 실서비스 구현은 이 시트의 모든 항목을 1:1로 반영해야 한다.
-> 마지막 갱신: 2026-06-29 **소분류·배지 마스터 CRUD를 SettingsPage→ProductManagementPage로 이동**(헤더 액션부 "소분류·배지 관리" 토글 → 펼침/접이 패널), **상품 폼 배지 입력을 칩 체크박스 토글 그룹으로 교체**(무제한 선택·3개째부터 회색 안내·직접추가 보존), **엑셀 배지 2개 초과는 경고 로그만**(행 오류 아님). 핵심 원칙: "최대 2개"는 입력 제약이 아니라 **표출 정책**(고객 카드 한정, C1). 건우님 결정.
+> 마지막 갱신: 2026-06-29 **상품 이미지 기능 추가**(PRD `DOCS/PRD_상품이미지.md`, P1) — 헤더 액션부 **이미지 일괄 업로드 버튼**(`PhotoLibraryIcon`, `products:edit`, 다중 파일→`product-images` 공개 버킷, 파일명 그대로 upsert, 진행/결과 다이얼로그), **상품 표 "이미지" 썸네일 컬럼**(상품명 앞, 1:1 40px, 미등록/onError 플레이스홀더), **엑셀 "이미지" 열**(양식·목록·업로드 파싱 3곳, `image_filename` 매핑). graceful(버킷·컬럼 미적용 환경 회귀 0). API `src/api/productImages.js`. 건우님 확정.
+> 이전 갱신: 2026-06-29 **소분류·배지 마스터 CRUD를 SettingsPage→ProductManagementPage로 이동**(헤더 액션부 "소분류·배지 관리" 토글 → 펼침/접이 패널), **상품 폼 배지 입력을 칩 체크박스 토글 그룹으로 교체**(무제한 선택·3개째부터 회색 안내·직접추가 보존), **엑셀 배지 2개 초과는 경고 로그만**(행 오류 아님). 핵심 원칙: "최대 2개"는 입력 제약이 아니라 **표출 정책**(고객 카드 한정, C1). 건우님 결정.
 > 이전 갱신: 2026-06-29 태그 검색 옵션 = **상품태그(products.tags) ∪ 학회목록(societies.name)** 합집합으로 확장(건우님 피드백 #3).
 
 ## 참조 파일
-- 실 컴포넌트: `inpsyt-order-frontend/src/components/ProductManagementPage.jsx` (1149줄)
-- 관련 API: `inpsyt-order-frontend/src/api/products.js` 의 `fetchAllProducts`
+- 실 컴포넌트: `inpsyt-order-frontend/src/components/ProductManagementPage.jsx`
+- 관련 API: `inpsyt-order-frontend/src/api/products.js` 의 `fetchAllProducts`, **`inpsyt-order-frontend/src/api/productImages.js`**(`getProductImageUrl`·`uploadProductImage`·`PRODUCT_IMAGE_BUCKET` — 2026-06-29 신규)
+- DRAFT 마이그레이션(상품 이미지): `supabase/migrations/20260619020000_DRAFT_create_product_images_bucket.sql`(공개 버킷), `20260619030000_DRAFT_add_products_image_filename.sql`(`image_filename` 컬럼) — 건우님 적용 후 실동작.
 - DB 스키마: `supabase/migrations/20251022045614_create_products_table.sql` + `20251022045615_add_is_popular_to_products.sql` + `20260313044014_add_product_flags.sql`
 - **(계획) 카테고리·배지 동적화**: `DOCS/PRD_오티즘_카테고리배지_동적화.md` (P1 트랙). 신규 마스터 테이블 `subcategories`·`badges`, `products.badges text[]`. DRAFT 마이그레이션: `20260619000000_DRAFT_add_product_badges.sql` 외. **(2026-06-29) 소분류·배지 마스터 CRUD UI는 본 화면(ProductManagementPage)으로 이동 완료** — 헤더 액션부 "소분류·배지 관리" 토글 패널. 본 화면이 마스터의 단일 진실 소스 UI이자 소비처. API `src/api/masters.js`.
 - Edge Function: `upload-products-excel` (엑셀 업로드 처리 — 컬럼만 있으면 upsert 통과, 무변경)
@@ -25,6 +27,7 @@
   - 상품 목록 다운로드 아이콘 (`DownloadIcon`, success 톤 배경) — line 571-575
   - **이하 `products:edit` 권한 있을 때만 표시**:
     - 엑셀 업로드 아이콘 (`UploadIcon`, warning 톤 배경, "엑셀 업로드 (product_code 기준 upsert)" 툴팁)
+    - **이미지 일괄 업로드 아이콘** (`PhotoLibraryIcon`, secondary 톤 배경, "상품 이미지 일괄 업로드 (파일명 그대로 — 엑셀 '이미지' 열과 일치)" 툴팁) — **(2026-06-29 신규)** `<input type=file multiple accept="image/*">`. 선택 파일을 각각 `product-images` 공개 버킷에 **파일명 그대로**(`upsert:true`) 업로드. 진행률·실패 목록 다이얼로그(§아래). 권한 `products:edit`.
     - **"소분류·배지 관리" 토글 버튼** (`CategoryIcon` outlined, `ExpandMore`/`ExpandLess` 끝아이콘) — **(2026-06-29 신규)** 클릭 시 헤더 아래 마스터 관리 패널 펼침/접이(`masterPanelOpen` Collapse). A8 SettingsPage에서 이동. 권한 가드 `products:edit`.
     - 전체 삭제 아이콘 (`DeleteForeverIcon`, error 톤 배경/색)
     - "상품 추가" 버튼 (contained, `AddIcon`)
@@ -74,9 +77,10 @@
 - [ ] "선택 해제" 버튼: text 버튼
 
 ### 상품 표 (line 770-898)
-- [ ] 표 컬럼(권한별): 체크박스(`products:edit` 시) / 상품명 / 카테고리 / 하위 카테고리 / 가격(오른쪽 정렬) / 비고 / 상태 태그(중앙) / 태그 / 작업(`products:edit` 시)
+- [ ] 표 컬럼(권한별): 체크박스(`products:edit` 시) / **이미지(중앙)** / 상품명 / 카테고리 / 하위 카테고리 / 가격(오른쪽 정렬) / 비고 / 상태 태그(중앙) / 태그 / 작업(`products:edit` 시)
 - [ ] 행 표시 — 누락 금지:
   - 체크박스(개별)
+  - **이미지 썸네일 — (2026-06-29 신규)**: 상품명 앞 컬럼. 1:1 40px(`borderRadius 1`, `objectFit cover`, `loading lazy`). `image_filename` 있으면 `getProductImageUrl`, 없으면/onError면 회색 박스(`grey.100`) + `ImageIcon`(18px, `grey.400`) 플레이스홀더. **대부분 미등록(NULL)이 정상.**
   - 상품명 (`name`, fontWeight 500)
   - 카테고리 칩 (primary outlined, 라벨=`category`) — **대분류(검사/도서/도구 고정 3)**
   - 하위 카테고리 (`sub_category`, 없으면 "-") — **소분류. 동적 마스터(`subcategories`)와 이름 자연키로 연결.** **(2026-06-29 구현)** 마스터에 등록된 이름이면 마스터 색 소프트 틴트 칩(`BadgeChip`), 미등록이면 회색 "· 미등록" 칩 표시(FK 안 검·운영 마찰 방지 — PRD §엣지).
@@ -112,8 +116,8 @@
   - 인기 상품: TriState 토글(변경 없음/ON/OFF)
   - 신상품: TriState 토글
   - 태그: 추가/덮어쓰기 모드 토글 + Autocomplete 입력
-- [ ] 엑셀 양식 다운로드 (`handleDownloadTemplate`, line 499): 현재 **10컬럼** 한국어 헤더 — 상품명·상품코드·카테고리·하위카테고리·가격·비고·할인여부·인기상품·신상품여부·태그. **(P1 동적화) "배지" 열 1개 추가 → 11컬럼.** "배지" = 콤마 구분 다중값(예: `추천,한정`), `products.badges text[]`로 split 매핑. **"하위카테고리" 열은 기존 그대로 — 소분류 매핑에 신규 열 불필요**(이미 `sub_category` 매핑돼 있음).
-- [ ] 상품 목록 다운로드 (`handleDownloadExcel`, line 520): 위와 동일 컬럼(배지 추가 시 11컬럼, `badges.join(',')`)
+- [ ] 엑셀 양식 다운로드 (`handleDownloadTemplate`): 한국어 헤더 — 상품명·상품코드·카테고리·하위카테고리·가격·비고·할인여부·인기상품·신상품여부·태그·배지·**이미지**. 배지 = 콤마 구분 다중값(예: `추천,한정`), `products.badges text[]`로 split 매핑. **"이미지" 열(2026-06-29 신규) = `image_filename` 단일 파일명(예: `abc.webp`)** — 와박팀이 상품 엑셀에 직접 기입, `product-images` 버킷 객체 경로와 일치 전제. **"하위카테고리" 열은 기존 그대로**(이미 `sub_category` 매핑).
+- [ ] 상품 목록 다운로드 (`handleDownloadExcel`): 위와 동일 컬럼(`badges.join(',')`, `image_filename` 그대로)
 - [ ] 엑셀 업로드 (line 352-496): 청크 100건 단위, 진행률·로그·오류 표 + "오류 내역 복사" 액션
 
 ## 입력 폼 구조
@@ -149,6 +153,7 @@
 - `category` (text) — **대분류**, `'도서'` / `'검사'` / `'도구'` 중 하나 (코드 상수 `categories`, 고정 3). 매출·정산·대시보드 집계 키.
 - `sub_category` (text, nullable) — **소분류**(동적). 마스터 `subcategories`와 **이름 자연키** 연결(FK 미설정 — 엑셀 호환). **노출·탐색 전용**(매출 집계 미참여 — 회계 안전). 기존 컬럼 활용(추가 0).
 - `badges` (text[], nullable — **P1 신규**, DRAFT `20260619000000_DRAFT_add_product_badges.sql`) — 마스터 `badges`와 이름 자연키 연결. 기존 `is_popular`/`is_new`/`is_discountable` boolean과 **공존**(boolean 삭제 안 함).
+- `image_filename` (text, nullable — **P1 신규**, DRAFT `20260619030000_DRAFT_add_products_image_filename.sql`) — `product-images` 공개 버킷 내 객체 경로(예: `abc.webp`). NULL=이미지 없음(플레이스홀더). 엑셀 "이미지" 열·일괄 업로드로 채움. **파일명 = 영문/숫자·`.`·`-`·`_`만 허용(한글·공백·특수문자 불가) — 상품코드 권장.** Storage 키 안전성 때문. graceful(컬럼 미적용 환경 회귀 0 — 빈값 payload 제외 + `PGRST204` 시 `badges`와 함께 빼고 재시도).
 - `name` (text)
 - `list_price` (numeric)
 - `notes` (text, nullable)
@@ -163,6 +168,7 @@
 - 상품코드 → product_code
 - 카테고리 → category (대분류) — **`String().trim()` 정규화 후 검사/도서/도구 중 하나여야 함. 빈값·오타·공백은 행 오류 처리(아래 §빈 상태 참조).**
 - 하위카테고리 → sub_category (소분류 — **기존 매핑, 동적화에도 신규 열 불필요**)
+- **이미지 → image_filename** (2026-06-29 신규, 단일 파일명 그대로). 빈값이면 payload에서 제외(미적용 환경 회귀 방지). 버킷에 실제 파일 존재 여부는 **검증 안 함** — 불일치 시 카드에서 onError 플레이스홀더(PRD §엣지, 1차 onError-only 단순화).
 - 가격/정가 → list_price
 - 비고 → notes
 - 할인여부 → is_discountable (TRUE/Y/YES/1 → true)
@@ -182,11 +188,12 @@
 
 ## 빈 상태·로딩·오류 처리
 
-- 로딩: `TableSkeleton rows=10 columns=9`
+- 로딩: `TableSkeleton rows=10 columns={products:edit ? 10 : 9}` (이미지 컬럼 추가로 +1)
 - 빈 상태(필터 결과 없음): `EmptyState` — "검색 결과가 없습니다" + "다른 검색어나 필터를 시도해 보세요" + "필터 초기화" 액션
 - 빈 상태(상품 미등록): "등록된 상품이 없습니다" + "새 상품을 추가해 시작하세요" + "상품 추가" 액션 (`products:edit` 권한 있을 때만)
 - 오류: 토스트(`addNotification`) 처리, 화면 안에 잔류 알림 없음
 - 엑셀 업로드 오류: 진행 다이얼로그 내 오류 표(행/상품코드/상품명/사유) + "오류 내역 복사" 액션
+- **이미지 일괄 업로드 진행/결과 다이얼로그(2026-06-29 신규):** `LinearProgress`(현재/전체) + 실패 파일 목록(파일명: 사유, error 색) + 하단 안내 1줄("권장: 파일명을 상품코드로(영문/숫자). 한글·공백·특수문자 파일명은 업로드되지 않습니다."). 업로드 중 닫기 차단(`disableEscapeKeyDown`). 완료 후 "닫기". 토스트로 성공/실패 건수 요약. **파일명 형식 위반(한글·공백·특수문자)은 업로드 시도 없이 실패목록에 사유 기록** — 운영자 즉시 인지(2026-06-29 보강).
   - 사전 검증 사유: "상품코드 필수" / "상품명 필수" / **"카테고리는 검사/도서/도구만 허용"**(2026-06-24 신설 게이트 — 빈값·오타·공백 행을 오류 처리, 정상 행만 upsert) / "엑셀 내 중복" + 서버 측 오류
 
 ## 핵심 발견 (시안 검수 시 반드시 확인)
@@ -196,6 +203,7 @@
 10. **(P1) 소분류·배지는 이름 자연키 연결(FK 없음).** 엑셀 호환을 위해 무결성을 DB FK가 아닌 UI 경고("미등록" 회색)로 처리. 시안/구현이 미등록 값을 막거나 업로드를 reject하면 안 됨(운영 마찰 방지 — PRD §엣지).
 11. **(P1) 배지는 boolean 플래그와 공존.** `products.badges`(동적) 추가가 `is_popular`/`is_new`/`is_discountable`를 대체하지 않음. 상태 태그 컬럼·폼 모두 양쪽 다 표시·입력. 통합·치환 금지.
 12. **(P1) 어드민 표는 배지 전량 노출.** 고객 카드의 "최대 2개" 가드레일(C1)은 운영자 화면에 적용 안 함 — 운영자는 모든 배지를 확인해야 함.
+14. **(2026-06-29) 상품 이미지는 파일명 자연 매칭·버킷 실존 검증 없음.** `image_filename`(엑셀 "이미지" 열)과 `product-images` 버킷 파일명이 일치해야 카드에 뜸. 업로드 시 버킷 실존 검증 안 함 — 불일치/누락은 카드 onError 플레이스홀더로 graceful 처리(1차 onError-only). 와박팀이 엑셀과 파일명을 맞추는 운영 약속이 전제. 시안·구현이 미일치 값을 reject하면 안 됨(운영 마찰 방지). **대부분 미등록(NULL)이 정상** — 플레이스홀더는 예외가 아니라 단정한 기본. **단, 일괄 업로드 시 파일명 형식만은 검증함**(2026-06-29 보강): 영문/숫자·`.`·`-`·`_` 외(한글·공백·특수문자) 파일은 Storage 키가 깨지므로 업로드 시도 없이 실패목록에 기록("파일명에 한글·공백·특수문자 불가 — 영문/숫자 파일명 권장"). 정상 파일만 업로드. 버킷 실존 검증과는 별개(전자는 형식, 후자는 매칭).
 13. **(2026-06-29) "최대 2개"는 입력 제약이 아니라 표출 정책.** 입력단(상품 폼 칩 토글·엑셀 업로드)은 배지 **무제한**. 고객 카드만 priority 상위 2개 노출(ProductCard 이미 구현, C1). 폼은 hard-block 없이 3개째부터 회색 안내, 엑셀은 2개 초과 행을 행 오류로 막지 않고 경고 로그만. 폼·엑셀·카드 단일 규칙. **ProductCard 카드 상한2·우선순위 로직은 건드리지 않음.**
 2. **상태 태그 3종(인기·신상품·할인)은 표 안에서 한 컬럼에 모인다.** 시안이 한 종만 보여주면 운영자는 다른 두 플래그를 못 본다.
 3. **폼의 플래그 3종은 별도 체크박스.** 하나의 토글이나 셀렉트로 통합 금지.
@@ -207,6 +215,8 @@
 
 ## 변경 이력
 
+- 2026-06-29 **상품 이미지 블로커 보강 (실 코드 변경, CTO 검수 후속)**. (A graceful) `handleSave`가 `badges`만 `PGRST204` 재시도하고 `image_filename`은 미대응이던 결함 보강 — payload에서 빈 `image_filename`(''·null·undefined) delete + `PGRST204` 재시도 대상에 `image_filename` 포함(`'badges' in data || 'image_filename' in data` 게이트, 두 키 동시 delete 후 재시도). 컬럼 미적용 환경에서 image_filename 키가 섞여도 전건 실패 안 하고 해당 키만 빠진 채 통과. (B 파일명 검증) `handleImageUpload`가 `upload(file.name)` 그대로라 한글·공백·특수문자 파일명이면 Storage 키가 깨지던 결함 보강 — 모듈 상수 `SAFE_IMAGE_FILENAME = /^[A-Za-z0-9._-]+$/`로 업로드 전 검증, 위반 파일은 업로드 시도 없이 실패목록에 `{ ok:false, error:'파일명에 한글·공백·특수문자 불가 — 영문/숫자 파일명 권장' }` 기록(운영자 즉시 인지), 정상 파일만 `uploadProductImage` 호출. (C 안내) 업로드 버튼 툴팁 + 결과 다이얼로그 하단에 "권장: 파일명을 상품코드로(영문/숫자)" 1줄. `productImages.js` api 경유 유지, 기존 graceful 패턴(빈값 delete + PGRST204 재시도) 답습, MUI 토큰, 다른 로직 무변경. 데이터 모델 image_filename·핵심 발견 14·일괄 업로드 다이얼로그 절 갱신.
+- 2026-06-29 **상품 이미지 기능 구현 (실 코드 변경, PRD `DOCS/PRD_상품이미지.md`)**. (1) **이미지 일괄 업로드 UI**: 헤더 액션부 `PhotoLibraryIcon` 버튼(`products:edit`) → `<input multiple accept=image/*>` → 각 파일 `uploadProductImage`(`product-images` 공개 버킷, 파일명 그대로·`upsert:true`). 순차 업로드·`LinearProgress`·실패목록 다이얼로그·토스트 요약. (2) **상품 표 "이미지" 썸네일 컬럼**: 상품명 앞, `ProductThumb`(40px 1:1, 미등록/onError `ImageIcon` 플레이스홀더). colSpan/columns 9→10(edit)·8→9(view). (3) **엑셀 "이미지" 열**: `handleDownloadTemplate`·`handleDownloadExcel`·`handleFileUpload` 파싱 3곳 `image_filename` 매핑(tags/badges 패턴 복제), 빈값 payload 제외(미적용 회귀 방지). category 게이트·기존 검증 무변경. (4) **API**: `src/api/productImages.js` 신설(`getProductImageUrl`=`getPublicUrl`·`uploadProductImage`·`PRODUCT_IMAGE_BUCKET`). (5) **graceful**: 버킷·`image_filename` 컬럼 미적용 환경 회귀 0(URL null→플레이스홀더, payload에서 빈 image_filename 제외). theme.js 무수정·AI 시그니처 없음. C1 카드 이미지 슬롯과 동일 정책. 핵심 발견 14 신설.
 - 2026-06-29 **마스터 CRUD를 SettingsPage→상품관리로 이동 + 배지 입력 칩 체크박스 + 엑셀 배지 경고 (실 코드 변경, 건우님 확정 #1·#2)**. (A 이동) SettingsPage의 소분류·배지 마스터 블록 2개·다이얼로그 2개·관련 state/핸들러(`handleSaveSub`/`handleDeleteSub`/`handleToggleSubActive`/배지 동형)·import(masters API·`ColorPresetPicker`·`MASTER_COLOR_PRESETS`)를 ProductManagementPage로 이동. 헤더 액션부 "소분류·배지 관리" 토글 버튼 → 헤더 아래 Collapse 패널(SectionCard 2개 가로 flexWrap). 즉시저장·삭제가드(사용중 disabled+경고)·is_active Switch 보존. 마스터 fetch는 `loadMasters`로 통합(subcategories·badges·usage 동시, CRUD 후 재호출). 권한 가드 `products:edit`. SettingsPage엔 "소분류·배지는 상품 관리 화면에서 관리합니다" 안내 Alert 1줄 + 마스터 관련 코드 전량 제거. (B 칩 체크박스) 상품 폼 배지 = `Autocomplete multiple freeSolo` → 마스터 활성 배지 Chip 토글 그룹(flexWrap, 선택=소프트틴트 채움/미선택=outlined). **무제한 선택**, 3개째부터 회색 helperText "고객 카드엔 우선순위 상위 2개만 노출됩니다". 미등록 기존 배지도 토글 노출(손실 방지), "직접 추가" TextField+버튼(Enter)으로 freeSolo 보존. (C 엑셀) `handleFileUpload` 검증 루프에 배지>2 경고(`badgeWarnings` → `uploadLog` push), **행 오류 아님·upsert 통과**. category 게이트 유지. (원칙) "최대 2개"=표출 정책(고객 카드 한정), 입력단 무제한. ProductCard 상한2 미변경. theme.js 무수정. §발견 13 신설.
 - 2026-06-29 **태그 검색 옵션에 학회 목록(societies) 학회명 포함 (실 코드 변경, 건우님 피드백 #3)**. (1) `availableTags`를 기존 `products.tags` 추출분 + `societies.name` **합집합**(중복 제거·정렬)으로 확장 — 학회 관리 탭 "학회 목록 관리" 모달에 등록된 학회명이 태그 옵션에 전부 노출. 기존엔 상품 태그에 실제로 붙은 값만 떠서 신규 등록 학회명이 안 보이던 문제 해결. (2) societies fetch는 **신규 API 안 만들고** `api/events.js`에 `getSocieties()` 추가(SocietyManagementDialog·EventManagementPage가 직접 `supabase.from('societies')` 호출하던 패턴을 api 계층으로 정리 — CLAUDE.md "api 계층 경유" 준수). `ProductManagementPage`에 `societies` state + 마운트 시 fetch(graceful `.catch(() => {})`). (3) 태그 칩 필터·검색 동작·다른 로직 무변경(옵션 소스만 확장). 검색·필터 카드 절에 옵션 소스 명시.
 - 2026-06-29 **소분류·배지 마스터 소비 실 코드 구현 (P1)**. (1) **상품 폼**: 하위 카테고리 자유 텍스트 → `Autocomplete freeSolo`(옵션=소분류 마스터 중 현재 폼 대분류에 소속·`is_active=true`인 이름만 필터). 미등록 입력 시 회색 helperText 경고. 배지 = `Autocomplete multiple freeSolo`(옵션=배지 마스터 활성 이름) 신규 필드(태그와 별도). 미등록 배지 입력 시 회색 칩 "· 미등록". boolean 플래그(인기/신상품/할인)와 공존. `createEmptyProduct`에 `badges: []` 추가. (2) **상품 표**: 하위 카테고리 = 소분류 마스터 색 소프트 틴트 칩(미등록 회색 "· 미등록"). 상태 태그 컬럼에 동적 배지 추가 — 우선순위(`badges.priority`) 정렬, 어드민 **전량 노출**(C1 최대 2개 가드 미적용, §발견 12), 미등록 회색. boolean 칩과 공존, 셋 다 false+배지 0이면 "-". (3) **엑셀**: 양식·목록 다운로드에 "배지" 열(`badges.join(',')`) 추가, 업로드 파싱에 배지 열(콤마 split, tags 패턴 복제). 소분류는 기존 "하위카테고리" 열 그대로. (4) **회귀 방어(graceful)**: products.badges 컬럼 미존재(마이그레이션 미적용) 시 — 폼 저장은 빈 badges 제외 + `PGRST204` 감지 시 badges 빼고 재시도, 엑셀 업로드는 빈 badges 제외, 마스터 fetch는 테이블 없으면 빈 배열 → 기존 자유입력 동작 보존. (5) 색·칩 토큰은 `MASTER_COLOR_FALLBACK`(A8 신설). 핵심 발견 9~12 충족. 마스터 CRUD UI 자체는 A8 소관(본 화면은 소비). **C1 고객 카드 배지 칩은 별도 트랙(미구현).**

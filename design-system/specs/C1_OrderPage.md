@@ -3,7 +3,8 @@
 > 이 시트는 고객 주문서 화면의 정보·기능·데이터 구조의 단일 진실 소스다.
 > 시안과 실서비스 구현은 이 시트의 모든 항목을 1:1로 반영해야 한다.
 > 임의 단순화·통합·생략은 건우님의 명시적 승인 후 이 시트를 먼저 갱신한 다음에만 허용된다.
-> 마지막 갱신: 2026-06-29 배지 "최대 2개"는 **표출 정책(본 카드 한정)** 임을 명시 — 입력단(A6 폼·엑셀)은 무제한, 상위 2개 선별 책임은 본 카드 가드레일에 있음(건우님 확정 #1·#2, §상품 카드 동적 배지 절). 카드 코드 변경 없음(정책 문서화).
+> 마지막 갱신: 2026-06-29 **상품 카드 1:1 이미지 슬롯 + 미등록/onError 플레이스홀더 추가**(PRD `DOCS/PRD_상품이미지.md`, P1). `products.image_filename`→`product-images` 공개 버킷 `getPublicUrl`. 미등록(NULL)이 정상 다수 — 카테고리 색 틴트 플레이스홀더. graceful(컬럼·버킷 미적용 환경 회귀 0). §상품 카드 절 참조. 건우님 확정.
+> 이전 갱신: 2026-06-29 배지 "최대 2개"는 **표출 정책(본 카드 한정)** 임을 명시 — 입력단(A6 폼·엑셀)은 무제한, 상위 2개 선별 책임은 본 카드 가드레일에 있음(건우님 확정 #1·#2, §상품 카드 동적 배지 절). 카드 코드 변경 없음(정책 문서화).
 > 이전 갱신: 2026-06-29 단일 대분류 행사(visible_categories 1종) 상품 카드 상위 카테고리 칩 숨김 — 전부 같은 대분류라 무의미·혼란(`도구`→`검사` 표기 오해 제거), 소분류 칩으로 탐색. 다른 행사(없음/NULL/복수)는 기존 칩 유지(회귀 0). `ProductCard.hideCategoryBadge` prop(`ProductSelectionStep.isSingleCategory` 전달). 건우님 결정.
 > 이전 갱신: 2026-06-29 상품 카드 동적 배지(`products.badges`) 표출 구현 — 강조 배지 최대 2개·priority 정렬·미등록 미표시·graceful(실 코드 변경 반영, P1 Open Question 4 확정).
 
@@ -122,6 +123,13 @@
 
 #### 상품 카드 (`ProductCard.jsx`)
 - [ ] 보더 1.5px — 장바구니에 있으면 `primary.main`, 없으면 `divider`
+- [ ] **상품 이미지 슬롯 (배지 영역 위, mb 1) — (2026-06-29 구현, PRD `DOCS/PRD_상품이미지.md`):**
+  - **1:1 정방형**(`aspectRatio: '1 / 1'`, 풀폭), `radii.sm` 라운드, `overflow: hidden`. 카드 상단에 위치(배지·상품명·가격 위).
+  - `products.image_filename` 있으면 `getProductImageUrl(filename)`(`api/productImages.js` — `product-images` 공개 버킷 `getPublicUrl`, 서명URL 아님)로 `<img objectFit:cover loading:lazy>`. 배경 `gray[50]`.
+  - **플레이스홀더(미등록 또는 onError)**: 카테고리 색 틴트 배경(`검사`/`도구`=`alpha(info.main,0.08)` / 그 외=`alpha(text.secondary,0.08)`) + 가운데 `ImageIcon`(28px, 틴트 alpha 0.45). **깨진 이미지 아이콘 금지.**
+  - `onError` 시 `failed` state로 플레이스홀더 전환. **대부분 상품이 미등록(NULL)이 정상** — 플레이스홀더는 예외가 아니라 단정한 기본 상태.
+  - graceful: `image_filename` 컬럼·`product-images` 버킷 미적용 환경에서도 회귀 0(URL null → 플레이스홀더만). AI 시그니처·그라데이션 없음.
+  - 레이아웃 = **현재 평면 그리드 기준**(③ 검사 2뎁스 미머지 — 머지 시 `TestGroupCard` 이미지 적용 여부 재검토, PRD 명시).
 - [ ] 상단 배지 영역 (mb 0.75):
   - **배지 = 솔리드 칩 아님. 소프트 틴트 박스(높이 18, radius 4px, alpha 0.12~0.14 배경 + 컬러 텍스트). 2026-06-01 /preview 목업 정합.**
   - 카테고리 배지 — `category` 있으면 표시(`도구`는 `검사`로). `검사`=`alpha(info.main,0.14)` 배경+`info.dark` 텍스트 / 그 외(`도서` 등)=`gray[200]` 배경+`text.secondary`. **단, `hideCategoryBadge=true`(단일 대분류 행사)면 이 배지 미렌더 — §행사별 판매 대분류 필터 규약 참조.**
