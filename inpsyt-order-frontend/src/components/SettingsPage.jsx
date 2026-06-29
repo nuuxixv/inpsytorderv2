@@ -11,14 +11,6 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Chip,
-  IconButton,
-  Tooltip,
-  Switch,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   useTheme,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
@@ -31,85 +23,11 @@ import {
   Event as EventIcon,
   LocalShipping as ShippingIcon,
   WarningAmberRounded as WarningIcon,
-  AccountTree as AccountTreeIcon,
-  Sell as SellIcon,
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Check as CheckIcon,
 } from '@mui/icons-material';
 import QRCode from 'qrcode';
 import { supabase } from '../supabaseClient';
 import { useNotification } from '../hooks/useNotification';
-import {
-  fetchSubcategories,
-  createSubcategory,
-  updateSubcategory,
-  deleteSubcategory,
-  fetchBadges,
-  createBadge,
-  updateBadge,
-  deleteBadge,
-  fetchMasterUsageCounts,
-} from '../api/masters';
-import { MASTER_COLOR_PRESETS, MASTER_COLOR_FALLBACK } from '../constants/categoryColors';
 import { PageHeader, SectionCard, ActionSlot, InfoRow } from './ui';
-
-const PARENT_CATEGORIES = ['검사', '도서', '도구'];
-
-// 소프트 틴트 칩(C1 §배지 패턴) — 배경 alpha + 진한 글자색. 솔리드 아님.
-const SoftChip = ({ label, color }) => {
-  const c = color || MASTER_COLOR_FALLBACK;
-  return (
-    <Chip
-      label={label}
-      size="small"
-      sx={{
-        bgcolor: alpha(c, 0.12),
-        color: c,
-        border: `1px solid ${alpha(c, 0.3)}`,
-        fontWeight: 600,
-      }}
-    />
-  );
-};
-
-// 색 프리셋 선택 — 자유 hex 금지(AA 대비·토큰 정합). 견본 클릭으로만 선택.
-const ColorPresetPicker = ({ value, onChange }) => (
-  <Box>
-    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.75 }}>
-      색
-    </Typography>
-    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-      {MASTER_COLOR_PRESETS.map((preset) => {
-        const selected = value === preset.value;
-        return (
-          <Tooltip key={preset.value} title={preset.label} arrow>
-            <Box
-              onClick={() => onChange(preset.value)}
-              sx={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                bgcolor: preset.value,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: selected ? '2px solid' : '2px solid transparent',
-                borderColor: selected ? 'text.primary' : 'transparent',
-                transition: 'transform 0.1s',
-                '&:hover': { transform: 'scale(1.1)' },
-              }}
-            >
-              {selected && <CheckIcon sx={{ fontSize: 18, color: '#fff' }} />}
-            </Box>
-          </Tooltip>
-        );
-      })}
-    </Box>
-  </Box>
-);
 
 // 사양 §발견 2: 리다이렉트 베이스는 VITE_APP_URL 우선, 없으면 현재 origin.
 const APP_BASE_URL = import.meta.env?.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
@@ -133,34 +51,10 @@ const SettingsPage = () => {
   // fetchSettings에서 select 결과에 컬럼이 없으면 true.
   const [activeSlugMissing, setActiveSlugMissing] = useState(false);
 
-  // ── 소분류·배지 마스터 (즉시 저장 — site_settings 일괄저장과 분리) ──
-  const [subcategories, setSubcategories] = useState([]);
-  const [badges, setBadges] = useState([]);
-  const [usage, setUsage] = useState({ subCounts: {}, badgeCounts: {} });
-  const [subDialog, setSubDialog] = useState(null); // null | { id?, name, parent_category, color, sort_order, is_active }
-  const [badgeDialog, setBadgeDialog] = useState(null); // null | { id?, name, color, priority, is_active }
-  const [masterSaving, setMasterSaving] = useState(false);
-
   useEffect(() => {
     fetchSettings();
     fetchEvents();
-    loadMasters();
   }, []);
-
-  const loadMasters = async () => {
-    try {
-      const [subs, bdgs, counts] = await Promise.all([
-        fetchSubcategories(),
-        fetchBadges(),
-        fetchMasterUsageCounts(),
-      ]);
-      setSubcategories(subs);
-      setBadges(bdgs);
-      setUsage(counts);
-    } catch (error) {
-      console.error('Error loading masters:', error);
-    }
-  };
 
   const fetchEvents = async () => {
     try {
@@ -250,126 +144,6 @@ const SettingsPage = () => {
     } catch (err) {
       console.error('QR generation error:', err);
       addNotification('QR 코드 생성에 실패했습니다.', 'error');
-    }
-  };
-
-  // ── 소분류 마스터 CRUD ──
-  const handleSaveSub = async () => {
-    const d = subDialog;
-    if (!d.name?.trim()) {
-      addNotification('소분류 이름을 입력해 주세요.', 'warning');
-      return;
-    }
-    if (!PARENT_CATEGORIES.includes(d.parent_category)) {
-      addNotification('소속 대분류를 선택해 주세요.', 'warning');
-      return;
-    }
-    // 같은 대분류 내 이름 중복 검증(자연키 유일성)
-    const dup = subcategories.some(
-      (s) => s.parent_category === d.parent_category && s.name.trim() === d.name.trim() && s.id !== d.id,
-    );
-    if (dup) {
-      addNotification('같은 대분류에 동일한 이름의 소분류가 이미 있습니다.', 'warning');
-      return;
-    }
-    setMasterSaving(true);
-    try {
-      const payload = {
-        name: d.name.trim(),
-        parent_category: d.parent_category,
-        color: d.color,
-        sort_order: Number(d.sort_order) || 0,
-        is_active: d.is_active,
-      };
-      if (d.id) await updateSubcategory(d.id, payload);
-      else await createSubcategory(payload);
-      addNotification('소분류가 저장되었습니다.', 'success');
-      setSubDialog(null);
-      loadMasters();
-    } catch (error) {
-      addNotification(`소분류 저장 실패: ${error.message}`, 'error');
-    } finally {
-      setMasterSaving(false);
-    }
-  };
-
-  const handleDeleteSub = async (sub) => {
-    const count = usage.subCounts[sub.name] || 0;
-    if (count > 0) {
-      addNotification(`이 소분류를 쓰는 상품 ${count}개가 있어 삭제할 수 없습니다.`, 'warning');
-      return;
-    }
-    try {
-      await deleteSubcategory(sub.id);
-      addNotification('소분류를 삭제했습니다.', 'success');
-      loadMasters();
-    } catch (error) {
-      addNotification(`소분류 삭제 실패: ${error.message}`, 'error');
-    }
-  };
-
-  const handleToggleSubActive = async (sub) => {
-    try {
-      await updateSubcategory(sub.id, { is_active: !sub.is_active });
-      loadMasters();
-    } catch (error) {
-      addNotification(`상태 변경 실패: ${error.message}`, 'error');
-    }
-  };
-
-  // ── 배지 마스터 CRUD ──
-  const handleSaveBadge = async () => {
-    const d = badgeDialog;
-    if (!d.name?.trim()) {
-      addNotification('배지 이름을 입력해 주세요.', 'warning');
-      return;
-    }
-    const dup = badges.some((b) => b.name.trim() === d.name.trim() && b.id !== d.id);
-    if (dup) {
-      addNotification('동일한 이름의 배지가 이미 있습니다.', 'warning');
-      return;
-    }
-    setMasterSaving(true);
-    try {
-      const payload = {
-        name: d.name.trim(),
-        color: d.color,
-        priority: Number(d.priority) || 0,
-        is_active: d.is_active,
-      };
-      if (d.id) await updateBadge(d.id, payload);
-      else await createBadge(payload);
-      addNotification('배지가 저장되었습니다.', 'success');
-      setBadgeDialog(null);
-      loadMasters();
-    } catch (error) {
-      addNotification(`배지 저장 실패: ${error.message}`, 'error');
-    } finally {
-      setMasterSaving(false);
-    }
-  };
-
-  const handleDeleteBadge = async (badge) => {
-    const count = usage.badgeCounts[badge.name] || 0;
-    if (count > 0) {
-      addNotification(`이 배지를 쓰는 상품 ${count}개가 있어 삭제할 수 없습니다.`, 'warning');
-      return;
-    }
-    try {
-      await deleteBadge(badge.id);
-      addNotification('배지를 삭제했습니다.', 'success');
-      loadMasters();
-    } catch (error) {
-      addNotification(`배지 삭제 실패: ${error.message}`, 'error');
-    }
-  };
-
-  const handleToggleBadgeActive = async (badge) => {
-    try {
-      await updateBadge(badge.id, { is_active: !badge.is_active });
-      loadMasters();
-    } catch (error) {
-      addNotification(`상태 변경 실패: ${error.message}`, 'error');
     }
   };
 
@@ -614,152 +388,16 @@ const SettingsPage = () => {
         </Box>
       </SectionCard>
 
-      {/* 블록 4 — 소분류 관리 (마스터 즉시 저장 — 하단 저장하기와 분리) */}
-      <SectionCard
-        title="소분류 관리"
-        subtitle="대분류(검사/도서/도구) 하위의 분류입니다. 고객 주문서에서 칩으로 노출되며 탐색에 쓰입니다. (매출 집계에는 영향 없음)"
-        icon={AccountTreeIcon}
-        sx={{ mb: 3 }}
-        padding={24}
-        action={
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={() => setSubDialog({ name: '', parent_category: '', color: MASTER_COLOR_PRESETS[0].value, sort_order: 0, is_active: true })}
-          >
-            소분류 추가
-          </Button>
-        }
+      {/* 소분류·배지 마스터 관리는 상품 관리 화면으로 이동(2026-06-29 건우님 결정) */}
+      <Alert
+        severity="info"
+        icon={<InfoIcon sx={{ fontSize: 18 }} />}
+        sx={{ borderRadius: `${theme.radii.md}px`, mb: 3 }}
       >
-        <Box sx={{ mt: 1 }}>
-          <Alert severity="info" icon={false} sx={{ borderRadius: `${theme.radii.sm}px`, py: 0.5, mb: 2 }}>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              추가·수정·삭제는 즉시 적용됩니다. (하단 "저장하기"는 배송비·리다이렉트 설정 전용)
-            </Typography>
-          </Alert>
-          {subcategories.length === 0 ? (
-            <Typography variant="body2" sx={{ color: 'text.disabled', py: 2, textAlign: 'center' }}>
-              등록된 소분류가 없습니다 · 추가해 시작하세요
-            </Typography>
-          ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-              {subcategories.map((sub) => {
-                const count = usage.subCounts[sub.name] || 0;
-                return (
-                  <Box
-                    key={sub.id}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.5,
-                      py: 1,
-                      borderBottom: `1px solid ${theme.gray[100]}`,
-                      opacity: sub.is_active ? 1 : 0.5,
-                    }}
-                  >
-                    <SoftChip label={sub.name} color={sub.color} />
-                    <Chip label={sub.parent_category} size="small" variant="outlined" color="primary" />
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      순서 {sub.sort_order}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      · 상품 {count}개
-                    </Typography>
-                    <Box sx={{ flexGrow: 1 }} />
-                    <Tooltip title={sub.is_active ? '활성 (신규 선택지에 노출)' : '비활성 (숨김)'} arrow>
-                      <Switch size="small" checked={sub.is_active} onChange={() => handleToggleSubActive(sub)} />
-                    </Tooltip>
-                    <IconButton size="small" onClick={() => setSubDialog({ ...sub })}>
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <Tooltip title={count > 0 ? `상품 ${count}개 연결 — 삭제 불가` : '삭제'} arrow>
-                      <span>
-                        <IconButton size="small" onClick={() => handleDeleteSub(sub)} disabled={count > 0} sx={{ color: count > 0 ? 'text.disabled' : 'error.main' }}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                  </Box>
-                );
-              })}
-            </Box>
-          )}
-        </Box>
-      </SectionCard>
-
-      {/* 블록 5 — 배지 관리 */}
-      <SectionCard
-        title="배지 관리"
-        subtitle="상품 카드에 표시되는 강조 라벨입니다. (예: 추천, 한정) 카드당 최대 2개가 우선순위 순으로 노출됩니다."
-        icon={SellIcon}
-        sx={{ mb: 3 }}
-        padding={24}
-        action={
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={() => setBadgeDialog({ name: '', color: MASTER_COLOR_PRESETS[0].value, priority: 0, is_active: true })}
-          >
-            배지 추가
-          </Button>
-        }
-      >
-        <Box sx={{ mt: 1 }}>
-          <Alert severity="info" icon={false} sx={{ borderRadius: `${theme.radii.sm}px`, py: 0.5, mb: 2 }}>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              인기·신상품·할인 배지는 상품별 체크박스로 별도 관리됩니다(상품 관리 화면).
-            </Typography>
-          </Alert>
-          {badges.length === 0 ? (
-            <Typography variant="body2" sx={{ color: 'text.disabled', py: 2, textAlign: 'center' }}>
-              등록된 배지가 없습니다 · 추가해 시작하세요
-            </Typography>
-          ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-              {badges.map((badge) => {
-                const count = usage.badgeCounts[badge.name] || 0;
-                return (
-                  <Box
-                    key={badge.id}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.5,
-                      py: 1,
-                      borderBottom: `1px solid ${theme.gray[100]}`,
-                      opacity: badge.is_active ? 1 : 0.5,
-                    }}
-                  >
-                    <SoftChip label={badge.name} color={badge.color} />
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      우선순위 {badge.priority}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      · 상품 {count}개
-                    </Typography>
-                    <Box sx={{ flexGrow: 1 }} />
-                    <Tooltip title={badge.is_active ? '활성 (신규 선택지에 노출)' : '비활성 (숨김)'} arrow>
-                      <Switch size="small" checked={badge.is_active} onChange={() => handleToggleBadgeActive(badge)} />
-                    </Tooltip>
-                    <IconButton size="small" onClick={() => setBadgeDialog({ ...badge })}>
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <Tooltip title={count > 0 ? `상품 ${count}개 연결 — 삭제 불가` : '삭제'} arrow>
-                      <span>
-                        <IconButton size="small" onClick={() => handleDeleteBadge(badge)} disabled={count > 0} sx={{ color: count > 0 ? 'text.disabled' : 'error.main' }}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                  </Box>
-                );
-              })}
-            </Box>
-          )}
-        </Box>
-      </SectionCard>
+        <Typography variant="caption" sx={{ color: 'text.primary' }}>
+          소분류·배지는 상품 관리 화면(상단 "소분류·배지 관리")에서 관리합니다.
+        </Typography>
+      </Alert>
 
       {/* 안내 Alert — 사양 §하단 안내 */}
       <Alert
@@ -791,89 +429,6 @@ const SettingsPage = () => {
           {saving ? <CircularProgress size={20} /> : '저장하기'}
         </Button>
       </ActionSlot>
-
-      {/* 소분류 추가/수정 다이얼로그 */}
-      <Dialog open={Boolean(subDialog)} onClose={() => setSubDialog(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>{subDialog?.id ? '소분류 수정' : '소분류 추가'}</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 2 }}>
-          <TextField
-            autoFocus
-            label="소분류 이름"
-            size="small"
-            fullWidth
-            value={subDialog?.name || ''}
-            onChange={(e) => setSubDialog((p) => ({ ...p, name: e.target.value }))}
-          />
-          <FormControl size="small" fullWidth>
-            <InputLabel id="sub-parent-label">소속 대분류</InputLabel>
-            <Select
-              labelId="sub-parent-label"
-              label="소속 대분류"
-              value={subDialog?.parent_category || ''}
-              onChange={(e) => setSubDialog((p) => ({ ...p, parent_category: e.target.value }))}
-            >
-              {PARENT_CATEGORIES.map((cat) => (
-                <MenuItem key={cat} value={cat}>{cat}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <ColorPresetPicker value={subDialog?.color} onChange={(c) => setSubDialog((p) => ({ ...p, color: c }))} />
-          <TextField
-            label="정렬 순서"
-            type="number"
-            size="small"
-            fullWidth
-            value={subDialog?.sort_order ?? 0}
-            onChange={(e) => setSubDialog((p) => ({ ...p, sort_order: e.target.value }))}
-            helperText="고객 화면 칩 노출 순서 (작을수록 먼저)"
-          />
-          <Box>
-            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>미리보기</Typography>
-            <SoftChip label={subDialog?.name || '소분류'} color={subDialog?.color} />
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setSubDialog(null)} disabled={masterSaving}>취소</Button>
-          <Button variant="contained" onClick={handleSaveSub} disabled={masterSaving}>
-            {masterSaving ? <CircularProgress size={18} /> : '저장'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* 배지 추가/수정 다이얼로그 */}
-      <Dialog open={Boolean(badgeDialog)} onClose={() => setBadgeDialog(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>{badgeDialog?.id ? '배지 수정' : '배지 추가'}</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 2 }}>
-          <TextField
-            autoFocus
-            label="배지 이름"
-            size="small"
-            fullWidth
-            value={badgeDialog?.name || ''}
-            onChange={(e) => setBadgeDialog((p) => ({ ...p, name: e.target.value }))}
-          />
-          <ColorPresetPicker value={badgeDialog?.color} onChange={(c) => setBadgeDialog((p) => ({ ...p, color: c }))} />
-          <TextField
-            label="우선순위"
-            type="number"
-            size="small"
-            fullWidth
-            value={badgeDialog?.priority ?? 0}
-            onChange={(e) => setBadgeDialog((p) => ({ ...p, priority: e.target.value }))}
-            helperText="카드당 최대 2개 노출 시 정렬 기준 (작을수록 먼저)"
-          />
-          <Box>
-            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>미리보기</Typography>
-            <SoftChip label={badgeDialog?.name || '배지'} color={badgeDialog?.color} />
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setBadgeDialog(null)} disabled={masterSaving}>취소</Button>
-          <Button variant="contained" onClick={handleSaveBadge} disabled={masterSaving}>
-            {masterSaving ? <CircularProgress size={18} /> : '저장'}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };

@@ -5,7 +5,7 @@ import {
   DialogActions, DialogContent, DialogTitle, FormControlLabel, Checkbox,
   FormControl, InputLabel, Select, MenuItem, Autocomplete, Chip,
   Pagination, IconButton, Tooltip, ToggleButton, ToggleButtonGroup,
-  CircularProgress, LinearProgress, alpha, useTheme,
+  CircularProgress, LinearProgress, Switch, Collapse, Alert, alpha, useTheme,
 } from '@mui/material';
 import {
   Add as AddIcon, FileDownload as DownloadIcon, FileUpload as UploadIcon,
@@ -18,20 +18,39 @@ import {
   MenuBook as MenuBookIcon,
   Science as ScienceIcon,
   Build as BuildIcon,
+  Category as CategoryIcon,
+  AccountTree as AccountTreeIcon,
+  Sell as SellIcon,
+  Check as CheckIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import { fetchAllProducts } from '../api/products';
-import { fetchSubcategories, fetchBadges } from '../api/masters';
+import {
+  fetchSubcategories, fetchBadges,
+  createSubcategory, updateSubcategory, deleteSubcategory,
+  createBadge, updateBadge, deleteBadge,
+  fetchMasterUsageCounts,
+} from '../api/masters';
+import { getSocieties } from '../api/events';
 import { useNotification } from '../hooks/useNotification';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../supabaseClient';
 import { matchesSearch } from '../utils/search';
-import { CATEGORY_COLORS, CATEGORY_KEY_BY_LABEL, MASTER_COLOR_FALLBACK } from '../constants/categoryColors';
+import {
+  CATEGORY_COLORS, CATEGORY_KEY_BY_LABEL,
+  MASTER_COLOR_FALLBACK, MASTER_COLOR_PRESETS,
+} from '../constants/categoryColors';
 import { PageHeader, SectionCard, ActionSlot, EmptyState } from './ui';
 import TableSkeleton from './TableSkeleton';
 
 const categories = ['도서', '검사', '도구'];
+const PARENT_CATEGORIES = ['검사', '도서', '도구'];
 const DELETE_ALL_CONFIRM_TEXT = '삭제합니다';
+
+// 카드 노출 정책: 고객 카드엔 priority 상위 2개만 노출(C1). 입력단(폼·엑셀)은 무제한.
+const CARD_BADGE_LIMIT = 2;
 
 const createEmptyProduct = () => ({
   name: '',
@@ -93,6 +112,43 @@ const BadgeChip = ({ label, color }) => {
   );
 };
 
+// 색 프리셋 선택 — 자유 hex 금지(AA 대비·토큰 정합). 견본 클릭으로만 선택.
+const ColorPresetPicker = ({ value, onChange }) => (
+  <Box>
+    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.75 }}>
+      색
+    </Typography>
+    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+      {MASTER_COLOR_PRESETS.map((preset) => {
+        const selected = value === preset.value;
+        return (
+          <Tooltip key={preset.value} title={preset.label} arrow>
+            <Box
+              onClick={() => onChange(preset.value)}
+              sx={{
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                bgcolor: preset.value,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: selected ? '2px solid' : '2px solid transparent',
+                borderColor: selected ? 'text.primary' : 'transparent',
+                transition: 'transform 0.1s',
+                '&:hover': { transform: 'scale(1.1)' },
+              }}
+            >
+              {selected && <CheckIcon sx={{ fontSize: 18, color: '#fff' }} />}
+            </Box>
+          </Tooltip>
+        );
+      })}
+    </Box>
+  </Box>
+);
+
 const TriStateToggle = ({ label, value, onChange }) => (
   <Box>
     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
@@ -127,8 +183,16 @@ const ProductManagementPage = () => {
   const [uploadSuccessCount, setUploadSuccessCount] = useState(0);
 
   const [allProducts, setAllProducts] = useState([]);
-  const [subcategories, setSubcategories] = useState([]); // 소분류 마스터(A8 관리)
-  const [badgeMaster, setBadgeMaster] = useState([]);      // 배지 마스터(A8 관리)
+  const [subcategories, setSubcategories] = useState([]); // 소분류 마스터(상품관리에서 관리)
+  const [badgeMaster, setBadgeMaster] = useState([]);      // 배지 마스터(상품관리에서 관리)
+  const [societies, setSocieties] = useState([]);          // 학회 목록(학회 관리 모달과 동일 소스)
+
+  // ── 소분류·배지 마스터 CRUD (즉시 저장 — 상품관리 헤더에서 펼침/접이) ──
+  const [masterPanelOpen, setMasterPanelOpen] = useState(false);
+  const [masterUsage, setMasterUsage] = useState({ subCounts: {}, badgeCounts: {} });
+  const [subDialog, setSubDialog] = useState(null);   // null | { id?, name, parent_category, color, sort_order, is_active }
+  const [badgeDialog, setBadgeDialog] = useState(null); // null | { id?, name, color, priority, is_active }
+  const [masterSaving, setMasterSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [productQuickFilter, setProductQuickFilter] = useState(null);
@@ -141,6 +205,7 @@ const ProductManagementPage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(createEmptyProduct());
   const [categoryInvalid, setCategoryInvalid] = useState(false);
+  const [customBadgeInput, setCustomBadgeInput] = useState(''); // 마스터 미등록 배지 직접 추가용
 
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -170,12 +235,27 @@ const ProductManagementPage = () => {
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
-  // 소분류·배지 마스터 로드 (A8 설정에서 관리, 여기선 선택용으로 소비).
+  // 소분류·배지 마스터 + 사용 카운트 로드. CRUD 후에도 재호출.
   // 마이그레이션 미적용 시 빈 배열 → 기존 자유입력 폴백.
-  useEffect(() => {
-    fetchSubcategories().then(setSubcategories).catch(() => {});
-    fetchBadges().then(setBadgeMaster).catch(() => {});
+  const loadMasters = useCallback(async () => {
+    try {
+      const [subs, bdgs, counts] = await Promise.all([
+        fetchSubcategories(),
+        fetchBadges(),
+        fetchMasterUsageCounts(),
+      ]);
+      setSubcategories(subs);
+      setBadgeMaster(bdgs);
+      setMasterUsage(counts);
+    } catch (error) {
+      console.error('Error loading masters:', error);
+    }
   }, []);
+
+  useEffect(() => {
+    loadMasters();
+    getSocieties().then(setSocieties).catch(() => {});
+  }, [loadMasters]);
 
   // 활성 소분류 이름 옵션(현재 폼 대분류에 소속된 것만). is_active=false는 신규 선택지에서 숨김.
   const subOptionsForCategory = useMemo(() => {
@@ -220,10 +300,13 @@ const ProductManagementPage = () => {
     categories.forEach(cat => { result[cat] = allProducts.filter(p => p.category === cat).length; });
     return result;
   }, [allProducts]);
-  const availableTags = useMemo(
-    () => Array.from(new Set(allProducts.flatMap(p => p.tags || []))).sort(),
-    [allProducts]
-  );
+  // 태그 옵션 = 상품 태그(products.tags) ∪ 학회 목록(societies.name).
+  // 학회 관리 탭에 등록한 학회명을 검색 편의로 태그 옵션에 항상 노출(건우님 피드백 #3).
+  const availableTags = useMemo(() => {
+    const fromProducts = allProducts.flatMap(p => p.tags || []);
+    const fromSocieties = societies.map(s => s.name).filter(Boolean);
+    return Array.from(new Set([...fromProducts, ...fromSocieties])).sort();
+  }, [allProducts, societies]);
 
   // 필터: 검색 + 카테고리 + 빠른 필터
   const filteredProducts = useMemo(() => {
@@ -264,6 +347,29 @@ const ProductManagementPage = () => {
     setOpen(false);
     setCurrentProduct(createEmptyProduct());
     setCategoryInvalid(false);
+    setCustomBadgeInput('');
+  };
+
+  // 배지 칩 토글 — 무제한 선택(표출 정책은 카드에서 priority 상위 2개만, C1).
+  const handleToggleBadge = (name) => {
+    setCurrentProduct((prev) => {
+      const current = prev.badges || [];
+      return current.includes(name)
+        ? { ...prev, badges: current.filter((b) => b !== name) }
+        : { ...prev, badges: [...current, name] };
+    });
+  };
+
+  // 마스터 미등록 배지 직접 추가(기존 freeSolo 기능 보존).
+  const handleAddCustomBadge = () => {
+    const v = customBadgeInput.trim();
+    if (!v) return;
+    setCurrentProduct((prev) => {
+      const current = prev.badges || [];
+      if (current.includes(v)) return prev;
+      return { ...prev, badges: [...current, v] };
+    });
+    setCustomBadgeInput('');
   };
 
   const handleChange = (event) => {
@@ -475,6 +581,7 @@ const ProductManagementPage = () => {
 
       // Phase 2: Client-side validation
       const validationErrors = [];
+      const badgeWarnings = []; // 배지 2개 초과 — 행 오류 아님, 경고 로그만(표출 정책)
       const seenCodes = new Map();
       const validProducts = [];
 
@@ -497,6 +604,10 @@ const ProductManagementPage = () => {
           continue;
         }
         seenCodes.set(product.product_code, rowNum);
+        // 배지 무제한 받되, 2개 초과는 경고만(upsert는 통과 — 카드엔 상위 2개만 노출되는 표출 정책).
+        if ((product.badges || []).length > CARD_BADGE_LIMIT) {
+          badgeWarnings.push(`${rowNum}행 ${product.name}: 배지 ${product.badges.length}개 — 카드엔 상위 2개 노출`);
+        }
         // Remove internal _rowNum before sending to server
         const { _rowNum, ...cleanProduct } = product;
         validProducts.push({ ...cleanProduct, _rowNum: rowNum });
@@ -505,6 +616,9 @@ const ProductManagementPage = () => {
       if (validationErrors.length > 0) {
         setUploadErrors(prev => [...prev, ...validationErrors]);
         setUploadLog(prev => [...prev, `사전 검증: ${validationErrors.length}건 오류 발견`]);
+      }
+      if (badgeWarnings.length > 0) {
+        setUploadLog(prev => [...prev, ...badgeWarnings]);
       }
 
       if (validProducts.length === 0) {
@@ -647,6 +761,125 @@ const ProductManagementPage = () => {
     setSelectedTags([]);
   };
 
+  // ── 소분류 마스터 CRUD (즉시 DB 반영) ──
+  const handleSaveSub = async () => {
+    const d = subDialog;
+    if (!d.name?.trim()) {
+      addNotification('소분류 이름을 입력해 주세요.', 'warning');
+      return;
+    }
+    if (!PARENT_CATEGORIES.includes(d.parent_category)) {
+      addNotification('소속 대분류를 선택해 주세요.', 'warning');
+      return;
+    }
+    const dup = subcategories.some(
+      (s) => s.parent_category === d.parent_category && s.name.trim() === d.name.trim() && s.id !== d.id,
+    );
+    if (dup) {
+      addNotification('같은 대분류에 동일한 이름의 소분류가 이미 있습니다.', 'warning');
+      return;
+    }
+    setMasterSaving(true);
+    try {
+      const payload = {
+        name: d.name.trim(),
+        parent_category: d.parent_category,
+        color: d.color,
+        sort_order: Number(d.sort_order) || 0,
+        is_active: d.is_active,
+      };
+      if (d.id) await updateSubcategory(d.id, payload);
+      else await createSubcategory(payload);
+      addNotification('소분류가 저장되었습니다.', 'success');
+      setSubDialog(null);
+      loadMasters();
+    } catch (error) {
+      addNotification(`소분류 저장 실패: ${error.message}`, 'error');
+    } finally {
+      setMasterSaving(false);
+    }
+  };
+
+  const handleDeleteSub = async (sub) => {
+    const count = masterUsage.subCounts[sub.name] || 0;
+    if (count > 0) {
+      addNotification(`이 소분류를 쓰는 상품 ${count}개가 있어 삭제할 수 없습니다.`, 'warning');
+      return;
+    }
+    try {
+      await deleteSubcategory(sub.id);
+      addNotification('소분류를 삭제했습니다.', 'success');
+      loadMasters();
+    } catch (error) {
+      addNotification(`소분류 삭제 실패: ${error.message}`, 'error');
+    }
+  };
+
+  const handleToggleSubActive = async (sub) => {
+    try {
+      await updateSubcategory(sub.id, { is_active: !sub.is_active });
+      loadMasters();
+    } catch (error) {
+      addNotification(`상태 변경 실패: ${error.message}`, 'error');
+    }
+  };
+
+  // ── 배지 마스터 CRUD (즉시 DB 반영) ──
+  const handleSaveBadge = async () => {
+    const d = badgeDialog;
+    if (!d.name?.trim()) {
+      addNotification('배지 이름을 입력해 주세요.', 'warning');
+      return;
+    }
+    const dup = badgeMaster.some((b) => b.name.trim() === d.name.trim() && b.id !== d.id);
+    if (dup) {
+      addNotification('동일한 이름의 배지가 이미 있습니다.', 'warning');
+      return;
+    }
+    setMasterSaving(true);
+    try {
+      const payload = {
+        name: d.name.trim(),
+        color: d.color,
+        priority: Number(d.priority) || 0,
+        is_active: d.is_active,
+      };
+      if (d.id) await updateBadge(d.id, payload);
+      else await createBadge(payload);
+      addNotification('배지가 저장되었습니다.', 'success');
+      setBadgeDialog(null);
+      loadMasters();
+    } catch (error) {
+      addNotification(`배지 저장 실패: ${error.message}`, 'error');
+    } finally {
+      setMasterSaving(false);
+    }
+  };
+
+  const handleDeleteBadge = async (badge) => {
+    const count = masterUsage.badgeCounts[badge.name] || 0;
+    if (count > 0) {
+      addNotification(`이 배지를 쓰는 상품 ${count}개가 있어 삭제할 수 없습니다.`, 'warning');
+      return;
+    }
+    try {
+      await deleteBadge(badge.id);
+      addNotification('배지를 삭제했습니다.', 'success');
+      loadMasters();
+    } catch (error) {
+      addNotification(`배지 삭제 실패: ${error.message}`, 'error');
+    }
+  };
+
+  const handleToggleBadgeActive = async (badge) => {
+    try {
+      await updateBadge(badge.id, { is_active: !badge.is_active });
+      loadMasters();
+    } catch (error) {
+      addNotification(`상태 변경 실패: ${error.message}`, 'error');
+    }
+  };
+
   if (!user || !hasPermission('products:view')) {
     return <Box sx={{ p: 3 }}><Typography>상품 관리 페이지 접근 권한이 없습니다.</Typography></Box>;
   }
@@ -728,6 +961,17 @@ const ProductManagementPage = () => {
               <input ref={fileInputRef} hidden type="file" accept=".xlsx,.xls" onChange={handleFileUpload} />
             </IconButton>
           </Tooltip>
+          <Tooltip title="소분류·배지 관리">
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<CategoryIcon />}
+              endIcon={masterPanelOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              onClick={() => setMasterPanelOpen((prev) => !prev)}
+            >
+              소분류·배지 관리
+            </Button>
+          </Tooltip>
           <Tooltip title="전체 삭제">
             <IconButton
               onClick={() => {
@@ -754,6 +998,143 @@ const ProductManagementPage = () => {
         icon={Inventory2Icon}
         action={headerAction}
       />
+
+      {/* 소분류·배지 마스터 관리 — 헤더 액션부에서 펼침/접이. 즉시 저장(하단 저장버튼 없음). */}
+      {hasPermission('products:edit') && (
+        <Collapse in={masterPanelOpen} unmountOnExit>
+          <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+            {/* 소분류 관리 */}
+            <SectionCard
+              title="소분류 관리"
+              subtitle="대분류(검사/도서/도구) 하위의 분류입니다. 고객 주문서에서 칩으로 노출되며 탐색에 쓰입니다. (매출 집계에는 영향 없음 · 추가·수정·삭제 즉시 적용)"
+              icon={AccountTreeIcon}
+              padding={24}
+              sx={{ flex: '1 1 360px', minWidth: 300 }}
+              action={
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={() => setSubDialog({ name: '', parent_category: '', color: MASTER_COLOR_PRESETS[0].value, sort_order: 0, is_active: true })}
+                >
+                  소분류 추가
+                </Button>
+              }
+            >
+              <Box sx={{ mt: 1 }}>
+                {subcategories.length === 0 ? (
+                  <Typography variant="body2" sx={{ color: 'text.disabled', py: 2, textAlign: 'center' }}>
+                    등록된 소분류가 없습니다 · 추가해 시작하세요
+                  </Typography>
+                ) : (
+                  subcategories.map((sub) => {
+                    const count = masterUsage.subCounts[sub.name] || 0;
+                    return (
+                      <Box
+                        key={sub.id}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5,
+                          py: 1,
+                          borderBottom: `1px solid ${theme.gray[100]}`,
+                          opacity: sub.is_active ? 1 : 0.5,
+                        }}
+                      >
+                        <BadgeChip label={sub.name} color={sub.color} />
+                        <Chip label={sub.parent_category} size="small" variant="outlined" color="primary" />
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>순서 {sub.sort_order}</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>· 상품 {count}개</Typography>
+                        <Box sx={{ flexGrow: 1 }} />
+                        <Tooltip title={sub.is_active ? '활성 (신규 선택지에 노출)' : '비활성 (숨김)'} arrow>
+                          <Switch size="small" checked={sub.is_active} onChange={() => handleToggleSubActive(sub)} />
+                        </Tooltip>
+                        <IconButton size="small" onClick={() => setSubDialog({ ...sub })}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <Tooltip title={count > 0 ? `상품 ${count}개 연결 — 삭제 불가` : '삭제'} arrow>
+                          <span>
+                            <IconButton size="small" onClick={() => handleDeleteSub(sub)} disabled={count > 0} sx={{ color: count > 0 ? 'text.disabled' : 'error.main' }}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </Box>
+                    );
+                  })
+                )}
+              </Box>
+            </SectionCard>
+
+            {/* 배지 관리 */}
+            <SectionCard
+              title="배지 관리"
+              subtitle="상품 카드에 표시되는 강조 라벨입니다. (예: 추천, 한정) 고객 카드엔 우선순위 상위 2개만 노출됩니다. · 추가·수정·삭제 즉시 적용"
+              icon={SellIcon}
+              padding={24}
+              sx={{ flex: '1 1 360px', minWidth: 300 }}
+              action={
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={() => setBadgeDialog({ name: '', color: MASTER_COLOR_PRESETS[0].value, priority: 0, is_active: true })}
+                >
+                  배지 추가
+                </Button>
+              }
+            >
+              <Box sx={{ mt: 1 }}>
+                <Alert severity="info" icon={false} sx={{ borderRadius: `${theme.radii.sm}px`, py: 0.5, mb: 2 }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    인기·신상품·할인 배지는 상품별 체크박스로 별도 관리됩니다(상품 추가/수정).
+                  </Typography>
+                </Alert>
+                {badgeMaster.length === 0 ? (
+                  <Typography variant="body2" sx={{ color: 'text.disabled', py: 2, textAlign: 'center' }}>
+                    등록된 배지가 없습니다 · 추가해 시작하세요
+                  </Typography>
+                ) : (
+                  badgeMaster.map((badge) => {
+                    const count = masterUsage.badgeCounts[badge.name] || 0;
+                    return (
+                      <Box
+                        key={badge.id}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5,
+                          py: 1,
+                          borderBottom: `1px solid ${theme.gray[100]}`,
+                          opacity: badge.is_active ? 1 : 0.5,
+                        }}
+                      >
+                        <BadgeChip label={badge.name} color={badge.color} />
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>우선순위 {badge.priority}</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>· 상품 {count}개</Typography>
+                        <Box sx={{ flexGrow: 1 }} />
+                        <Tooltip title={badge.is_active ? '활성 (신규 선택지에 노출)' : '비활성 (숨김)'} arrow>
+                          <Switch size="small" checked={badge.is_active} onChange={() => handleToggleBadgeActive(badge)} />
+                        </Tooltip>
+                        <IconButton size="small" onClick={() => setBadgeDialog({ ...badge })}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <Tooltip title={count > 0 ? `상품 ${count}개 연결 — 삭제 불가` : '삭제'} arrow>
+                          <span>
+                            <IconButton size="small" onClick={() => handleDeleteBadge(badge)} disabled={count > 0} sx={{ color: count > 0 ? 'text.disabled' : 'error.main' }}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </Box>
+                    );
+                  })
+                )}
+              </Box>
+            </SectionCard>
+          </Box>
+        </Collapse>
+      )}
 
       <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
         {renderQuickFilterCard({
@@ -1083,38 +1464,72 @@ const ProductManagementPage = () => {
               renderInput={(params) => <TextField {...params} label="태그 (검색 편의)" placeholder="태그 추가" fullWidth />}
               disabled={!hasPermission('products:edit')}
             />
-            {/* 배지 — 마스터(badges) 멀티선택. 태그와 별도(태그=검색 / 배지=고객 노출). freeSolo로 미등록 입력 허용. */}
-            <Autocomplete
-              multiple
-              freeSolo
-              options={badgeOptions}
-              value={currentProduct.badges || []}
-              onChange={(_, value) => setCurrentProduct((prev) => ({ ...prev, badges: value }))}
-              renderTags={(value, getTagProps) =>
-                value.map((option, index) => {
-                  const registered = badgeColorByName[option];
-                  const c = registered || MASTER_COLOR_FALLBACK;
-                  return (
-                    <Chip
-                      key={index}
-                      label={registered ? option : `${option} · 미등록`}
-                      {...getTagProps({ index })}
-                      sx={{ bgcolor: alpha(c, 0.12), color: c, border: `1px solid ${alpha(c, 0.3)}`, fontWeight: 600 }}
-                    />
-                  );
-                })
-              }
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="배지 (고객 노출 라벨)"
-                  placeholder="배지 선택 또는 입력"
-                  fullWidth
-                  helperText="설정 > 배지 관리에서 등록한 배지를 선택하세요. 미등록 입력 시 회색으로 표시됩니다."
-                />
-              )}
-              disabled={!hasPermission('products:edit')}
-            />
+            {/* 배지 — 마스터 배지 칩 토글 그룹. 태그와 별도(태그=검색 / 배지=고객 노출). 무제한 선택. */}
+            <Box>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.75 }}>
+                배지 (고객 노출 라벨)
+              </Typography>
+              {(() => {
+                const selected = currentProduct.badges || [];
+                // 마스터에 없는데 이미 달린 배지(미등록·엑셀 유래)도 토글 칩으로 함께 노출 — 손실 방지.
+                const customSelected = selected.filter((b) => !badgeOptions.includes(b));
+                const allChips = [...badgeOptions, ...customSelected];
+                return (
+                  <>
+                    {allChips.length === 0 ? (
+                      <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mb: 1 }}>
+                        등록된 배지가 없습니다. 상단 "소분류·배지 관리"에서 추가하거나 아래에서 직접 입력하세요.
+                      </Typography>
+                    ) : (
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+                        {allChips.map((name) => {
+                          const isOn = selected.includes(name);
+                          const registered = badgeColorByName[name];
+                          const c = registered || MASTER_COLOR_FALLBACK;
+                          return (
+                            <Chip
+                              key={name}
+                              label={registered ? name : `${name} · 미등록`}
+                              size="small"
+                              onClick={hasPermission('products:edit') ? () => handleToggleBadge(name) : undefined}
+                              variant={isOn ? 'filled' : 'outlined'}
+                              sx={isOn
+                                ? { bgcolor: alpha(c, 0.12), color: c, border: `1px solid ${alpha(c, 0.3)}`, fontWeight: 600 }
+                                : { color: 'text.secondary', fontWeight: 500 }}
+                            />
+                          );
+                        })}
+                      </Box>
+                    )}
+                    {/* 직접 추가 — 마스터 미등록 배지 입력 보존(기존 freeSolo 대체) */}
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <TextField
+                        size="small"
+                        placeholder="직접 추가 (마스터 미등록 배지)"
+                        value={customBadgeInput}
+                        onChange={(e) => setCustomBadgeInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomBadge(); } }}
+                        disabled={!hasPermission('products:edit')}
+                        sx={{ flexGrow: 1 }}
+                      />
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={handleAddCustomBadge}
+                        disabled={!hasPermission('products:edit') || !customBadgeInput.trim()}
+                      >
+                        추가
+                      </Button>
+                    </Box>
+                    {selected.length >= 3 && (
+                      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.75 }}>
+                        고객 카드엔 우선순위 상위 2개만 노출됩니다.
+                      </Typography>
+                    )}
+                  </>
+                );
+              })()}
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
@@ -1316,6 +1731,89 @@ const ProductManagementPage = () => {
             onClick={() => setUploadDialogOpen(false)}
           >
             닫기
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 소분류 추가/수정 다이얼로그 (즉시 저장) */}
+      <Dialog open={Boolean(subDialog)} onClose={() => setSubDialog(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>{subDialog?.id ? '소분류 수정' : '소분류 추가'}</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 2 }}>
+          <TextField
+            autoFocus
+            label="소분류 이름"
+            size="small"
+            fullWidth
+            value={subDialog?.name || ''}
+            onChange={(e) => setSubDialog((p) => ({ ...p, name: e.target.value }))}
+          />
+          <FormControl size="small" fullWidth>
+            <InputLabel id="sub-parent-label">소속 대분류</InputLabel>
+            <Select
+              labelId="sub-parent-label"
+              label="소속 대분류"
+              value={subDialog?.parent_category || ''}
+              onChange={(e) => setSubDialog((p) => ({ ...p, parent_category: e.target.value }))}
+            >
+              {PARENT_CATEGORIES.map((cat) => (
+                <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <ColorPresetPicker value={subDialog?.color} onChange={(c) => setSubDialog((p) => ({ ...p, color: c }))} />
+          <TextField
+            label="정렬 순서"
+            type="number"
+            size="small"
+            fullWidth
+            value={subDialog?.sort_order ?? 0}
+            onChange={(e) => setSubDialog((p) => ({ ...p, sort_order: e.target.value }))}
+            helperText="고객 화면 칩 노출 순서 (작을수록 먼저)"
+          />
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>미리보기</Typography>
+            <BadgeChip label={subDialog?.name || '소분류'} color={subDialog?.color} />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setSubDialog(null)} disabled={masterSaving}>취소</Button>
+          <Button variant="contained" onClick={handleSaveSub} disabled={masterSaving}>
+            {masterSaving ? <CircularProgress size={18} /> : '저장'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 배지 추가/수정 다이얼로그 (즉시 저장) */}
+      <Dialog open={Boolean(badgeDialog)} onClose={() => setBadgeDialog(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>{badgeDialog?.id ? '배지 수정' : '배지 추가'}</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 2 }}>
+          <TextField
+            autoFocus
+            label="배지 이름"
+            size="small"
+            fullWidth
+            value={badgeDialog?.name || ''}
+            onChange={(e) => setBadgeDialog((p) => ({ ...p, name: e.target.value }))}
+          />
+          <ColorPresetPicker value={badgeDialog?.color} onChange={(c) => setBadgeDialog((p) => ({ ...p, color: c }))} />
+          <TextField
+            label="우선순위"
+            type="number"
+            size="small"
+            fullWidth
+            value={badgeDialog?.priority ?? 0}
+            onChange={(e) => setBadgeDialog((p) => ({ ...p, priority: e.target.value }))}
+            helperText="고객 카드 상위 2개 노출 시 정렬 기준 (작을수록 먼저)"
+          />
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>미리보기</Typography>
+            <BadgeChip label={badgeDialog?.name || '배지'} color={badgeDialog?.color} />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setBadgeDialog(null)} disabled={masterSaving}>취소</Button>
+          <Button variant="contained" onClick={handleSaveBadge} disabled={masterSaving}>
+            {masterSaving ? <CircularProgress size={18} /> : '저장'}
           </Button>
         </DialogActions>
       </Dialog>
