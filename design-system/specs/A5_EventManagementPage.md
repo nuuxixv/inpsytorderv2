@@ -2,7 +2,7 @@
 
 > 이 시트는 학회 관리 화면의 정보·기능·데이터 구조의 단일 진실 소스다.
 > 시안과 실서비스 구현은 이 시트의 모든 항목을 1:1로 반영해야 한다.
-> 마지막 갱신: 2026-05-28 M3-4 정합 후 통계 카드 4장 → 헤더 subtitle + 상태 토글 통합 기록.
+> 마지막 갱신: 2026-06-25 판매 대분류 선택 필드 **구현**(`events.visible_categories`) — 빈 선택 의미 정정(빈/NULL=전체 노출, PRD 초기 "0개" 기각) + 실 코드 변경 반영.
 
 ## 참조 파일
 - 실 컴포넌트: `inpsyt-order-frontend/src/components/EventManagementPage.jsx` (799줄)
@@ -78,7 +78,11 @@
 > **날짜 필드 = 공용 `ui/DateField`(경량 캘린더)로 교체(2026-06-10).** 표시 `YYYY.MM.DD(요일)`, × 버튼으로 클리어 가능. 빈 날짜는 upsert 시 null 정규화(date 컬럼 — '' 저장 오류 방지, 배송 예정일 비우기 지원).
 > **2026-06-15 datepicker 고도화:** ① 시작일·종료일 별도 2필드 → **`mode="range"` DateField 1개("행사 기간", 호텔 예약식 한 캘린더 2클릭)** 로 통합. `onChange({start,end})`를 `handleChange('start_date',start)`+`handleChange('end_date',end)` 2번 호출로 분해 → **DB 컬럼(start_date/end_date) 구조 그대로 유지.** range 캘린더가 start≤end를 자동 정렬하므로 시작>종료 입력 구조적 차단. ② 배송 예정일은 별개 single 유지. ③ 캘린더 공통: 오늘 셀 테두리 강조(자동선택 안 함), 항상 6행(42셀) 고정 높이(‹ › 위치 불변), single 필드 직접 타이핑 입력(`YYYY.MM.DD`/`YYYY-MM-DD`/`YYYYMMDD` 수용, blur·Enter 시 검증·정규화, 무효 날짜는 helperText 에러+값 미반영). range 필드는 타이핑 미지원(2클릭 전제, 아이콘 클릭으로 캘린더만).
 
-> 폼은 두 블록(`Step 1: 구조화 정보` + `Step 2: 자동 생성 및 추가 정보`)으로 나뉘며, 두 블록 사이에 `Divider`. 두 블록 통합 금지.
+> 폼은 **세 블록**으로 나뉘며 블록마다 `Divider`로 구분(EventFormDialog.jsx 현행):
+> - **Step 1 — 행사명 형식 카드**(연도/행사구분/주최학회, primary 옅은 배경 카드, line 196-260)
+> - **Step 2 — 기본 정보**(행사명/주문URL/할인율/행사기간/배송예정일, line 264-322)
+> - **Step 3 — 운영 정보**("운영 정보" 캡션 + 장소/참석자/비용/비고, line 326-423)
+> 세 블록 통합 금지. (※ 이전 시트는 "두 블록"으로 기재했으나 2026-06-10 공용 추출 시 운영정보가 별도 블록으로 분리됨 — 본 갱신에서 3블록으로 정정.)
 
 ### Step 1 — 행사명 형식 블록 (line 569-626, primary 색 옅은 배경 카드)
 - [ ] 캡션: "✦ 행사명 형식" (primary 색, 굵게)
@@ -88,14 +92,30 @@
 
 > 세 필드 모두 입력되면 자동으로 행사명과 URL slug가 생성됨(아래 액션 참조).
 
-### Step 2 — 자동 생성 + 추가 정보 (line 631-704)
+### Step 2 — 기본 정보 (line 264-322)
 - [ ] **행사명** (`name`, 텍스트, `InputLabelProps={shrink: true}`) — helperText "위 정보로 자동 완성되며, 직접 입력·수정할 수 있습니다." (2026-06-02 — 자유 입력 명확화. 행사명을 직접 수정하면 `_nameTouched` 플래그로 이후 자동완성이 덮어쓰지 않음. `_nameTouched`는 UI 전용, DB upsert에서 제외)
 - [ ] **주문 URL** (`order_url_slug`, 텍스트) — helperText "주문 페이지 주소로 사용됩니다. 영문, 숫자, 하이픈만 가능"
 - [ ] **할인율 (%)** (`discount_rate`, number) — UI는 0~100 정수, 저장은 `/100`해서 소수로. helperText "예: 15 = 15% 할인"
 - [ ] **행사 기간** (`DateField mode="range"`) — `start_date`~`end_date` 단일 캘린더 2클릭. helperText "달력에서 시작일·종료일을 차례로 선택하세요." onChange 시 start_date/end_date 컬럼에 분해 저장(2026-06-15 통합)
 - [ ] **배송 예정일** (`estimated_delivery_date`, DateField single) — helperText "입력 시 고객 주문 조회 페이지에 도착 예정일이 표시됩니다."
+- [ ] **(구현 완료 2026-06-25) 판매 대분류** — Step 2 **말미**(배송 예정일 아래)에 **멀티선택 토글 칩** 필드. 이 행사에서 고객 주문서에 노출할 **대분류(검사/도서/도구)** 집합을 고른다(`EventFormDialog.jsx`).
+  - UI: 대분류 3종 **토글 칩**(`VISIBLE_CATEGORY_OPTIONS = ['검사','도서','도구']` 고정 상수). 선택 시 filled+primary, 비선택 outlined default, `radii.sm`. (※ 소분류는 여기서 선택하지 않음 — 대분류 선택이 그 하위 소분류 전부를 자동 포함. 고객 화면이 소분류 칩으로 탐색.)
+  - **빈 선택 = 전체 노출**(NULL과 동일 의미, `20260624000000` 마이그레이션 §의미 규칙·CTO 위임 지시서 확정). PRD 초기 "빈=노출 0개" 안은 기각됨 — 기존 운영 행사(전부 NULL) 보호·graceful 위해 빈/NULL=전체노출로 통일. helperText 분기:
+    - 빈 선택: "선택하지 않으면 전체 상품이 노출됩니다."
+    - 1개 이상: "선택한 대분류 상품만 이 행사의 주문서에 노출됩니다. 노출 대상: 검사 N개 · ... (총 M개)"
+  - **미리보기**(구현): 선택 1개 이상이면 helperText에 실 집계 카운트 라인 append. `api/products.fetchProductCountByCategory()`(다이얼로그 open 시 1회, 대분류별 상품 수). 가짜 통계 아님 — products 실 집계.
+  - **저장 위치 = `events.visible_categories` 신규 text[] 컬럼**(tags 겸용 기각 — C1 태그 필터 의미 충돌 회피, backend 확정). `FORM_FIELDS`에 `visible_categories` 추가, upsert 시 배열 보장(빈 배열 그대로 저장). 미지정 환경 graceful은 C1 OrderPage select fallback이 담당.
 
-### 다이얼로그 액션 (line 707-724)
+### Step 3 — 운영 정보 (line 326-423)
+- [ ] 캡션: "운영 정보" (`overline` 스타일, text.secondary 굵게)
+- [ ] **장소** (`venue`, 텍스트, `PlaceIcon` 시작 어드먼트) — placeholder "예) 서울 코엑스 그랜드볼룸"
+- [ ] **참석자** (`attendee_ids`, uuid[], Autocomplete multiple) — 후보 = `user_profiles` role IN (master, onsite). 칩 표시, helperText "현장 마케팅 · 마스터 중 선택"
+- [ ] **비용 (원)** (`marketing_cost`, 천 단위 콤마 입력, 끝 어드먼트 "원") — 값 있으면 하단에 한글 금액 보조 표기(`numberToKoreanCurrency`)
+- [ ] **비고** (`note`, multiline minRows=2) — placeholder "부스 위치, 진열 메모 등"
+
+> ※ 판매 대분류(P0)는 Step 2 말미에 둔다(위 참조). 운영 정보(Step 3)는 내부 운영 메타라 고객 노출과 무관하므로 분리 유지.
+
+### 다이얼로그 액션 (line 426-436)
 - [ ] master 권한 + 편집 모드일 때만 "삭제" 버튼 (error 색, `DeleteIcon`, 좌측 정렬 `mr: auto`)
 - [ ] "취소" 버튼
 - [ ] `events:edit` 권한 있을 때 "저장" 버튼 (contained)
@@ -130,6 +150,8 @@
 - `status` (text, default `'active'`) — UI 노출 없으나 select 컬럼에 포함됨 (확인 필요: 클라이언트에서 사용처)
 - `discount_rate` (numeric) — 0~1 소수 (UI는 % 정수로 표시)
 - `estimated_delivery_date` (date, nullable)
+- `venue` (text, nullable) / `attendee_ids` (uuid[]) / `note` (text, nullable) / `marketing_cost` (integer, nullable) — Step 3 운영 정보 컬럼 (`20260313060000_add_event_structured_fields.sql` 등). `EventFormDialog.FORM_FIELDS`에 포함돼 upsert.
+- **판매 대분류 = `visible_categories` (text[], nullable — `20260624000000_DRAFT`):** 고객 주문서 노출 대분류 화이트리스트. NULL/빈 배열=전체 노출. 값 있으면 원본 `products.category` ∈ 배열인 상품만 C1 노출. `EventFormDialog.FORM_FIELDS`에 추가됨(upsert). tags 겸용 기각(C1 태그 필터 충돌 회피). anon 공개 컬럼(GRANT 화이트리스트 포함).
 
 ### `societies` 테이블 (참조용)
 - `id`, `name`, `slug_prefix`
@@ -166,9 +188,15 @@
 6. **상태 칩 색은 `getEventStatusKST` 반환값을 따른다.** 시안이 임의 색 매핑을 만들면 안 됨 — utils와 1:1.
 7. **master만 삭제 가능, 그리고 연결 주문 있으면 차단.** 시안이 모든 행에 삭제 아이콘을 직접 노출하면 안 됨(현재는 수정 다이얼로그 안에 숨겨져 있음).
 8. **그라데이션 배경은 신 디자인 시스템에서 제거 대상.** 통계 카드 4장의 그라데이션은 시안에서 유지하지 말 것.
+9. **(P0) 판매 대분류는 Step 2 말미에 둔다 — 대분류만 선택(소분류 선택 아님).** 대분류 선택이 그 하위 소분류 전부를 자동 포함. 시안이 소분류까지 고르게 하면 운영 부담·기획 충돌. 후보는 고정 3(검사/도서/도구).
+10. **(정정·확정) 빈 선택 = 전체 노출(NULL과 동일).** PRD 초기 "빈=노출 0개" 안은 기각됨 — 기존 운영 행사(전부 NULL=전체노출) 보호·graceful 위해 빈/NULL=전체노출로 통일(`20260624000000` 마이그레이션·CTO 지시서). 빈 선택 helperText는 "선택 안 하면 전체 노출" 안내.
+11. **(확정) 판매 대분류 저장 = `events.visible_categories` 신규 text[] 컬럼.** tags 겸용 기각(C1 태그 필터 충돌). 마이그레이션 적용 + anon GRANT 필요(미적용 시 C1 OrderPage가 레거시 select fallback).
+12. **폼은 3블록(행사명형식/기본정보/운영정보).** 이전 시트의 "2블록" 기재는 2026-06-10 공용 추출 시점 이후 부정확 — 본 갱신에서 정정. Step 통합 금지.
 
 ## 변경 이력
 
+- 2026-06-25 판매 대분류 선택 필드 **구현**(`feature/product-hierarchy`, `EventFormDialog.jsx`) — **실 코드 변경**: (1) Step 2 말미(배송 예정일 아래)에 **판매 대분류 토글 칩**(검사/도서/도구 고정 상수) 추가, A5 핵심발견 2의 3블록·Divider 구조 보존. (2) `FORM_FIELDS`·`emptyEvent`에 `visible_categories` 추가, upsert 배열 보장(빈 배열 그대로 저장). (3) **빈 선택 의미 정정**: PRD "빈=0개" → **빈/NULL=전체 노출**(마이그레이션·CTO 지시서 확정, 기존 행사 보호). helperText 분기 + 1개 이상 시 실 집계 미리보기(`fetchProductCountByCategory`). (4) 데이터 모델·핵심 발견 10·11 정정. **보존(무변경)**: 자동완성·slug 생성·날짜 range·운영정보 블록·삭제 로직·권한 분기. **검증**: lint(변경 0 이슈)·build 통과.
+- 2026-06-24 카테고리·배지 동적화 PRD 반영 (`DOCS/PRD_오티즘_카테고리배지_동적화.md`, P0 트랙·기획 단계) — **사양만 갱신, 실 코드 미변경.** (1) **Step 2 말미에 "판매 대분류 선택" 멀티선택 필드** 추가 — 대분류(검사/도서/도구) 다중 칩, 빈 선택=노출 0개 경고+미리보기. 선택 대분류만 C1 주문서 노출. (2) 저장 위치(events.tags 겸용 vs visible_categories 신규 컬럼)는 **backend 디테일로 "확인 필요"** 표기 — tags 겸용 시 C1 태그 필터 충돌 위험 주석. (3) **폼 구조 2블록 → 3블록 정정**(EventFormDialog 현행: 행사명형식/기본정보/운영정보), 누락됐던 Step 3 운영정보(장소/참석자/비용/비고) 표시정보 추가. (4) 라인 번호 EventFormDialog.jsx 기준으로 갱신. (5) 핵심 발견 9~12 신설. **A5 핵심발견 2(2블록 분리·Divider) 준수**하여 기존 블록 구조·자동완성 의도 보존.
 - 2026-05-13 신설.
 - 2026-05-28 M3-4 정합: 통계 카드 4장 외형 → 헤더 subtitle + 상태 토글 칩으로 통합 (정보 1:1 보존, 그라데이션 제거). 표 영역은 `SectionCard padding=0`으로 래핑. 헤더는 `PageHeader`, 상태 칩은 `StatusBadge(value=paid|pending|completed)`, URL 액션 묶음은 `ActionSlot`, 빈 상태는 `ui/EmptyState`로 교체. 폼 2블록 분리·할인율 단위 변환·QR 다운로드·권한 분기 보존.
 - 2026-06-02 행사명 자유 입력 명확화: helperText "직접 입력·수정 가능"으로 변경(라벨 "행사명 (자동 완성)" → "행사명"). 행사명 직접 수정 시 `_nameTouched`(UI 전용 플래그)로 이후 연도/시즌/주최학회 변경이 행사명을 덮어쓰지 않게 보존. `_nameTouched`는 DB upsert에서 분리. 기존 자동완성·slug 생성·기존 옵션 유지(주최학회는 이미 Autocomplete freeSolo). 동작 추가만, 제거 0.

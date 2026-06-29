@@ -29,6 +29,7 @@ import {
   Warning as WarningIcon,
   MenuBook as BookIcon,
   Psychology as TestIcon,
+  Build as ToolIcon,
   ShoppingCart as CartIcon,
   Receipt as ReceiptIcon,
   Dashboard as DashboardIcon,
@@ -51,6 +52,7 @@ import { useNavigate } from 'react-router-dom';
 import { STATUS_TO_KOREAN as statusToKorean, STATUS_COLORS as statusColors } from '../constants/orderStatus';
 import { PageHeader, SectionCard, StatCard, StatusBadge, EmptyState } from './ui';
 import { computeRevenueByCategory, PAID_STATUSES } from '../utils/revenueByCategory';
+import { CATEGORY_COLORS } from '../constants/categoryColors';
 import FieldReportSection from './FieldReportSection';
 // 입금결의서 내보내기는 L2 학회 상세(EventDetailPage) 헤더로 일원화 (2026-06-10 건우님)
 
@@ -457,27 +459,32 @@ const DashboardPage = () => {
       });
     });
 
-    // 매출 버킷 — 공용 유틸로 통일. 배송비를 검사/도서에 할당(검사 우선), 별도 shipping 버킷 폐기.
-    // util은 PAID_STATUSES(결제완료)만 합산 — 취소/환불/미결제는 자동 제외(위 랭킹 분류와 동일 결과).
-    const { test: testRevenue, book: bookRevenue, total: totalRevenue, testShipping, bookShipping } =
-      computeRevenueByCategory(orders, { productsMap });
+    // 매출 버킷 — 공용 유틸로 통일. 검사/도서/도구 3버킷(도구 독립, 2026-06-24 건우님).
+    // 배송비를 검사>도구>도서 우선순위로 한 버킷에 귀속. util은 PAID_STATUSES만 합산.
+    const {
+      test: testRevenue, book: bookRevenue, tool: toolRevenue,
+      total: totalRevenue, testShipping, bookShipping, toolShipping,
+    } = computeRevenueByCategory(orders, { productsMap });
 
     const salesList = Object.values(productSales);
+    const isBook = (c) => (c || '').includes('도서') || (c || '').toLowerCase().includes('book');
+    const isTool = (c) => (c || '').includes('도구') || (c || '').toLowerCase().includes('tool');
+    const isTest = (c) => (c || '').includes('검사') || (c || '').toLowerCase().includes('test');
     const bookTop5 = salesList
-      .filter(p => (p.category || '').includes('도서') || (p.category || '').toLowerCase().includes('book'))
+      .filter(p => isBook(p.category))
+      .sort((a, b) => b.totalQuantity - a.totalQuantity);
+    // 도구는 검사보다 먼저 판정(검사도구 라벨이 검사 그룹에 끼지 않도록 — 매출 버킷과 정합).
+    const toolTop5 = salesList
+      .filter(p => isTool(p.category))
       .sort((a, b) => b.totalQuantity - a.totalQuantity);
     const testTop5 = salesList
-      .filter(p =>
-        (p.category || '').includes('검사') ||
-        (p.category || '').toLowerCase().includes('test') ||
-        (p.category || '').includes('도구') ||
-        (p.category || '').toLowerCase().includes('tool')
-      )
+      .filter(p => !isTool(p.category) && !isBook(p.category) && isTest(p.category))
       .sort((a, b) => b.totalQuantity - a.totalQuantity);
 
     setDashboardData({
-      eventName: targetEventName, totalRevenue, bookRevenue, testRevenue, testShipping, bookShipping, yoyPct,
-      totalOrders: orders.length, statusCounts, bookTop5, testTop5, todayOrdersCount,
+      eventName: targetEventName, totalRevenue, bookRevenue, testRevenue, toolRevenue,
+      testShipping, bookShipping, toolShipping, yoyPct,
+      totalOrders: orders.length, statusCounts, bookTop5, testTop5, toolTop5, todayOrdersCount,
       recentOrders: recentRes.data || [],
     });
   };
@@ -701,22 +708,26 @@ const DashboardPage = () => {
                   </Box>
                 </Box>
               </Box>
-              {/* 매출 합산 — 배송비를 검사/도서에 할당(검사 우선), 별도 버킷 폐기(2026-06-02 건우님). */}
+              {/* 매출 합산 — 검사/도서/도구 3버킷(도구 독립, 2026-06-24 건우님).
+                  0원 버킷은 숨겨 1~3열로 동적 분할(flex:1 균등). */}
               <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 2, sm: 3 } }}>
-                <StatCard
-                  label={`검사 판매 (배송비 ${(dashboardData.testShipping || 0).toLocaleString()}원 포함)`}
-                  value={(dashboardData.testRevenue || 0).toLocaleString()}
-                  unit="원"
-                  icon={TestIcon}
-                  color={theme.accent.tests}
-                />
-                <StatCard
-                  label={`도서 판매 (배송비 ${(dashboardData.bookShipping || 0).toLocaleString()}원 포함)`}
-                  value={(dashboardData.bookRevenue || 0).toLocaleString()}
-                  unit="원"
-                  icon={BookIcon}
-                  color={theme.accent.books}
-                />
+                {[
+                  { key: 'test', label: '검사 판매', revenue: dashboardData.testRevenue || 0, shipping: dashboardData.testShipping || 0, icon: TestIcon, color: theme.accent.tests },
+                  { key: 'book', label: '도서 판매', revenue: dashboardData.bookRevenue || 0, shipping: dashboardData.bookShipping || 0, icon: BookIcon, color: theme.accent.books },
+                  { key: 'tool', label: '도구 판매', revenue: dashboardData.toolRevenue || 0, shipping: dashboardData.toolShipping || 0, icon: ToolIcon, color: CATEGORY_COLORS.tool },
+                ]
+                  .filter(b => b.revenue > 0)
+                  .map(b => (
+                    <Box key={b.key} sx={{ flex: 1, minWidth: 0 }}>
+                      <StatCard
+                        label={`${b.label} (배송비 ${b.shipping.toLocaleString()}원 포함)`}
+                        value={b.revenue.toLocaleString()}
+                        unit="원"
+                        icon={b.icon}
+                        color={b.color}
+                      />
+                    </Box>
+                  ))}
               </Box>
             </Box>
           </SectionCard>
@@ -807,19 +818,28 @@ const DashboardPage = () => {
             </Box>
           </Box>
 
-          {/* ─── Row 3: 판매 순위 50/50 (시안 #8/#9) ─── */}
-          <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <SectionCard title="검사 판매 순위" icon={TrophyIcon}>
-                <RankingList items={dashboardData.testTop5 || []} color={theme.accent.tests} />
-              </SectionCard>
-            </Box>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <SectionCard title="도서 판매 순위" icon={TrophyIcon}>
-                <RankingList items={dashboardData.bookTop5 || []} color={theme.accent.books} />
-              </SectionCard>
-            </Box>
-          </Box>
+          {/* ─── Row 3: 판매 순위 — 판매 있는 대분류만 동적 분할(검사/도서/도구) ─── */}
+          {(() => {
+            const rankingBuckets = [
+              { key: 'test', title: '검사 판매 순위', items: dashboardData.testTop5 || [], color: theme.accent.tests },
+              { key: 'book', title: '도서 판매 순위', items: dashboardData.bookTop5 || [], color: theme.accent.books },
+              { key: 'tool', title: '도구 판매 순위', items: dashboardData.toolTop5 || [], color: CATEGORY_COLORS.tool },
+            ];
+            const shown = rankingBuckets.filter(b => b.items.length > 0);
+            // 전부 0건이면 검사·도서 두 빈 카드를 기본 노출(회귀 방지 — 빈 행 방지).
+            const visible = shown.length > 0 ? shown : rankingBuckets.slice(0, 2);
+            return (
+              <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
+                {visible.map(b => (
+                  <Box key={b.key} sx={{ flex: 1, minWidth: 0 }}>
+                    <SectionCard title={b.title} icon={TrophyIcon}>
+                      <RankingList items={b.items} color={b.color} />
+                    </SectionCard>
+                  </Box>
+                ))}
+              </Box>
+            );
+          })()}
 
           {/* ─── Row 4: 현장 보고서 + 최근 주문 (시안 #10/#11) ─── */}
           <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>

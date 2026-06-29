@@ -19,13 +19,33 @@ export const getEvents = async () => {
   return data;
 };
 
+/**
+ * 학회 목록 관리(societies)에 등록된 학회를 이름순으로 가져옵니다.
+ * 상품 관리 태그 옵션·학회 드롭다운 등에서 소비.
+ * @returns {Promise<Array>} societies 행 배열(id, name, slug_prefix)
+ * @throws {Error} 조회 실패 시 에러
+ */
+export const getSocieties = async () => {
+  const { data, error } = await supabase
+    .from('societies')
+    .select('id, name, slug_prefix')
+    .order('name', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching societies:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
 // L2 학회 상세에서 쓰는 events 단건 컬럼 집합.
 // 목록(EventManagementPage)이 fetch하는 운영 필드 + 신규(진행상태 3 boolean·prep_note).
 // anon 비노출 컬럼이 포함되므로 authenticated 컨텍스트(어드민)에서만 호출.
 const EVENT_DETAIL_COLUMNS =
   'id, name, discount_rate, order_url_slug, start_date, end_date, estimated_delivery_date, ' +
   'event_year, host_society, event_season, status, venue, attendee_ids, note, marketing_cost, ' +
-  'draft_done, application_done, payment_resolution_done, prep_note, created_by';
+  'draft_done, application_done, payment_resolution_done, prep_note, created_by, visible_categories';
 
 /**
  * order_url_slug 로 학회 1건을 가져옵니다. (L2 학회 상세)

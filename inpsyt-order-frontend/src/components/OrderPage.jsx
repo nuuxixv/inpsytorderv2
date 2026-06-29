@@ -103,11 +103,23 @@ const OrderPage = () => {
         const today = getTodayKST();
 
         // 슬러그로 이벤트 조회 (날짜 유효성 포함)
-        const { data: eventData, error: eventError } = await supabase
+        // visible_categories 컬럼/GRANT 미적용 환경(마이그레이션 전)에서는 select가 실패하므로
+        // 해당 컬럼을 뺀 레거시 select로 재조회 → 전체 노출(기존 동작)로 graceful fallback.
+        let { data: eventData, error: eventError } = await supabase
           .from('events')
-          .select('id, name, discount_rate, tags, start_date, end_date, estimated_delivery_date')
+          .select('id, name, discount_rate, tags, start_date, end_date, estimated_delivery_date, visible_categories')
           .eq('order_url_slug', eventSlug)
           .single();
+
+        if (eventError) {
+          const fallback = await supabase
+            .from('events')
+            .select('id, name, discount_rate, tags, start_date, end_date, estimated_delivery_date')
+            .eq('order_url_slug', eventSlug)
+            .single();
+          eventData = fallback.data;
+          eventError = fallback.error;
+        }
 
         if (eventError || !eventData) {
           setAccessError('not_found');
@@ -336,6 +348,7 @@ const OrderPage = () => {
             discountRate={discountRate}
             eventTags={eventInfo?.tags || []}
             eventName={eventInfo?.name || ''}
+            visibleCategories={eventInfo?.visible_categories}
           />
         )}
 

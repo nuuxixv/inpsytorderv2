@@ -10,16 +10,19 @@ import {
 } from '@mui/material';
 import { Search as SearchIcon, Star as StarIcon, FiberNew as NewIcon } from '@mui/icons-material';
 import { fetchAllProducts } from '../api/products';
+import { fetchBadges } from '../api/masters';
+import { MASTER_COLOR_FALLBACK } from '../constants/categoryColors';
 import { useNotification } from '../hooks/useNotification';
 import { matchesSearch } from '../utils/search';
 import ProductCard from './ProductCard';
 
 const PAGE_SIZE = 40;
 
-const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags = [], eventName = '' }) => {
+const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags = [], eventName = '', visibleCategories = null }) => {
   const theme = useTheme();
   const { addNotification } = useNotification();
   const [allProducts, setAllProducts] = useState([]);
+  const [badgeMaster, setBadgeMaster] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('popular'); // 'all' | 'popular' | 'new'
@@ -45,20 +48,59 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
     return () => { cancelled = true; };
   }, [addNotification]);
 
+  // 배지 마스터 — 동적 배지 색·우선순위 룩업용. 마이그레이션 미적용 시 [](회귀 0).
+  // 마스터 로드 실패가 상품 진열을 막지 않도록 상품 페치와 분리.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await fetchBadges();
+        if (!cancelled) setBadgeMaster(data || []);
+      } catch {
+        if (!cancelled) setBadgeMaster([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // 배지명 → 색·우선순위 룩업(미등록 배지는 맵에 없음 → 카드에서 미표시).
+  const badgeMetaByName = useMemo(() => {
+    const m = {};
+    badgeMaster.forEach((b) => {
+      m[b.name] = { color: b.color || MASTER_COLOR_FALLBACK, priority: b.priority ?? 0 };
+    });
+    return m;
+  }, [badgeMaster]);
+
+  // 행사 판매 대분류 화이트리스트 — NULL/빈 배열이면 미적용(전체 노출, 기존 동작 보존).
+  // 매칭은 원본 product.category(검사/도서/도구) 기준 — 도구→검사 정규화는 칩 표시 전용.
+  const baseProducts = useMemo(() => {
+    if (!visibleCategories?.length) return allProducts;
+    return allProducts.filter(p => visibleCategories.includes(p.category));
+  }, [allProducts, visibleCategories]);
+
+  // 단일 대분류 행사 — 대분류 칩 숨기고 소분류(sub_category) 칩으로 탐색
+  const isSingleCategory = visibleCategories?.length === 1;
+
   // 필터·검색·정렬 모두 클라이언트에서 처리
   const filteredProducts = useMemo(() => {
-    let list = allProducts;
+    let list = baseProducts;
     const hasSearch = Boolean(searchTerm.trim());
 
-    // 학회 태그 — '전체' 모드가 아닐 때만
+    // 학회 태그 — '전체' 모드가 아닐 때만 (판매 대분류 필터와 AND 공존)
     if (!hasSearch && viewMode !== 'all' && eventTags?.length > 0) {
       list = list.filter(p => Array.isArray(p.tags) && p.tags.some(t => eventTags.includes(t)));
     }
 
     // 카테고리
     if (selectedCategory !== 'all') {
-      // 도구는 검사 하위 — 검사 선택 시 도구도 포함
-      list = list.filter(p => (p.category === '도구' ? '검사' : p.category) === selectedCategory);
+      if (isSingleCategory) {
+        // 단일 대분류 행사 — 소분류(sub_category)로 필터
+        list = list.filter(p => (p.sub_category || '기타') === selectedCategory);
+      } else {
+        // 도구는 검사 하위 — 검사 선택 시 도구도 포함
+        list = list.filter(p => (p.category === '도구' ? '검사' : p.category) === selectedCategory);
+      }
     }
 
     // 모드 (검색 중에는 무시)
@@ -78,7 +120,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
       if (popDiff !== 0) return popDiff;
       return (a.name || '').localeCompare(b.name || '');
     });
-  }, [allProducts, searchTerm, viewMode, selectedCategory, eventTags]);
+  }, [baseProducts, searchTerm, viewMode, selectedCategory, eventTags, isSingleCategory]);
 
   // 필터 변경 시 페이지 리셋
   useEffect(() => {
@@ -134,12 +176,21 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
     }
   };
 
-  const knownCategories = ['검사', '도서'];
-  // 도구 → 검사로 정규화(별도 칩으로 노출하지 않음)
-  const extractedCategories = allProducts
-    .map(p => (p.category === '도구' ? '검사' : p.category))
-    .filter(Boolean);
-  const categories = [...new Set([...knownCategories, ...extractedCategories])];
+  let categories;
+  if (isSingleCategory) {
+    // 단일 대분류 행사 — 소분류(sub_category) 칩. 미지정 상품은 '기타'로 묶음.
+    const hasUncategorized = baseProducts.some(p => !p.sub_category);
+    const subs = [...new Set(baseProducts.map(p => p.sub_category).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b));
+    categories = hasUncategorized ? [...subs, '기타'] : subs;
+  } else {
+    const knownCategories = ['검사', '도서'];
+    // 도구 → 검사로 정규화(별도 칩으로 노출하지 않음)
+    const extractedCategories = baseProducts
+      .map(p => (p.category === '도구' ? '검사' : p.category))
+      .filter(Boolean);
+    categories = [...new Set([...knownCategories, ...extractedCategories])];
+  }
 
   const viewModes = [
     { key: 'all', label: '전체' },
@@ -151,6 +202,9 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
     { key: 'all', label: '전체' },
     ...categories.map(cat => ({ key: cat, label: cat })),
   ];
+  // 단일 대분류 행사에서 소분류가 2개 미만이면 탐색 칩이 무의미 — 숨김.
+  // 그 외(다중/전체 행사)는 기존대로 항상 노출.
+  const showCategoryChips = isSingleCategory ? categories.length >= 2 : true;
 
   return (
     <Box sx={{ px: 2, pb: 4 }}>
@@ -214,7 +268,8 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
           ))}
         </Box>
 
-        {/* Categories */}
+        {/* Categories — 단일 대분류 행사는 소분류 칩, 그 외 대분류 칩 */}
+        {showCategoryChips && (
         <Box
           sx={{
             display: 'flex',
@@ -242,6 +297,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
             />
           ))}
         </Box>
+        )}
       </Box>
 
       {/* Product grid */}
@@ -274,6 +330,8 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
                   product={product}
                   discountRate={discountRate}
                   cartQuantity={getCartQuantity(product.id)}
+                  badgeMetaByName={badgeMetaByName}
+                  hideCategoryBadge={isSingleCategory}
                   onAdd={() => handleAddProduct(product)}
                   onIncrement={() => handleIncrement(product.id)}
                   onDecrement={() => handleDecrement(product.id)}

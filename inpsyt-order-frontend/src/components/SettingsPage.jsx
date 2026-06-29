@@ -388,6 +388,17 @@ const SettingsPage = () => {
         </Box>
       </SectionCard>
 
+      {/* 소분류·배지 마스터 관리는 상품 관리 화면으로 이동(2026-06-29 건우님 결정) */}
+      <Alert
+        severity="info"
+        icon={<InfoIcon sx={{ fontSize: 18 }} />}
+        sx={{ borderRadius: `${theme.radii.md}px`, mb: 3 }}
+      >
+        <Typography variant="caption" sx={{ color: 'text.primary' }}>
+          소분류·배지는 상품 관리 화면(상단 "소분류·배지 관리")에서 관리합니다.
+        </Typography>
+      </Alert>
+
       {/* 안내 Alert — 사양 §하단 안내 */}
       <Alert
         severity="info"
