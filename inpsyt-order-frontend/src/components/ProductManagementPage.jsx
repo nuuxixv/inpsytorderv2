@@ -92,11 +92,11 @@ const getRowValue = (row, keys) => {
 };
 
 const parsePrice = (value) => {
-  if (typeof value === 'number') return value;
+  if (typeof value === 'number') return Math.round(value);
   if (typeof value === 'string') {
     const normalized = value.replace(/[^\d.-]/g, '');
     const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : 0;
+    return Number.isFinite(parsed) ? Math.round(parsed) : 0;
   }
   return 0;
 };
@@ -439,7 +439,7 @@ const ProductManagementPage = () => {
     }
 
     try {
-      const payload = { ...currentProduct, list_price: Number(currentProduct.list_price) || 0 };
+      const payload = { ...currentProduct, list_price: Math.round(Number(currentProduct.list_price) || 0) };
       // badges/image_filename 마이그레이션 미적용(컬럼 없음) 시 graceful — 빈값이면 payload에서 제외.
       // 값이 있는데 컬럼이 없으면 mutate 함수가 PGRST204 감지 후 해당 키 빼고 재시도.
       if (Array.isArray(payload.badges) && payload.badges.length === 0) delete payload.badges;
