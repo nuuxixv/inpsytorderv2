@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import ProductSearchBar from './ProductSearchBar';
 import {
   Box, Typography, Button, TextField, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Dialog,
@@ -251,7 +252,8 @@ const ProductManagementPage = () => {
   const [tgSplitSelected, setTgSplitSelected] = useState(new Set()); // 분리할 옵션 product id
   const [tgSplitForm, setTgSplitForm] = useState({ abbr: '', name: '' });
   const [tgActionRunning, setTgActionRunning] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(''); // debounce된 검색어(ProductSearchBar가 세팅)
+  const [searchResetKey, setSearchResetKey] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [expandedGroups, setExpandedGroups] = useState(new Set()); // 펼친 검사군 id(및 '미분류')
   const [tgMenuAnchor, setTgMenuAnchor] = useState(null); // 검사군 헤더 행 액션 메뉴 { el, group }
@@ -944,6 +946,7 @@ const ProductManagementPage = () => {
 
   const handleResetFilters = () => {
     setSearchTerm('');
+    setSearchResetKey(k => k + 1);
     setSelectedCategory('');
     setCurrentPage(1);
     setProductQuickFilter(null);
@@ -1500,16 +1503,13 @@ const ProductManagementPage = () => {
 
       <SectionCard sx={{ mb: 2 }} padding={16}>
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: availableTags.length > 0 ? 2 : 0 }}>
-          <TextField
+          <ProductSearchBar
+            onSearch={setSearchTerm}
             label="상품명 검색"
-            value={searchTerm}
-            onChange={(event) => {
-              setSearchTerm(event.target.value);
-              setCurrentPage(1);
-            }}
+            placeholder=""
             size="small"
             sx={{ flexGrow: 1, minWidth: 200 }}
-            InputProps={{ startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} /> }}
+            resetKey={searchResetKey}
           />
           {hasFilters && (
             <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
