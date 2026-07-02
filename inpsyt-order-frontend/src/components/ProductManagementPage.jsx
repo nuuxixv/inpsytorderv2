@@ -3,9 +3,9 @@ import {
   Box, Typography, Button, TextField, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Dialog,
   DialogActions, DialogContent, DialogTitle, FormControlLabel, Checkbox,
-  FormControl, InputLabel, Select, MenuItem, Autocomplete, Chip,
+  FormControl, InputLabel, Select, MenuItem, Menu, Autocomplete, Chip,
   Pagination, IconButton, Tooltip, ToggleButton, ToggleButtonGroup,
-  CircularProgress, LinearProgress, Switch, Collapse, alpha, useTheme,
+  CircularProgress, LinearProgress, Switch, Collapse, ListItemIcon, alpha, useTheme,
 } from '@mui/material';
 import {
   Add as AddIcon, FileDownload as DownloadIcon, FileUpload as UploadIcon,
@@ -28,6 +28,8 @@ import {
   MergeType as MergeTypeIcon,
   ArrowUpward as ArrowUpwardIcon,
   ArrowDownward as ArrowDownwardIcon,
+  MoreVert as MoreVertIcon,
+  Tune as TuneOptionsIcon,
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import { fetchAllProducts } from '../api/products';
@@ -40,7 +42,7 @@ import {
 import {
   fetchTestGroups, createTestGroup, updateTestGroup, deleteTestGroup,
   fetchTestGroupOptionCounts, fetchTestGroupOptions, updateProductOption,
-  splitTestGroup, mergeTestGroups,
+  splitTestGroup, mergeTestGroups, makeTestGroupResolver,
 } from '../api/testGroups';
 import { getSocieties } from '../api/events';
 import { useNotification } from '../hooks/useNotification';
@@ -236,17 +238,14 @@ const ProductManagementPage = () => {
   const [subDialog, setSubDialog] = useState(null);   // null | { id?, name, parent_category, color, sort_order, is_active }
   const [masterSaving, setMasterSaving] = useState(false);
 
-  // ── 검사군 관리 (test_groups) — 위험 액션(분리/병합/삭제)은 확인 스텝, 편집은 즉시 ──
-  const [tgPanelOpen, setTgPanelOpen] = useState(false);
+  // ── 검사군 관리 (test_groups) — '검사' 그룹 뷰 안에서 인라인 관리. 위험 액션(분리/병합/삭제)은 확인 스텝 ──
   const [testGroups, setTestGroups] = useState([]);
   const [tgOptionCounts, setTgOptionCounts] = useState({}); // { [test_group_id]: 소속 상품 수 }
-  const [tgSearch, setTgSearch] = useState('');
-  const [tgSelected, setTgSelected] = useState(new Set());  // 병합 대상 다중 선택
   const [tgDialog, setTgDialog] = useState(null);           // null | { id?, abbr, name, category, sort_order, is_active } 검사명·약어 편집
   const [tgSaving, setTgSaving] = useState(false);
   const [tgDeleteTarget, setTgDeleteTarget] = useState(null); // 삭제 확인 대상 검사군
-  const [tgMergeOpen, setTgMergeOpen] = useState(false);
-  const [tgMergeKeepId, setTgMergeKeepId] = useState(null);   // 병합 후 남길 대표 id
+  const [tgMergeKeep, setTgMergeKeep] = useState(null);      // 병합 대표(keep) 검사군 — 헤더 메뉴에서 진입
+  const [tgMergeAbsorb, setTgMergeAbsorb] = useState(new Set()); // 대표로 흡수될 다른 검사군 id들
   const [tgDetail, setTgDetail] = useState(null);             // 옵션 편집 상세: { group, options: [...] }
   const [tgSplitOpen, setTgSplitOpen] = useState(false);
   const [tgSplitSelected, setTgSplitSelected] = useState(new Set()); // 분리할 옵션 product id
@@ -254,9 +253,8 @@ const ProductManagementPage = () => {
   const [tgActionRunning, setTgActionRunning] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  // 검사군 묶어보기 뷰(읽기 진열) — selectedCategory==='검사'일 때만 노출되는 토글. 기본 off=평면 표.
-  const [groupView, setGroupView] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState(new Set()); // 펼친 검사군 id(및 '미분류')
+  const [tgMenuAnchor, setTgMenuAnchor] = useState(null); // 검사군 헤더 행 액션 메뉴 { el, group }
   const [productQuickFilter, setProductQuickFilter] = useState(null);
   const [selectedTags, setSelectedTags] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -383,8 +381,9 @@ const ProductManagementPage = () => {
 
   const totalFiltered = filteredProducts.length;
 
-  // 검사군 묶어보기 뷰 활성 여부 — 검사 카테고리 선택 + 토글 on일 때만. 도서·도구는 평면.
-  const groupViewActive = groupView && selectedCategory === '검사';
+  // 검사군 그룹 뷰 활성 여부 — '검사' 카테고리 선택 시 무조건 그룹 뷰(디폴트이자 유일 뷰).
+  // 도서·도구·전체는 평면. '전체'에서 검사 상품이 평면에 섞이는 현행은 유지(전체 조망).
+  const groupViewActive = selectedCategory === '검사';
 
   // 검사군 그룹 뷰용 그룹핑(신규 API 없이 filteredProducts + testGroups 재사용).
   // 검사군 헤더 행(sort_order 순) + 소속 옵션. test_group_id NULL 검사 상품은 하단 "미분류" 그룹.
@@ -654,6 +653,16 @@ const ProductManagementPage = () => {
         tags: getRowValue(row, ['태그', 'tags'])
           ? String(getRowValue(row, ['태그', 'tags'])).split(',').map((tag) => tag.trim()).filter(Boolean)
           : [],
+        // 검사 위계 열(구양식엔 없음 — undefined면 미변경). 원시값만 보관, test_group_id는 검증 후 매칭.
+        _hier: {
+          abbr: getRowValue(row, ['검사군약어', 'test_group_abbr']),
+          groupName: getRowValue(row, ['검사군명', 'test_group_name']),
+          option_name: getRowValue(row, ['옵션명', 'option_name']),
+          option_label: getRowValue(row, ['말머리', 'option_label']),
+          is_common: getRowValue(row, ['공용(Y/공란)', '공용', 'is_common']),
+          sort_order: getRowValue(row, ['옵션정렬', 'sort_order']),
+          is_active: getRowValue(row, ['노출(Y/N)', '노출', 'is_active']),
+        },
       }));
 
       // Phase 2: Client-side validation
@@ -696,6 +705,35 @@ const ProductManagementPage = () => {
         return;
       }
 
+      // Phase 2.5: 검사 위계 매칭 — (검사군약어, 검사군명)으로 test_group_id 해결(없으면 생성).
+      // 빈 열은 미변경(payload에서 제외 → 기존 값 보존). 구양식(위계 열 없음)이면 이 단계가 사실상 no-op.
+      // seed_hierarchy.py 와 동일 dedup((abbr, name)). 검사군 매칭은 검사 상품에만 의미.
+      const existingGroups = await fetchTestGroups().catch(() => []);
+      const resolveGroup = makeTestGroupResolver(existingGroups);
+      let hierApplied = 0;
+      for (const product of validProducts) {
+        const h = product._hier || {};
+        const hasGroup = h.groupName != null && String(h.groupName).trim() !== '';
+        // 검사군 연결 — 검사군명이 있을 때만. (약어는 nullable) 검사 카테고리만 실질 대상.
+        if (hasGroup) {
+          const gid = await resolveGroup(h.abbr, h.groupName);
+          if (gid != null) product.test_group_id = gid;
+        }
+        // 옵션 필드 — 열이 채워진 것만 반영(빈 열 = 미변경, 기존 값 보존).
+        if (h.option_name != null && String(h.option_name).trim() !== '') product.option_name = String(h.option_name).trim();
+        if (h.option_label != null && String(h.option_label).trim() !== '') product.option_label = String(h.option_label).trim();
+        if (h.is_common != null && String(h.is_common).trim() !== '') product.is_common = parseBool(h.is_common);
+        if (h.sort_order != null && String(h.sort_order).trim() !== '') {
+          const so = parseInt(h.sort_order, 10);
+          if (Number.isFinite(so)) product.sort_order = so;
+        }
+        if (h.is_active != null && String(h.is_active).trim() !== '') product.is_active = parseBool(h.is_active);
+        if (hasGroup || product.option_name !== undefined || product.is_active !== undefined) hierApplied++;
+      }
+      if (hierApplied > 0) {
+        setUploadLog(prev => [...prev, `검사 위계 열 반영: ${hierApplied}건 (검사군 매칭·옵션 표기)`]);
+      }
+
       // Phase 3: Chunked upload
       const totalValid = validProducts.length;
       setUploadProgress({ current: 0, total: totalValid, phase: 'uploading' });
@@ -711,18 +749,42 @@ const ProductManagementPage = () => {
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
         const chunkStart = i * CHUNK_SIZE;
-        // Strip _rowNum before sending. image_filename 빈값은 제외(미적용 환경 회귀 방지).
-        const payload = chunk.map((p) => {
+        // Strip 내부 필드(_rowNum·_hier) 후 전송. image_filename 빈값은 제외(미적용 환경 회귀 방지).
+        // 검사 위계 컬럼(test_group_id·option_name·option_label·is_common·sort_order·is_active)은
+        // Phase 2.5에서 채워진 것만 남아 있음(빈 열=미포함=기존 값 보존).
+        const buildPayload = (withHierarchy) => chunk.map((p) => {
           const rest = { ...p };
           delete rest._rowNum;
+          delete rest._hier;
           if (rest.image_filename == null) delete rest.image_filename;
+          if (!withHierarchy) {
+            // 마이그레이션 미적용(컬럼 없음) 환경 graceful — 위계 컬럼 제거 후 재시도.
+            delete rest.test_group_id;
+            delete rest.option_name;
+            delete rest.option_label;
+            delete rest.is_common;
+            delete rest.sort_order;
+            delete rest.is_active;
+          }
           return rest;
         });
+        let payload = buildPayload(true);
 
         try {
-          const { data, error } = await supabase.functions.invoke('upload-products-excel', {
+          let { data, error } = await supabase.functions.invoke('upload-products-excel', {
             body: { products: payload },
           });
+
+          // 신규 위계 컬럼 미적용 환경 — 컬럼 미존재 오류면 위계 열 빼고 1회 재시도(구스키마 회귀 0).
+          // Edge Fn은 배치 실패 시 행별 폴백으로 200+errors[]를 돌려줄 수 있어, data.errors 도 함께 감지.
+          const columnMissing = (msg) => /column|does not exist|PGRST204|schema cache/i.test(msg || '');
+          const hierColsSent = payload.some((p) => 'test_group_id' in p || 'option_name' in p || 'option_label' in p || 'is_common' in p || 'sort_order' in p || 'is_active' in p);
+          const dataColErr = data?.error_count > 0 && (data.errors || []).some((e) => columnMissing(e.error));
+          if (hierColsSent && ((error && columnMissing(error.message)) || dataColErr)) {
+            payload = buildPayload(false);
+            ({ data, error } = await supabase.functions.invoke('upload-products-excel', { body: { products: payload } }));
+            if (!error) setUploadLog(prev => [...prev, `청크 ${i + 1}: 검사 위계 컬럼 미적용 환경 — 기본 열만 반영`]);
+          }
 
           if (error) {
             // Entire chunk failed
@@ -815,8 +877,8 @@ const ProductManagementPage = () => {
     const template = [{
       상품명: '예시 상품',
       상품코드: 'PROD001',
-      카테고리: '도서',
-      하위카테고리: '심리',
+      카테고리: '검사',
+      하위카테고리: '',
       가격: 15000,
       비고: '설명',
       할인여부: 'TRUE',
@@ -824,6 +886,14 @@ const ProductManagementPage = () => {
       신상품여부: 'TRUE',
       태그: '신경정신,치매',
       이미지: 'sample.webp',
+      // 검사 위계 열 — 검사 상품만 채움(도서·도구는 공란). 검사군 매칭 키 = (검사군약어, 검사군명).
+      검사군약어: 'K·BASC-3',
+      검사군명: '한국판 정서-행동 평가시스템',
+      옵션명: '검사지·온라인코드 20개',
+      말머리: '부모보고형 청소년용',
+      '공용(Y/공란)': '',
+      옵션정렬: 1,
+      '노출(Y/N)': 'Y',
     }];
 
     const worksheet = XLSX.utils.json_to_sheet(template);
@@ -835,20 +905,32 @@ const ProductManagementPage = () => {
 
   const handleDownloadExcel = async () => {
     try {
-      const allProducts = await fetchAllProducts();
-      const rows = allProducts.map((product) => ({
-        상품명: product.name,
-        상품코드: product.product_code,
-        카테고리: product.category,
-        하위카테고리: product.sub_category || '',
-        가격: product.list_price,
-        비고: product.notes || '',
-        할인여부: product.is_discountable ? 'TRUE' : 'FALSE',
-        인기상품: product.is_popular ? 'TRUE' : 'FALSE',
-        신상품여부: product.is_new ? 'TRUE' : 'FALSE',
-        태그: product.tags?.join(',') || '',
-        이미지: product.image_filename || '',
-      }));
+      const [products, groups] = await Promise.all([fetchAllProducts(), fetchTestGroups()]);
+      // test_group_id → 검사군(약어·검사명) 룩업. 미적재 환경이면 빈 맵 → 위계 열 공란.
+      const groupById = new Map(groups.map((g) => [g.id, g]));
+      const rows = products.map((product) => {
+        const group = product.test_group_id != null ? groupById.get(product.test_group_id) : null;
+        return {
+          상품명: product.name,
+          상품코드: product.product_code,
+          카테고리: product.category,
+          하위카테고리: product.sub_category || '',
+          가격: product.list_price,
+          비고: product.notes || '',
+          할인여부: product.is_discountable ? 'TRUE' : 'FALSE',
+          인기상품: product.is_popular ? 'TRUE' : 'FALSE',
+          신상품여부: product.is_new ? 'TRUE' : 'FALSE',
+          태그: product.tags?.join(',') || '',
+          이미지: product.image_filename || '',
+          검사군약어: group?.abbr || '',
+          검사군명: group?.name || '',
+          옵션명: product.option_name || '',
+          말머리: product.option_label || '',
+          '공용(Y/공란)': product.is_common ? 'Y' : '',
+          옵션정렬: product.sort_order ?? '',
+          '노출(Y/N)': product.is_active === false ? 'N' : 'Y',
+        };
+      });
 
       const worksheet = XLSX.utils.json_to_sheet(rows);
       const workbook = XLSX.utils.book_new();
@@ -931,15 +1013,7 @@ const ProductManagementPage = () => {
     }
   };
 
-  // ── 검사군 관리 (test_groups) ──
-  const filteredTestGroups = useMemo(() => {
-    const q = tgSearch.trim().toLowerCase();
-    if (!q) return testGroups;
-    return testGroups.filter(
-      (g) => (g.name || '').toLowerCase().includes(q) || (g.abbr || '').toLowerCase().includes(q),
-    );
-  }, [testGroups, tgSearch]);
-
+  // ── 검사군 관리 (test_groups) — '검사' 그룹 뷰 안에서 인라인 진입 ──
   // 검사명·약어·정렬 편집 저장 (자주 하는 일 — 확인 스텝 없음, 즉시 반영)
   const handleSaveTestGroup = async () => {
     const d = tgDialog;
@@ -992,13 +1066,14 @@ const ProductManagementPage = () => {
     }
   };
 
-  const tgSelectedGroups = useMemo(
-    () => testGroups.filter((g) => tgSelected.has(g.id)),
-    [testGroups, tgSelected],
-  );
+  // 병합 진입 — 그룹 헤더 메뉴에서 이 검사군을 대표(keep)로 지정하고, 흡수할 다른 검사군을 다이얼로그에서 선택.
+  const handleOpenMerge = (keepGroup) => {
+    setTgMergeKeep(keepGroup);
+    setTgMergeAbsorb(new Set());
+  };
 
-  const handleToggleTgSelect = (id) => {
-    setTgSelected((prev) => {
+  const handleToggleMergeAbsorb = (id) => {
+    setTgMergeAbsorb((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -1006,25 +1081,17 @@ const ProductManagementPage = () => {
     });
   };
 
-  const handleOpenMerge = () => {
-    if (tgSelected.size < 2) {
-      addNotification('병합하려면 검사군을 2개 이상 선택해 주세요.', 'warning');
-      return;
-    }
-    setTgMergeKeepId(Array.from(tgSelected)[0]);
-    setTgMergeOpen(true);
-  };
-
-  // 병합 (N→1 위험 액션 — 확인 스텝)
+  // 병합 (N→1 위험 액션 — 확인 스텝). 흡수 검사군 옵션을 대표로 이관 후 빈 검사군 삭제.
   const handleMerge = async () => {
-    if (tgMergeKeepId == null) return;
+    if (!tgMergeKeep || tgMergeAbsorb.size === 0) return;
     setTgActionRunning(true);
     try {
-      await mergeTestGroups(tgMergeKeepId, Array.from(tgSelected));
+      await mergeTestGroups(tgMergeKeep.id, [tgMergeKeep.id, ...Array.from(tgMergeAbsorb)]);
       addNotification('검사군을 병합했습니다.', 'success');
-      setTgMergeOpen(false);
-      setTgSelected(new Set());
+      setTgMergeKeep(null);
+      setTgMergeAbsorb(new Set());
       loadTestGroups();
+      fetchProducts();
     } catch (error) {
       addNotification(`병합 실패: ${error.message}`, 'error');
     } finally {
@@ -1293,17 +1360,6 @@ const ProductManagementPage = () => {
               소분류 관리
             </Button>
           </Tooltip>
-          <Tooltip title="검사군 관리 (검사 상품의 2뎁스 진열)">
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<AccountTreeIcon />}
-              endIcon={tgPanelOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-              onClick={() => setTgPanelOpen((prev) => !prev)}
-            >
-              검사군 관리
-            </Button>
-          </Tooltip>
           <Tooltip title="전체 삭제">
             <IconButton
               onClick={() => {
@@ -1401,117 +1457,6 @@ const ProductManagementPage = () => {
         </Collapse>
       )}
 
-      {/* 검사군 관리 — 검사 상품의 2뎁스 진열 보정. 편집은 즉시, 위험 액션(분리/병합/삭제)은 확인 스텝. */}
-      {hasPermission('products:edit') && (
-        <Collapse in={tgPanelOpen} unmountOnExit>
-          <SectionCard
-            title="검사군 관리"
-            subtitle="검사군을 분리·병합하고 검사명·약어·옵션 순서를 정리합니다. 진열에 바로 반영됩니다."
-            icon={AccountTreeIcon}
-            padding={0}
-            sx={{ mb: 3 }}
-          >
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', px: 2.5, py: 1.5, borderBottom: `1px solid ${theme.gray[100]}` }}>
-              <Button
-                variant="contained"
-                size="small"
-                startIcon={<AddIcon />}
-                onClick={() => setTgDialog({ abbr: '', name: '', sort_order: 0, is_active: true })}
-              >
-                검사군 추가
-              </Button>
-              <Button
-                variant="outlined"
-                size="small"
-                color="error"
-                startIcon={<MergeTypeIcon />}
-                onClick={handleOpenMerge}
-                disabled={tgSelected.size < 2}
-              >
-                병합 {tgSelected.size >= 2 ? `(${tgSelected.size})` : ''}
-              </Button>
-              <TextField
-                size="small"
-                placeholder="검사명·약어 검색"
-                value={tgSearch}
-                onChange={(e) => setTgSearch(e.target.value)}
-                sx={{ flexGrow: 1, minWidth: 180 }}
-                InputProps={{ startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} fontSize="small" /> }}
-              />
-            </Box>
-
-            {filteredTestGroups.length === 0 ? (
-              <Typography variant="body2" sx={{ color: 'text.disabled', py: 4, textAlign: 'center' }}>
-                {testGroups.length === 0
-                  ? '등록된 검사군이 없습니다 · 검사군 추가 또는 시드 적재 후 표시됩니다'
-                  : '검색 결과가 없습니다'}
-              </Typography>
-            ) : (
-              <TableContainer>
-                <Table size="small">
-                  <TableBody>
-                    {filteredTestGroups.map((group) => {
-                      const count = tgOptionCounts[group.id] || 0;
-                      return (
-                        <TableRow
-                          key={group.id}
-                          hover
-                          sx={{ opacity: group.is_active ? 1 : 0.55 }}
-                        >
-                          <TableCell padding="checkbox" sx={{ width: 48 }}>
-                            <Checkbox
-                              size="small"
-                              checked={tgSelected.has(group.id)}
-                              onChange={() => handleToggleTgSelect(group.id)}
-                            />
-                          </TableCell>
-                          <TableCell sx={{ width: 130 }}>
-                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
-                              {group.abbr || '—'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell
-                            sx={{ cursor: 'pointer' }}
-                            onClick={() => handleOpenTgDetail(group)}
-                          >
-                            <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                              {group.name}
-                              {!group.is_active && (
-                                <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary', fontWeight: 400 }}>
-                                  · 숨김
-                                </Typography>
-                              )}
-                            </Typography>
-                          </TableCell>
-                          <TableCell sx={{ width: 90 }}>
-                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>옵션 {count}개</Typography>
-                          </TableCell>
-                          <TableCell align="center" sx={{ width: 70 }}>
-                            <Tooltip title={group.is_active ? '노출 중 (끄면 검사군 카드 숨김)' : '숨김'} arrow>
-                              <Switch size="small" checked={group.is_active} onChange={() => handleToggleTgActive(group)} />
-                            </Tooltip>
-                          </TableCell>
-                          <TableCell align="center" sx={{ width: 44 }}>
-                            <IconButton size="small" onClick={() => setTgDialog({ ...group })}>
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </TableCell>
-                          <TableCell align="center" sx={{ width: 44 }}>
-                            <IconButton size="small" onClick={() => setTgDeleteTarget(group)} sx={{ color: 'error.main' }}>
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </SectionCard>
-        </Collapse>
-      )}
-
       <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
         {renderQuickFilterCard({
           label: '전체 상품',
@@ -1571,13 +1516,17 @@ const ProductManagementPage = () => {
               {totalFiltered}개 표시 중
             </Typography>
           )}
-          {/* 검사군 묶어보기 — 검사 카테고리 선택 시에만 노출. 기본 off=평면 표. 읽기 진열 토글. */}
-          {selectedCategory === '검사' && (
-            <FormControlLabel
-              control={<Switch size="small" checked={groupView} onChange={(e) => setGroupView(e.target.checked)} />}
-              label={<Typography variant="caption" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>검사군 묶어보기</Typography>}
-              sx={{ ml: 0, mr: 0 }}
-            />
+          {/* '검사' 선택 시 그룹 뷰가 디폴트이자 유일 뷰(토글 없음). 검사군 추가는 이 뷰에서만 노출. */}
+          {selectedCategory === '검사' && canEdit && (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<AccountTreeIcon />}
+              onClick={() => setTgDialog({ abbr: '', name: '', sort_order: 0, is_active: true })}
+              sx={{ whiteSpace: 'nowrap' }}
+            >
+              검사군 추가
+            </Button>
           )}
           {hasFilters && (
             <Button variant="outlined" onClick={handleResetFilters} size="small" startIcon={<RestartAltIcon />}>
@@ -1688,7 +1637,8 @@ const ProductManagementPage = () => {
                     const hiddenGroup = group?.is_active === false;
                     return (
                       <React.Fragment key={key}>
-                        {/* 검사군 그룹 헤더 행 — 약어·검사명·옵션N 요약(가격 은닉). 나머지 컬럼 colSpan 병합. 편집 버튼 없음(읽기 진열). */}
+                        {/* 검사군 그룹 헤더 행 — 약어·검사명·옵션N 요약(가격 은닉) + 검사군 단위 인라인 관리(노출/편집/메뉴).
+                            묶음 편집(검사명·약어·노출·분리·병합·삭제)은 여기서, 옵션(상품) 편집은 하위 행 편집 버튼에서. */}
                         <TableRow
                           hover
                           onClick={() => handleToggleGroupExpand(key)}
@@ -1705,7 +1655,7 @@ const ProductManagementPage = () => {
                               {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                             </IconButton>
                           </TableCell>
-                          <TableCell colSpan={tableColumnCount - (canEdit ? 2 : 1)}>
+                          <TableCell colSpan={tableColumnCount - 1 - (canEdit ? 1 : 0) - (canEdit && group ? 2 : 0)}>
                             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, flexWrap: 'wrap' }}>
                               {group?.abbr && (
                                 <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
@@ -1723,6 +1673,26 @@ const ProductManagementPage = () => {
                               </Typography>
                             </Box>
                           </TableCell>
+                          {/* 검사군 단위 인라인 관리 — 미분류(group===null)는 마스터가 없으므로 액션 없음 */}
+                          {canEdit && group && (
+                            <TableCell align="center" colSpan={2} onClick={(e) => e.stopPropagation()} sx={{ cursor: 'default' }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
+                                <Tooltip title={group.is_active ? '노출 중 (끄면 검사군 카드 숨김)' : '숨김'} arrow>
+                                  <Switch size="small" checked={group.is_active} onChange={() => handleToggleTgActive(group)} />
+                                </Tooltip>
+                                <Tooltip title="검사명·약어 편집" arrow>
+                                  <IconButton size="small" onClick={() => setTgDialog({ ...group })}>
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="분리·병합·삭제" arrow>
+                                  <IconButton size="small" onClick={(e) => setTgMenuAnchor({ el: e.currentTarget, group })}>
+                                    <MoreVertIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
+                            </TableCell>
+                          )}
                         </TableRow>
                         {/* 옵션 하위 행 — 평면 표 셀 구성 그대로 재사용. 상품명 셀만 들여쓰기 + 말머리·형태명. */}
                         {expanded && options.map((product) => {
@@ -2282,40 +2252,88 @@ const ProductManagementPage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* 병합 확인 (위험 액션 N→1). 대표 검사군 선택 라디오. */}
-      <Dialog open={tgMergeOpen} onClose={() => setTgMergeOpen(false)} maxWidth="xs" fullWidth>
+      {/* 병합 확인 (위험 액션 N→1). 헤더 메뉴에서 이 검사군을 대표(keep)로 진입 → 흡수할 다른 검사군 선택. */}
+      <Dialog open={Boolean(tgMergeKeep)} onClose={() => setTgMergeKeep(null)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 700 }}>검사군 병합</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-            선택한 검사군 {tgSelected.size}개(옵션 합계 {tgSelectedGroups.reduce((sum, g) => sum + (tgOptionCounts[g.id] || 0), 0)}개)를 하나로 합칩니다. 되돌리려면 다시 분리해야 합니다.
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography variant="body2" sx={{ mb: 0.5 }}>
+            대표 검사군 <strong>{tgMergeKeep?.name}</strong>{tgMergeKeep?.abbr ? ` (${tgMergeKeep.abbr})` : ''} 하나로 합칩니다.
           </Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.75 }}>병합 후 남길 대표 검사군</Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-            {tgSelectedGroups.map((g) => (
-              <FormControlLabel
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+            아래에서 고른 검사군의 옵션이 대표로 이관되고, 빈 검사군은 삭제됩니다. 되돌리려면 다시 분리해야 합니다.
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.75 }}>
+            대표로 흡수할 검사군 ({tgMergeAbsorb.size}개 선택)
+          </Typography>
+          <Box sx={{ maxHeight: 300, overflow: 'auto', border: `1px solid ${theme.gray[200]}`, borderRadius: `${theme.radii.md}px` }}>
+            {testGroups.filter((g) => g.id !== tgMergeKeep?.id).map((g) => (
+              <Box
                 key={g.id}
-                control={
-                  <Checkbox
-                    checked={tgMergeKeepId === g.id}
-                    onChange={() => setTgMergeKeepId(g.id)}
-                  />
-                }
-                label={
-                  <Typography variant="body2">
-                    <strong>{g.name}</strong>{g.abbr ? ` (${g.abbr})` : ''} · 옵션 {tgOptionCounts[g.id] || 0}개
-                  </Typography>
-                }
-              />
+                onClick={() => handleToggleMergeAbsorb(g.id)}
+                sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 1, borderBottom: `1px solid ${theme.gray[100]}`, cursor: 'pointer' }}
+              >
+                <Checkbox size="small" checked={tgMergeAbsorb.has(g.id)} onChange={() => handleToggleMergeAbsorb(g.id)} />
+                <Typography variant="body2">
+                  <strong>{g.name}</strong>{g.abbr ? ` (${g.abbr})` : ''} · 옵션 {tgOptionCounts[g.id] || 0}개
+                </Typography>
+              </Box>
             ))}
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setTgMergeOpen(false)} disabled={tgActionRunning}>취소</Button>
-          <Button variant="contained" color="error" onClick={handleMerge} disabled={tgActionRunning || tgMergeKeepId == null} startIcon={tgActionRunning ? <CircularProgress size={14} /> : null}>
-            병합
+          <Button onClick={() => setTgMergeKeep(null)} disabled={tgActionRunning}>취소</Button>
+          <Button variant="contained" color="error" onClick={handleMerge} disabled={tgActionRunning || tgMergeAbsorb.size === 0} startIcon={tgActionRunning ? <CircularProgress size={14} /> : null}>
+            {tgMergeAbsorb.size}개를 대표로 병합
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* 검사군 헤더 행 액션 메뉴 — 옵션 편집·분리·삭제. 검사명·약어 편집/노출은 헤더 인라인. */}
+      <Menu
+        anchorEl={tgMenuAnchor?.el}
+        open={Boolean(tgMenuAnchor)}
+        onClose={() => setTgMenuAnchor(null)}
+      >
+        <MenuItem
+          onClick={() => {
+            handleOpenTgDetail(tgMenuAnchor.group);
+            setTgMenuAnchor(null);
+          }}
+        >
+          <ListItemIcon><TuneOptionsIcon fontSize="small" /></ListItemIcon>
+          옵션 편집 (말머리·형태명·순서)
+        </MenuItem>
+        <MenuItem
+          onClick={async () => {
+            const g = tgMenuAnchor.group;
+            setTgMenuAnchor(null);
+            await handleOpenTgDetail(g);
+            handleOpenSplit();
+          }}
+        >
+          <ListItemIcon><CallSplitIcon fontSize="small" /></ListItemIcon>
+          분리 (옵션을 새 검사군으로)
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            handleOpenMerge(tgMenuAnchor.group);
+            setTgMenuAnchor(null);
+          }}
+        >
+          <ListItemIcon><MergeTypeIcon fontSize="small" /></ListItemIcon>
+          병합 (다른 검사군을 흡수)
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setTgDeleteTarget(tgMenuAnchor.group);
+            setTgMenuAnchor(null);
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <ListItemIcon><DeleteIcon fontSize="small" sx={{ color: 'error.main' }} /></ListItemIcon>
+          삭제
+        </MenuItem>
+      </Menu>
 
       {/* 검사군 상세 — 옵션 순서·말머리·형태명·공용·개별 노출 편집 (자주 하는 일 — 즉시 저장). 상단에서 분리 진입. */}
       <Dialog open={Boolean(tgDetail)} onClose={() => setTgDetail(null)} maxWidth="md" fullWidth>

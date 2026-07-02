@@ -162,3 +162,42 @@ export const mergeTestGroups = async (keepId, mergeIds) => {
     .in('id', absorbed);
   if (delError) throw delError;
 };
+
+// 검사군 (약어, 검사명) 정규화 키 — seed_hierarchy.py 의 dedup 규칙과 동일.
+// abbr 는 빈값→null(nullable), name 은 trim. 대소문자·공백 정규화로 왕복 매칭 안정화.
+const tgKey = (abbr, name) => `${(abbr || '').trim().toLowerCase()}||${(name || '').trim().toLowerCase()}`;
+
+/**
+ * 엑셀 왕복용 — (약어, 검사명) 조합으로 검사군을 찾거나 없으면 생성한다.
+ * seed_hierarchy.py 와 동일한 dedup 규칙((abbr, name), 등장순). 세션 캐시로 같은 검사군 중복 생성 방지.
+ * @param {Array} existingGroups 이미 로드된 test_groups 배열(왕복 시작 시 1회 조회)
+ * @returns {Function} resolve(abbr, name) → Promise<number|null> test_group_id. 테이블 미존재 시 null.
+ */
+export const makeTestGroupResolver = (existingGroups = []) => {
+  const cache = new Map();
+  existingGroups.forEach((g) => {
+    if (!cache.has(tgKey(g.abbr, g.name))) cache.set(tgKey(g.abbr, g.name), g.id);
+  });
+  let tableMissing = false;
+
+  return async (abbr, name) => {
+    const cleanName = (name || '').trim();
+    if (!cleanName) return null; // 검사명 없으면 미분류로 둔다
+    const key = tgKey(abbr, cleanName);
+    if (cache.has(key)) return cache.get(key);
+    if (tableMissing) return null;
+
+    const created = await createTestGroup({
+      abbr: (abbr || '').trim() || null,
+      name: cleanName,
+      sort_order: 0,
+      is_active: true,
+    }).catch((error) => {
+      if (isMissingTable(error)) { tableMissing = true; return null; }
+      throw error;
+    });
+    if (!created) return null;
+    cache.set(key, created.id);
+    return created.id;
+  };
+};
