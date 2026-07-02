@@ -2,21 +2,19 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   Box,
   Typography,
-  TextField,
   Chip,
   CircularProgress,
-  InputAdornment,
   useTheme,
 } from '@mui/material';
-import { Search as SearchIcon, Star as StarIcon, FiberNew as NewIcon } from '@mui/icons-material';
+import { Star as StarIcon, FiberNew as NewIcon } from '@mui/icons-material';
 import { fetchAllProducts } from '../api/products';
 import { fetchTestGroups } from '../api/testGroups';
 import { useNotification } from '../hooks/useNotification';
-import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { matchesSearch } from '../utils/search';
 import { normalizeCategory, buildGroupMetaMap, groupTestProducts } from '../utils/testGroupDisplay';
 import ProductCard from './ProductCard';
 import TestGroupCard from './TestGroupCard';
+import ProductSearchBar from './ProductSearchBar';
 
 const PAGE_SIZE = 40;
 
@@ -26,8 +24,9 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
   const [allProducts, setAllProducts] = useState([]);
   const [testGroupMaster, setTestGroupMaster] = useState([]); // test_groups 마스터(약어·검사명·정렬)
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState(''); // 입력값(즉시 반영)
-  const debouncedSearch = useDebouncedValue(searchTerm, 250); // 필터·검색은 지연 반응
+  // 검색어는 debounce된 값만 상위에 둔다. 입력(IME 조합)은 ProductSearchBar 내부 로컬 state가
+  // 흡수하므로, 매 키입력에 이 컴포넌트(검사군 트리)가 리렌더되지 않는다 — 타이핑 렉 격리.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [viewMode, setViewMode] = useState('popular'); // 'all' | 'popular' | 'new'
   const [selectedCategory, setSelectedCategory] = useState('all');
   // 검사군 펼침 상태: undefined=사용자 미조작 / true·false=사용자 조작. 검색 자동펼침은 초기 상태로만.
@@ -118,15 +117,11 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
       else if (viewMode === 'new') groups = groups.filter(g => g.options.some(p => p.is_new));
     }
 
-    // 검색 = 검사군 단위: 검사명·약어·옵션명·말머리(option_label) 매칭. 옵션 낱개 안 쏟음.
+    // 검색 = 검사군 단위, 대상은 상품명 원본(name) 하나. 원본 상품명에 검사명·약어·말머리·옵션이
+    // 모두 포함돼 있어(예 `K·BASC-3 한국판 정서-행동 평가시스템 부모보고형-청소년용_검사지/온라인코드(20)`)
+    // name 단일 매칭으로 정확도 유지 + 단순화. 옵션 하나라도 매칭이면 그 검사군 노출(옵션 낱개 안 쏟음).
     if (hasSearch) {
-      groups = groups.filter(g => {
-        if (matchesSearch(g.name, debouncedSearch) || (g.abbr && matchesSearch(g.abbr, debouncedSearch))) return true;
-        return g.options.some(p =>
-          matchesSearch(p.option_name || p.name, debouncedSearch) ||
-          matchesSearch(p.option_label, debouncedSearch)
-        );
-      });
+      groups = groups.filter(g => g.options.some(p => matchesSearch(p.name, debouncedSearch)));
     }
 
     return groups;
@@ -281,21 +276,8 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
         )}
       </Box>
 
-      {/* Search bar */}
-      <TextField
-        fullWidth
-        placeholder="상품명으로 검색 (띄어쓰기로 여러 키워드)"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <SearchIcon sx={{ color: 'text.disabled' }} />
-            </InputAdornment>
-          ),
-        }}
-        sx={{ mb: 2 }}
-      />
+      {/* Search bar — 입력 격리(로컬 state + 내부 debounce). 매 키입력에 트리 리렌더 안 됨. */}
+      <ProductSearchBar onSearch={setDebouncedSearch} />
 
       {/* Filters */}
       <Box sx={{ mb: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -391,7 +373,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
                     group={group}
                     discountRate={discountRate}
                     expanded={isExpanded}
-                    onToggle={() => toggleGroup(group.id, isExpanded)}
+                    onToggle={toggleGroup}
                     getCartQuantity={getCartQuantity}
                     onAdd={handleAddProduct}
                     onIncrement={handleIncrement}

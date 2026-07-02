@@ -143,7 +143,8 @@ const TestGroupCard = ({
   getCartQuantity, onAdd, onIncrement, onDecrement,
 }) => {
   const theme = useTheme();
-  const { abbr, name, options } = group;
+  const { id, abbr, name, options } = group;
+  const handleToggle = () => onToggle(id, expanded);
 
   const cartCount = options.reduce((n, p) => n + (getCartQuantity(p.id) > 0 ? 1 : 0), 0);
   const hasCart = cartCount > 0;
@@ -206,9 +207,9 @@ const TestGroupCard = ({
         role="button"
         tabIndex={0}
         aria-expanded={expanded}
-        onClick={onToggle}
+        onClick={handleToggle}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); }
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleToggle(); }
         }}
         sx={{
           p: 2, '&:last-child': { pb: 2 },
@@ -245,4 +246,7 @@ const TestGroupCard = ({
   );
 };
 
-export default TestGroupCard;
+// props(group·expanded·discountRate·콜백) 동일 시 재렌더 skip.
+// 검색어 변경으로 매칭 안 된 카드까지 불필요하게 리렌더되던 것을 방지.
+// getCartQuantity 등 콜백은 부모에서 useCallback으로 안정화(cart 변경 시에만 갱신)돼야 효과가 산다.
+export default React.memo(TestGroupCard);
