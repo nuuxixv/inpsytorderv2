@@ -36,14 +36,47 @@ serve(async (req) => {
       console.error('Settings fetch error:', settingsError)
     }
 
-    const { data: products, error: productsError } = await supabaseClient
+    const productIds = cart.map((item: any) => item.product_id)
+
+    // is_active 를 함께 조회 (판매중지 상품 우회 주문 차단).
+    // is_active 컬럼이 없는 환경(마이그레이션 미적용)에서는 select 실패 → 필터 없이 재조회하여 기존 동작 보존.
+    let products: any[] | null = null
+    let hasIsActive = true
+
+    const withActive = await supabaseClient
       .from('products')
-      .select('id, name, product_code, category, list_price, is_discountable')
-      .in(
-        'id',
-        cart.map((item: any) => item.product_id)
-      )
-    if (productsError) throw productsError
+      .select('id, name, product_code, category, list_price, is_discountable, is_active')
+      .in('id', productIds)
+
+    if (withActive.error) {
+      // is_active 컬럼 부재 등으로 실패 시 graceful fallback (회귀 0)
+      console.warn('is_active select 실패 — 필터 스킵 fallback:', withActive.error.message)
+      hasIsActive = false
+      const { data: fallbackProducts, error: fallbackError } = await supabaseClient
+        .from('products')
+        .select('id, name, product_code, category, list_price, is_discountable')
+        .in('id', productIds)
+      if (fallbackError) throw fallbackError
+      products = fallbackProducts
+    } else {
+      products = withActive.data
+    }
+
+    // is_active=false 상품이 하나라도 있으면 전체 거부 (부분 주문 금지)
+    if (hasIsActive) {
+      const hasInactive = products?.some((p) => p.is_active === false)
+      if (hasInactive) {
+        return new Response(
+          JSON.stringify({
+            error: '판매중지된 상품이 포함되어 있습니다. 장바구니를 확인해 주세요.',
+          }),
+          {
+            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+            status: 400,
+          }
+        )
+      }
+    }
 
     const { data: event, error: eventError } = await supabaseClient
       .from('events')

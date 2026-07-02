@@ -38,7 +38,8 @@ const ProductImageSlot = ({ product, theme }) => {
 };
 
 // 소프트 틴트 배지 박스(C1 §배지 패턴 — 솔리드 칩·그라데이션 금지, 높이 18·radius 4).
-const BadgeBox = ({ bg, color, children }) => (
+// TestGroupCard에서도 동일 패턴 재사용(검사군 카드 배지 통일).
+export const BadgeBox = ({ bg, color, children }) => (
   <Box
     sx={{
       height: 18,
