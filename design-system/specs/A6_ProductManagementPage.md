@@ -2,7 +2,8 @@
 
 > 이 시트는 상품 관리 화면의 정보·기능·데이터 구조의 단일 진실 소스다.
 > 시안과 실서비스 구현은 이 시트의 모든 항목을 1:1로 반영해야 한다.
-> 마지막 갱신: 2026-07-02 **검사 위계 실 구현 — is_active 토글 + 검사군 관리 화면**(frontend-engineer). (1) is_active: 상품 표 행 dim(`is_active===false`, `opacity 0.55`) + 상태 태그 컬럼 맨 앞 "숨김" 칩(`gray[200]` 소프트 틴트, 노출 중은 무표시) + 상품 폼 별도 행 "고객 주문서 노출" `Switch`(기본 노출, off 시 "숨김" 칩·보조문구) + `handleSave` PGRST204 재시도에 `is_active` 포함(컬럼 미적용 graceful). 숨김 상품이 표에서 잔류. (2) 검사군 관리: 헤더 "검사군 관리" 토글 → Collapse `SectionCard`(`products:edit`). 목록(체크박스·약어·검사명·옵션N·is_active Switch·편집·삭제) + 검사명·약어·정렬 편집 다이얼로그(미리보기 카드) + 옵션 상세(말머리·형태명 TextField·공용 Checkbox·개별 is_active Switch·▲▼ 순서) + 분리(1→N)·병합(N→1)·삭제 위험 액션 확인 다이얼로그. API `src/api/testGroups.js` 신설. 편집=즉시, 위험 액션=확인 스텝. graceful(테이블 미적용 시 빈 목록). ⚠️ 검사군 단위 is_active = 검사군 카드 노출만 토글(옵션 일괄 전파 미구현, TODO 주석 + "확인 필요" 유지 — backend·건우님 검수). 노출 필터(P1) 미구현. theme.js 무수정·MUI 유지·AI 시그니처 없음. lint·build 통과.
+> 마지막 갱신: 2026-07-02 **검사군 묶어보기 뷰 사양 추가 — 검사 카테고리 한정·토글·읽기 진열**(product-designer, 사양만 갱신·실 코드 미변경). `selectedCategory==='검사'`일 때만 노출되는 "검사군 묶어보기" `Switch`(신규 state `groupView`, **기본 off=현행 평면 표**). on 시 상품 표 골격 그대로 [검사군 그룹 헤더 행(약어·검사명·옵션N — C1 카드 정합, 가격 은닉) + 펼침 시 옵션 하위 행(기존 표 컬럼 100% 재사용)]로 진열. **도서·도구 선택 시 토글 숨김.** **탭 분리 금지**(CPO 기각 — `selectedCategory`가 카테고리 전환 담당). **읽기 진열 전용** — 검사군 편집(분리·병합·명명·옵션순서·삭제)은 **검사군 관리 패널(`tgPanelOpen`)이 유일 소스**, 개별 상품 필드 편집은 기존 행 편집 버튼(옵션 하위 행에도 유지). **신규 API 금지**(기존 `testGroups`·`tgOptionCounts`·`fetchTestGroupOptions` 재사용). **엑셀 흐름 무변경**(단일 양식·`product_code` upsert). theme.js 무수정·MUI만·AI 시그니처 금지·기존 컬럼/상태칩/is_active dim/페이지네이션/권한 가드 보존. graceful(검사군 미적용 시 평면 폴백). §상품 표 "검사군 묶어보기 뷰" 절·§필터·뷰 모드 신설.
+> 이전 갱신: 2026-07-02 **검사 위계 실 구현 — is_active 토글 + 검사군 관리 화면**(frontend-engineer). (1) is_active: 상품 표 행 dim(`is_active===false`, `opacity 0.55`) + 상태 태그 컬럼 맨 앞 "숨김" 칩(`gray[200]` 소프트 틴트, 노출 중은 무표시) + 상품 폼 별도 행 "고객 주문서 노출" `Switch`(기본 노출, off 시 "숨김" 칩·보조문구) + `handleSave` PGRST204 재시도에 `is_active` 포함(컬럼 미적용 graceful). 숨김 상품이 표에서 잔류. (2) 검사군 관리: 헤더 "검사군 관리" 토글 → Collapse `SectionCard`(`products:edit`). 목록(체크박스·약어·검사명·옵션N·is_active Switch·편집·삭제) + 검사명·약어·정렬 편집 다이얼로그(미리보기 카드) + 옵션 상세(말머리·형태명 TextField·공용 Checkbox·개별 is_active Switch·▲▼ 순서) + 분리(1→N)·병합(N→1)·삭제 위험 액션 확인 다이얼로그. API `src/api/testGroups.js` 신설. 편집=즉시, 위험 액션=확인 스텝. graceful(테이블 미적용 시 빈 목록). ⚠️ 검사군 단위 is_active = 검사군 카드 노출만 토글(옵션 일괄 전파 미구현, TODO 주석 + "확인 필요" 유지 — backend·건우님 검수). 노출 필터(P1) 미구현. theme.js 무수정·MUI 유지·AI 시그니처 없음. lint·build 통과.
 > 이전 갱신: 2026-07-02 **검사 위계 시안 — is_active 토글 + 검사군 관리 화면**(product-designer, PRD_검사위계.md). (1) **is_active(노출여부) = 상품 전역 필드**(검사 위계 전용 아님): 상품 표에 "노출" 상태칩(노출 중/숨김) + 상품 폼에 Switch. **숨김 상품도 표에서 사라지지 않고** 회색 dim + "숨김" 칩으로 구분. 단어 = **"노출 중" / "숨김"**(권고안, "판매중지"보다 중립·데이터 보존 뉘앙스 정합). (2) **검사군 관리 화면**(A6 내 신규 탭/토글 패널): 검사군 목록 + 분리/병합/검사명·약어 편집/옵션 순서/삭제. 진열 깨는 위험 액션(병합·삭제)은 확인 스텝. §검사군 관리·상태 태그·상품 폼 절 신설. theme.js 무수정·MUI 유지.
 > 이전 갱신: 2026-06-29 **동적 배지 기능 폐기 — 인기/신상품·소분류는 유지**(건우님 결정). 배지 마스터 CRUD 패널·다이얼로그, 상품 폼 배지 칩 토글, 표 동적 배지 칩, 엑셀 "배지" 열, `products.badges` 코드 참조를 전부 제거. `is_popular`/`is_new` boolean(카드 칩·폼 체크박스·표 상태태그·엑셀 인기/신상품 열)·소분류 마스터·상품 이미지·태그는 그대로 유지. `fetchBadges`·배지 CRUD API 삭제, `fetchMasterUsageCounts`는 `subCounts`만 반환. 헤더 토글 "소분류·배지 관리"→"소분류 관리". §관련 절·핵심 발견 갱신.
 > 이전 갱신: 2026-06-29 **상품 표 썸네일 플레이스홀더 폐기 — 이미지 없으면 셀 비움**(건우님 결정). `ProductThumb`가 `getProductImageUrl(filename)` null이거나 onError면 `return null`(썸네일·플레이스홀더 미표시, 셀 빈 칸). "이미지" 컬럼 자체는 유지(있는 상품만 썸네일). 기존 회색 박스+ImageIcon 플레이스홀더 제거, `ImageIcon` import 삭제. C1 카드와 동일 정책(혼재 처리 로직 없음 — 오버엔지니어링 방어). §표 썸네일·핵심 발견 14 갱신.
@@ -145,6 +146,43 @@
   - 작업: 편집 아이콘 (`EditIcon`)
 - [ ] 페이지네이션: 페이지당 항목 수 셀렉트 (10/25/50/100) + Pagination 컴포넌트
 
+### 검사군 묶어보기 뷰 (검사 카테고리 한정 · 토글 · 읽기 진열 — 2026-07-02 신규, PRD_검사위계.md §2·§5)
+> **목적:** 인싸이트 직원이 사무실 PC에서 검사 상품 1,134행을 볼 때, C1 고객 화면과 동일한 검사군(약 214개)→옵션 2뎁스로 접어서 확인. 평면 1,134행을 검사군 단위로 요약해 "이 검사에 옵션이 몇 개인지·어떻게 묶였는지"를 고객이 보는 그대로 검수. **읽기 진열 전용** — 편집은 하지 않는다(아래 역할 분담 참조).
+> **탭 분리 금지(CPO 기각).** 카드 클릭 필터(`selectedCategory`)가 이미 카테고리 전환을 담당하므로, 별도 탭을 만들지 않고 **검사 카테고리 선택 상태에서만 뜨는 뷰 토글**로 처리한다.
+
+#### 토글 (Switch)
+- [ ] **노출 조건: `selectedCategory === '검사'`일 때만.** 검색·필터 카드(§검색·필터, `SectionCard`) 우측 또는 표 상단에 `Switch` + 라벨 **"검사군 묶어보기"** 배치. **도서·도구 카테고리 선택 시 토글 자체를 숨김**(전체/도서/도구 뷰에서는 평면 표만). 검사에서 다른 카테고리로 전환하면 토글이 사라지고 자동으로 평면 표로 복귀(뷰 상태는 유지하되 미노출).
+- [ ] **기본값 off = 현행 평면 표.** 상품 표의 기존 컬럼·상태칩·`is_active` dim·페이지네이션·권한 가드·정렬 전부 그대로. off는 지금과 완전히 동일한 화면(회귀 0). 신규 state 1개(`groupView` bool, 기본 false)만 추가.
+- [ ] on = 검사군 헤더 행 접기 + 옵션 하위 행 진열(아래). 옵션 편집·CRUD 없음.
+- [ ] 시각: 그라데이션·컬러 인디케이터 금지(MUI `Switch` + `caption` 라벨만). 보조문구 불필요(자명한 토글).
+
+#### Before / After 구조 요약
+- **Before (off, 기본):** 검사 1,134행이 평면 `Table` 행으로 나열. 상품명 = 원본 풀네임(`K·BASC-3 한국판 정서-행동 평가시스템 부모보고형-청소년용_검사지/온라인코드(20)`). 검사군 인지·옵션 개수 파악 어려움(PRD §1 Pain 재현).
+- **After (on):** **검사군 그룹 헤더 행**(약 214행) + 펼침 시 그 아래 **옵션 하위 행**. C1 `TestGroupCard`와 동일한 2뎁스 정보 위계(검사명 주인공·약어 보조·옵션 N). 평면 대비 스캔 대상이 1,134→214로 축소. **컬럼·표 골격은 그대로**(같은 `Table`, 같은 헤더). 행 구성만 [검사군 헤더 + 접이식 옵션 행]으로 바뀜.
+
+#### 검사군 그룹 헤더 행 표기 (C1 카드와 정합)
+- [ ] 헤더 행은 상품 표의 **한 `TableRow`** 로, 소속 옵션을 접었다 폈다 하는 아코디언 트리거.
+  - **좌측 셀(상품명 컬럼 위치)**: ▸/▾ 펼침 아이콘 + **약어**(`test_groups.abbr`, `caption`/600/`text.secondary` — 좌측 보조 위계, 없으면 생략) + **검사명**(`test_groups.name`, `body1`/600 — 주인공, wrap) → **C1 카드 접힘 상태의 약어·검사명 위계와 동일**.
+  - **"옵션 N개"**: `tgOptionCounts[group.id]` 재사용(`body2`/`text.secondary`). C1 카드의 "옵션 N개"와 동일 문구. **가격은 헤더에 미표기**(C1 검사군 카드 가격 은닉 규칙과 정합 — 헤더는 묶음 요약, 가격은 옵션 행에서만).
+  - **`test_groups.is_active === false` 검사군**: 행 dim(`opacity 0.55`) + "숨김" 칩(상품 표 기존 숨김 칩과 동일 패턴 재사용).
+  - 그룹 헤더 행은 나머지 컬럼(카테고리·하위카테고리·가격·비고·상태태그·태그·작업)을 병합(`colSpan`)하거나 비움 — 요약 행이라 개별 상품 컬럼 값 없음. **작업 컬럼에 편집 버튼 없음**(읽기 진열).
+- [ ] 정렬: `test_groups.sort_order` → 검사명(마스터 조회 정렬 그대로). `test_group_id`가 없는(미분류) 검사 상품은 그룹 헤더 아래가 아니라 **뷰 하단에 "미분류" 그룹**으로 묶거나 평면 행으로 노출(누락 금지 — graceful).
+
+#### 옵션 하위 행 (기존 표 컬럼 재사용)
+- [ ] 그룹 헤더를 펼치면 소속 옵션(`fetchTestGroupOptions(group.id)` — **기존 API 재사용, 신규 API 금지**)이 **상품 표의 기존 컬럼 구조 그대로** 하위 행으로 나열. 즉 옵션 하위 행 = **평면 표 행과 동일한 셀 구성**(이미지·상품명·카테고리·하위카테고리·가격·비고·상태태그·태그·작업). 들여쓰기(상품명 셀 좌측 pad)로 하위 위계 표현.
+  - 상품명 셀은 원본 `name` 대신 **말머리(`option_label`) + 형태명(`option_name`)** 조합 표시 권장(C1 옵션 행 정합) — 단 마스터 미정제 상품은 원본 `name` 폴백. 나머지 셀은 평면 표와 100% 동일 렌더(가격·상태칩·태그·`is_active` dim 그대로 재사용 — 별도 렌더 로직 안 만듦).
+  - **작업(편집) 아이콘은 옵션 하위 행에도 그대로 유지** — 개별 상품 수정은 기존 상품 표 행의 편집 버튼이 소스이므로, 묶어보기 뷰의 옵션 행에서도 같은 편집 다이얼로그 진입 허용(중복 아님 — 검사군 구조 편집이 아니라 상품 필드 편집). 검사군 자체의 분리/병합/명명은 **검사군 관리 패널이 유일 소스**.
+- [ ] 페이지네이션: 그룹 헤더(214개) 기준으로 적용(평면 1,134 기준 아님) — 헤더 수가 관리 가능 규모라 전량 또는 큰 페이지 크기. 옵션 펼침은 페이지네이션과 무관(현재 페이지 내 아코디언).
+
+#### 검사군 관리 패널(`tgPanelOpen`)과의 역할 분담
+- [ ] **묶어보기 뷰 = 읽기 진열(고객 시점 검수) / 검사군 관리 패널(`tgPanelOpen`) = 편집(분리·병합·검사명/약어·옵션순서·삭제).** 뷰에서 검사군 구조를 바꾸는 액션(CRUD)은 제공하지 않으며, 편집이 필요하면 헤더 "검사군 관리" 토글 패널 또는 개별 상품 행 편집 버튼으로 진입한다(중복 CRUD 금지 — 단일 진실 소스 유지).
+
+#### 제약 (엄수 — frontend 구현 시)
+- [ ] **엑셀 흐름 무변경.** 단일 양식·`product_code` upsert 유지. 양식 분할·신규 열 없음. 묶어보기는 순수 진열 뷰라 데이터 입출력에 영향 0.
+- [ ] **신규 API 금지.** 기존 `testGroups` state + `tgOptionCounts` + `fetchTestGroupOptions` 재사용. graceful: `test_group_id`/`test_groups` 미적용 환경이면 토글이 떠도 검사군 0개 → 평면 폴백(회귀 0).
+- [ ] **theme.js 무수정 · MUI만 · AI 시그니처(그라데이션·컬러바·가짜 통계) 금지.** 기존 `Table`·`Collapse`/아코디언·`Chip`·`Switch` 패턴 재사용.
+- [ ] 상품 표 기존 컬럼·상태칩·`is_active` dim·페이지네이션·권한 가드(`products:view`/`products:edit`) 전부 보존.
+
 ### 정렬 규칙
 - [ ] 정렬: 인기 상품 우선 → 이름 가나다순 (line 175-179)
 
@@ -233,6 +271,7 @@
 
 - 검색어 (상품명 부분 일치)
 - 카테고리 단일 선택 (도서/검사/도구) — 카드 클릭으로 토글
+- **검사군 묶어보기 뷰 (2026-07-02 신규)**: `selectedCategory==='검사'`일 때만 노출되는 `Switch`(`groupView` bool, 기본 off=평면). on 시 검사군 헤더 행 접기+옵션 하위 행 진열. 도서·도구 선택 시 토글 숨김. 읽기 전용(편집=검사군 관리 패널). 신규 API·엑셀 변경 없음. §상품 표 "검사군 묶어보기 뷰" 절 참조.
 - 빠른 필터: discountable | popular | null
 - **노출 필터 — (2026-07-02 신규, 1차 선택)**: `productQuickFilter`에 `hidden`(숨김만) 추가 검토, 또는 검색·필터 카드에 "숨김 포함 N개" 표시 + 별도 토글. **기본은 전체 노출**(숨김 상품도 표에 보임 — dim+칩으로 구분). 운영자가 "숨김 상품만 모아보기"를 원할 때만 필터. **구현 우선순위 낮음** — is_active 상태칩·폼 Switch가 P0, 필터는 P1.
 - 태그 다중 선택 (OR 매칭)
@@ -269,6 +308,7 @@
 
 ## 변경 이력
 
+- 2026-07-02 **검사군 묶어보기 뷰 사양 추가 (사양만 갱신, 실 코드 미변경 — product-designer)**. A6 §상품 표에 "검사군 묶어보기 뷰(검사 카테고리 한정·토글·읽기 진열)" 절 신설 + §필터·뷰 모드에 뷰 항목 추가. (1) **토글**: `selectedCategory==='검사'`일 때만 뜨는 MUI `Switch` "검사군 묶어보기"(신규 state `groupView` bool, 기본 off). 도서·도구 선택 시 숨김. off=현행 평면 표(회귀 0). (2) **그룹 헤더 행**: 약어(`test_groups.abbr` 보조)+검사명(`name` 주인공)+"옵션 N개"(`tgOptionCounts` 재사용)로 C1 `TestGroupCard` 접힘 상태와 정합, 가격 은닉, `is_active=false` 검사군 dim+숨김 칩. (3) **옵션 하위 행**: 펼치면 `fetchTestGroupOptions`(기존 API) 소속 옵션을 상품 표 기존 컬럼 구조 그대로 하위 행 진열(말머리+형태명 상품명 셀, 나머지 셀·가격·상태칩·is_active dim 재사용). 개별 상품 편집 버튼 유지(검사군 구조 편집 아님). (4) **역할 분담**: 뷰=읽기 진열, 검사군 관리 패널(`tgPanelOpen`)=편집(분리·병합·명명·옵션순서·삭제) 유일 소스. (5) **제약**: 탭 분리 금지(CPO 기각), 엑셀 흐름 무변경(단일 양식·product_code upsert), 신규 API 금지, theme.js 무수정·MUI만·AI 시그니처 금지, 기존 컬럼/상태칩/페이지네이션/권한 가드 보존, graceful(검사군 미적용 시 평면 폴백). 미반영(frontend 결정 필요): 그룹 헤더 행 colSpan 병합 방식·미분류 검사 상품 배치·페이지네이션 단위(헤더 214 기준)·펼침 아코디언 구현(Collapse vs 행 삽입).
 - 2026-07-02 **검사 위계 실 구현 — is_active 토글 + 검사군 관리 화면 (실 코드 변경 — frontend-engineer)**. (1) **is_active(노출여부)**: 상품 표 `TableRow` `opacity: is_active===false ? 0.55 : 1`(dim), 상태 태그 컬럼 맨 앞 "숨김" 칩(`theme.gray[200]` 배경 + `text.secondary`, `is_active===false`만 표시 — 노출 중은 무표시, `-` 폴백 조건도 `is_active!==false` 게이트). 상품 폼 플래그 체크박스 3종 뒤 별도 행에 "고객 주문서 노출" `Switch`(`checked={is_active!==false}`, 기본 노출, off 시 "숨김" 칩·보조문구 "끄면 주문서에서 숨겨집니다 (데이터는 보존 — 삭제 아님)"). `createEmptyProduct`에 `is_active: true`. `handleSave` mutate의 PGRST204 재시도 게이트에 `is_active` 포함(image_filename과 함께 delete 후 재시도) — 컬럼 미적용 환경 graceful. 숨김 상품 표 잔류. 검사/도서/도구 공통(검사 위계 UI 비종속). (2) **검사군 관리**: 헤더 액션부 "검사군 관리" 토글(`AccountTreeIcon`, `products:edit`) → Collapse `SectionCard`(padding 0). 툴바(검사군 추가 contained·병합 outlined error·검색 TextField) + 목록 `Table`(체크박스·약어 caption·검사명 body1/600·옵션N·is_active Switch·편집·삭제, `is_active=false` 행 dim+"· 숨김"). 빈 상태 메시지. 검사명·약어 편집 다이얼로그(검사명·약어·정렬 + 미리보기 고객 카드 접힘). 옵션 상세 다이얼로그(말머리·형태명 TextField·공용 Checkbox·개별 is_active Switch·▲▼ 순서 이동, 상단 분리 버튼, 저장 시 각 상품 `updateProductOption`으로 sort_order=index 재기입). 분리 다이얼로그(새 검사군 검사명·약어 + 옵션 다중선택, 확인 문구). 병합 다이얼로그(대표 검사군 선택 Checkbox·옵션 합계·되돌림 경고). 삭제 확인(소속 옵션 낱개 복귀·절판은 숨김 권고 안내). 편집=즉시, 분리/병합/삭제=확인 스텝. `loadTestGroups`로 마운트·CRUD 후 로드. API `src/api/testGroups.js` 신설(모두 api 계층 경유, 직접 supabase 호출은 api 파일 내부만). (3) **graceful**: 테이블·컬럼 미적용(42P01·PGRST204·PGRST205) 시 빈 목록/무동작 → 화면 회귀 0. (4) **미확정 처리**: 검사군 단위 is_active 토글은 **검사군 카드 노출(test_groups.is_active)만** 토글하고 소속 옵션 일괄 전파는 안 함 — `handleToggleTgActive`에 TODO 주석 + 사양 §검사군 목록 "확인 필요" 유지(backend·건우님 검수). 노출 필터(P1)는 미구현(사양 P1 우선순위 낮음 그대로). **theme.js 무수정·MUI만·AI 시그니처 없음.** 검증: `npx eslint`(변경 파일 위반 0)·`vite build` 통과.
 - 2026-07-02 **검사 위계 시안 — is_active 토글 + 검사군 관리 화면 (사양만 갱신, 실 코드 미변경 — product-designer)**. PRD_검사위계.md 흐름 B(보정 UI 전체 구현) + is_active(노출여부) 전역 필드 UI. (1) **상품 표**: 상태 태그 컬럼에 "숨김" 칩(`is_active=false`, `gray[200]` 소프트 틴트) + 행 dim, 노출 중은 무표시. 숨김 상품이 표에서 사라지지 않음(재판매·이관 대비). (2) **상품 폼**: 플래그 체크박스 3종과 별도 행에 "고객 주문서 노출" `Switch`(체크박스 아님 — 진열 즉영향 전역 스위치) + 보조문구. 기본 true. (3) **검사군 관리 화면**(헤더 "검사군 관리" 토글 패널 or 서브탭, `products:edit`): 검사군 목록(약어·검사명·옵션N·is_active Switch·편집·삭제) + 검사명/약어 편집 다이얼로그(미리보기로 잘림 확인) + 옵션 순서·말머리·is_common·개별 is_active 편집 + 분리(1→N)·병합(N→1)·삭제 위험 액션 확인 스텝. 즉시저장 아님(위험도 높아 저장+확인). 삭제는 검사군 마스터만 제거(상품은 test_group_id NULL로 보존). (4) 데이터 모델에 `is_active`·검사 위계 5컬럼 명시(⚠️ 실 마이그레이션 존재 여부 backend 확인 필요). (5) 노출 필터는 P1(1차 선택). **단어 권고**: "노출 중"/"숨김"(중립·데이터 보존 뉘앙스, "판매중지"보다 정합). **AI 시그니처 금지·theme.js 무수정·MUI 유지.** 미반영: is_active 실 마이그레이션·검사군 단위 is_active 토글 범위·노출 필터 구현 우선순위(전부 backend·건우님 검수 대상으로 명시). C1 시트 동시 갱신.
 - 2026-06-29 **동적 배지 기능 폐기 — 인기/신상품·소분류는 유지 (실 코드 변경, 건우님 결정)**. (제거) 배지 마스터 CRUD 패널(SectionCard)·다이얼로그·`handleSaveBadge`/`handleDeleteBadge`/`handleToggleBadgeActive`·`badgeDialog`/`badgeMaster`/`customBadgeInput` state·`badgeOptions`/`badgeColorByName`/`badgePriorityByName` memo·`handleToggleBadge`/`handleAddCustomBadge`, 상품 폼 배지 칩 토글 블록, 표 동적 배지 칩 map, 엑셀 "배지" 열(양식·목록·파싱 3곳)·`badgeWarnings`·`CARD_BADGE_LIMIT`, `createEmptyProduct.badges`, `handleSave`/엑셀 payload의 `badges` 처리, `api/masters.js`의 `fetchBadges`/`createBadge`/`updateBadge`/`deleteBadge`·`fetchMasterUsageCounts`의 badgeCounts. `BadgeChip`→`ColorChip` 리네임(소분류 표시 재사용처만 잔존). 헤더 토글 "소분류·배지 관리"→"소분류 관리". 미사용 import(`SellIcon`·`Alert`) 정리. (유지) `is_popular`/`is_new` boolean — 카드 칩·폼 체크박스·표 상태태그·엑셀 인기/신상품 열 전부 그대로. 소분류 마스터·상품 이미지·태그·카테고리 그대로. `products.badges` 코드 참조 0(grep 확인, drop 후 에러 0). C1/A8 시트 동시 갱신. **검증**: lint(변경 파일 신규 위반 0, 기존 send-alimtalk 9에러 무관)·vite build 통과. theme.js 무수정.
