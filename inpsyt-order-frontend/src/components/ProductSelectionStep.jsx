@@ -12,6 +12,7 @@ import { Search as SearchIcon, Star as StarIcon, FiberNew as NewIcon } from '@mu
 import { fetchAllProducts } from '../api/products';
 import { fetchTestGroups } from '../api/testGroups';
 import { useNotification } from '../hooks/useNotification';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { matchesSearch } from '../utils/search';
 import { normalizeCategory, buildGroupMetaMap, groupTestProducts } from '../utils/testGroupDisplay';
 import ProductCard from './ProductCard';
@@ -25,10 +26,12 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
   const [allProducts, setAllProducts] = useState([]);
   const [testGroupMaster, setTestGroupMaster] = useState([]); // test_groups 마스터(약어·검사명·정렬)
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(''); // 입력값(즉시 반영)
+  const debouncedSearch = useDebouncedValue(searchTerm, 250); // 필터·검색은 지연 반응
   const [viewMode, setViewMode] = useState('popular'); // 'all' | 'popular' | 'new'
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [expandedGroups, setExpandedGroups] = useState({}); // { [groupId]: bool }
+  // 검사군 펼침 상태: undefined=사용자 미조작 / true·false=사용자 조작. 검색 자동펼침은 초기 상태로만.
+  const [expandedGroups, setExpandedGroups] = useState({});
 
   const [page, setPage] = useState(1);
   const observer = useRef();
@@ -90,7 +93,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
     [baseProducts, groupedProductIds]
   );
 
-  const hasSearch = Boolean(searchTerm.trim());
+  const hasSearch = Boolean(debouncedSearch.trim());
 
   // 검사군 카테고리 표시 여부 — '전체' 또는 '검사' 선택 시(단일 대분류 행사는 소분류 기준 별도 처리)
   const showTestGroups = useMemo(() => {
@@ -115,16 +118,19 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
       else if (viewMode === 'new') groups = groups.filter(g => g.options.some(p => p.is_new));
     }
 
-    // 검색 = 검사군 단위: 검사명·약어·옵션명 매칭. 옵션 낱개 안 쏟음.
+    // 검색 = 검사군 단위: 검사명·약어·옵션명·말머리(option_label) 매칭. 옵션 낱개 안 쏟음.
     if (hasSearch) {
       groups = groups.filter(g => {
-        if (matchesSearch(g.name, searchTerm) || (g.abbr && matchesSearch(g.abbr, searchTerm))) return true;
-        return g.options.some(p => matchesSearch(p.option_name || p.name, searchTerm));
+        if (matchesSearch(g.name, debouncedSearch) || (g.abbr && matchesSearch(g.abbr, debouncedSearch))) return true;
+        return g.options.some(p =>
+          matchesSearch(p.option_name || p.name, debouncedSearch) ||
+          matchesSearch(p.option_label, debouncedSearch)
+        );
       });
     }
 
     return groups;
-  }, [showTestGroups, testGroups, hasSearch, viewMode, eventTags, searchTerm]);
+  }, [showTestGroups, testGroups, hasSearch, viewMode, eventTags, debouncedSearch]);
 
   // 검색 매칭된 검사군 id 집합 — 자동 펼침 판정용
   const searchMatchedGroupIds = useMemo(() => {
@@ -155,7 +161,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
     }
 
     if (hasSearch) {
-      list = list.filter(p => matchesSearch(p.name, searchTerm));
+      list = list.filter(p => matchesSearch(p.name, debouncedSearch));
     }
 
     return [...list].sort((a, b) => {
@@ -163,12 +169,18 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
       if (popDiff !== 0) return popDiff;
       return (a.name || '').localeCompare(b.name || '');
     });
-  }, [flatProducts, searchTerm, viewMode, selectedCategory, eventTags, isSingleCategory, hasSearch]);
+  }, [flatProducts, debouncedSearch, viewMode, selectedCategory, eventTags, isSingleCategory, hasSearch]);
 
   // 필터 변경 시 페이지 리셋
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, viewMode, selectedCategory]);
+  }, [debouncedSearch, viewMode, selectedCategory]);
+
+  // 검색어 변경 시 사용자 펼침 조작 초기화 — 새 검색 결과는 매칭 검사군을 자동 펼침(초기 상태).
+  // 이후 사용자는 개별 카드를 자유롭게 접고 펼 수 있음(아래 expanded 판정 참조).
+  useEffect(() => {
+    setExpandedGroups({});
+  }, [debouncedSearch]);
 
   const displayedProducts = useMemo(
     () => filteredProducts.slice(0, page * PAGE_SIZE),
@@ -219,8 +231,10 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
     }
   }, [cart, onCartChange]);
 
-  const toggleGroup = useCallback((groupId) => {
-    setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
+  // currentExpanded = 현재 화면에 펼쳐진 상태(자동펼침 포함). 그 반대로 토글해
+  // 자동 펼침된 검사군도 사용자가 곧바로 접을 수 있게 한다(문제 3).
+  const toggleGroup = useCallback((groupId, currentExpanded) => {
+    setExpandedGroups(prev => ({ ...prev, [groupId]: !currentExpanded }));
   }, []);
 
   let categories;
@@ -365,19 +379,26 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
           {/* 검사군 리스트 — 풀폭 1열 */}
           {filteredGroups.length > 0 && (
             <Box sx={{ mb: displayedProducts.length > 0 ? 3 : 0 }}>
-              {filteredGroups.map((group) => (
-                <TestGroupCard
-                  key={group.id}
-                  group={group}
-                  discountRate={discountRate}
-                  expanded={Boolean(expandedGroups[group.id]) || searchMatchedGroupIds.has(group.id)}
-                  onToggle={() => toggleGroup(group.id)}
-                  getCartQuantity={getCartQuantity}
-                  onAdd={handleAddProduct}
-                  onIncrement={handleIncrement}
-                  onDecrement={handleDecrement}
-                />
-              ))}
+              {filteredGroups.map((group) => {
+                // 사용자가 이 카드를 조작했으면(값 정의됨) 그 값 우선.
+                // 미조작이면 검색 매칭 검사군을 자동 펼침(초기 상태), 평상시엔 접힘.
+                const isExpanded = expandedGroups[group.id] !== undefined
+                  ? expandedGroups[group.id]
+                  : searchMatchedGroupIds.has(group.id);
+                return (
+                  <TestGroupCard
+                    key={group.id}
+                    group={group}
+                    discountRate={discountRate}
+                    expanded={isExpanded}
+                    onToggle={() => toggleGroup(group.id, isExpanded)}
+                    getCartQuantity={getCartQuantity}
+                    onAdd={handleAddProduct}
+                    onIncrement={handleIncrement}
+                    onDecrement={handleDecrement}
+                  />
+                );
+              })}
             </Box>
           )}
 

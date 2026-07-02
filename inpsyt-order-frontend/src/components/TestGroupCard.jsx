@@ -61,14 +61,12 @@ const OptionAction = ({ theme, quantity, onAdd, onIncrement, onDecrement }) => {
   );
 };
 
-// 가격 표기 — ProductCard 할인 로직과 동일 규칙. size='opt'(펼친 행) / 'single'(옵션1개 카드).
-const OptionPrice = ({ product, discountRate, variant = 'opt' }) => {
+// 가격 표기 — ProductCard 할인 로직과 동일 규칙. 펼친 옵션 행 전용.
+const OptionPrice = ({ product, discountRate }) => {
   const isDiscounted = product.is_discountable && discountRate > 0;
   const discountedPrice = isDiscounted
     ? Math.round(product.list_price * (1 - discountRate))
     : product.list_price;
-  const finalVariant = variant === 'single' ? 'subtitle1' : 'subtitle1';
-  const finalSize = variant === 'single' ? '1.125rem' : undefined;
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap', mt: 0.75 }}>
@@ -83,10 +81,9 @@ const OptionPrice = ({ product, discountRate, variant = 'opt' }) => {
         </>
       )}
       <Typography
-        variant={finalVariant}
+        variant="subtitle1"
         sx={{
           fontWeight: 800,
-          fontSize: finalSize,
           color: isDiscounted ? 'primary.main' : 'text.primary',
           lineHeight: 1.2,
         }}
@@ -140,14 +137,13 @@ const OptionRow = ({ product, discountRate, theme, quantity, onAdd, onIncrement,
 
 // 검사군 카드(C1 §검사군 카드) — test_group_id 2뎁스 진열.
 // group = { id, abbr, name, options: [product...] } (옵션은 is_active=true·sort_order 정렬 완료 상태).
-// 3상태: 접힘 / 펼침(옵션 세로 리스트) / 옵션1개(펼침 없이 즉시 담기).
+// 옵션 수와 무관하게 동일 UX: 접힘 카드 → 펼침 → 옵션 세로 리스트(옵션 1개여도 동일).
 const TestGroupCard = ({
   group, discountRate = 0, expanded = false, onToggle,
   getCartQuantity, onAdd, onIncrement, onDecrement,
 }) => {
   const theme = useTheme();
   const { abbr, name, options } = group;
-  const isSingle = options.length === 1;
 
   const cartCount = options.reduce((n, p) => n + (getCartQuantity(p.id) > 0 ? 1 : 0), 0);
   const hasCart = cartCount > 0;
@@ -189,44 +185,11 @@ const TestGroupCard = ({
       <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
         {name}
       </Typography>
-      {isSingle ? (
-        <OptionPrice product={options[0]} discountRate={discountRate} variant="single" />
-      ) : (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          {`옵션 ${options.length}개`}
-        </Typography>
-      )}
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+        {`옵션 ${options.length}개`}
+      </Typography>
     </Box>
   );
-
-  // 옵션 1개 — 펼침 신호 없이 카드 우측 담기/스테퍼 즉시 노출.
-  if (isSingle) {
-    const single = options[0];
-    return (
-      <Card
-        sx={{
-          border: '1.5px solid',
-          borderColor: hasCart ? 'primary.main' : 'divider',
-          boxShadow: 'none',
-          transition: `border-color 0.2s ${theme.easing.toss}`,
-          mb: 1.5,
-        }}
-      >
-        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 }, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          {headBody}
-          <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-            <OptionAction
-              theme={theme}
-              quantity={getCartQuantity(single.id)}
-              onAdd={() => onAdd(single)}
-              onIncrement={() => onIncrement(single.id)}
-              onDecrement={() => onDecrement(single.id)}
-            />
-          </Box>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card
