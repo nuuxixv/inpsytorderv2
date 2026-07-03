@@ -117,11 +117,15 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
       else if (viewMode === 'new') groups = groups.filter(g => g.options.some(p => p.is_new));
     }
 
-    // 검색 = 검사군 단위, 대상은 상품명 원본(name) 하나. 원본 상품명에 검사명·약어·말머리·옵션이
-    // 모두 포함돼 있어(예 `K·BASC-3 한국판 정서-행동 평가시스템 부모보고형-청소년용_검사지/온라인코드(20)`)
-    // name 단일 매칭으로 정확도 유지 + 단순화. 옵션 하나라도 매칭이면 그 검사군 노출(옵션 낱개 안 쏟음).
+    // 검색 = 검사군 단위. 대상: 검사군 마스터의 검사명(name)·약어(abbr) + 옵션 상품명(원본 name).
+    // 약어(예 K-WISC-V)가 상품명에 없는 검사군도 약어로 검색되도록 마스터 필드를 함께 매칭.
+    // 셋 중 하나라도 매칭이면 그 검사군 노출(옵션 낱개 안 쏟음).
     if (hasSearch) {
-      groups = groups.filter(g => g.options.some(p => matchesSearch(p.name, debouncedSearch)));
+      groups = groups.filter(g =>
+        matchesSearch(g.name, debouncedSearch)
+        || matchesSearch(g.abbr, debouncedSearch)
+        || g.options.some(p => matchesSearch(p.name, debouncedSearch))
+      );
     }
 
     return groups;
