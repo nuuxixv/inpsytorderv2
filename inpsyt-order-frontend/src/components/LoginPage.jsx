@@ -146,6 +146,8 @@ const LoginPage = () => {
   const [awaitingSession, setAwaitingSession] = useState(false);
   // 사양 §발견 7: 100ms 자동 제출 중복 발화 방지(7번째 키스트로크 회피)
   const handlingSubmitRef = useRef(false);
+  // PIN 입력 필드 참조 — 로그인 실패 후 즉시 재입력 가능하도록 포커스 복원용.
+  const pinInputRef = useRef(null);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -196,6 +198,7 @@ const LoginPage = () => {
       setPassword('');
       setLoading(false);
       handlingSubmitRef.current = false;
+      // 포커스 복원은 아래 useEffect에서 처리(loading 해제·DOM 커밋 후여야 disabled 풀린 input에 focus됨).
     }
   };
 
@@ -289,6 +292,14 @@ const LoginPage = () => {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [currentStep, usersForRole, selectedRole, selectedUser, handleBack]);
+
+  // 로그인 실패 시 PIN 입력 필드로 포커스 복원 — 재클릭 없이 즉시 재입력.
+  // useEffect는 DOM 커밋(loading=false로 disabled 해제 반영) 이후 실행돼 focus가 확실히 걸린다.
+  useEffect(() => {
+    if (error && !loading && currentStep === 2) {
+      pinInputRef.current?.focus();
+    }
+  }, [error, loading, currentStep]);
 
   return (
     <Box
@@ -480,6 +491,7 @@ const LoginPage = () => {
               id="password"
               autoComplete="current-password"
               autoFocus
+              inputRef={pinInputRef}
               placeholder="••••••"
               value={password}
               onChange={handlePinChange}

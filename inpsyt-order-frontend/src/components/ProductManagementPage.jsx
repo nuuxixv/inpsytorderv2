@@ -459,10 +459,28 @@ const ProductManagementPage = () => {
     return Array.from(new Set([...fromProducts, ...fromSocieties])).sort();
   }, [allProducts, societies]);
 
+  // 검사군 id → 메타(약어·검사명) 맵 — 검색 대상에 검사군 abbr·name 포함용.
+  const tgById = useMemo(() => {
+    const m = new Map();
+    for (const g of testGroups) m.set(g.id, g);
+    return m;
+  }, [testGroups]);
+
   // 필터: 검색 + 카테고리 + 빠른 필터
   const filteredProducts = useMemo(() => {
     let list = allProducts;
-    if (searchTerm.trim()) list = list.filter(p => matchesSearch(p.name, searchTerm));
+    // 검색 대상 = 상품명(name) + 소속 검사군의 검사명(name)·약어(abbr).
+    // 약어(예 K-WISC-V)가 상품명에 없어도 검사군 약어로 검색되도록 마스터 메타를 함께 매칭.
+    if (searchTerm.trim()) {
+      list = list.filter((p) => {
+        if (matchesSearch(p.name, searchTerm)) return true;
+        if (p.test_group_id != null) {
+          const g = tgById.get(p.test_group_id);
+          if (g && (matchesSearch(g.name, searchTerm) || matchesSearch(g.abbr, searchTerm))) return true;
+        }
+        return false;
+      });
+    }
     if (selectedCategory) list = list.filter(p => p.category === selectedCategory);
     if (productQuickFilter === 'discountable') list = list.filter(p => p.is_discountable);
     if (productQuickFilter === 'popular') list = list.filter(p => p.is_popular);
@@ -472,7 +490,7 @@ const ProductManagementPage = () => {
       if (popDiff !== 0) return popDiff;
       return (a.name || '').localeCompare(b.name || '');
     });
-  }, [allProducts, searchTerm, selectedCategory, productQuickFilter, selectedTags]);
+  }, [allProducts, searchTerm, selectedCategory, productQuickFilter, selectedTags, tgById]);
 
   const totalFiltered = filteredProducts.length;
 
