@@ -109,7 +109,8 @@ const parsePrice = (value) => {
 
 // 상품 표 썸네일(A6 §표 썸네일). 1:1 작은 정방형.
 // 미등록·onError면 셀 비움(null) — 플레이스홀더 폐기(건우님 2026-06-29). 대부분 미등록(NULL)이 정상.
-const ProductThumb = ({ filename, name }) => {
+// memo: filename·name 같으면 skip(탭 전환·검색·행 재정렬 시 이미지 셀 재렌더 방지).
+const ProductThumb = React.memo(({ filename, name }) => {
   const [failed, setFailed] = useState(false);
   const url = getProductImageUrl(filename);
   if (!url || failed) return null;
@@ -134,7 +135,106 @@ const ProductThumb = ({ filename, name }) => {
       />
     </Box>
   );
-};
+});
+
+// 상품명 이후 공통 셀(카테고리·하위카테고리·가격·비고·상태태그·태그·작업).
+// 평면 행과 검사군 옵션 하위 행이 동일하게 재사용(사양 §옵션 하위 행).
+// ProductRow 내부 렌더로 흡수 — memo 대상이 셀 전체를 포함해야 재렌더가 온전히 skip됨.
+const renderProductCells = (product, subColorByName, theme, canEdit, onEdit) => (
+  <>
+    <TableCell><Chip label={product.category} size="small" color="primary" variant="outlined" /></TableCell>
+    <TableCell>
+      {product.sub_category
+        ? (subColorByName[product.sub_category]
+            ? <ColorChip label={product.sub_category} color={subColorByName[product.sub_category]} />
+            : <ColorChip label={`${product.sub_category} · 미등록`} color={MASTER_COLOR_FALLBACK} />)
+        : '-'}
+    </TableCell>
+    <TableCell align="right" sx={{ fontWeight: 700, fontFeatureSettings: '"tnum" 1' }}>{(product.list_price || 0).toLocaleString()}원</TableCell>
+    <TableCell sx={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product.notes || '-'}</TableCell>
+    <TableCell align="center">
+      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', justifyContent: 'center', minWidth: 80 }}>
+        {/* 숨김 칩 — is_active=false만 표시(노출 중은 기본 상태라 무표시, 노이즈 방지). gray 소프트 틴트. */}
+        {product.is_active === false && (
+          <Chip
+            label="숨김"
+            size="small"
+            sx={{ bgcolor: theme.gray[200], color: 'text.secondary', border: 0, fontWeight: 600 }}
+          />
+        )}
+        {product.is_popular && <Chip label="인기" size="small" color="warning" />}
+        {product.is_new && <Chip label="신상품" size="small" color="primary" />}
+        {product.is_discountable && (
+          <Chip
+            label="할인"
+            size="small"
+            sx={{ bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main', border: 0 }}
+          />
+        )}
+        {product.is_active !== false && !product.is_popular && !product.is_new && !product.is_discountable && (
+          <Typography variant="caption" color="text.secondary">-</Typography>
+        )}
+      </Box>
+    </TableCell>
+    <TableCell>
+      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+        {(product.tags || []).slice(0, 2).map((tag, index) => (
+          <Chip key={index} label={tag} size="small" variant="outlined" />
+        ))}
+        {(product.tags || []).length > 2 && (
+          <Tooltip title={product.tags.slice(2).join(', ')} arrow>
+            <Chip label={`+${product.tags.length - 2}`} size="small" sx={{ cursor: 'pointer' }} />
+          </Tooltip>
+        )}
+      </Box>
+    </TableCell>
+    {canEdit && (
+      <TableCell align="center">
+        <IconButton
+          size="small"
+          onClick={() => onEdit(product)}
+          sx={{ color: 'primary.main', '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) } }}
+        >
+          <EditIcon fontSize="small" />
+        </IconButton>
+      </TableCell>
+    )}
+  </>
+);
+
+// 상품 표 한 행(평면 뷰 행 = 검사군 옵션 하위 행 공용). memo — product·selected·canEdit·subColorByName가
+// 안 바뀌면 재렌더 skip. 핸들러(onToggle·onEdit)는 상위에서 useCallback으로 안정화해야 memo 효과가 남.
+// isOption=true면 검사군 옵션 하위 행(상품명 셀=말머리+형태명, 들여쓰기). 셀 구성은 renderProductCells 공용.
+const ProductRow = React.memo(({ product, selected, canEdit, isOption, subColorByName, theme, onToggle, onEdit }) => {
+  const nameLabel = isOption
+    ? ([product.option_label, product.option_name].filter(Boolean).join(' ') || product.name)
+    : product.name;
+  return (
+    <TableRow
+      selected={selected}
+      sx={{
+        '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.02) },
+        transition: 'background-color 0.2s',
+        // is_active=false(숨김) 행 dim. 표에서 사라지지 않고 잔류(재판매·이관 대비).
+        // graceful: 컬럼 미적용(undefined)은 노출로 취급.
+        opacity: product.is_active === false ? 0.55 : 1,
+      }}
+    >
+      {canEdit && (
+        <TableCell padding="checkbox">
+          <Checkbox size="small" checked={selected} onChange={() => onToggle(product.id)} />
+        </TableCell>
+      )}
+      <TableCell align="center">
+        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <ProductThumb filename={product.image_filename} name={product.name} />
+        </Box>
+      </TableCell>
+      <TableCell sx={{ fontWeight: 500, ...(isOption ? { pl: 4 } : null) }}>{nameLabel}</TableCell>
+      {renderProductCells(product, subColorByName, theme, canEdit, onEdit)}
+    </TableRow>
+  );
+});
 
 // 소분류 소프트 틴트 칩. 미등록·색없음은 회색 폴백.
 const ColorChip = ({ label, color }) => {
@@ -423,14 +523,14 @@ const ProductManagementPage = () => {
     return groupedView.slice(start, start + productsPerPage);
   }, [groupedView, currentPage, productsPerPage]);
 
-  const handleToggleGroupExpand = (key) => {
+  const handleToggleGroupExpand = useCallback((key) => {
     setExpandedGroups((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       return next;
     });
-  };
+  }, []);
 
   // 페이지 슬라이싱 (평면 뷰 전용 — 그룹 뷰는 헤더 전량 렌더)
   const displayedProducts = useMemo(() => {
@@ -443,12 +543,12 @@ const ProductManagementPage = () => {
   const selectedCount = selectedIds.size;
   const hasFilters = Boolean(searchTerm || selectedCategory || productQuickFilter || selectedTags.length > 0);
 
-  const handleOpen = (product = null) => {
+  const handleOpen = useCallback((product = null) => {
     setIsEditing(Boolean(product));
     setCurrentProduct(product ? { ...product } : createEmptyProduct());
     setCategoryInvalid(false);
     setOpen(true);
-  };
+  }, []);
 
   const handleClose = () => {
     setOpen(false);
@@ -517,14 +617,14 @@ const ProductManagementPage = () => {
     });
   };
 
-  const handleToggleOne = (id) => {
+  const handleToggleOne = useCallback((id) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
+  }, []);
 
   const handleDeleteSelected = async () => {
     setDeleting(true);
@@ -1211,70 +1311,6 @@ const ProductManagementPage = () => {
   const canEdit = hasPermission('products:edit');
   const tableColumnCount = canEdit ? 10 : 9;
 
-  // 상품명 이후 공통 셀(카테고리·하위카테고리·가격·비고·상태태그·태그·작업).
-  // 평면 행과 검사군 옵션 하위 행이 동일하게 재사용 — 별도 렌더 로직 안 만듦(사양 §옵션 하위 행).
-  const renderProductCells = (product) => (
-    <>
-      <TableCell><Chip label={product.category} size="small" color="primary" variant="outlined" /></TableCell>
-      <TableCell>
-        {product.sub_category
-          ? (subColorByName[product.sub_category]
-              ? <ColorChip label={product.sub_category} color={subColorByName[product.sub_category]} />
-              : <ColorChip label={`${product.sub_category} · 미등록`} color={MASTER_COLOR_FALLBACK} />)
-          : '-'}
-      </TableCell>
-      <TableCell align="right" sx={{ fontWeight: 700, fontFeatureSettings: '"tnum" 1' }}>{(product.list_price || 0).toLocaleString()}원</TableCell>
-      <TableCell sx={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product.notes || '-'}</TableCell>
-      <TableCell align="center">
-        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', justifyContent: 'center', minWidth: 80 }}>
-          {/* 숨김 칩 — is_active=false만 표시(노출 중은 기본 상태라 무표시, 노이즈 방지). gray 소프트 틴트. */}
-          {product.is_active === false && (
-            <Chip
-              label="숨김"
-              size="small"
-              sx={{ bgcolor: theme.gray[200], color: 'text.secondary', border: 0, fontWeight: 600 }}
-            />
-          )}
-          {product.is_popular && <Chip label="인기" size="small" color="warning" />}
-          {product.is_new && <Chip label="신상품" size="small" color="primary" />}
-          {product.is_discountable && (
-            <Chip
-              label="할인"
-              size="small"
-              sx={{ bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main', border: 0 }}
-            />
-          )}
-          {product.is_active !== false && !product.is_popular && !product.is_new && !product.is_discountable && (
-            <Typography variant="caption" color="text.secondary">-</Typography>
-          )}
-        </Box>
-      </TableCell>
-      <TableCell>
-        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-          {(product.tags || []).slice(0, 2).map((tag, index) => (
-            <Chip key={index} label={tag} size="small" variant="outlined" />
-          ))}
-          {(product.tags || []).length > 2 && (
-            <Tooltip title={product.tags.slice(2).join(', ')} arrow>
-              <Chip label={`+${product.tags.length - 2}`} size="small" sx={{ cursor: 'pointer' }} />
-            </Tooltip>
-          )}
-        </Box>
-      </TableCell>
-      {canEdit && (
-        <TableCell align="center">
-          <IconButton
-            size="small"
-            onClick={() => handleOpen(product)}
-            sx={{ color: 'primary.main', '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) } }}
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
-        </TableCell>
-      )}
-    </>
-  );
-
   // 빠른 필터 카드 — 시안 QuickFilterCard 패턴 (border 기반, 그라데이션 제거 — 02 §색 E항)
   const renderQuickFilterCard = (opts) => {
     const { label, value, Icon, baseColor, active, onClick } = opts;
@@ -1511,6 +1547,7 @@ const ProductManagementPage = () => {
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: availableTags.length > 0 ? 2 : 0 }}>
           <ProductSearchBar
             onSearch={setSearchTerm}
+            delay={60}
             label="상품명 검색"
             placeholder=""
             size="small"
@@ -1694,34 +1731,20 @@ const ProductManagementPage = () => {
                             </TableCell>
                           )}
                         </TableRow>
-                        {/* 옵션 하위 행 — 평면 표 셀 구성 그대로 재사용. 상품명 셀만 들여쓰기 + 말머리·형태명. */}
-                        {expanded && options.map((product) => {
-                          const optionName = [product.option_label, product.option_name].filter(Boolean).join(' ') || product.name;
-                          return (
-                            <TableRow
-                              key={product.id}
-                              selected={selectedIds.has(product.id)}
-                              sx={{
-                                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.02) },
-                                transition: 'background-color 0.2s',
-                                opacity: product.is_active === false ? 0.55 : 1,
-                              }}
-                            >
-                              {canEdit && (
-                                <TableCell padding="checkbox">
-                                  <Checkbox size="small" checked={selectedIds.has(product.id)} onChange={() => handleToggleOne(product.id)} />
-                                </TableCell>
-                              )}
-                              <TableCell align="center">
-                                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                                  <ProductThumb filename={product.image_filename} name={product.name} />
-                                </Box>
-                              </TableCell>
-                              <TableCell sx={{ fontWeight: 500, pl: 4 }}>{optionName}</TableCell>
-                              {renderProductCells(product)}
-                            </TableRow>
-                          );
-                        })}
+                        {/* 옵션 하위 행 — 평면 표 셀 구성 그대로 재사용(ProductRow isOption). 상품명 셀만 들여쓰기 + 말머리·형태명. */}
+                        {expanded && options.map((product) => (
+                          <ProductRow
+                            key={product.id}
+                            product={product}
+                            selected={selectedIds.has(product.id)}
+                            canEdit={canEdit}
+                            isOption
+                            subColorByName={subColorByName}
+                            theme={theme}
+                            onToggle={handleToggleOne}
+                            onEdit={handleOpen}
+                          />
+                        ))}
                       </React.Fragment>
                     );
                   })
@@ -1745,30 +1768,17 @@ const ProductManagementPage = () => {
                 </TableRow>
               ) : (
                 displayedProducts.map((product) => (
-                  <TableRow
+                  <ProductRow
                     key={product.id}
+                    product={product}
                     selected={selectedIds.has(product.id)}
-                    sx={{
-                      '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.02) },
-                      transition: 'background-color 0.2s',
-                      // is_active=false(숨김) 행 dim. 표에서 사라지지 않고 잔류(재판매·이관 대비).
-                      // graceful: 컬럼 미적용(undefined)은 노출로 취급.
-                      opacity: product.is_active === false ? 0.55 : 1,
-                    }}
-                  >
-                    {hasPermission('products:edit') && (
-                      <TableCell padding="checkbox">
-                        <Checkbox size="small" checked={selectedIds.has(product.id)} onChange={() => handleToggleOne(product.id)} />
-                      </TableCell>
-                    )}
-                    <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                        <ProductThumb filename={product.image_filename} name={product.name} />
-                      </Box>
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 500 }}>{product.name}</TableCell>
-                    {renderProductCells(product)}
-                  </TableRow>
+                    canEdit={canEdit}
+                    isOption={false}
+                    subColorByName={subColorByName}
+                    theme={theme}
+                    onToggle={handleToggleOne}
+                    onEdit={handleOpen}
+                  />
                 ))
               )}
             </TableBody>
