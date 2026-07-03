@@ -417,6 +417,12 @@ const ProductManagementPage = () => {
     return rows;
   }, [groupViewActive, filteredProducts, testGroups]);
 
+  // 그룹 뷰 페이지 슬라이싱 — 검사군 214개 헤더 전량 렌더 시 헤더 MUI 폭증으로 렉 → 페이지 분할
+  const displayedGroups = useMemo(() => {
+    const start = (currentPage - 1) * productsPerPage;
+    return groupedView.slice(start, start + productsPerPage);
+  }, [groupedView, currentPage, productsPerPage]);
+
   const handleToggleGroupExpand = (key) => {
     setExpandedGroups((prev) => {
       const next = new Set(prev);
@@ -1631,7 +1637,7 @@ const ProductManagementPage = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  groupedView.map(({ group, options }) => {
+                  displayedGroups.map(({ group, options }) => {
                     const key = group ? group.id : '__unassigned__';
                     const expanded = expandedGroups.has(key);
                     const hiddenGroup = group?.is_active === false;
@@ -1677,19 +1683,13 @@ const ProductManagementPage = () => {
                           {canEdit && group && (
                             <TableCell align="center" colSpan={2} onClick={(e) => e.stopPropagation()} sx={{ cursor: 'default' }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
-                                <Tooltip title={group.is_active ? '노출 중 (끄면 검사군 카드 숨김)' : '숨김'} arrow>
-                                  <Switch size="small" checked={group.is_active} onChange={() => handleToggleTgActive(group)} />
-                                </Tooltip>
-                                <Tooltip title="검사명·약어 편집" arrow>
-                                  <IconButton size="small" onClick={() => setTgDialog({ ...group })}>
-                                    <EditIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="분리·병합·삭제" arrow>
-                                  <IconButton size="small" onClick={(e) => setTgMenuAnchor({ el: e.currentTarget, group })}>
-                                    <MoreVertIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
+                                <Switch size="small" checked={group.is_active} onChange={() => handleToggleTgActive(group)} title={group.is_active ? '노출 중 (끄면 검사군 카드 숨김)' : '숨김'} />
+                                <IconButton size="small" onClick={() => setTgDialog({ ...group })} title="검사명·약어 편집">
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                                <IconButton size="small" onClick={(e) => setTgMenuAnchor({ el: e.currentTarget, group })} title="분리·병합·삭제">
+                                  <MoreVertIcon fontSize="small" />
+                                </IconButton>
                               </Box>
                             </TableCell>
                           )}
@@ -1775,7 +1775,7 @@ const ProductManagementPage = () => {
           </Table>
         </TableContainer>
 
-        {!groupViewActive && displayedProducts.length > 0 && (
+        {(groupViewActive ? groupedView.length > 0 : displayedProducts.length > 0) && (
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderTop: `1px solid ${theme.gray[100]}` }}>
             <FormControl size="small">
               <InputLabel>페이지당 항목 수</InputLabel>
@@ -1792,7 +1792,7 @@ const ProductManagementPage = () => {
                 ))}
               </Select>
             </FormControl>
-            <Pagination count={Math.max(1, Math.ceil(totalFiltered / productsPerPage))} page={currentPage} onChange={(_, page) => setCurrentPage(page)} color="primary" />
+            <Pagination count={Math.max(1, Math.ceil((groupViewActive ? groupedView.length : totalFiltered) / productsPerPage))} page={currentPage} onChange={(_, page) => setCurrentPage(page)} color="primary" />
           </Box>
         )}
       </SectionCard>
