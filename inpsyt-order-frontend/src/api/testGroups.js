@@ -14,6 +14,23 @@ import { supabase } from '../supabaseClient';
 const isMissingTable = (error) =>
   error && (error.code === '42P01' || error.code === 'PGRST205' || error.code === 'PGRST204');
 
+// 가법(신규) 컬럼 미적용 환경 graceful — PGRST204 시 아래 키를 빼고 1회 재시도한다.
+// (ProductManagementPage.jsx handleSave 의 image_filename·is_active graceful 패턴과 동종)
+const ADDITIVE_OPTION_COLS = [
+  'is_active',
+  'test_group_id',
+  'option_name',
+  'option_label',
+  'is_common',
+  'sort_order',
+];
+
+const stripAdditiveCols = (body) => {
+  const rest = { ...body };
+  ADDITIVE_OPTION_COLS.forEach((k) => delete rest[k]);
+  return rest;
+};
+
 /**
  * 검사군 마스터 전체(정렬순서 → 검사명).
  * @returns {Promise<Array>} test_groups 행 배열. 테이블 미존재 시 [].
@@ -199,5 +216,109 @@ export const makeTestGroupResolver = (existingGroups = []) => {
     if (!created) return null;
     cache.set(key, created.id);
     return created.id;
+  };
+};
+
+// =====================================================================
+// 검사군 상세편집 모달 — 옵션(products) 신설/삭제/이동 + 오케스트레이션
+// =====================================================================
+
+/**
+ * 옵션 신규 생성 — products INSERT.
+ * category='검사' 강제, test_group_id 는 인자로 고정. name 은 받은 값 그대로 저장(자동조합 없음, 프론트 책임).
+ * 가법 컬럼(test_group_id·is_active·option_*·is_common·sort_order) 미적용 환경은 PGRST204 감지 후 해당 키 빼고 1회 재시도.
+ * @param {number} testGroupId 소속 검사군 id
+ * @param {{ option_name?, option_label?, product_code?, name?, list_price?, is_common?, is_active?, sort_order? }} fields
+ * @returns {Promise<Object>} 생성된 products 행
+ */
+export const createProductOption = async (testGroupId, fields = {}) => {
+  const body = { ...fields, category: '검사', test_group_id: testGroupId };
+
+  const run = async (payload) =>
+    supabase.from('products').insert([payload]).select().single();
+
+  let { data, error } = await run(body);
+  if (error && error.code === 'PGRST204') {
+    ({ data, error } = await run(stripAdditiveCols(body)));
+  }
+  if (error) throw error;
+  return data;
+};
+
+/**
+ * 옵션 완전 삭제 — products DELETE.
+ * RLS 상 products DELETE 는 master 전용(20251121_apply_rbac_rls.sql:84). edit 운영자는 42501 이 나며,
+ * 이를 잡아 사용자에게 명확한 권한 메시지로 rethrow 한다.
+ * order_items 스냅샷은 계약상 무영향(FK 완화 20260415_008) — 과거 주문에 손상 없음.
+ * @param {number} productId
+ * @returns {Promise<void>}
+ */
+export const deleteProductOption = async (productId) => {
+  const { error } = await supabase.from('products').delete().eq('id', productId);
+  if (error) {
+    if (error.code === '42501') {
+      throw new Error('삭제는 관리자(master) 권한이 필요합니다.');
+    }
+    throw error;
+  }
+};
+
+/**
+ * 옵션 이동 — 선택 옵션들의 test_group_id 를 기존 대상 검사군으로 UPDATE.
+ * splitTestGroup(새 검사군 생성) 과 달리, 이미 존재하는 검사군으로의 동종 이동만 수행한다.
+ * @param {number} targetGroupId 옮길 대상 검사군 id
+ * @param {number[]} productIds 이동할 옵션 id들
+ * @returns {Promise<void>}
+ */
+export const moveOptionsToGroup = async (targetGroupId, productIds) => {
+  if (!productIds || productIds.length === 0) return;
+  const { error } = await supabase
+    .from('products')
+    .update({ test_group_id: targetGroupId })
+    .in('id', productIds);
+  if (error) throw error;
+};
+
+/**
+ * 상세편집 모달 저장 오케스트레이터 — 검사군 + 옵션 변경분을 순차 반영하는 얇은 조율자.
+ * 1) group.id 있으면 updateTestGroup, 없으면 createTestGroup 로 groupId 확보
+ * 2) newOptions → createProductOption(groupId, ...) 순차
+ * 3) updatedOptions → updateProductOption 순차
+ * 4) deletedIds → deleteProductOption 순차
+ * 어느 단계든 실패 시 즉시 throw(보상 롤백 없음). 상위가 리로드로 재동기화하는 전제.
+ * 연 800건 규모라 트랜잭션·배치 없이 순차 동기 처리로 충분.
+ * @param {{ group: Object, newOptions?: Array, updatedOptions?: Array<{id, updates}>, deletedIds?: number[] }} args
+ * @returns {Promise<{ groupId: number, createdCount: number, updatedCount: number, deletedCount: number }>}
+ */
+export const saveTestGroupWithOptions = async ({
+  group,
+  newOptions = [],
+  updatedOptions = [],
+  deletedIds = [],
+}) => {
+  let groupId = group?.id;
+  if (groupId) {
+    const { id, ...updates } = group;
+    await updateTestGroup(id, updates);
+  } else {
+    const created = await createTestGroup(group);
+    groupId = created.id;
+  }
+
+  for (const fields of newOptions) {
+    await createProductOption(groupId, fields);
+  }
+  for (const { id, updates } of updatedOptions) {
+    await updateProductOption(id, updates);
+  }
+  for (const productId of deletedIds) {
+    await deleteProductOption(productId);
+  }
+
+  return {
+    groupId,
+    createdCount: newOptions.length,
+    updatedCount: updatedOptions.length,
+    deletedCount: deletedIds.length,
   };
 };

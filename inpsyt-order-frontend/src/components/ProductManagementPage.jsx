@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ProductSearchBar from './ProductSearchBar';
+import TestGroupEditorModal from './TestGroupEditorModal';
 import {
   Box, Typography, Button, TextField, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Dialog,
@@ -25,10 +26,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   PhotoLibrary as PhotoLibraryIcon,
-  CallSplit as CallSplitIcon,
   MergeType as MergeTypeIcon,
-  ArrowUpward as ArrowUpwardIcon,
-  ArrowDownward as ArrowDownwardIcon,
   MoreVert as MoreVertIcon,
   Tune as TuneOptionsIcon,
 } from '@mui/icons-material';
@@ -41,9 +39,8 @@ import {
   fetchMasterUsageCounts,
 } from '../api/masters';
 import {
-  fetchTestGroups, createTestGroup, updateTestGroup, deleteTestGroup,
-  fetchTestGroupOptionCounts, fetchTestGroupOptions, updateProductOption,
-  splitTestGroup, mergeTestGroups, makeTestGroupResolver,
+  fetchTestGroups, updateTestGroup, deleteTestGroup,
+  fetchTestGroupOptionCounts, mergeTestGroups, makeTestGroupResolver,
 } from '../api/testGroups';
 import { getSocieties } from '../api/events';
 import { useNotification } from '../hooks/useNotification';
@@ -342,16 +339,12 @@ const ProductManagementPage = () => {
   // ── 검사군 관리 (test_groups) — '검사' 그룹 뷰 안에서 인라인 관리. 위험 액션(분리/병합/삭제)은 확인 스텝 ──
   const [testGroups, setTestGroups] = useState([]);
   const [tgOptionCounts, setTgOptionCounts] = useState({}); // { [test_group_id]: 소속 상품 수 }
-  const [tgDialog, setTgDialog] = useState(null);           // null | { id?, abbr, name, category, sort_order, is_active } 검사명·약어 편집
-  const [tgSaving, setTgSaving] = useState(false);
   const [tgDeleteTarget, setTgDeleteTarget] = useState(null); // 삭제 확인 대상 검사군
   const [tgMergeKeep, setTgMergeKeep] = useState(null);      // 병합 대표(keep) 검사군 — 헤더 메뉴에서 진입
   const [tgMergeAbsorb, setTgMergeAbsorb] = useState(new Set()); // 대표로 흡수될 다른 검사군 id들
-  const [tgDetail, setTgDetail] = useState(null);             // 옵션 편집 상세: { group, options: [...] }
-  const [tgSplitOpen, setTgSplitOpen] = useState(false);
-  const [tgSplitSelected, setTgSplitSelected] = useState(new Set()); // 분리할 옵션 product id
-  const [tgSplitForm, setTgSplitForm] = useState({ abbr: '', name: '' });
   const [tgActionRunning, setTgActionRunning] = useState(false);
+  // 검사군 상세 편집 모달 — { group: null(신규) | 객체(기존) } 이면 열림
+  const [tgEditor, setTgEditor] = useState(null);
   const [searchTerm, setSearchTerm] = useState(''); // debounce된 검색어(ProductSearchBar가 세팅)
   const [searchResetKey, setSearchResetKey] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -1123,32 +1116,6 @@ const ProductManagementPage = () => {
   };
 
   // ── 검사군 관리 (test_groups) — '검사' 그룹 뷰 안에서 인라인 진입 ──
-  // 검사명·약어·정렬 편집 저장 (자주 하는 일 — 확인 스텝 없음, 즉시 반영)
-  const handleSaveTestGroup = async () => {
-    const d = tgDialog;
-    if (!d.name?.trim()) {
-      addNotification('검사명을 입력해 주세요.', 'warning');
-      return;
-    }
-    setTgSaving(true);
-    try {
-      const payload = {
-        abbr: d.abbr?.trim() || null,
-        name: d.name.trim(),
-        sort_order: Number(d.sort_order) || 0,
-      };
-      if (d.id) await updateTestGroup(d.id, payload);
-      else await createTestGroup({ ...payload, is_active: true });
-      addNotification('검사군이 저장되었습니다.', 'success');
-      setTgDialog(null);
-      loadTestGroups();
-    } catch (error) {
-      addNotification(`검사군 저장 실패: ${error.message}`, 'error');
-    } finally {
-      setTgSaving(false);
-    }
-  };
-
   const handleToggleTgActive = async (group) => {
     // 현행 확정(R4): 검사군 is_active는 카드 노출만 제어(옵션 개별 불변), 진열 일관 — 전파 안 함.
     try {
@@ -1208,101 +1175,11 @@ const ProductManagementPage = () => {
     }
   };
 
-  // 검사군 상세(옵션 편집) 진입 — 소속 옵션 로드
-  const handleOpenTgDetail = async (group) => {
-    try {
-      const options = await fetchTestGroupOptions(group.id);
-      setTgDetail({ group, options });
-    } catch (error) {
-      addNotification(`옵션을 불러오지 못했습니다: ${error.message}`, 'error');
-    }
-  };
-
-  const handleTgDetailOptionChange = (productId, patch) => {
-    setTgDetail((prev) => ({
-      ...prev,
-      options: prev.options.map((o) => (o.id === productId ? { ...o, ...patch } : o)),
-    }));
-  };
-
-  // 옵션 순서 이동(▲▼) — 로컬 재배열만. 저장 버튼으로 sort_order 확정.
-  const handleMoveOption = (index, dir) => {
-    setTgDetail((prev) => {
-      const next = [...prev.options];
-      const target = index + dir;
-      if (target < 0 || target >= next.length) return prev;
-      [next[index], next[target]] = [next[target], next[index]];
-      return { ...prev, options: next };
-    });
-  };
-
-  // 옵션 편집 저장 (자주 하는 일 — 즉시). 말머리·형태명·공용·개별 노출·순서 각 상품 UPDATE.
-  const handleSaveOptions = async () => {
-    if (!tgDetail) return;
-    setTgActionRunning(true);
-    try {
-      for (let i = 0; i < tgDetail.options.length; i++) {
-        const o = tgDetail.options[i];
-        await updateProductOption(o.id, {
-          option_label: o.option_label || null,
-          option_name: o.option_name || null,
-          is_common: !!o.is_common,
-          is_active: o.is_active !== false,
-          sort_order: i,
-        });
-      }
-      addNotification('옵션 순서·표기를 저장했습니다.', 'success');
-      setTgDetail(null);
-      fetchProducts();
-    } catch (error) {
-      addNotification(`옵션 저장 실패: ${error.message}`, 'error');
-    } finally {
-      setTgActionRunning(false);
-    }
-  };
-
-  // 분리 (1→N 위험 액션 — 확인 스텝). 상세에서 옵션 다중 선택 → 새 검사군으로 이동.
-  const handleOpenSplit = () => {
-    setTgSplitSelected(new Set());
-    setTgSplitForm({ abbr: '', name: '' });
-    setTgSplitOpen(true);
-  };
-
-  const handleToggleSplitOption = (productId) => {
-    setTgSplitSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(productId)) next.delete(productId);
-      else next.add(productId);
-      return next;
-    });
-  };
-
-  const handleSplit = async () => {
-    if (!tgSplitForm.name.trim()) {
-      addNotification('새 검사군의 검사명을 입력해 주세요.', 'warning');
-      return;
-    }
-    if (tgSplitSelected.size === 0) {
-      addNotification('새 검사군으로 옮길 옵션을 선택해 주세요.', 'warning');
-      return;
-    }
-    setTgActionRunning(true);
-    try {
-      await splitTestGroup(
-        { abbr: tgSplitForm.abbr.trim() || null, name: tgSplitForm.name.trim(), sort_order: 0, is_active: true },
-        Array.from(tgSplitSelected),
-      );
-      addNotification('선택 옵션을 새 검사군으로 분리했습니다.', 'success');
-      setTgSplitOpen(false);
-      setTgDetail(null);
-      loadTestGroups();
-      fetchProducts();
-    } catch (error) {
-      addNotification(`분리 실패: ${error.message}`, 'error');
-    } finally {
-      setTgActionRunning(false);
-    }
-  };
+  // 모달 저장/이동/삭제 후 상위 리로드 — 검사군 목록·카운트·상품 전량 재동기화.
+  const handleTgEditorSaved = useCallback(() => {
+    loadTestGroups();
+    fetchProducts();
+  }, [loadTestGroups, fetchProducts]);
 
   if (!user || !hasPermission('products:view')) {
     return <Box sx={{ p: 3 }}><Typography>상품 관리 페이지 접근 권한이 없습니다.</Typography></Box>;
@@ -1565,7 +1442,7 @@ const ProductManagementPage = () => {
               variant="outlined"
               size="small"
               startIcon={<AccountTreeIcon />}
-              onClick={() => setTgDialog({ abbr: '', name: '', sort_order: 0, is_active: true })}
+              onClick={() => setTgEditor({ group: null })}
               sx={{ whiteSpace: 'nowrap' }}
             >
               검사군 추가
@@ -1721,10 +1598,10 @@ const ProductManagementPage = () => {
                             <TableCell align="center" colSpan={2} onClick={(e) => e.stopPropagation()} sx={{ cursor: 'default' }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
                                 <Switch size="small" checked={group.is_active} onChange={() => handleToggleTgActive(group)} title={group.is_active ? '노출 중 (끄면 검사군 카드 숨김)' : '숨김'} />
-                                <IconButton size="small" onClick={() => setTgDialog({ ...group })} title="검사명·약어 편집">
+                                <IconButton size="small" onClick={() => setTgEditor({ group })} title="검사군 상세 편집">
                                   <EditIcon fontSize="small" />
                                 </IconButton>
-                                <IconButton size="small" onClick={(e) => setTgMenuAnchor({ el: e.currentTarget, group })} title="분리·병합·삭제">
+                                <IconButton size="small" onClick={(e) => setTgMenuAnchor({ el: e.currentTarget, group })} title="상세 편집·병합·삭제">
                                   <MoreVertIcon fontSize="small" />
                                 </IconButton>
                               </Box>
@@ -2189,59 +2066,18 @@ const ProductManagementPage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* 검사명·약어 편집 다이얼로그 (자주 하는 일 — 확인 스텝 없음). 미리보기로 잘림 확인. */}
-      <Dialog open={Boolean(tgDialog)} onClose={() => setTgDialog(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>{tgDialog?.id ? '검사군 편집' : '검사군 추가'}</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 2 }}>
-          <TextField
-            autoFocus
-            label="검사명"
-            size="small"
-            fullWidth
-            placeholder="예: 한국판 정서-행동 평가시스템"
-            value={tgDialog?.name || ''}
-            onChange={(e) => setTgDialog((p) => ({ ...p, name: e.target.value }))}
-          />
-          <TextField
-            label="약어"
-            size="small"
-            fullWidth
-            placeholder="예: K·BASC-3 (없으면 비움)"
-            value={tgDialog?.abbr || ''}
-            onChange={(e) => setTgDialog((p) => ({ ...p, abbr: e.target.value }))}
-          />
-          <TextField
-            label="정렬 순서"
-            type="number"
-            size="small"
-            fullWidth
-            value={tgDialog?.sort_order ?? 0}
-            onChange={(e) => setTgDialog((p) => ({ ...p, sort_order: e.target.value }))}
-            helperText="고객 화면 검사군 카드 노출 순서 (작을수록 먼저)"
-          />
-          {/* 미리보기 — 고객 카드 접힘 상태(약어 좌상단·검사명 주인공·옵션 N개). 잘림 즉시 확인. */}
-          <Box>
-            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.75 }}>미리보기 (고객 카드 접힘)</Typography>
-            <Box sx={{ border: `1px solid ${theme.gray[200]}`, borderRadius: `${theme.radii.md}px`, p: 2 }}>
-              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
-                {tgDialog?.abbr || ' '}
-              </Typography>
-              <Typography variant="body1" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
-                {tgDialog?.name || '검사명'}
-              </Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-                옵션 {tgDialog?.id ? (tgOptionCounts[tgDialog.id] || 0) : 0}개
-              </Typography>
-            </Box>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setTgDialog(null)} disabled={tgSaving}>취소</Button>
-          <Button variant="contained" onClick={handleSaveTestGroup} disabled={tgSaving}>
-            {tgSaving ? <CircularProgress size={18} /> : '저장'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* 검사군 상세 편집 모달 — 검사군 + 옵션 CRUD·순서·이동·삭제 통합. state 격리(214행 렌더 무영향). */}
+      <TestGroupEditorModal
+        open={Boolean(tgEditor)}
+        group={tgEditor?.group ?? null}
+        allProducts={allProducts}
+        testGroups={testGroups}
+        canEdit={canEdit}
+        canDelete={hasPermission('master')}
+        onClose={() => setTgEditor(null)}
+        onSaved={handleTgEditorSaved}
+        addNotification={addNotification}
+      />
 
       {/* 검사군 삭제 확인 (위험 액션). 마스터만 제거, 소속 상품은 보존(test_group_id NULL). */}
       <Dialog open={Boolean(tgDeleteTarget)} onClose={() => setTgDeleteTarget(null)} maxWidth="xs" fullWidth>
@@ -2298,7 +2134,7 @@ const ProductManagementPage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* 검사군 헤더 행 액션 메뉴 — 옵션 편집·분리·삭제. 검사명·약어 편집/노출은 헤더 인라인. */}
+      {/* 검사군 헤더 행 액션 메뉴 — 상세 편집·병합·삭제. 옵션 편집/분리/이동/순서/개별삭제는 상세 편집 모달로 흡수. */}
       <Menu
         anchorEl={tgMenuAnchor?.el}
         open={Boolean(tgMenuAnchor)}
@@ -2306,23 +2142,12 @@ const ProductManagementPage = () => {
       >
         <MenuItem
           onClick={() => {
-            handleOpenTgDetail(tgMenuAnchor.group);
+            setTgEditor({ group: tgMenuAnchor.group });
             setTgMenuAnchor(null);
           }}
         >
           <ListItemIcon><TuneOptionsIcon fontSize="small" /></ListItemIcon>
-          옵션 편집 (말머리·형태명·순서)
-        </MenuItem>
-        <MenuItem
-          onClick={async () => {
-            const g = tgMenuAnchor.group;
-            setTgMenuAnchor(null);
-            await handleOpenTgDetail(g);
-            handleOpenSplit();
-          }}
-        >
-          <ListItemIcon><CallSplitIcon fontSize="small" /></ListItemIcon>
-          분리 (옵션을 새 검사군으로)
+          검사군 상세 편집
         </MenuItem>
         <MenuItem
           onClick={() => {
@@ -2344,154 +2169,6 @@ const ProductManagementPage = () => {
           삭제
         </MenuItem>
       </Menu>
-
-      {/* 검사군 상세 — 옵션 순서·말머리·형태명·공용·개별 노출 편집 (자주 하는 일 — 즉시 저장). 상단에서 분리 진입. */}
-      <Dialog open={Boolean(tgDetail)} onClose={() => setTgDetail(null)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>
-          {tgDetail?.group?.name} 옵션 편집
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 400, mt: 0.25 }}>
-            말머리·형태명·순서·공용·개별 노출을 정리합니다. 진열에 바로 반영됩니다.
-          </Typography>
-        </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
-            <Button
-              variant="outlined"
-              size="small"
-              color="error"
-              startIcon={<CallSplitIcon />}
-              onClick={handleOpenSplit}
-              disabled={!tgDetail || tgDetail.options.length < 2}
-            >
-              분리
-            </Button>
-          </Box>
-          {tgDetail?.options.length === 0 ? (
-            <Typography variant="body2" sx={{ color: 'text.disabled', py: 3, textAlign: 'center' }}>
-              소속 옵션이 없습니다.
-            </Typography>
-          ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {tgDetail?.options.map((o, index) => (
-                <Box
-                  key={o.id}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 1,
-                    p: 1.5,
-                    border: `1px solid ${theme.gray[200]}`,
-                    borderRadius: `${theme.radii.md}px`,
-                    opacity: o.is_active === false ? 0.55 : 1,
-                  }}
-                >
-                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                    <IconButton size="small" onClick={() => handleMoveOption(index, -1)} disabled={index === 0}>
-                      <ArrowUpwardIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton size="small" onClick={() => handleMoveOption(index, 1)} disabled={index === tgDetail.options.length - 1}>
-                      <ArrowDownwardIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>{o.name}</Typography>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      <TextField
-                        size="small"
-                        label="말머리"
-                        placeholder="예: 교사용 12~23개월용"
-                        value={o.option_label || ''}
-                        onChange={(e) => handleTgDetailOptionChange(o.id, { option_label: e.target.value })}
-                        sx={{ flex: '1 1 200px' }}
-                      />
-                      <TextField
-                        size="small"
-                        label="형태명"
-                        placeholder="예: 검사지·온라인코드 20개"
-                        value={o.option_name || ''}
-                        onChange={(e) => handleTgDetailOptionChange(o.id, { option_name: e.target.value })}
-                        sx={{ flex: '1 1 200px' }}
-                      />
-                    </Box>
-                  </Box>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                    <FormControlLabel
-                      control={<Checkbox size="small" checked={!!o.is_common} onChange={(e) => handleTgDetailOptionChange(o.id, { is_common: e.target.checked })} />}
-                      label={<Typography variant="caption">공용</Typography>}
-                      sx={{ mr: 0 }}
-                    />
-                    <FormControlLabel
-                      control={<Switch size="small" checked={o.is_active !== false} onChange={(e) => handleTgDetailOptionChange(o.id, { is_active: e.target.checked })} />}
-                      label={<Typography variant="caption">노출</Typography>}
-                      labelPlacement="start"
-                      sx={{ ml: 0 }}
-                    />
-                  </Box>
-                </Box>
-              ))}
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setTgDetail(null)} disabled={tgActionRunning}>취소</Button>
-          <Button variant="contained" onClick={handleSaveOptions} disabled={tgActionRunning || !tgDetail?.options.length} startIcon={tgActionRunning ? <CircularProgress size={14} /> : null}>
-            저장
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* 분리 확인 (위험 액션 1→N). 옵션 다중 선택 + 새 검사군 검사명·약어 입력. */}
-      <Dialog open={tgSplitOpen} onClose={() => setTgSplitOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>검사군 분리</DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-            선택한 옵션을 새 검사군으로 옮깁니다. 진열이 즉시 바뀝니다.
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-            <TextField
-              size="small"
-              label="새 검사군 검사명"
-              placeholder="예: 문장완성검사 (아동)"
-              value={tgSplitForm.name}
-              onChange={(e) => setTgSplitForm((p) => ({ ...p, name: e.target.value }))}
-              sx={{ flex: 2 }}
-            />
-            <TextField
-              size="small"
-              label="약어"
-              placeholder="예: SCT-C"
-              value={tgSplitForm.abbr}
-              onChange={(e) => setTgSplitForm((p) => ({ ...p, abbr: e.target.value }))}
-              sx={{ flex: 1 }}
-            />
-          </Box>
-          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.75 }}>
-            새 검사군으로 옮길 옵션 ({tgSplitSelected.size}개 선택)
-          </Typography>
-          <Box sx={{ maxHeight: 280, overflow: 'auto', border: `1px solid ${theme.gray[200]}`, borderRadius: `${theme.radii.md}px` }}>
-            {tgDetail?.options.map((o) => (
-              <Box
-                key={o.id}
-                sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 1, borderBottom: `1px solid ${theme.gray[100]}` }}
-              >
-                <Checkbox size="small" checked={tgSplitSelected.has(o.id)} onChange={() => handleToggleSplitOption(o.id)} />
-                <Box sx={{ minWidth: 0 }}>
-                  {o.option_label && (
-                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>{o.option_label}</Typography>
-                  )}
-                  <Typography variant="body2">{o.option_name || o.name}</Typography>
-                </Box>
-              </Box>
-            ))}
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setTgSplitOpen(false)} disabled={tgActionRunning}>취소</Button>
-          <Button variant="contained" color="error" onClick={handleSplit} disabled={tgActionRunning} startIcon={tgActionRunning ? <CircularProgress size={14} /> : null}>
-            {tgSplitSelected.size}개를 새 검사군으로 분리
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };
