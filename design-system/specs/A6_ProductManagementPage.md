@@ -2,7 +2,12 @@
 
 > 이 시트는 상품 관리 화면의 정보·기능·데이터 구조의 단일 진실 소스다.
 > 시안과 실서비스 구현은 이 시트의 모든 항목을 1:1로 반영해야 한다.
-> 마지막 갱신: 2026-06-29 **동적 배지 기능 폐기 — 인기/신상품·소분류는 유지**(건우님 결정). 배지 마스터 CRUD 패널·다이얼로그, 상품 폼 배지 칩 토글, 표 동적 배지 칩, 엑셀 "배지" 열, `products.badges` 코드 참조를 전부 제거. `is_popular`/`is_new` boolean(카드 칩·폼 체크박스·표 상태태그·엑셀 인기/신상품 열)·소분류 마스터·상품 이미지·태그는 그대로 유지. `fetchBadges`·배지 CRUD API 삭제, `fetchMasterUsageCounts`는 `subCounts`만 반환. 헤더 토글 "소분류·배지 관리"→"소분류 관리". §관련 절·핵심 발견 갱신.
+> 마지막 갱신: 2026-07-03 **검사군 상세 편집 모달 실 구현 + ⋮ 메뉴 재편**(frontend-engineer, tech-cto 위임). 검사군(상위)과 하위 옵션(products)의 생성·수정·삭제·순서·이동을 **하나의 큰 모달**(`TestGroupEditorModal.jsx`)로 통합. 흩어져 있던 검사명·약어 편집 다이얼로그 + 옵션 편집 다이얼로그(`tgDetail`) + 분리 다이얼로그(`tgSplit`)를 **폐지하고 모달로 흡수**. **A6 ⋮ 메뉴 재편**: [검사군 상세 편집] + [병합] + [삭제] 3항목(옵션 편집/분리 항목 제거 — 모달로 흡수, 병합은 모달 밖 유지=`mergeTestGroups`). **모달 구조**: 상단(검사명·약어·정렬·노출 Switch) + 옵션 인라인 테이블(순서 ▲▼ / 옵션명(형태) / 말머리 / 상품코드 / 가격 / 공용 / 노출 / ⋮ 이동·삭제) + 하단("+ 옵션 추가" + 저장/취소). **신규 옵션 name 자동조합** = `"{검사명} {옵션명}"`(공백 1칸, 하이픈 금지, 편집 가능·nameTouched 시 자동조합 중단). **기존 옵션 name 자동 덮어쓰기 안 함**. **옵션 옮기기(분리·이동)** = 모달 내부 액션(라디오 A=새 검사군 `splitTestGroup` / B=기존 검사군 `moveOptionsToGroup`, 확인 문구 3블록). **상품코드 중복 검증**(모달 내부 + 로드된 전체 products 대비) 저장 차단. **삭제 vs 판매중지 구분**: 옵션 ⋮ "삭제"(`deleteProductOption`, 확인 문구 "판매중지는 노출 토글·삭제는 되돌릴 수 없음·과거 주문 보존") vs 노출 Switch. **삭제 권한 master 전용**(products DELETE RLS `has_permission('master')`) — edit 운영자는 삭제 메뉴 disable + "삭제는 관리자(master) 권한이 필요합니다" 안내. **드래그앤드롭·undo 제외**(Non-Goal). **state 완전 격리** — 214검사군 헤더 렌더에 영향 없음(모달 자체 로컬 state, Autocomplete 내장 필터라 controlled 최상단 state 렉 없음). API `testGroups.js`에 `createProductOption`·`deleteProductOption`·`moveOptionsToGroup`·`saveTestGroupWithOptions` 신설(backend 병렬, 순차+graceful, order_items 불변). theme.js 무수정·MUI만(Dialog/Table/Switch/Checkbox/RadioGroup/Autocomplete)·AI 시그니처 없음. lint 신규 0·build·vitest 113 passed. **§옵션 옮기기 "항목 수 불변" 제약 재정의**(아래 참조): ⋮ 메뉴가 모달 흡수로 3항목이 됨 — "옵션 편집·옵션 옮기기·병합·삭제" 4항목 제약은 폐기.
+> 이전 갱신: 2026-07-03 **옵션 옮기기(분리·이동) 사양 — 분리 다이얼로그 일반화**(product-designer, 건우님 확정). 기존 "분리" 다이얼로그(옵션 체크박스 다중 선택 + 새 검사군 검사명·약어 입력)를 **"옵션 옮기기 (분리·이동)"** 로 일반화. 상단 **목적지 라디오 2택**: (A) 새 검사군으로 = 기존 분리 UI 그대로(`splitTestGroup`) / (B) 기존 검사군으로 = MUI `Autocomplete`(214개, 약어+검사명 검색·자기 자신 제외)로 선택 → 선택 옵션 `test_group_id`를 **기존** 검사군 id로 UPDATE(동종 연산, 새 검사군 생성 없음). ⋮ 메뉴 라벨 "분리"→"옵션 옮기기 (분리·이동)", **항목 수 불변(6번째 신설 금지)**. 자동 초벌 오분류 교정을 UI에서 직접(엑셀 재업로드 불필요). **안 함: 실행취소(undo) 전면 제외 / 빈 검사군 자동삭제 제외(유지+경고만) / 드래그앤드롭 제외.** 확인 문구 3블록(이동/빈검사군 경고/되돌리는 법) 정직·자체완결. theme.js 무수정·MUI만(Dialog/Checkbox/Autocomplete/Chip/RadioGroup 재사용)·AI 시그니처 금지·`products:edit` 가드 보존. **frontend 결정 필요(tech-cto 소관): 신규 `moveOptionsToGroup(targetGroupId, productIds)` vs `splitTestGroup` 확장(제품 요구는 "기존 id로 test_group_id UPDATE" 동종 연산일 뿐).** 실 코드 미변경(사양만).
+> 이전 갱신: 2026-07-02 **검사 위계 통합 개편 3건 실 구현**(frontend-engineer, 건우님 최종 지시). **[지시 1] "검사군 묶어보기" 토글(`groupView` state·`Switch`) 제거 — `selectedCategory==='검사'`이면 무조건 그룹 뷰(디폴트이자 유일 뷰).** 도서·도구·전체는 평면. '전체'에서 검사 상품이 평면에 섞이는 현행 유지(전체 조망). 검사 그룹 뷰는 기본 접힘·페이지네이션 숨김. **[지시 2] 별도 "검사군 관리" 토글 패널(`tgPanelOpen`)·헤더 버튼 폐지 — 기능을 '검사' 그룹 뷰에 인라인 흡수.** 그룹 헤더 행에 검사군 단위 관리(노출 Switch·검사명/약어 편집·⋮ 메뉴[옵션 편집·분리·병합·삭제]), 옵션 하위 행의 편집 버튼으로 상품 필드 편집(말머리·옵션명·순서는 옵션 편집 다이얼로그 재사용). 병합은 헤더에서 이 검사군을 대표로 지정→흡수할 다른 검사군 선택. 위험 액션(분리/병합/삭제)은 기존 확인 다이얼로그 재사용. **검사 = '검사' 카테고리 화면 하나에서 조회·수정 전부.** "검사군 추가"는 검사 뷰 필터 바에 노출. **[지시 3] 엑셀 다운로드/업로드에 검사 위계 열 추가**: `검사군약어`·`검사군명`·`옵션명`·`말머리`·`공용(Y/공란)`·`옵션정렬`·`노출(Y/N)`. 다운로드=현 DB값(test_groups 조인) 채워 내보냄. 업로드=열 채워진 것만 반영(빈 열=미변경, 기존 값 보존→구양식 회귀 0). 검사군 매칭=(약어,검사명) 조합으로 조회, 없으면 신규 생성(`makeTestGroupResolver`, seed_hierarchy.py dedup 동일). Edge Fn 무변경(컬럼 있으면 통과, 없으면 프론트에서 위계 열 빼고 1회 재시도 graceful). 기존 열·`product_code` upsert 무변경. theme.js 무수정·MUI만·AI 시그니처 금지·권한 가드 보존. lint 신규 0·build·vitest 113 passed.
+> 이전 갱신: 2026-07-02 **검사 위계 실 구현 — is_active 토글 + 검사군 관리 화면**(frontend-engineer). (1) is_active: 상품 표 행 dim(`is_active===false`, `opacity 0.55`) + 상태 태그 컬럼 맨 앞 "숨김" 칩(`gray[200]` 소프트 틴트, 노출 중은 무표시) + 상품 폼 별도 행 "고객 주문서 노출" `Switch`(기본 노출, off 시 "숨김" 칩·보조문구) + `handleSave` PGRST204 재시도에 `is_active` 포함(컬럼 미적용 graceful). 숨김 상품이 표에서 잔류. (2) 검사군 관리: 헤더 "검사군 관리" 토글 → Collapse `SectionCard`(`products:edit`). 목록(체크박스·약어·검사명·옵션N·is_active Switch·편집·삭제) + 검사명·약어·정렬 편집 다이얼로그(미리보기 카드) + 옵션 상세(말머리·형태명 TextField·공용 Checkbox·개별 is_active Switch·▲▼ 순서) + 분리(1→N)·병합(N→1)·삭제 위험 액션 확인 다이얼로그. API `src/api/testGroups.js` 신설. 편집=즉시, 위험 액션=확인 스텝. graceful(테이블 미적용 시 빈 목록). ⚠️ 검사군 단위 is_active = 검사군 카드 노출만 토글(옵션 일괄 전파 미구현, TODO 주석 + "확인 필요" 유지 — backend·건우님 검수). 노출 필터(P1) 미구현. theme.js 무수정·MUI 유지·AI 시그니처 없음. lint·build 통과.
+> 이전 갱신: 2026-07-02 **검사 위계 시안 — is_active 토글 + 검사군 관리 화면**(product-designer, PRD_검사위계.md). (1) **is_active(노출여부) = 상품 전역 필드**(검사 위계 전용 아님): 상품 표에 "노출" 상태칩(노출 중/숨김) + 상품 폼에 Switch. **숨김 상품도 표에서 사라지지 않고** 회색 dim + "숨김" 칩으로 구분. 단어 = **"노출 중" / "숨김"**(권고안, "판매중지"보다 중립·데이터 보존 뉘앙스 정합). (2) **검사군 관리 화면**(A6 내 신규 탭/토글 패널): 검사군 목록 + 분리/병합/검사명·약어 편집/옵션 순서/삭제. 진열 깨는 위험 액션(병합·삭제)은 확인 스텝. §검사군 관리·상태 태그·상품 폼 절 신설. theme.js 무수정·MUI 유지.
+> 이전 갱신: 2026-06-29 **동적 배지 기능 폐기 — 인기/신상품·소분류는 유지**(건우님 결정). 배지 마스터 CRUD 패널·다이얼로그, 상품 폼 배지 칩 토글, 표 동적 배지 칩, 엑셀 "배지" 열, `products.badges` 코드 참조를 전부 제거. `is_popular`/`is_new` boolean(카드 칩·폼 체크박스·표 상태태그·엑셀 인기/신상품 열)·소분류 마스터·상품 이미지·태그는 그대로 유지. `fetchBadges`·배지 CRUD API 삭제, `fetchMasterUsageCounts`는 `subCounts`만 반환. 헤더 토글 "소분류·배지 관리"→"소분류 관리". §관련 절·핵심 발견 갱신.
 > 이전 갱신: 2026-06-29 **상품 표 썸네일 플레이스홀더 폐기 — 이미지 없으면 셀 비움**(건우님 결정). `ProductThumb`가 `getProductImageUrl(filename)` null이거나 onError면 `return null`(썸네일·플레이스홀더 미표시, 셀 빈 칸). "이미지" 컬럼 자체는 유지(있는 상품만 썸네일). 기존 회색 박스+ImageIcon 플레이스홀더 제거, `ImageIcon` import 삭제. C1 카드와 동일 정책(혼재 처리 로직 없음 — 오버엔지니어링 방어). §표 썸네일·핵심 발견 14 갱신.
 > 이전 갱신: 2026-06-29 **상품 이미지 기능 추가**(PRD `DOCS/PRD_상품이미지.md`, P1) — 헤더 액션부 **이미지 일괄 업로드 버튼**(`PhotoLibraryIcon`, `products:edit`, 다중 파일→`product-images` 공개 버킷, 파일명 그대로 upsert, 진행/결과 다이얼로그), **상품 표 "이미지" 썸네일 컬럼**(상품명 앞, 1:1 40px), **엑셀 "이미지" 열**(양식·목록·업로드 파싱 3곳, `image_filename` 매핑). graceful(버킷·컬럼 미적용 환경 회귀 0). API `src/api/productImages.js`. (※ 플레이스홀더는 위 결정으로 폐기.)
 > 이전 갱신: 2026-06-29 **소분류·배지 마스터 CRUD를 SettingsPage→ProductManagementPage로 이동**(헤더 액션부 "소분류·배지 관리" 토글 → 펼침/접이 패널), **상품 폼 배지 입력을 칩 체크박스 토글 그룹으로 교체**(무제한 선택·3개째부터 회색 안내·직접추가 보존), **엑셀 배지 2개 초과는 경고 로그만**(행 오류 아님). 핵심 원칙: "최대 2개"는 입력 제약이 아니라 **표출 정책**(고객 카드 한정, C1). 건우님 결정.
@@ -10,6 +15,8 @@
 
 ## 참조 파일
 - 실 컴포넌트: `inpsyt-order-frontend/src/components/ProductManagementPage.jsx`
+- **검사군 API: `inpsyt-order-frontend/src/api/testGroups.js`**(`fetchTestGroups`·`createTestGroup`·`updateTestGroup`·`deleteTestGroup`·`fetchTestGroupOptionCounts`·`fetchTestGroupOptions`·`updateProductOption`·`splitTestGroup`·`mergeTestGroups` — 2026-07-02 신규). 마이그레이션 미적용 시 빈 목록/무동작 graceful. 분리=새 검사군 INSERT+옵션 test_group_id UPDATE, 병합=흡수 검사군 옵션 이관+빈 검사군 DELETE, 삭제=검사군만 제거(FK ON DELETE SET NULL로 상품 보존). **(2026-07-03 사양 추가·미구현) 이동=선택 옵션 test_group_id를 기존 검사군 id로 UPDATE(동종 연산, 새 검사군 생성 없음) — 신규 `moveOptionsToGroup(targetGroupId, productIds)` 또는 `splitTestGroup` 확장(tech-cto 결정). §옵션 옮기기 절 참조.**
+- DRAFT 마이그레이션(검사 위계): `supabase/migrations/20260630000000_DRAFT_create_test_groups_master.sql`(`test_groups`), `20260630010000_DRAFT_add_products_test_group_columns.sql`(`test_group_id`·`option_name`·`option_label`·`is_common`·`sort_order`), `20260630020000_DRAFT_add_products_is_active.sql`(`is_active`) — 건우님 적용 후 실동작. 미적용 시 UI graceful(빈 목록·노출 취급).
 - 관련 API: `inpsyt-order-frontend/src/api/products.js` 의 `fetchAllProducts`, **`inpsyt-order-frontend/src/api/productImages.js`**(`getProductImageUrl`·`uploadProductImage`·`PRODUCT_IMAGE_BUCKET` — 2026-06-29 신규)
 - DRAFT 마이그레이션(상품 이미지): `supabase/migrations/20260619020000_DRAFT_create_product_images_bucket.sql`(공개 버킷), `20260619030000_DRAFT_add_products_image_filename.sql`(`image_filename` 컬럼) — 건우님 적용 후 실동작.
 - DB 스키마: `supabase/migrations/20251022045614_create_products_table.sql` + `20251022045615_add_is_popular_to_products.sql` + `20260313044014_add_product_flags.sql`
@@ -39,6 +46,76 @@
 - [ ] **소분류 관리 카드** (`AccountTreeIcon`): 부제 "대분류(검사/도서/도구) 하위의 분류입니다. 고객 주문서에서 칩으로 노출되며 탐색에 쓰입니다. (매출 집계에는 영향 없음 · 추가·수정·삭제 즉시 적용)". action="소분류 추가"(contained `AddIcon`). 행: 소프트 틴트 칩(이름·색, `ColorChip`) + 소속 대분류 칩 + "순서 N" + "· 상품 N개" + is_active Switch + 편집/삭제 아이콘. 빈 상태 "등록된 소분류가 없습니다 · 추가해 시작하세요". 삭제 가드: 사용 상품>0이면 disabled + 경고.
 - [ ] **소분류 추가/수정 다이얼로그**: 이름·소속 대분류 Select·색 프리셋(`MASTER_COLOR_PRESETS` 9색, 자유 hex 금지)·정렬 순서 + 미리보기. 같은 대분류 내 이름 중복 검증.
 - ~~배지 관리 카드 / 배지 다이얼로그~~ — **(2026-06-29 폐기)** 동적 배지 기능 제거. 인기/신상품은 상품 폼 체크박스로 별도 관리(유지).
+
+### 검사군 관리 = '검사' 그룹 뷰 인라인 (2026-07-02 개편 — 별도 패널 폐지)
+> **배치(현행):** 별도 "검사군 관리" 토글 패널(`tgPanelOpen`)은 **폐지**. 검사군 CRUD·명명·분리·병합·옵션 편집을 전부 **'검사' 카테고리 그룹 뷰 안에 인라인 흡수**했다(건우님 최종 지시 2). `selectedCategory==='검사'`이면 무조건 그룹 뷰가 뜨고, 각 검사군 그룹 헤더 행에서 관리한다. "검사군 추가"는 그룹 뷰 진입 시 필터 바에 노출. 아래 목록/편집/분리/병합/삭제 다이얼로그는 **기존 컴포넌트를 그대로 재사용**하고 진입점만 그룹 헤더로 옮겼다. 검사군은 **검사 대분류 상품에만 해당**. 편집(검사명·약어·노출)=즉시, 위험 액션(분리/병합/삭제)=확인 스텝.
+
+#### 검사군 목록 = 그룹 뷰 헤더 행 (2026-07-02 개편 — 별도 목록 폐지, 그룹 뷰 헤더에 인라인)
+- [ ] "검사군 추가"(outlined `AccountTreeIcon`)는 '검사' 뷰 필터 바에 노출(`products:edit`). 검색은 기존 상품명 검색이 대체(별도 검사군 검색 폐지).
+- [ ] 각 검사군 = **그룹 뷰의 헤더 `TableRow`**. 좌측 셀에 ▸/▾ + 약어(`abbr` `caption`/600) + 검사명(`name` `body1`/600 주인공) + "옵션 N개"(`tgOptionCounts`). `is_active=false` 검사군은 행 dim(`opacity 0.55`) + "숨김" 칩.
+- [ ] 헤더 행 우측 관리 셀(`products:edit`, `colSpan={2}`, 클릭 stopPropagation):
+  - **is_active Switch**(검사군 카드 노출 토글 — R4 확정: 카드 노출만 제어, 옵션 일괄 전파 안 함)
+  - 편집 아이콘(`EditIcon`) → 검사명·약어 편집 다이얼로그
+  - **⋮ 메뉴(`MoreVertIcon`)** → **[검사군 상세 편집] / [병합] / [삭제] 3항목**(2026-07-03 상세 편집 모달 흡수 개편). 옵션 편집·옵션 옮기기(분리·이동)·옵션 순서·개별 삭제는 전부 **상세 편집 모달**로 흡수(§검사군 상세 편집 모달 절). 병합은 모달 밖 유지(`mergeTestGroups`), 삭제는 검사군 마스터 삭제 확인 다이얼로그. 위험 액션은 확인 스텝. ~~"항목 수 불변(6번째 신설 금지)"~~ 제약은 폐기(모달 흡수로 메뉴가 3항목으로 축소됨).
+- [ ] 미분류(`test_group_id` NULL 검사 상품) 그룹은 뷰 하단에 "미분류" 헤더로 묶이되 **관리 액션 없음**(마스터가 없으므로).
+- [ ] 검사군 미적재(테이블 없음/시드 전) 시 그룹 뷰가 사실상 "미분류" 한 덩어리로 graceful 폴백(회귀 0).
+
+#### 검사군 상세 편집 모달 (2026-07-03 신규 — 검사군+옵션 통합 편집)
+> **컴포넌트: `TestGroupEditorModal.jsx`.** 진입 = ①그룹 헤더 편집 아이콘, ②헤더 ⋮ "검사군 상세 편집", ③필터 바 "검사군 추가"(빈 모달=신규). 검사명·약어 편집 다이얼로그 + 옵션 편집 다이얼로그(`tgDetail`) + 분리 다이얼로그(`tgSplit`)를 **폐지·흡수**한 단일 모달. **저장 시 일괄 반영**(즉시저장 아님, 검사군+옵션 변경분을 `saveTestGroupWithOptions`로 순차 반영).
+- [ ] **상단**: 검사명(`name`, required) + 약어(`abbr`, nullable) + 정렬 순서(`sort_order`) `TextField` + 노출(`is_active`) `Switch`("고객 주문서 노출", off 시 "숨김" 칩). ~~미리보기 카드~~ 는 모달로 통합되며 생략(옵션 테이블이 그 자리를 대체 — 검사명·옵션이 한 화면에서 보임).
+- [ ] **본문 옵션 인라인 테이블**(누락 금지): `[순서 ▲▼][옵션명 option_name][말머리 option_label][상품코드 product_code][가격 list_price][공용 is_common][노출 is_active][⋮ 이동/삭제]`.
+  - 순서 = ▲▼ 버튼(로컬 재배열, 저장 시 `sort_order`=index 재기입). **드래그앤드롭 금지**(Non-Goal).
+  - **기존 옵션**: 상품코드·가격은 읽기 표시(개별 상품 편집은 옵션 하위 행 편집 버튼=상품 폼). 옵션명·말머리·공용·노출·순서는 모달에서 편집.
+  - **신규 옵션**(하단 "옵션 추가" 행): 옵션명·말머리·상품코드(required 수기)·가격 입력. **상품명 name = `"{검사명} {옵션명}"` 자동조합(공백 1칸, 하이픈 금지, 편집 가능)** — 사용자가 name을 직접 만지면(`nameTouched`) 자동조합 중단. 기존 옵션 name은 자동 덮어쓰기 안 함.
+- [ ] **"옵션 옮기기 (분리·이동)"**: 모달 내부 버튼(저장된 옵션 1개 이상 시). 라디오 2택 (A)새 검사군 `splitTestGroup` / (B)기존 검사군 `moveOptionsToGroup`(Autocomplete, 자기 자신 제외). 옵션 체크박스 다중 선택 + 확인 문구 3블록(§옵션 옮기기 절 확인 문구 최종본 그대로). 실행 후 리로드 + 모달 로컬에서 옮긴 옵션 제거.
+- [ ] **상품코드 중복 검증**: 저장 시 모달 내부 옵션끼리 + 로드된 전체 `allProducts` 대비 `product_code` 중복 감지 → 경고 메시지·저장 차단(신규 옵션 대상, 기존 옵션 id는 자기 자신 제외).
+- [ ] **삭제 vs 판매중지 구분**: 옵션 ⋮ "삭제"(`deleteProductOption`, 확인 다이얼로그: "판매중지는 노출 토글로, 삭제는 되돌릴 수 없음, 과거 주문 기록은 보존됨") / 노출 `Switch`(is_active). 신규(미저장) 옵션 ⋮ 자리는 행 제거 버튼.
+  - **삭제 권한 = master 전용**(products DELETE RLS `has_permission('master')`). edit 운영자는 삭제 메뉴 **disable + "삭제는 관리자(master) 권한이 필요합니다" 안내**. 권한 판별 = `hasPermission('master')`(master role이면 permissions=['master']).
+- [ ] **하단**: "옵션 추가" 버튼 + 저장/취소. 저장 = `saveTestGroupWithOptions({ group, newOptions, updatedOptions, deletedIds })`(검사군 신규 INSERT/기존 UPDATE → 옵션 생성 → 옵션 수정 순차). 성공 후 `loadTestGroups`+`fetchProducts` 리로드.
+- [ ] **state 격리**: 모달은 자체 로컬 state(214검사군 헤더 렌더에 영향 0). Autocomplete는 MUI 내장 필터(controlled 최상단 state 렉 방지 — A6 렉 재발 이력). graceful: 가법 컬럼 미적용 시 `createProductOption` PGRST204 재시도로 기본 상품만 생성.
+
+#### ~~검사명·약어 편집 다이얼로그~~ (2026-07-03 폐지 — 상세 편집 모달로 흡수)
+> 별도 `tgDialog` 다이얼로그·미리보기 카드 폐지. 검사명·약어·정렬·노출 편집은 상세 편집 모달 상단에서 수행.
+
+#### ~~옵션 순서·말머리 편집~~ (2026-07-03 폐지 — 상세 편집 모달로 흡수)
+> 별도 `tgDetail` 옵션 편집 다이얼로그 폐지. 말머리·형태명·공용·개별 노출·순서(▲▼)는 상세 편집 모달 본문 인라인 테이블에서 편집(저장 = 각 `products` UPDATE).
+
+#### 옵션 옮기기 (분리·이동 — 위험 액션, 확인 스텝) [2026-07-03 일반화]
+> **배경:** 자동 초벌(93% 정확)이 잘못 묶은 옵션을 교정하는 단일 진입점. 기존 "분리" 다이얼로그(체크박스 다중 선택 + 새 검사군 입력 UI)를 **일반화**해, "새 검사군으로 분리(신규)"와 "기존 검사군으로 이동(동종 연산)"을 **목적지 라디오 1개**로 흡수했다. "A검사군의 이 옵션이 사실 B(기존)검사군 소속" 케이스가 지금은 엑셀 재업로드로만 가능했는데, UI에서 직접 이동한다. **신규 독립 기능이 아니라 기존 분리 다이얼로그의 흡수·확장.**
+- [ ] 트리거(2026-07-03 개편): **검사군 상세 편집 모달 내부** "옵션 옮기기 (분리·이동)" 버튼 + 옵션 행 ⋮ "다른 검사군으로 옮기기"(해당 옵션 자동 선택). ~~헤더 ⋮ 메뉴 직접 항목~~은 모달 흡수로 제거. 모달 진입 시 소속 옵션이 이미 로드됨(`fetchTestGroupOptions`, 모달이 재사용).
+- [ ] **상단 목적지 라디오 2택**(MUI `RadioGroup`, 기본값 = A 새 검사군 — 기존 동작 유지):
+  - **(A) 새 검사군으로** — 선택 시 **기존 분리 UI 그대로**: 새 검사군 **검사명**(`name`, required) + **약어**(`abbr`, nullable) `TextField` 2칸(현행 `tgSplitForm`). 실행 = `splitTestGroup`(새 `test_groups` INSERT + 선택 옵션 `test_group_id` UPDATE).
+  - **(B) 기존 검사군으로** — 선택 시 검사명·약어 입력칸 대신 **MUI `Autocomplete` 1개**(214개 검사군, 옵션 라벨 = "약어 · 검사명", **약어·검사명 둘 다로 검색**, **자기 자신(현재 검사군) 제외**). 실행 = 선택 옵션 `test_group_id`를 **선택한 기존 검사군 id로 UPDATE**(새 검사군 생성 없음 — 동종 연산). 목적지 미선택 시 확정 버튼 disabled.
+- [ ] **옵션 체크박스 다중 선택**(기존 `tgSplitSelected` 재사용) — 목적지 라디오 아래에 소속 옵션 리스트(체크박스 + 말머리 caption + 형태명/원본명). "옮길 옵션 N개 선택" 카운트.
+- [ ] **확인 문구**(다이얼로그 본문·정직·자체완결, §확인 문구 최종본 참조): 목적지에 따라 이동/분리 문구 분기 + 원래 검사군 0개 되는 경우 경고 + 되돌리는 법 안내.
+- [ ] 확정 버튼: (A) "N개를 새 검사군으로 분리" / (B) "N개를 '{대상검사군}'(으)로 옮기기". `color="error"`(진열 즉영향 위험 액션 — 원칙 3).
+- [ ] 실행 후: `loadTestGroups` + `fetchProducts` 리로드. 분리 예: K-CDI 3분리, Holland 2분리, SCT 3분리. 이동 예: 오분류 옵션을 기존 형제 검사군으로 귀속.
+
+##### 안 함 (엄수 — 이번 범위 밖·오버엔지니어링 방어)
+- [ ] **실행취소(undo) 전면 제외.** 이동/분리 후 undo 버튼·스낵바 undo·이력 스택 없음. 되돌림은 "반대로 다시 옮기기"(수동)로만(건우님 확정). 확인 문구에 안내 1줄로 대체.
+- [ ] **빈 검사군 자동삭제 제외 — 유지 + 경고만.** 옵션을 전부 옮겨 원래 검사군이 0개가 되어도 **검사군 마스터를 자동 삭제하지 않는다**(유지). 확인 문구로 "빈 검사군은 고객 진열에 미표시(PRD §엣지 옵션0 카드 미표시) · 필요 없으면 ⋮ 메뉴에서 직접 삭제" 안내만. 자동 정리 로직 금지.
+- [ ] **드래그앤드롭 제외.** 옵션 이동은 체크박스 다중 선택 + 목적지 라디오만. DnD·트리 위젯 도입 금지(MUI 기존 컴포넌트만).
+
+##### 확인 문구 최종본 (정직·자체완결·아첨 없음 — 2026-07-03)
+> 다이얼로그 본문 `Typography`(`text.secondary`)로 표시. 아래 3블록을 조건부로 이어 붙인다. 과장·격려·감탄사 금지("좋습니다" 등). 대상·개수·결과만 사실대로.
+- [ ] **이동 시(공통, 항상 표시)**: `"옵션 N개를 '{대상검사군}'(으)로 옮깁니다. 진열이 즉시 바뀝니다."`
+  - (A) 새 검사군일 때 `{대상검사군}` = 입력한 새 검사명. (B) 기존 검사군일 때 = 선택한 검사군명.
+- [ ] **원래 검사군이 0개가 되는 경우(추가)**: `"'{원래검사군}'에 남는 옵션이 없어집니다. 빈 검사군은 고객 진열에 표시되지 않으며, 필요 없으면 ⋮ 메뉴에서 직접 삭제하세요."`
+  - 판정 = (선택 옵션 수 === 현재 검사군 소속 옵션 수). 빈 검사군 자동삭제는 안 함(위 §안 함) — 경고만.
+- [ ] **되돌리는 법(항상 표시, 마지막 줄)**: `"잘못 옮겼다면 반대로 다시 옮기면 됩니다."`
+  - undo 없음(§안 함)을 이 한 줄이 대체. 조작이 가역적임을 알려 심리 부담 완화.
+
+#### 병합 (N 검사군 → 1 — 위험 액션, 확인 스텝)
+- [ ] 트리거(2026-07-02 개편): 그룹 헤더 ⋮ 메뉴 → "병합". 그 검사군이 **대표(keep)** 로 지정되고, 다이얼로그에서 **흡수할 다른 검사군을 체크박스로 다중 선택**한다(기존 "목록에서 2개 이상 체크" 방식 대체).
+- [ ] 다이얼로그: 대표 검사군 표기 + 흡수 대상 목록(체크박스·검사명·약어·옵션 N) + "되돌리려면 다시 분리해야 합니다" 경고. 확정 버튼 "N개를 대표로 병합".
+- [ ] 실행 = 흡수되는 검사군들의 옵션 `test_group_id`를 대표로 UPDATE + 빈 검사군 삭제(`mergeTestGroups`). 예: SCT 성인·청소년·아동을 지침서 공용 판단으로 병합.
+
+#### 검사군 삭제 (위험 액션, 확인 스텝)
+- [ ] "삭제"는 검사군 마스터만 제거. **소속 상품은 삭제하지 않고** `test_group_id`를 NULL로(평면 진열로 복귀) — 상품 데이터 보존.
+- [ ] 확인: **"검사군 '{이름}'을 삭제합니다. 소속 옵션 N개는 검사군에서 풀려 낱개로 진열됩니다(상품 자체는 삭제되지 않음). 계속할까요?"**. 절판 상품은 삭제가 아니라 `is_active=false`(숨김)로 처리하도록 다이얼로그에 안내 1줄.
+- [ ] ⚠️ 상품 자체 삭제는 기존 상품 표의 선택 삭제·전체 삭제(받아쓰기)로. 검사군 관리에서 상품을 지우지 않는다(혼동 방지).
+
+> **AI 시그니처 금지 재확인:** 검사군 관리 화면에 컬러 인디케이터바·그라데이션·가짜 통계 배치 금지. 리스트+칩+다이얼로그(기존 소분류 관리·상품 표 패턴 재사용)만. theme.js 무수정·MUI 컴포넌트(Table/List·Switch·Dialog·Chip)만.
 
 ### 통계 카드 6장 (line 603-687, 가로 한 줄에 펼쳐짐 — 클릭하면 필터 적용)
 - [ ] 카드 1: "전체 상품" — primary 색 그라데이션, 활성 시 보더 강조, `InventoryIcon`
@@ -93,9 +170,47 @@
     - "할인" 칩 (success 톤, `is_discountable=true`일 때)
     - ~~동적 배지~~ — **(2026-06-29 폐기)** 동적 배지 칩 제거.
     - 셋 다 false이면 "-" (caption)
+  - **노출 상태 표시 — (2026-07-02 신규, is_active)**: `is_active=false`(숨김) 상품은 **행 전체를 회색 dim**(`opacity 0.55` 또는 `text.disabled` 톤)하고 상품명 옆(또는 상태 태그 컬럼 맨 앞)에 "숨김" 칩(`gray[200]` 배경 + `text.secondary`, 소프트 틴트). **`is_active=true`(노출 중)는 칩 없음**(기본 상태라 무표시 — 노이즈 방지). **숨김 상품이 표에서 사라지지 않는다**(재판매·이관 대비, PRD §절판 처리). 필터로 숨김만/노출만 보기는 별도 빠른 필터(아래 §필터 참조, 1차 선택). is_active는 검사·도서·도구 공통 전역 필드 — 검사 위계 UI에 종속되지 않는다.
   - 태그 (앞 2개 칩 + "+N" 칩으로 나머지)
   - 작업: 편집 아이콘 (`EditIcon`)
 - [ ] 페이지네이션: 페이지당 항목 수 셀렉트 (10/25/50/100) + Pagination 컴포넌트
+
+### 검사군 그룹 뷰 (검사 카테고리 = 디폴트이자 유일 뷰 · 조회+수정 — 2026-07-02 개편, 건우님 지시 1·2)
+> **목적:** 인싸이트 직원이 사무실 PC에서 검사 상품 1,134행을 볼 때, C1 고객 화면과 동일한 검사군(약 214개)→옵션 2뎁스로 접어서 확인·수정. 평면 1,134행을 검사군 단위로 요약해 "이 검사에 옵션이 몇 개인지·어떻게 묶였는지"를 고객이 보는 그대로 검수하고, 같은 화면에서 검사군·옵션을 편집한다.
+> **탭 분리 금지(CPO 기각).** 카드 클릭 필터(`selectedCategory`)가 카테고리 전환을 담당한다.
+
+#### 뷰 전환 (토글 폐지 — 2026-07-02 개편)
+- [ ] **`selectedCategory === '검사'`이면 무조건 그룹 뷰**(`groupViewActive = selectedCategory === '검사'`). 별도 "검사군 묶어보기" `Switch`(`groupView` state)는 **폐지**(건우님 지시 1). 검사 = 그룹 뷰, 다른 값은 평면.
+- [ ] **도서·도구·전체(빈 카테고리)는 평면 표.** '전체'에서 검사 상품이 평면에 섞여 나오는 현행 유지(전체 조망용). '검사' 선택 시에만 그룹 뷰.
+- [ ] **기본 접힘.** 검사군 헤더만 214행 진열, 옵션은 헤더 클릭 시 펼침. 페이지네이션은 그룹 뷰에서 숨김(헤더 전량 렌더).
+- [ ] 시각: 그라데이션·컬러 인디케이터 금지(MUI `Table`/`Chip`/`Switch`만).
+
+#### Before / After 구조 요약
+- **평면 뷰(도서·도구·전체):** 상품이 평면 `Table` 행으로 나열. 검사 상품 상품명 = 원본 풀네임.
+- **검사 그룹 뷰:** **검사군 그룹 헤더 행**(약 214행) + 펼침 시 그 아래 **옵션 하위 행**. C1 `TestGroupCard`와 동일한 2뎁스 위계(검사명 주인공·약어 보조·옵션 N). 평면 대비 스캔 대상 1,134→214 축소. **컬럼·표 골격 그대로**. 헤더 행 우측에 검사군 관리 액션 인라인(노출/편집/⋮).
+
+#### 검사군 그룹 헤더 행 표기 (C1 카드와 정합)
+- [ ] 헤더 행은 상품 표의 **한 `TableRow`** 로, 소속 옵션을 접었다 폈다 하는 아코디언 트리거.
+  - **좌측 셀(상품명 컬럼 위치)**: ▸/▾ 펼침 아이콘 + **약어**(`test_groups.abbr`, `caption`/600/`text.secondary` — 좌측 보조 위계, 없으면 생략) + **검사명**(`test_groups.name`, `body1`/600 — 주인공, wrap) → **C1 카드 접힘 상태의 약어·검사명 위계와 동일**.
+  - **"옵션 N개"**: `tgOptionCounts[group.id]` 재사용(`body2`/`text.secondary`). C1 카드의 "옵션 N개"와 동일 문구. **가격은 헤더에 미표기**(C1 검사군 카드 가격 은닉 규칙과 정합 — 헤더는 묶음 요약, 가격은 옵션 행에서만).
+  - **`test_groups.is_active === false` 검사군**: 행 dim(`opacity 0.55`) + "숨김" 칩(상품 표 기존 숨김 칩과 동일 패턴 재사용).
+  - 그룹 헤더 행의 좌측 요약 셀은 `colSpan`으로 중간 컬럼을 병합하고, **우측 관리 셀(`colSpan={2}`)에 검사군 단위 인라인 액션**(노출 Switch·편집·⋮ 메뉴)을 둔다(2026-07-02 개편 — 읽기 전용에서 "조회+수정"으로). 미분류(`group===null`)는 관리 셀 없음.
+- [ ] 정렬: `test_groups.sort_order` → 검사명(마스터 조회 정렬 그대로). `test_group_id`가 없는(미분류) 검사 상품은 **뷰 하단에 "미분류" 그룹**으로 묶어 노출(누락 금지 — graceful).
+
+#### 옵션 하위 행 (기존 표 컬럼 재사용)
+- [ ] 그룹 헤더를 펼치면 소속 옵션(`fetchTestGroupOptions(group.id)` — **기존 API 재사용, 신규 API 금지**)이 **상품 표의 기존 컬럼 구조 그대로** 하위 행으로 나열. 즉 옵션 하위 행 = **평면 표 행과 동일한 셀 구성**(이미지·상품명·카테고리·하위카테고리·가격·비고·상태태그·태그·작업). 들여쓰기(상품명 셀 좌측 pad)로 하위 위계 표현.
+  - 상품명 셀은 원본 `name` 대신 **말머리(`option_label`) + 형태명(`option_name`)** 조합 표시 권장(C1 옵션 행 정합) — 단 마스터 미정제 상품은 원본 `name` 폴백. 나머지 셀은 평면 표와 100% 동일 렌더(가격·상태칩·태그·`is_active` dim 그대로 재사용 — 별도 렌더 로직 안 만듦).
+  - **작업(편집) 아이콘은 옵션 하위 행에 유지** — 개별 상품 수정(상품명·가격·태그·노출 등)은 기존 상품 편집 다이얼로그로. **말머리(`option_label`)·옵션명(`option_name`)·순서(`sort_order`)는 검사군 헤더 ⋮ 메뉴 → "옵션 편집" 다이얼로그**(기존 `tgDetail` 재사용)에서 편집.
+- [ ] 페이지네이션: 그룹 뷰에서는 숨김(헤더 214개 전량 렌더). 옵션 펼침은 현재 페이지 내 아코디언.
+
+#### 역할 분담 (2026-07-02 개편 — 별도 패널 폐지)
+- [ ] **검사군 단위 편집(검사명·약어·노출·분리·병합·삭제) = 그룹 헤더 행 인라인 액션(노출 Switch·편집·⋮ 메뉴).** **옵션(상품) 단위 편집** = 헤더 ⋮ "옵션 편집"(말머리·옵션명·순서·공용·개별 노출) + 옵션 하위 행의 상품 편집 버튼(그 외 상품 필드). 검사군 조회·수정이 **'검사' 화면 하나**에 통합됨("검사군 관리"라는 별도 개념 소멸).
+
+#### 제약 (엄수 — frontend 구현 시)
+- [ ] **엑셀 흐름 = 지시 3으로 위계 열 추가**(§엑셀 컬럼 매핑 참조). 단, 단일 양식·`product_code` upsert·기존 열은 무변경.
+- [ ] **신규 API 최소화.** 기존 `testGroups` 함수 재사용, 엑셀 왕복 검사군 매칭용 `makeTestGroupResolver`만 추가(내부에서 기존 `createTestGroup` 재사용). graceful: `test_group_id`/`test_groups` 미적용이면 검사군 0개 → "미분류" 한 덩어리 폴백(회귀 0).
+- [ ] **theme.js 무수정 · MUI만 · AI 시그니처(그라데이션·컬러바·가짜 통계) 금지.** 기존 `Table`·`Chip`·`Switch`·`Menu` 패턴 재사용.
+- [ ] 상품 표 기존 컬럼·상태칩·`is_active` dim·권한 가드(`products:view`/`products:edit`) 전부 보존.
 
 ### 정렬 규칙
 - [ ] 정렬: 인기 상품 우선 → 이름 가나다순 (line 175-179)
@@ -135,6 +250,7 @@
   - "할인 가능" (`is_discountable`)
   - "인기 상품" (`is_popular`)
   - "신상품" (`is_new`)
+- [ ] **노출 여부 Switch — (2026-07-02 신규, `is_active`)**: 플래그 체크박스 3종과 **별도 행**에 `Switch` 컴포넌트로 배치(체크박스 아님 — on/off 상태가 진열에 즉시 영향인 "전역 스위치"라 체크박스와 시각 구분). 라벨 "고객 주문서 노출" + 보조문구 `caption`/`text.secondary` "끄면 주문서에서 숨겨집니다 (데이터는 보존 — 삭제 아님)". 기본값 `true`(신규 상품은 노출). off 시 Switch 회색·라벨 옆 "숨김" 칩. **검사 위계 전용 아님** — 모든 상품(검사/도서/도구) 폼에 공통 노출.
 - [ ] 태그 (`tags`, Autocomplete multiple freeSolo, `availableTags` 옵션)
 - ~~배지 (`badges`)~~ — **(2026-06-29 폐기)** 동적 배지 입력 필드 제거. 고객 노출 강조는 인기/신상품 boolean 체크박스(위)로만.
 
@@ -162,6 +278,8 @@
 - `is_popular` (boolean, default false)
 - `is_new` (boolean, default false)
 - `is_recommend` (boolean, default false) — **마이그레이션에는 있으나 ProductManagementPage UI에 노출 안 됨, 확인 필요**
+- `is_active` (boolean, default true) — **노출여부(전역 필드). (2026-07-02 UI+API 구현)** false=고객 주문서에서 숨김(절판·판매중지). **삭제 아님** — 재판매·이관 대비 데이터 보존(PRD_검사위계.md §절판 처리, K-BASC-2·K-Bayley-Ⅲ·K-WAIS-IV 등). 검사 위계 전용이 아닌 **검사/도서/도구 공통**. 상품 표 상태칩·폼 Switch로 관리. graceful: 컬럼 미적용 환경(`is_active===undefined`)은 노출로 취급 + `handleSave` PGRST204 재시도로 키 제외(회귀 0). **DRAFT 마이그레이션 `20260630020000_DRAFT_add_products_is_active.sql` 존재**(가법 컬럼, `ADD COLUMN IF NOT EXISTS`) — 건우님 적용 전이면 코드가 graceful 처리.
+- `test_group_id`·`option_name`·`option_label`·`is_common`·`sort_order` (검사 위계 신규 가법 컬럼, PRD_검사위계.md) — **'검사' 그룹 뷰의 인라인 액션·옵션 편집 다이얼로그·엑셀 위계 열이 편집**. 도서·도구는 대부분 NULL. 엑셀 왕복 시 검사군 매칭(약어,검사명)→`test_group_id` 연결(`makeTestGroupResolver`).
 - `tags` (text[] — 코드에서 배열 사용. 마이그레이션 SQL에는 명시 없음, 확인 필요)
 
 ### 엑셀 컬럼 매핑 (line 375-389)
@@ -177,12 +295,20 @@
 - 신상품여부 → is_new
 - 태그 → tags (콤마 split)
 - ~~배지 → badges~~ — **(2026-06-29 폐기)** 엑셀 "배지" 열 제거(양식·목록·파싱 3곳). category 게이트는 종전대로 행 오류 유지.
+- **검사 위계 열 (2026-07-02 신규, 지시 3)** — 양식·목록·파싱 3곳 모두 추가. 검사 상품만 채움(도서·도구는 공란):
+  - `검사군약어` → `test_groups.abbr` (nullable), `검사군명` → `test_groups.name`. **매칭 키 = (약어, 검사명) 조합**(`makeTestGroupResolver`, seed_hierarchy.py dedup 규칙 동일: abbr 빈값→null, name trim, 대소문자·공백 정규화). 기존 검사군 조회 후 `test_group_id` 연결, 없으면 신규 검사군 생성. **검사군명이 채워진 행만** 연결 시도.
+  - `옵션명` → `option_name`, `말머리` → `option_label`, `공용(Y/공란)` → `is_common`(Y=true), `옵션정렬` → `sort_order`(정수), `노출(Y/N)` → `is_active`(N=false).
+  - **빈 열 = 미변경**: 채워진 열만 payload에 포함(빈 열은 제외→기존 DB 값 보존). **구양식(위계 열 없음) 업로드해도 회귀 0.**
+  - **다운로드**: 현 DB값을 채워 내보냄 — `test_group_id`를 test_groups(약어·검사명)로 조인, 옵션 필드 그대로. 운영자가 이 파일로 대량 수정 후 재업로드(왕복).
+  - **graceful**: 신규 컬럼 미적용(마이그레이션 전) 환경이면 Edge Fn upsert가 컬럼 오류 → 프론트가 위계 열 빼고 1회 재시도(기존 열만 반영, 회귀 0). 컬럼 적용 시 Edge Fn이 그대로 통과(Fn 무변경).
 
 ## 필터·뷰 모드
 
 - 검색어 (상품명 부분 일치)
 - 카테고리 단일 선택 (도서/검사/도구) — 카드 클릭으로 토글
+- **검사군 그룹 뷰 (2026-07-02 개편)**: `selectedCategory==='검사'`이면 **무조건 그룹 뷰**(토글 폐지, `groupViewActive = selectedCategory==='검사'`). 도서·도구·전체는 평면. 그룹 뷰 = 조회+수정(검사군·옵션 인라인 관리), 페이지네이션 숨김. §검사군 그룹 뷰 절 참조.
 - 빠른 필터: discountable | popular | null
+- **노출 필터 — (2026-07-02 신규, 1차 선택)**: `productQuickFilter`에 `hidden`(숨김만) 추가 검토, 또는 검색·필터 카드에 "숨김 포함 N개" 표시 + 별도 토글. **기본은 전체 노출**(숨김 상품도 표에 보임 — dim+칩으로 구분). 운영자가 "숨김 상품만 모아보기"를 원할 때만 필터. **구현 우선순위 낮음** — is_active 상태칩·폼 Switch가 P0, 필터는 P1.
 - 태그 다중 선택 (OR 매칭)
 - 정렬: 인기 우선 → 이름 가나다순(고정, 사용자 선택 없음)
 - 페이지당 항목 수: 10/25/50/100 (기본 50)
@@ -217,6 +343,13 @@
 
 ## 변경 이력
 
+- 2026-07-03 **검사군 상세 편집 모달 실 구현 + ⋮ 메뉴 재편 (실 코드 변경 — frontend-engineer, tech-cto 위임)**. 신규 `TestGroupEditorModal.jsx`로 검사군(상위)+옵션(products) CRUD·순서·이동·삭제를 하나의 큰 모달에 통합. **폐지**: 검사명·약어 편집 다이얼로그(`tgDialog`)·미리보기 카드, 옵션 편집 다이얼로그(`tgDetail`·`handleOpenTgDetail`·`handleTgDetailOptionChange`·`handleMoveOption`·`handleSaveOptions`), 분리 다이얼로그(`tgSplit*`·`handleOpenSplit`·`handleToggleSplitOption`·`handleSplit`), `handleSaveTestGroup`. 관련 state(`tgDialog`·`tgSaving`·`tgDetail`·`tgSplitOpen`·`tgSplitSelected`·`tgSplitForm`) 제거, `tgEditor`(모달 open/group) 신설. **⋮ 메뉴 재편**: [옵션 편집·분리·병합·삭제] 4항목 → **[검사군 상세 편집·병합·삭제] 3항목**(옵션 편집·분리는 모달 흡수, 병합은 모달 밖 유지=`mergeTestGroups`). 헤더 편집 아이콘·"검사군 추가" 버튼 모두 모달 진입으로. **모달**: 상단(검사명·약어·정렬·노출 Switch) + 옵션 인라인 테이블(순서 ▲▼·옵션명·말머리·상품코드·가격·공용·노출·⋮ 이동/삭제) + 하단(옵션 추가·저장/취소). 신규 옵션 name 자동조합 `"{검사명} {옵션명}"`(공백 1칸, 편집 가능·nameTouched 중단, 기존 name 미덮어씀). 옵션 옮기기(라디오 A=`splitTestGroup`/B=`moveOptionsToGroup`, 확인 문구 3블록). 상품코드 중복 검증(모달 내부+전체 products) 저장 차단. 옵션 삭제=`deleteProductOption`(master 전용, edit는 disable+안내, 확인 문구 "판매중지는 노출 토글·삭제 불가역·과거 주문 보존"). 드래그앤드롭·undo 제외. state 완전 격리(214행 렌더 무영향)·Autocomplete 내장 필터(controlled 렉 방지). **API**: `testGroups.js`에 `createProductOption`·`deleteProductOption`(42501→권한 안내)·`moveOptionsToGroup`·`saveTestGroupWithOptions`(backend 병렬 신설, 순차+PGRST204 graceful, order_items 불변). ⋮ "항목 수 불변" 제약 폐기. theme.js 무수정·MUI만(Dialog/Table/Switch/Checkbox/RadioGroup/Autocomplete)·AI 시그니처 없음·권한 가드 보존. **검증**: `npx eslint`(변경 파일 신규 위반 0)·`vite build`·`vitest` 113 passed. §검사군 상세 편집 모달 절 신설, §검사명·약어/옵션 순서·말머리 절 폐지 표시, §옵션 옮기기·⋮ 메뉴 절 갱신.
+- 2026-07-03 **옵션 옮기기(분리·이동) 사양 — 분리 다이얼로그 일반화 (사양만 갱신, 실 코드 미변경 — product-designer, 건우님 확정)**. 기존 §분리 절을 §옵션 옮기기(분리·이동) 절로 일반화. (1) **⋮ 메뉴 라벨** "분리 (옵션을 새 검사군으로)" → **"옵션 옮기기 (분리·이동)"** — 라벨만 변경, 항목 수 불변(옵션 편집·옵션 옮기기·병합·삭제, 6번째 신설 금지). (2) **다이얼로그 상단 목적지 라디오 2택**(`RadioGroup`, 기본 A=기존 동작): (A) 새 검사군으로 = 기존 검사명·약어 `TextField` UI 그대로(`splitTestGroup`) / (B) 기존 검사군으로 = `Autocomplete` 1개(`fetchTestGroups` 214개, 옵션 라벨 "약어 · 검사명", 약어+검사명 검색, **현재 검사군 제외**)로 선택 → 선택 옵션 `test_group_id`를 기존 id로 UPDATE(동종 연산, 새 검사군 생성 없음). (3) **옵션 체크박스 다중 선택**(`tgSplitSelected`) 기존 재사용. (4) **확인 문구 3블록**(정직·자체완결): 이동("옵션 N개를 '{대상}'(으)로 옮깁니다. 진열이 즉시 바뀝니다.") + 원래 검사군 0개 경고("남는 옵션이 없어집니다. 빈 검사군은 진열 미표시·⋮에서 직접 삭제") + 되돌리는 법("반대로 다시 옮기면 됩니다."). (5) **안 함(엄수)**: undo 전면 제외 / 빈 검사군 자동삭제 제외(유지+경고만) / 드래그앤드롭 제외. 근거: 자동 초벌 오분류 교정을 단일 진입점으로 흡수 — "분리 vs 이동 vs 병합" 구분 부담을 라디오 1개로 줄임(연 8일·초기 시드 정비 집중, 학회 중 freeze). **제약**: theme.js 무수정·MUI만(Dialog/Checkbox/Autocomplete/Chip/RadioGroup 재사용)·AI 시그니처 금지·`products:edit` 가드 보존·order_items 불변. **frontend 결정 필요(tech-cto 소관)**: 신규 API `moveOptionsToGroup(targetGroupId, productIds)`(기존 검사군 id로 `test_group_id` UPDATE·최소) vs `splitTestGroup` 확장 — 제품 요구는 "기존 검사군 id로 UPDATE하는 동종 연산" 자체일 뿐, 함수 형태는 엔지니어링 판단. 상단 요약·§검사군 관리 ⋮ 메뉴·§옵션 옮기기 절 신설, §분리 대체.
+- 2026-07-03 **페이지 렌더 성능 최적화 (실 코드 변경 — frontend-engineer, 건우님 실동작 피드백 2건 동일 근본원인)**. 증상: (1) 검색 debounce 250ms 딜레이 답답(오타 수정 시 결과 지연), (2) 모든 탭(전체/할인/인기/검사/도서/도구) 전환마다 렉. 원인: 2,300줄 단일 컴포넌트라 state 변경마다 상품 표 전량 재렌더 + 상품 행이 memo 안 돼 안 바뀐 행까지 다시 그림. **수정(정보 구조·기능·필드 전부 불변, memo/useCallback 외과 도입):** (1) 상품 행을 `ProductRow` `React.memo` 컴포넌트로 추출(컴포넌트 밖 top-level) — 평면 행과 검사군 옵션 하위 행이 공유(props `isOption`으로 상품명 셀만 분기: 평면=`product.name`, 옵션=말머리+형태명+`pl:4` 들여쓰기). `renderProductCells`도 top-level 순수 함수로 이동해 `ProductRow` 내부 흡수 — memo 대상이 셀 전체(카테고리·소분류칩·가격·비고·상태칩·태그·편집버튼) 포함해야 skip이 온전. props(`product`·`selected`·`canEdit`·`isOption`·`subColorByName`·`theme`·`onToggle`·`onEdit`) 동일 시 재렌더 skip. (2) `ProductThumb`를 `React.memo`로 — `filename`·`name` 같으면 이미지 셀 재렌더 skip. (3) 핸들러 `useCallback` 안정화(`handleOpen`·`handleToggleOne`·`handleToggleGroupExpand`) — 참조 고정으로 memo 효과 유지. `subColorByName`(useMemo)·`theme`(useTheme)는 이미 안정. **skip 근거:** `filteredProducts`가 `[...list].sort()`로 새 배열을 만들어도 개별 상품 객체는 `allProducts` 원본 참조 유지 → 탭 전환·검색 시 표시되는 행 중 동일 객체는 얕은 비교 통과로 재렌더 skip. (4) A6 `ProductSearchBar delay={60}`(250→60ms) — 렌더가 가벼워져 오타 수정 타이핑 매끄럽고 결과 즉시 반영. **C1(`ProductSelectionStep.jsx`)의 `ProductSearchBar`는 무변경(`delay` 미지정=기본 250ms 유지) — C1은 렉 없어 현행 유지.** 통계 카드·필터바는 이미 useMemo(`totalDiscountableCount`·`totalPopularCount`·`categoryCounts`·`availableTags`)라 추가 조치 불요(과잉 최적화 방어). **기능 전부 불변(개별 수정·엑셀 다운로드/업로드·검사군 인라인 관리·is_active·페이지네이션·권한 가드·검사군 묶어보기 뷰)·order_items 불변·theme.js 무수정·MUI만·AI 시그니처 없음.** 검증: `npm run lint`(변경 파일 신규 위반 0, 기존 send-alimtalk 9에러 무관)·`npm run build` 통과·`vitest` 113 passed 유지.
+- 2026-07-02 **검사 위계 통합 개편 3건 (실 코드 변경 — frontend-engineer, 건우님 최종 지시)**. **[지시 1]** "검사군 묶어보기" 토글(`groupView` state·`Switch`·조건부 렌더) 제거 — `groupViewActive = selectedCategory==='검사'`로 단순화(검사=무조건 그룹 뷰, 디폴트이자 유일 뷰). 도서·도구·전체 평면 유지, 전체에서 검사 평면 혼재 유지, 그룹 뷰 페이지네이션 숨김. **[지시 2]** 헤더 "검사군 관리" 토글 버튼·`tgPanelOpen` state·Collapse 패널(목록 Table·툴바·검색) 전량 제거. 기능을 그룹 헤더 행에 인라인 흡수 — 헤더 우측 관리 셀(`colSpan={2}`, `products:edit`, stopPropagation): is_active `Switch`(`handleToggleTgActive`)·편집 `IconButton`(→ 기존 `tgDialog`)·⋮ `Menu`(`MoreVertIcon`) 4항목[옵션 편집(→`handleOpenTgDetail`)·분리(→detail 후 `handleOpenSplit`)·병합·삭제]. 병합 재설계: 헤더에서 대표(keep) 지정→다이얼로그에서 흡수 대상 다중 선택(`tgMergeKeep`·`tgMergeAbsorb`, 기존 `mergeTestGroups(keepId,[keep,...absorb])`). "검사군 추가"는 검사 뷰 필터 바에 outlined 버튼으로 이동. 삭제·분리·옵션 편집 다이얼로그는 **기존 컴포넌트 그대로 재사용**(진입점만 이동, 대규모 재작성 없음). 미분류 그룹은 관리 액션 없음. **[지시 3]** 엑셀 다운로드/양식/파싱 3곳에 위계 7열(`검사군약어`·`검사군명`·`옵션명`·`말머리`·`공용(Y/공란)`·`옵션정렬`·`노출(Y/N)`) 추가. 다운로드=`fetchTestGroups` 조인으로 현 DB값 채움. 업로드=Phase 2.5에서 `makeTestGroupResolver`(신규, `api/testGroups.js` — 기존 `createTestGroup` 재사용·세션 캐시·(약어,검사명) dedup, seed_hierarchy.py 규칙 동일)로 `test_group_id` 해결(없으면 생성), 채워진 열만 `option_name`·`option_label`·`is_common`·`sort_order`·`is_active`에 반영(빈 열=미변경→구양식 회귀 0). Edge Fn 무변경(컬럼 있으면 통과) + 컬럼 미적용 환경 graceful(위계 열 빼고 1회 재시도, `data.errors`의 컬럼 오류도 감지). 기존 열·`product_code` upsert·category 게이트 무변경. **theme.js 무수정·MUI만·AI 시그니처 없음·권한 가드 보존·order_items 불변.** 검증: `npm run lint`(변경 파일 신규 위반 0, 기존 send-alimtalk 9에러 무관)·`npm run build`·`vitest` 113 passed 유지. 상단 요약·§검사군 관리=그룹 뷰 인라인·§검사군 그룹 뷰·§엑셀 컬럼 매핑·§필터·뷰 모드·데이터 모델 갱신.
+- 2026-07-02 **검사군 묶어보기 뷰 사양 추가 (사양만 갱신, 실 코드 미변경 — product-designer)**. A6 §상품 표에 "검사군 묶어보기 뷰(검사 카테고리 한정·토글·읽기 진열)" 절 신설 + §필터·뷰 모드에 뷰 항목 추가. (1) **토글**: `selectedCategory==='검사'`일 때만 뜨는 MUI `Switch` "검사군 묶어보기"(신규 state `groupView` bool, 기본 off). 도서·도구 선택 시 숨김. off=현행 평면 표(회귀 0). (2) **그룹 헤더 행**: 약어(`test_groups.abbr` 보조)+검사명(`name` 주인공)+"옵션 N개"(`tgOptionCounts` 재사용)로 C1 `TestGroupCard` 접힘 상태와 정합, 가격 은닉, `is_active=false` 검사군 dim+숨김 칩. (3) **옵션 하위 행**: 펼치면 `fetchTestGroupOptions`(기존 API) 소속 옵션을 상품 표 기존 컬럼 구조 그대로 하위 행 진열(말머리+형태명 상품명 셀, 나머지 셀·가격·상태칩·is_active dim 재사용). 개별 상품 편집 버튼 유지(검사군 구조 편집 아님). (4) **역할 분담**: 뷰=읽기 진열, 검사군 관리 패널(`tgPanelOpen`)=편집(분리·병합·명명·옵션순서·삭제) 유일 소스. (5) **제약**: 탭 분리 금지(CPO 기각), 엑셀 흐름 무변경(단일 양식·product_code upsert), 신규 API 금지, theme.js 무수정·MUI만·AI 시그니처 금지, 기존 컬럼/상태칩/페이지네이션/권한 가드 보존, graceful(검사군 미적용 시 평면 폴백). 미반영(frontend 결정 필요): 그룹 헤더 행 colSpan 병합 방식·미분류 검사 상품 배치·페이지네이션 단위(헤더 214 기준)·펼침 아코디언 구현(Collapse vs 행 삽입).
+- 2026-07-02 **검사 위계 실 구현 — is_active 토글 + 검사군 관리 화면 (실 코드 변경 — frontend-engineer)**. (1) **is_active(노출여부)**: 상품 표 `TableRow` `opacity: is_active===false ? 0.55 : 1`(dim), 상태 태그 컬럼 맨 앞 "숨김" 칩(`theme.gray[200]` 배경 + `text.secondary`, `is_active===false`만 표시 — 노출 중은 무표시, `-` 폴백 조건도 `is_active!==false` 게이트). 상품 폼 플래그 체크박스 3종 뒤 별도 행에 "고객 주문서 노출" `Switch`(`checked={is_active!==false}`, 기본 노출, off 시 "숨김" 칩·보조문구 "끄면 주문서에서 숨겨집니다 (데이터는 보존 — 삭제 아님)"). `createEmptyProduct`에 `is_active: true`. `handleSave` mutate의 PGRST204 재시도 게이트에 `is_active` 포함(image_filename과 함께 delete 후 재시도) — 컬럼 미적용 환경 graceful. 숨김 상품 표 잔류. 검사/도서/도구 공통(검사 위계 UI 비종속). (2) **검사군 관리**: 헤더 액션부 "검사군 관리" 토글(`AccountTreeIcon`, `products:edit`) → Collapse `SectionCard`(padding 0). 툴바(검사군 추가 contained·병합 outlined error·검색 TextField) + 목록 `Table`(체크박스·약어 caption·검사명 body1/600·옵션N·is_active Switch·편집·삭제, `is_active=false` 행 dim+"· 숨김"). 빈 상태 메시지. 검사명·약어 편집 다이얼로그(검사명·약어·정렬 + 미리보기 고객 카드 접힘). 옵션 상세 다이얼로그(말머리·형태명 TextField·공용 Checkbox·개별 is_active Switch·▲▼ 순서 이동, 상단 분리 버튼, 저장 시 각 상품 `updateProductOption`으로 sort_order=index 재기입). 분리 다이얼로그(새 검사군 검사명·약어 + 옵션 다중선택, 확인 문구). 병합 다이얼로그(대표 검사군 선택 Checkbox·옵션 합계·되돌림 경고). 삭제 확인(소속 옵션 낱개 복귀·절판은 숨김 권고 안내). 편집=즉시, 분리/병합/삭제=확인 스텝. `loadTestGroups`로 마운트·CRUD 후 로드. API `src/api/testGroups.js` 신설(모두 api 계층 경유, 직접 supabase 호출은 api 파일 내부만). (3) **graceful**: 테이블·컬럼 미적용(42P01·PGRST204·PGRST205) 시 빈 목록/무동작 → 화면 회귀 0. (4) **미확정 처리**: 검사군 단위 is_active 토글은 **검사군 카드 노출(test_groups.is_active)만** 토글하고 소속 옵션 일괄 전파는 안 함 — `handleToggleTgActive`에 TODO 주석 + 사양 §검사군 목록 "확인 필요" 유지(backend·건우님 검수). 노출 필터(P1)는 미구현(사양 P1 우선순위 낮음 그대로). **theme.js 무수정·MUI만·AI 시그니처 없음.** 검증: `npx eslint`(변경 파일 위반 0)·`vite build` 통과.
+- 2026-07-02 **검사 위계 시안 — is_active 토글 + 검사군 관리 화면 (사양만 갱신, 실 코드 미변경 — product-designer)**. PRD_검사위계.md 흐름 B(보정 UI 전체 구현) + is_active(노출여부) 전역 필드 UI. (1) **상품 표**: 상태 태그 컬럼에 "숨김" 칩(`is_active=false`, `gray[200]` 소프트 틴트) + 행 dim, 노출 중은 무표시. 숨김 상품이 표에서 사라지지 않음(재판매·이관 대비). (2) **상품 폼**: 플래그 체크박스 3종과 별도 행에 "고객 주문서 노출" `Switch`(체크박스 아님 — 진열 즉영향 전역 스위치) + 보조문구. 기본 true. (3) **검사군 관리 화면**(헤더 "검사군 관리" 토글 패널 or 서브탭, `products:edit`): 검사군 목록(약어·검사명·옵션N·is_active Switch·편집·삭제) + 검사명/약어 편집 다이얼로그(미리보기로 잘림 확인) + 옵션 순서·말머리·is_common·개별 is_active 편집 + 분리(1→N)·병합(N→1)·삭제 위험 액션 확인 스텝. 즉시저장 아님(위험도 높아 저장+확인). 삭제는 검사군 마스터만 제거(상품은 test_group_id NULL로 보존). (4) 데이터 모델에 `is_active`·검사 위계 5컬럼 명시(⚠️ 실 마이그레이션 존재 여부 backend 확인 필요). (5) 노출 필터는 P1(1차 선택). **단어 권고**: "노출 중"/"숨김"(중립·데이터 보존 뉘앙스, "판매중지"보다 정합). **AI 시그니처 금지·theme.js 무수정·MUI 유지.** 미반영: is_active 실 마이그레이션·검사군 단위 is_active 토글 범위·노출 필터 구현 우선순위(전부 backend·건우님 검수 대상으로 명시). C1 시트 동시 갱신.
 - 2026-06-29 **동적 배지 기능 폐기 — 인기/신상품·소분류는 유지 (실 코드 변경, 건우님 결정)**. (제거) 배지 마스터 CRUD 패널(SectionCard)·다이얼로그·`handleSaveBadge`/`handleDeleteBadge`/`handleToggleBadgeActive`·`badgeDialog`/`badgeMaster`/`customBadgeInput` state·`badgeOptions`/`badgeColorByName`/`badgePriorityByName` memo·`handleToggleBadge`/`handleAddCustomBadge`, 상품 폼 배지 칩 토글 블록, 표 동적 배지 칩 map, 엑셀 "배지" 열(양식·목록·파싱 3곳)·`badgeWarnings`·`CARD_BADGE_LIMIT`, `createEmptyProduct.badges`, `handleSave`/엑셀 payload의 `badges` 처리, `api/masters.js`의 `fetchBadges`/`createBadge`/`updateBadge`/`deleteBadge`·`fetchMasterUsageCounts`의 badgeCounts. `BadgeChip`→`ColorChip` 리네임(소분류 표시 재사용처만 잔존). 헤더 토글 "소분류·배지 관리"→"소분류 관리". 미사용 import(`SellIcon`·`Alert`) 정리. (유지) `is_popular`/`is_new` boolean — 카드 칩·폼 체크박스·표 상태태그·엑셀 인기/신상품 열 전부 그대로. 소분류 마스터·상품 이미지·태그·카테고리 그대로. `products.badges` 코드 참조 0(grep 확인, drop 후 에러 0). C1/A8 시트 동시 갱신. **검증**: lint(변경 파일 신규 위반 0, 기존 send-alimtalk 9에러 무관)·vite build 통과. theme.js 무수정.
 - 2026-06-29 **상품 표 썸네일 플레이스홀더 폐기 (실 코드 변경, 건우님 결정)**. `ProductManagementPage.jsx` `ProductThumb` — `getProductImageUrl(filename)`이 null이거나 `onError`면 `return null`(셀 비움). 기존 회색 박스(`grey.100`) + `ImageIcon`(18px) 플레이스홀더 코드·`show` 분기 제거, `ImageIcon` import 삭제. "이미지" 컬럼 헤더·colSpan/columns 카운트는 유지(있는 상품만 썸네일). C1 `ProductCard` 슬롯과 동형 정책(이미지 없으면 미렌더). **혼재 처리 로직 추가 안 함(오버엔지니어링 방어), theme.js 무수정, AI 시그니처 없음.** **검증**: lint(변경 파일 신규 위반 0, 기존 send-alimtalk 9에러 무관)·vite build 통과. §표 썸네일·마지막 갱신·핵심 발견 14 갱신.
 - 2026-06-29 **상품 이미지 블로커 보강 (실 코드 변경, CTO 검수 후속)**. (A graceful) `handleSave`가 `badges`만 `PGRST204` 재시도하고 `image_filename`은 미대응이던 결함 보강 — payload에서 빈 `image_filename`(''·null·undefined) delete + `PGRST204` 재시도 대상에 `image_filename` 포함(`'badges' in data || 'image_filename' in data` 게이트, 두 키 동시 delete 후 재시도). 컬럼 미적용 환경에서 image_filename 키가 섞여도 전건 실패 안 하고 해당 키만 빠진 채 통과. (B 파일명 검증) `handleImageUpload`가 `upload(file.name)` 그대로라 한글·공백·특수문자 파일명이면 Storage 키가 깨지던 결함 보강 — 모듈 상수 `SAFE_IMAGE_FILENAME = /^[A-Za-z0-9._-]+$/`로 업로드 전 검증, 위반 파일은 업로드 시도 없이 실패목록에 `{ ok:false, error:'파일명에 한글·공백·특수문자 불가 — 영문/숫자 파일명 권장' }` 기록(운영자 즉시 인지), 정상 파일만 `uploadProductImage` 호출. (C 안내) 업로드 버튼 툴팁 + 결과 다이얼로그 하단에 "권장: 파일명을 상품코드로(영문/숫자)" 1줄. `productImages.js` api 경유 유지, 기존 graceful 패턴(빈값 delete + PGRST204 재시도) 답습, MUI 토큰, 다른 로직 무변경. 데이터 모델 image_filename·핵심 발견 14·일괄 업로드 다이얼로그 절 갱신.

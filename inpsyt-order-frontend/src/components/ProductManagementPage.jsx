@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import ProductSearchBar from './ProductSearchBar';
+import TestGroupEditorModal from './TestGroupEditorModal';
 import {
   Box, Typography, Button, TextField, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Dialog,
   DialogActions, DialogContent, DialogTitle, FormControlLabel, Checkbox,
-  FormControl, InputLabel, Select, MenuItem, Autocomplete, Chip,
+  FormControl, InputLabel, Select, MenuItem, Menu, Autocomplete, Chip,
   Pagination, IconButton, Tooltip, ToggleButton, ToggleButtonGroup,
-  CircularProgress, LinearProgress, Switch, Collapse, alpha, useTheme,
+  CircularProgress, LinearProgress, Switch, Collapse, ListItemIcon, alpha, useTheme,
 } from '@mui/material';
 import {
   Add as AddIcon, FileDownload as DownloadIcon, FileUpload as UploadIcon,
@@ -24,6 +26,9 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   PhotoLibrary as PhotoLibraryIcon,
+  MergeType as MergeTypeIcon,
+  MoreVert as MoreVertIcon,
+  Tune as TuneOptionsIcon,
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import { fetchAllProducts } from '../api/products';
@@ -33,6 +38,10 @@ import {
   createSubcategory, updateSubcategory, deleteSubcategory,
   fetchMasterUsageCounts,
 } from '../api/masters';
+import {
+  fetchTestGroups, updateTestGroup, deleteTestGroup,
+  fetchTestGroupOptionCounts, mergeTestGroups, makeTestGroupResolver,
+} from '../api/testGroups';
 import { getSocieties } from '../api/events';
 import { useNotification } from '../hooks/useNotification';
 import { useAuth } from '../hooks/useAuth';
@@ -62,6 +71,7 @@ const createEmptyProduct = () => ({
   is_discountable: false,
   is_popular: false,
   is_new: false,
+  is_active: true,
   tags: [],
 });
 
@@ -96,7 +106,8 @@ const parsePrice = (value) => {
 
 // 상품 표 썸네일(A6 §표 썸네일). 1:1 작은 정방형.
 // 미등록·onError면 셀 비움(null) — 플레이스홀더 폐기(건우님 2026-06-29). 대부분 미등록(NULL)이 정상.
-const ProductThumb = ({ filename, name }) => {
+// memo: filename·name 같으면 skip(탭 전환·검색·행 재정렬 시 이미지 셀 재렌더 방지).
+const ProductThumb = React.memo(({ filename, name }) => {
   const [failed, setFailed] = useState(false);
   const url = getProductImageUrl(filename);
   if (!url || failed) return null;
@@ -121,7 +132,106 @@ const ProductThumb = ({ filename, name }) => {
       />
     </Box>
   );
-};
+});
+
+// 상품명 이후 공통 셀(카테고리·하위카테고리·가격·비고·상태태그·태그·작업).
+// 평면 행과 검사군 옵션 하위 행이 동일하게 재사용(사양 §옵션 하위 행).
+// ProductRow 내부 렌더로 흡수 — memo 대상이 셀 전체를 포함해야 재렌더가 온전히 skip됨.
+const renderProductCells = (product, subColorByName, theme, canEdit, onEdit) => (
+  <>
+    <TableCell><Chip label={product.category} size="small" color="primary" variant="outlined" /></TableCell>
+    <TableCell>
+      {product.sub_category
+        ? (subColorByName[product.sub_category]
+            ? <ColorChip label={product.sub_category} color={subColorByName[product.sub_category]} />
+            : <ColorChip label={`${product.sub_category} · 미등록`} color={MASTER_COLOR_FALLBACK} />)
+        : '-'}
+    </TableCell>
+    <TableCell align="right" sx={{ fontWeight: 700, fontFeatureSettings: '"tnum" 1' }}>{(product.list_price || 0).toLocaleString()}원</TableCell>
+    <TableCell sx={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product.notes || '-'}</TableCell>
+    <TableCell align="center">
+      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', justifyContent: 'center', minWidth: 80 }}>
+        {/* 숨김 칩 — is_active=false만 표시(노출 중은 기본 상태라 무표시, 노이즈 방지). gray 소프트 틴트. */}
+        {product.is_active === false && (
+          <Chip
+            label="숨김"
+            size="small"
+            sx={{ bgcolor: theme.gray[200], color: 'text.secondary', border: 0, fontWeight: 600 }}
+          />
+        )}
+        {product.is_popular && <Chip label="인기" size="small" color="warning" />}
+        {product.is_new && <Chip label="신상품" size="small" color="primary" />}
+        {product.is_discountable && (
+          <Chip
+            label="할인"
+            size="small"
+            sx={{ bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main', border: 0 }}
+          />
+        )}
+        {product.is_active !== false && !product.is_popular && !product.is_new && !product.is_discountable && (
+          <Typography variant="caption" color="text.secondary">-</Typography>
+        )}
+      </Box>
+    </TableCell>
+    <TableCell>
+      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+        {(product.tags || []).slice(0, 2).map((tag, index) => (
+          <Chip key={index} label={tag} size="small" variant="outlined" />
+        ))}
+        {(product.tags || []).length > 2 && (
+          <Tooltip title={product.tags.slice(2).join(', ')} arrow>
+            <Chip label={`+${product.tags.length - 2}`} size="small" sx={{ cursor: 'pointer' }} />
+          </Tooltip>
+        )}
+      </Box>
+    </TableCell>
+    {canEdit && (
+      <TableCell align="center">
+        <IconButton
+          size="small"
+          onClick={() => onEdit(product)}
+          sx={{ color: 'primary.main', '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) } }}
+        >
+          <EditIcon fontSize="small" />
+        </IconButton>
+      </TableCell>
+    )}
+  </>
+);
+
+// 상품 표 한 행(평면 뷰 행 = 검사군 옵션 하위 행 공용). memo — product·selected·canEdit·subColorByName가
+// 안 바뀌면 재렌더 skip. 핸들러(onToggle·onEdit)는 상위에서 useCallback으로 안정화해야 memo 효과가 남.
+// isOption=true면 검사군 옵션 하위 행(상품명 셀=말머리+형태명, 들여쓰기). 셀 구성은 renderProductCells 공용.
+const ProductRow = React.memo(({ product, selected, canEdit, isOption, subColorByName, theme, onToggle, onEdit }) => {
+  const nameLabel = isOption
+    ? ([product.option_label, product.option_name].filter(Boolean).join(' ') || product.name)
+    : product.name;
+  return (
+    <TableRow
+      selected={selected}
+      sx={{
+        '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.02) },
+        transition: 'background-color 0.2s',
+        // is_active=false(숨김) 행 dim. 표에서 사라지지 않고 잔류(재판매·이관 대비).
+        // graceful: 컬럼 미적용(undefined)은 노출로 취급.
+        opacity: product.is_active === false ? 0.55 : 1,
+      }}
+    >
+      {canEdit && (
+        <TableCell padding="checkbox">
+          <Checkbox size="small" checked={selected} onChange={() => onToggle(product.id)} />
+        </TableCell>
+      )}
+      <TableCell align="center">
+        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <ProductThumb filename={product.image_filename} name={product.name} />
+        </Box>
+      </TableCell>
+      <TableCell sx={{ fontWeight: 500, ...(isOption ? { pl: 4 } : null) }}>{nameLabel}</TableCell>
+      {renderProductCells(product, subColorByName, theme, canEdit, onEdit)}
+    </TableRow>
+  );
+});
 
 // 소분류 소프트 틴트 칩. 미등록·색없음은 회색 폴백.
 const ColorChip = ({ label, color }) => {
@@ -225,8 +335,21 @@ const ProductManagementPage = () => {
   const [masterUsage, setMasterUsage] = useState({ subCounts: {} });
   const [subDialog, setSubDialog] = useState(null);   // null | { id?, name, parent_category, color, sort_order, is_active }
   const [masterSaving, setMasterSaving] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+
+  // ── 검사군 관리 (test_groups) — '검사' 그룹 뷰 안에서 인라인 관리. 위험 액션(분리/병합/삭제)은 확인 스텝 ──
+  const [testGroups, setTestGroups] = useState([]);
+  const [tgOptionCounts, setTgOptionCounts] = useState({}); // { [test_group_id]: 소속 상품 수 }
+  const [tgDeleteTarget, setTgDeleteTarget] = useState(null); // 삭제 확인 대상 검사군
+  const [tgMergeKeep, setTgMergeKeep] = useState(null);      // 병합 대표(keep) 검사군 — 헤더 메뉴에서 진입
+  const [tgMergeAbsorb, setTgMergeAbsorb] = useState(new Set()); // 대표로 흡수될 다른 검사군 id들
+  const [tgActionRunning, setTgActionRunning] = useState(false);
+  // 검사군 상세 편집 모달 — { group: null(신규) | 객체(기존) } 이면 열림
+  const [tgEditor, setTgEditor] = useState(null);
+  const [searchTerm, setSearchTerm] = useState(''); // debounce된 검색어(ProductSearchBar가 세팅)
+  const [searchResetKey, setSearchResetKey] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [expandedGroups, setExpandedGroups] = useState(new Set()); // 펼친 검사군 id(및 '미분류')
+  const [tgMenuAnchor, setTgMenuAnchor] = useState(null); // 검사군 헤더 행 액션 메뉴 { el, group }
   const [productQuickFilter, setProductQuickFilter] = useState(null);
   const [selectedTags, setSelectedTags] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -281,10 +404,25 @@ const ProductManagementPage = () => {
     }
   }, []);
 
+  // 검사군 마스터 + 옵션 카운트 로드. CRUD 후 재호출. 마이그레이션 미적용 시 빈 목록 graceful.
+  const loadTestGroups = useCallback(async () => {
+    try {
+      const [groups, counts] = await Promise.all([
+        fetchTestGroups(),
+        fetchTestGroupOptionCounts(),
+      ]);
+      setTestGroups(groups);
+      setTgOptionCounts(counts);
+    } catch (error) {
+      console.error('Error loading test groups:', error);
+    }
+  }, []);
+
   useEffect(() => {
     loadMasters();
+    loadTestGroups();
     getSocieties().then(setSocieties).catch(() => {});
-  }, [loadMasters]);
+  }, [loadMasters, loadTestGroups]);
 
   // 활성 소분류 이름 옵션(현재 폼 대분류에 소속된 것만). is_active=false는 신규 선택지에서 숨김.
   const subOptionsForCategory = useMemo(() => {
@@ -338,7 +476,56 @@ const ProductManagementPage = () => {
 
   const totalFiltered = filteredProducts.length;
 
-  // 페이지 슬라이싱
+  // 검사군 그룹 뷰 활성 여부 — '검사' 카테고리 선택 시 무조건 그룹 뷰(디폴트이자 유일 뷰).
+  // 도서·도구·전체는 평면. '전체'에서 검사 상품이 평면에 섞이는 현행은 유지(전체 조망).
+  const groupViewActive = selectedCategory === '검사';
+
+  // 검사군 그룹 뷰용 그룹핑(신규 API 없이 filteredProducts + testGroups 재사용).
+  // 검사군 헤더 행(sort_order 순) + 소속 옵션. test_group_id NULL 검사 상품은 하단 "미분류" 그룹.
+  const groupedView = useMemo(() => {
+    if (!groupViewActive) return [];
+    const byGroup = new Map();
+    const unassigned = [];
+    filteredProducts.forEach((p) => {
+      if (p.test_group_id != null) {
+        if (!byGroup.has(p.test_group_id)) byGroup.set(p.test_group_id, []);
+        byGroup.get(p.test_group_id).push(p);
+      } else {
+        unassigned.push(p);
+      }
+    });
+    const sortOptions = (list) => [...list].sort((a, b) => {
+      const sa = a.sort_order ?? Number.MAX_SAFE_INTEGER;
+      const sb = b.sort_order ?? Number.MAX_SAFE_INTEGER;
+      if (sa !== sb) return sa - sb;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+    // testGroups는 이미 sort_order → name 정렬(fetchTestGroups). 옵션이 있는 검사군만 진열.
+    const rows = testGroups
+      .filter((g) => byGroup.has(g.id))
+      .map((g) => ({ group: g, options: sortOptions(byGroup.get(g.id)) }));
+    if (unassigned.length > 0) {
+      rows.push({ group: null, options: sortOptions(unassigned) });
+    }
+    return rows;
+  }, [groupViewActive, filteredProducts, testGroups]);
+
+  // 그룹 뷰 페이지 슬라이싱 — 검사군 214개 헤더 전량 렌더 시 헤더 MUI 폭증으로 렉 → 페이지 분할
+  const displayedGroups = useMemo(() => {
+    const start = (currentPage - 1) * productsPerPage;
+    return groupedView.slice(start, start + productsPerPage);
+  }, [groupedView, currentPage, productsPerPage]);
+
+  const handleToggleGroupExpand = useCallback((key) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  // 페이지 슬라이싱 (평면 뷰 전용 — 그룹 뷰는 헤더 전량 렌더)
   const displayedProducts = useMemo(() => {
     const start = (currentPage - 1) * productsPerPage;
     return filteredProducts.slice(start, start + productsPerPage);
@@ -349,12 +536,12 @@ const ProductManagementPage = () => {
   const selectedCount = selectedIds.size;
   const hasFilters = Boolean(searchTerm || selectedCategory || productQuickFilter || selectedTags.length > 0);
 
-  const handleOpen = (product = null) => {
+  const handleOpen = useCallback((product = null) => {
     setIsEditing(Boolean(product));
     setCurrentProduct(product ? { ...product } : createEmptyProduct());
     setCategoryInvalid(false);
     setOpen(true);
-  };
+  }, []);
 
   const handleClose = () => {
     setOpen(false);
@@ -395,9 +582,11 @@ const ProductManagementPage = () => {
           return supabase.from('products').insert([body]);
         };
         let { error } = await run(data);
-        if (error && error.code === 'PGRST204' && 'image_filename' in data) {
+        // 신규 가법 컬럼(image_filename·is_active) 미적용 환경 graceful — PGRST204 시 해당 키 빼고 재시도.
+        if (error && error.code === 'PGRST204' && ('image_filename' in data || 'is_active' in data)) {
           const rest = { ...data };
           delete rest.image_filename;
+          delete rest.is_active;
           ({ error } = await run(rest));
         }
         if (error) throw error;
@@ -421,14 +610,14 @@ const ProductManagementPage = () => {
     });
   };
 
-  const handleToggleOne = (id) => {
+  const handleToggleOne = useCallback((id) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
+  }, []);
 
   const handleDeleteSelected = async () => {
     setDeleting(true);
@@ -565,6 +754,16 @@ const ProductManagementPage = () => {
         tags: getRowValue(row, ['태그', 'tags'])
           ? String(getRowValue(row, ['태그', 'tags'])).split(',').map((tag) => tag.trim()).filter(Boolean)
           : [],
+        // 검사 위계 열(구양식엔 없음 — undefined면 미변경). 원시값만 보관, test_group_id는 검증 후 매칭.
+        _hier: {
+          abbr: getRowValue(row, ['검사군약어', 'test_group_abbr']),
+          groupName: getRowValue(row, ['검사군명', 'test_group_name']),
+          option_name: getRowValue(row, ['옵션명', 'option_name']),
+          option_label: getRowValue(row, ['말머리', 'option_label']),
+          is_common: getRowValue(row, ['공용(Y/공란)', '공용', 'is_common']),
+          sort_order: getRowValue(row, ['옵션정렬', 'sort_order']),
+          is_active: getRowValue(row, ['노출(Y/N)', '노출', 'is_active']),
+        },
       }));
 
       // Phase 2: Client-side validation
@@ -607,6 +806,35 @@ const ProductManagementPage = () => {
         return;
       }
 
+      // Phase 2.5: 검사 위계 매칭 — (검사군약어, 검사군명)으로 test_group_id 해결(없으면 생성).
+      // 빈 열은 미변경(payload에서 제외 → 기존 값 보존). 구양식(위계 열 없음)이면 이 단계가 사실상 no-op.
+      // seed_hierarchy.py 와 동일 dedup((abbr, name)). 검사군 매칭은 검사 상품에만 의미.
+      const existingGroups = await fetchTestGroups().catch(() => []);
+      const resolveGroup = makeTestGroupResolver(existingGroups);
+      let hierApplied = 0;
+      for (const product of validProducts) {
+        const h = product._hier || {};
+        const hasGroup = h.groupName != null && String(h.groupName).trim() !== '';
+        // 검사군 연결 — 검사군명이 있을 때만. (약어는 nullable) 검사 카테고리만 실질 대상.
+        if (hasGroup) {
+          const gid = await resolveGroup(h.abbr, h.groupName);
+          if (gid != null) product.test_group_id = gid;
+        }
+        // 옵션 필드 — 열이 채워진 것만 반영(빈 열 = 미변경, 기존 값 보존).
+        if (h.option_name != null && String(h.option_name).trim() !== '') product.option_name = String(h.option_name).trim();
+        if (h.option_label != null && String(h.option_label).trim() !== '') product.option_label = String(h.option_label).trim();
+        if (h.is_common != null && String(h.is_common).trim() !== '') product.is_common = parseBool(h.is_common);
+        if (h.sort_order != null && String(h.sort_order).trim() !== '') {
+          const so = parseInt(h.sort_order, 10);
+          if (Number.isFinite(so)) product.sort_order = so;
+        }
+        if (h.is_active != null && String(h.is_active).trim() !== '') product.is_active = parseBool(h.is_active);
+        if (hasGroup || product.option_name !== undefined || product.is_active !== undefined) hierApplied++;
+      }
+      if (hierApplied > 0) {
+        setUploadLog(prev => [...prev, `검사 위계 열 반영: ${hierApplied}건 (검사군 매칭·옵션 표기)`]);
+      }
+
       // Phase 3: Chunked upload
       const totalValid = validProducts.length;
       setUploadProgress({ current: 0, total: totalValid, phase: 'uploading' });
@@ -622,18 +850,42 @@ const ProductManagementPage = () => {
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
         const chunkStart = i * CHUNK_SIZE;
-        // Strip _rowNum before sending. image_filename 빈값은 제외(미적용 환경 회귀 방지).
-        const payload = chunk.map((p) => {
+        // Strip 내부 필드(_rowNum·_hier) 후 전송. image_filename 빈값은 제외(미적용 환경 회귀 방지).
+        // 검사 위계 컬럼(test_group_id·option_name·option_label·is_common·sort_order·is_active)은
+        // Phase 2.5에서 채워진 것만 남아 있음(빈 열=미포함=기존 값 보존).
+        const buildPayload = (withHierarchy) => chunk.map((p) => {
           const rest = { ...p };
           delete rest._rowNum;
+          delete rest._hier;
           if (rest.image_filename == null) delete rest.image_filename;
+          if (!withHierarchy) {
+            // 마이그레이션 미적용(컬럼 없음) 환경 graceful — 위계 컬럼 제거 후 재시도.
+            delete rest.test_group_id;
+            delete rest.option_name;
+            delete rest.option_label;
+            delete rest.is_common;
+            delete rest.sort_order;
+            delete rest.is_active;
+          }
           return rest;
         });
+        let payload = buildPayload(true);
 
         try {
-          const { data, error } = await supabase.functions.invoke('upload-products-excel', {
+          let { data, error } = await supabase.functions.invoke('upload-products-excel', {
             body: { products: payload },
           });
+
+          // 신규 위계 컬럼 미적용 환경 — 컬럼 미존재 오류면 위계 열 빼고 1회 재시도(구스키마 회귀 0).
+          // Edge Fn은 배치 실패 시 행별 폴백으로 200+errors[]를 돌려줄 수 있어, data.errors 도 함께 감지.
+          const columnMissing = (msg) => /column|does not exist|PGRST204|schema cache/i.test(msg || '');
+          const hierColsSent = payload.some((p) => 'test_group_id' in p || 'option_name' in p || 'option_label' in p || 'is_common' in p || 'sort_order' in p || 'is_active' in p);
+          const dataColErr = data?.error_count > 0 && (data.errors || []).some((e) => columnMissing(e.error));
+          if (hierColsSent && ((error && columnMissing(error.message)) || dataColErr)) {
+            payload = buildPayload(false);
+            ({ data, error } = await supabase.functions.invoke('upload-products-excel', { body: { products: payload } }));
+            if (!error) setUploadLog(prev => [...prev, `청크 ${i + 1}: 검사 위계 컬럼 미적용 환경 — 기본 열만 반영`]);
+          }
 
           if (error) {
             // Entire chunk failed
@@ -726,8 +978,8 @@ const ProductManagementPage = () => {
     const template = [{
       상품명: '예시 상품',
       상품코드: 'PROD001',
-      카테고리: '도서',
-      하위카테고리: '심리',
+      카테고리: '검사',
+      하위카테고리: '',
       가격: 15000,
       비고: '설명',
       할인여부: 'TRUE',
@@ -735,6 +987,14 @@ const ProductManagementPage = () => {
       신상품여부: 'TRUE',
       태그: '신경정신,치매',
       이미지: 'sample.webp',
+      // 검사 위계 열 — 검사 상품만 채움(도서·도구는 공란). 검사군 매칭 키 = (검사군약어, 검사군명).
+      검사군약어: 'K·BASC-3',
+      검사군명: '한국판 정서-행동 평가시스템',
+      옵션명: '검사지·온라인코드 20개',
+      말머리: '부모보고형 청소년용',
+      '공용(Y/공란)': '',
+      옵션정렬: 1,
+      '노출(Y/N)': 'Y',
     }];
 
     const worksheet = XLSX.utils.json_to_sheet(template);
@@ -746,20 +1006,32 @@ const ProductManagementPage = () => {
 
   const handleDownloadExcel = async () => {
     try {
-      const allProducts = await fetchAllProducts();
-      const rows = allProducts.map((product) => ({
-        상품명: product.name,
-        상품코드: product.product_code,
-        카테고리: product.category,
-        하위카테고리: product.sub_category || '',
-        가격: product.list_price,
-        비고: product.notes || '',
-        할인여부: product.is_discountable ? 'TRUE' : 'FALSE',
-        인기상품: product.is_popular ? 'TRUE' : 'FALSE',
-        신상품여부: product.is_new ? 'TRUE' : 'FALSE',
-        태그: product.tags?.join(',') || '',
-        이미지: product.image_filename || '',
-      }));
+      const [products, groups] = await Promise.all([fetchAllProducts(), fetchTestGroups()]);
+      // test_group_id → 검사군(약어·검사명) 룩업. 미적재 환경이면 빈 맵 → 위계 열 공란.
+      const groupById = new Map(groups.map((g) => [g.id, g]));
+      const rows = products.map((product) => {
+        const group = product.test_group_id != null ? groupById.get(product.test_group_id) : null;
+        return {
+          상품명: product.name,
+          상품코드: product.product_code,
+          카테고리: product.category,
+          하위카테고리: product.sub_category || '',
+          가격: product.list_price,
+          비고: product.notes || '',
+          할인여부: product.is_discountable ? 'TRUE' : 'FALSE',
+          인기상품: product.is_popular ? 'TRUE' : 'FALSE',
+          신상품여부: product.is_new ? 'TRUE' : 'FALSE',
+          태그: product.tags?.join(',') || '',
+          이미지: product.image_filename || '',
+          검사군약어: group?.abbr || '',
+          검사군명: group?.name || '',
+          옵션명: product.option_name || '',
+          말머리: product.option_label || '',
+          '공용(Y/공란)': product.is_common ? 'Y' : '',
+          옵션정렬: product.sort_order ?? '',
+          '노출(Y/N)': product.is_active === false ? 'N' : 'Y',
+        };
+      });
 
       const worksheet = XLSX.utils.json_to_sheet(rows);
       const workbook = XLSX.utils.book_new();
@@ -773,6 +1045,7 @@ const ProductManagementPage = () => {
 
   const handleResetFilters = () => {
     setSearchTerm('');
+    setSearchResetKey(k => k + 1);
     setSelectedCategory('');
     setCurrentPage(1);
     setProductQuickFilter(null);
@@ -842,9 +1115,78 @@ const ProductManagementPage = () => {
     }
   };
 
+  // ── 검사군 관리 (test_groups) — '검사' 그룹 뷰 안에서 인라인 진입 ──
+  const handleToggleTgActive = async (group) => {
+    // 현행 확정(R4): 검사군 is_active는 카드 노출만 제어(옵션 개별 불변), 진열 일관 — 전파 안 함.
+    try {
+      await updateTestGroup(group.id, { is_active: !group.is_active });
+      loadTestGroups();
+    } catch (error) {
+      addNotification(`상태 변경 실패: ${error.message}`, 'error');
+    }
+  };
+
+  // 검사군 삭제 (위험 액션 — 확인 스텝). 마스터만 제거, 소속 상품은 FK SET NULL 로 보존.
+  const handleDeleteTestGroup = async () => {
+    if (!tgDeleteTarget) return;
+    setTgActionRunning(true);
+    try {
+      await deleteTestGroup(tgDeleteTarget.id);
+      addNotification('검사군을 삭제했습니다 (소속 옵션은 낱개로 풀림).', 'success');
+      setTgDeleteTarget(null);
+      loadTestGroups();
+    } catch (error) {
+      addNotification(`검사군 삭제 실패: ${error.message}`, 'error');
+    } finally {
+      setTgActionRunning(false);
+    }
+  };
+
+  // 병합 진입 — 그룹 헤더 메뉴에서 이 검사군을 대표(keep)로 지정하고, 흡수할 다른 검사군을 다이얼로그에서 선택.
+  const handleOpenMerge = (keepGroup) => {
+    setTgMergeKeep(keepGroup);
+    setTgMergeAbsorb(new Set());
+  };
+
+  const handleToggleMergeAbsorb = (id) => {
+    setTgMergeAbsorb((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // 병합 (N→1 위험 액션 — 확인 스텝). 흡수 검사군 옵션을 대표로 이관 후 빈 검사군 삭제.
+  const handleMerge = async () => {
+    if (!tgMergeKeep || tgMergeAbsorb.size === 0) return;
+    setTgActionRunning(true);
+    try {
+      await mergeTestGroups(tgMergeKeep.id, [tgMergeKeep.id, ...Array.from(tgMergeAbsorb)]);
+      addNotification('검사군을 병합했습니다.', 'success');
+      setTgMergeKeep(null);
+      setTgMergeAbsorb(new Set());
+      loadTestGroups();
+      fetchProducts();
+    } catch (error) {
+      addNotification(`병합 실패: ${error.message}`, 'error');
+    } finally {
+      setTgActionRunning(false);
+    }
+  };
+
+  // 모달 저장/이동/삭제 후 상위 리로드 — 검사군 목록·카운트·상품 전량 재동기화.
+  const handleTgEditorSaved = useCallback(() => {
+    loadTestGroups();
+    fetchProducts();
+  }, [loadTestGroups, fetchProducts]);
+
   if (!user || !hasPermission('products:view')) {
     return <Box sx={{ p: 3 }}><Typography>상품 관리 페이지 접근 권한이 없습니다.</Typography></Box>;
   }
+
+  const canEdit = hasPermission('products:edit');
+  const tableColumnCount = canEdit ? 10 : 9;
 
   // 빠른 필터 카드 — 시안 QuickFilterCard 패턴 (border 기반, 그라데이션 제거 — 02 §색 E항)
   const renderQuickFilterCard = (opts) => {
@@ -1080,21 +1422,31 @@ const ProductManagementPage = () => {
 
       <SectionCard sx={{ mb: 2 }} padding={16}>
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: availableTags.length > 0 ? 2 : 0 }}>
-          <TextField
+          <ProductSearchBar
+            onSearch={setSearchTerm}
+            delay={60}
             label="상품명 검색"
-            value={searchTerm}
-            onChange={(event) => {
-              setSearchTerm(event.target.value);
-              setCurrentPage(1);
-            }}
+            placeholder=""
             size="small"
             sx={{ flexGrow: 1, minWidth: 200 }}
-            InputProps={{ startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} /> }}
+            resetKey={searchResetKey}
           />
           {hasFilters && (
             <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
               {totalFiltered}개 표시 중
             </Typography>
+          )}
+          {/* '검사' 선택 시 그룹 뷰가 디폴트이자 유일 뷰(토글 없음). 검사군 추가는 이 뷰에서만 노출. */}
+          {selectedCategory === '검사' && canEdit && (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<AccountTreeIcon />}
+              onClick={() => setTgEditor({ group: null })}
+              sx={{ whiteSpace: 'nowrap' }}
+            >
+              검사군 추가
+            </Button>
           )}
           {hasFilters && (
             <Button variant="outlined" onClick={handleResetFilters} size="small" startIcon={<RestartAltIcon />}>
@@ -1185,7 +1537,95 @@ const ProductManagementPage = () => {
             </TableHead>
             <TableBody>
               {loading ? (
-                <TableSkeleton rows={10} columns={hasPermission('products:edit') ? 10 : 9} />
+                <TableSkeleton rows={10} columns={tableColumnCount} />
+              ) : groupViewActive ? (
+                groupedView.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={tableColumnCount} sx={{ border: 0, py: 4 }}>
+                      <EmptyState
+                        icon={InventoryIcon}
+                        title={hasFilters ? '검색 결과가 없습니다' : '표시할 검사가 없습니다'}
+                        description={hasFilters ? '다른 검색어나 필터를 시도해 보세요' : '검사 상품을 추가하거나 검사군을 정리해 주세요'}
+                        action={hasFilters ? { label: '필터 초기화', onClick: handleResetFilters, startIcon: <RestartAltIcon /> } : undefined}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  displayedGroups.map(({ group, options }) => {
+                    const key = group ? group.id : '__unassigned__';
+                    const expanded = expandedGroups.has(key);
+                    const hiddenGroup = group?.is_active === false;
+                    return (
+                      <React.Fragment key={key}>
+                        {/* 검사군 그룹 헤더 행 — 약어·검사명·옵션N 요약(가격 은닉) + 검사군 단위 인라인 관리(노출/편집/메뉴).
+                            묶음 편집(검사명·약어·노출·분리·병합·삭제)은 여기서, 옵션(상품) 편집은 하위 행 편집 버튼에서. */}
+                        <TableRow
+                          hover
+                          onClick={() => handleToggleGroupExpand(key)}
+                          sx={{
+                            cursor: 'pointer',
+                            bgcolor: alpha(theme.palette.primary.main, 0.03),
+                            opacity: hiddenGroup ? 0.55 : 1,
+                            '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) },
+                          }}
+                        >
+                          {canEdit && <TableCell padding="checkbox" />}
+                          <TableCell align="center" sx={{ width: 48 }}>
+                            <IconButton size="small" tabIndex={-1}>
+                              {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                            </IconButton>
+                          </TableCell>
+                          <TableCell colSpan={tableColumnCount - 1 - (canEdit ? 1 : 0) - (canEdit && group ? 2 : 0)}>
+                            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, flexWrap: 'wrap' }}>
+                              {group?.abbr && (
+                                <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                                  {group.abbr}
+                                </Typography>
+                              )}
+                              <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                                {group ? group.name : '미분류'}
+                              </Typography>
+                              {hiddenGroup && (
+                                <Chip label="숨김" size="small" sx={{ bgcolor: theme.gray[200], color: 'text.secondary', border: 0, fontWeight: 600 }} />
+                              )}
+                              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                                옵션 {(group ? tgOptionCounts[group.id] : options.length) ?? options.length}개
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          {/* 검사군 단위 인라인 관리 — 미분류(group===null)는 마스터가 없으므로 액션 없음 */}
+                          {canEdit && group && (
+                            <TableCell align="center" colSpan={2} onClick={(e) => e.stopPropagation()} sx={{ cursor: 'default' }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
+                                <Switch size="small" checked={group.is_active} onChange={() => handleToggleTgActive(group)} title={group.is_active ? '노출 중 (끄면 검사군 카드 숨김)' : '숨김'} />
+                                <IconButton size="small" onClick={() => setTgEditor({ group })} title="검사군 상세 편집">
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                                <IconButton size="small" onClick={(e) => setTgMenuAnchor({ el: e.currentTarget, group })} title="상세 편집·병합·삭제">
+                                  <MoreVertIcon fontSize="small" />
+                                </IconButton>
+                              </Box>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                        {/* 옵션 하위 행 — 평면 표 셀 구성 그대로 재사용(ProductRow isOption). 상품명 셀만 들여쓰기 + 말머리·형태명. */}
+                        {expanded && options.map((product) => (
+                          <ProductRow
+                            key={product.id}
+                            product={product}
+                            selected={selectedIds.has(product.id)}
+                            canEdit={canEdit}
+                            isOption
+                            subColorByName={subColorByName}
+                            theme={theme}
+                            onToggle={handleToggleOne}
+                            onEdit={handleOpen}
+                          />
+                        ))}
+                      </React.Fragment>
+                    );
+                  })
+                )
               ) : displayedProducts.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={hasPermission('products:edit') ? 10 : 9} sx={{ border: 0, py: 4 }}>
@@ -1205,79 +1645,24 @@ const ProductManagementPage = () => {
                 </TableRow>
               ) : (
                 displayedProducts.map((product) => (
-                  <TableRow
+                  <ProductRow
                     key={product.id}
+                    product={product}
                     selected={selectedIds.has(product.id)}
-                    sx={{ '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.02) }, transition: 'background-color 0.2s' }}
-                  >
-                    {hasPermission('products:edit') && (
-                      <TableCell padding="checkbox">
-                        <Checkbox size="small" checked={selectedIds.has(product.id)} onChange={() => handleToggleOne(product.id)} />
-                      </TableCell>
-                    )}
-                    <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                        <ProductThumb filename={product.image_filename} name={product.name} />
-                      </Box>
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 500 }}>{product.name}</TableCell>
-                    <TableCell><Chip label={product.category} size="small" color="primary" variant="outlined" /></TableCell>
-                    <TableCell>
-                      {product.sub_category
-                        ? (subColorByName[product.sub_category]
-                            ? <ColorChip label={product.sub_category} color={subColorByName[product.sub_category]} />
-                            : <ColorChip label={`${product.sub_category} · 미등록`} color={MASTER_COLOR_FALLBACK} />)
-                        : '-'}
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700, fontFeatureSettings: '"tnum" 1' }}>{(product.list_price || 0).toLocaleString()}원</TableCell>
-                    <TableCell sx={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product.notes || '-'}</TableCell>
-                    <TableCell align="center">
-                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', justifyContent: 'center', minWidth: 80 }}>
-                        {product.is_popular && <Chip label="인기" size="small" color="warning" />}
-                        {product.is_new && <Chip label="신상품" size="small" color="primary" />}
-                        {product.is_discountable && (
-                          <Chip
-                            label="할인"
-                            size="small"
-                            sx={{ bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main', border: 0 }}
-                          />
-                        )}
-                        {!product.is_popular && !product.is_new && !product.is_discountable && (
-                          <Typography variant="caption" color="text.secondary">-</Typography>
-                        )}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                        {(product.tags || []).slice(0, 2).map((tag, index) => (
-                          <Chip key={index} label={tag} size="small" variant="outlined" />
-                        ))}
-                        {(product.tags || []).length > 2 && (
-                          <Tooltip title={product.tags.slice(2).join(', ')} arrow>
-                            <Chip label={`+${product.tags.length - 2}`} size="small" sx={{ cursor: 'pointer' }} />
-                          </Tooltip>
-                        )}
-                      </Box>
-                    </TableCell>
-                    {hasPermission('products:edit') && (
-                      <TableCell align="center">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleOpen(product)}
-                          sx={{ color: 'primary.main', '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) } }}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    )}
-                  </TableRow>
+                    canEdit={canEdit}
+                    isOption={false}
+                    subColorByName={subColorByName}
+                    theme={theme}
+                    onToggle={handleToggleOne}
+                    onEdit={handleOpen}
+                  />
                 ))
               )}
             </TableBody>
           </Table>
         </TableContainer>
 
-        {displayedProducts.length > 0 && (
+        {(groupViewActive ? groupedView.length > 0 : displayedProducts.length > 0) && (
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderTop: `1px solid ${theme.gray[100]}` }}>
             <FormControl size="small">
               <InputLabel>페이지당 항목 수</InputLabel>
@@ -1294,7 +1679,7 @@ const ProductManagementPage = () => {
                 ))}
               </Select>
             </FormControl>
-            <Pagination count={Math.max(1, Math.ceil(totalFiltered / productsPerPage))} page={currentPage} onChange={(_, page) => setCurrentPage(page)} color="primary" />
+            <Pagination count={Math.max(1, Math.ceil((groupViewActive ? groupedView.length : totalFiltered) / productsPerPage))} page={currentPage} onChange={(_, page) => setCurrentPage(page)} color="primary" />
           </Box>
         )}
       </SectionCard>
@@ -1348,6 +1733,25 @@ const ProductManagementPage = () => {
               <FormControlLabel control={<Checkbox checked={currentProduct.is_discountable} onChange={(event) => setCurrentProduct((prev) => ({ ...prev, is_discountable: event.target.checked }))} disabled={!hasPermission('products:edit')} />} label="할인 가능" />
               <FormControlLabel control={<Checkbox checked={currentProduct.is_popular} onChange={(event) => setCurrentProduct((prev) => ({ ...prev, is_popular: event.target.checked }))} disabled={!hasPermission('products:edit')} />} label="인기 상품" />
               <FormControlLabel control={<Checkbox checked={currentProduct.is_new} onChange={(event) => setCurrentProduct((prev) => ({ ...prev, is_new: event.target.checked }))} disabled={!hasPermission('products:edit')} />} label="신상품" />
+            </Box>
+            {/* 노출 여부 — 진열 즉영향 전역 스위치(체크박스와 시각 구분). 되돌리기 가능이라 확인 스텝 없음. */}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>고객 주문서 노출</Typography>
+                  {currentProduct.is_active === false && (
+                    <Chip label="숨김" size="small" sx={{ bgcolor: theme.gray[200], color: 'text.secondary', border: 0, fontWeight: 600 }} />
+                  )}
+                </Box>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  끄면 주문서에서 숨겨집니다 (데이터는 보존 — 삭제 아님)
+                </Typography>
+              </Box>
+              <Switch
+                checked={currentProduct.is_active !== false}
+                onChange={(event) => setCurrentProduct((prev) => ({ ...prev, is_active: event.target.checked }))}
+                disabled={!hasPermission('products:edit')}
+              />
             </Box>
             <Autocomplete
               multiple
@@ -1661,6 +2065,110 @@ const ProductManagementPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* 검사군 상세 편집 모달 — 검사군 + 옵션 CRUD·순서·이동·삭제 통합. state 격리(214행 렌더 무영향). */}
+      <TestGroupEditorModal
+        open={Boolean(tgEditor)}
+        group={tgEditor?.group ?? null}
+        allProducts={allProducts}
+        testGroups={testGroups}
+        canEdit={canEdit}
+        canDelete={hasPermission('master')}
+        onClose={() => setTgEditor(null)}
+        onSaved={handleTgEditorSaved}
+        addNotification={addNotification}
+      />
+
+      {/* 검사군 삭제 확인 (위험 액션). 마스터만 제거, 소속 상품은 보존(test_group_id NULL). */}
+      <Dialog open={Boolean(tgDeleteTarget)} onClose={() => setTgDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, color: 'error.main' }}>검사군 삭제</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 1 }}>
+            검사군 <strong>{tgDeleteTarget?.name}</strong>을 삭제합니다. 소속 옵션 <strong>{tgDeleteTarget ? (tgOptionCounts[tgDeleteTarget.id] || 0) : 0}개</strong>는 검사군에서 풀려 낱개로 진열됩니다(상품 자체는 삭제되지 않음).
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            절판·판매중지 상품은 삭제 대신 상품별 "고객 주문서 노출"을 꺼서 숨기는 편이 안전합니다.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setTgDeleteTarget(null)} disabled={tgActionRunning}>취소</Button>
+          <Button variant="contained" color="error" onClick={handleDeleteTestGroup} disabled={tgActionRunning} startIcon={tgActionRunning ? <CircularProgress size={14} /> : null}>
+            삭제
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 병합 확인 (위험 액션 N→1). 헤더 메뉴에서 이 검사군을 대표(keep)로 진입 → 흡수할 다른 검사군 선택. */}
+      <Dialog open={Boolean(tgMergeKeep)} onClose={() => setTgMergeKeep(null)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>검사군 병합</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography variant="body2" sx={{ mb: 0.5 }}>
+            대표 검사군 <strong>{tgMergeKeep?.name}</strong>{tgMergeKeep?.abbr ? ` (${tgMergeKeep.abbr})` : ''} 하나로 합칩니다.
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+            아래에서 고른 검사군의 옵션이 대표로 이관되고, 빈 검사군은 삭제됩니다. 되돌리려면 다시 분리해야 합니다.
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.75 }}>
+            대표로 흡수할 검사군 ({tgMergeAbsorb.size}개 선택)
+          </Typography>
+          <Box sx={{ maxHeight: 300, overflow: 'auto', border: `1px solid ${theme.gray[200]}`, borderRadius: `${theme.radii.md}px` }}>
+            {testGroups.filter((g) => g.id !== tgMergeKeep?.id).map((g) => (
+              <Box
+                key={g.id}
+                onClick={() => handleToggleMergeAbsorb(g.id)}
+                sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 1, borderBottom: `1px solid ${theme.gray[100]}`, cursor: 'pointer' }}
+              >
+                <Checkbox size="small" checked={tgMergeAbsorb.has(g.id)} onChange={() => handleToggleMergeAbsorb(g.id)} />
+                <Typography variant="body2">
+                  <strong>{g.name}</strong>{g.abbr ? ` (${g.abbr})` : ''} · 옵션 {tgOptionCounts[g.id] || 0}개
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setTgMergeKeep(null)} disabled={tgActionRunning}>취소</Button>
+          <Button variant="contained" color="error" onClick={handleMerge} disabled={tgActionRunning || tgMergeAbsorb.size === 0} startIcon={tgActionRunning ? <CircularProgress size={14} /> : null}>
+            {tgMergeAbsorb.size}개를 대표로 병합
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 검사군 헤더 행 액션 메뉴 — 상세 편집·병합·삭제. 옵션 편집/분리/이동/순서/개별삭제는 상세 편집 모달로 흡수. */}
+      <Menu
+        anchorEl={tgMenuAnchor?.el}
+        open={Boolean(tgMenuAnchor)}
+        onClose={() => setTgMenuAnchor(null)}
+      >
+        <MenuItem
+          onClick={() => {
+            setTgEditor({ group: tgMenuAnchor.group });
+            setTgMenuAnchor(null);
+          }}
+        >
+          <ListItemIcon><TuneOptionsIcon fontSize="small" /></ListItemIcon>
+          검사군 상세 편집
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            handleOpenMerge(tgMenuAnchor.group);
+            setTgMenuAnchor(null);
+          }}
+        >
+          <ListItemIcon><MergeTypeIcon fontSize="small" /></ListItemIcon>
+          병합 (다른 검사군을 흡수)
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setTgDeleteTarget(tgMenuAnchor.group);
+            setTgMenuAnchor(null);
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <ListItemIcon><DeleteIcon fontSize="small" sx={{ color: 'error.main' }} /></ListItemIcon>
+          삭제
+        </MenuItem>
+      </Menu>
     </Box>
   );
 };

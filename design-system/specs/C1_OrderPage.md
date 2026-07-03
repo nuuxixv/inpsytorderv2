@@ -3,7 +3,11 @@
 > 이 시트는 고객 주문서 화면의 정보·기능·데이터 구조의 단일 진실 소스다.
 > 시안과 실서비스 구현은 이 시트의 모든 항목을 1:1로 반영해야 한다.
 > 임의 단순화·통합·생략은 건우님의 명시적 승인 후 이 시트를 먼저 갱신한 다음에만 허용된다.
-> 마지막 갱신: 2026-06-29 **동적 배지 기능 폐기 — 인기/신상품 칩은 유지**(건우님 결정). 상품 카드 동적 배지(`products.badges`) 렌더·`badgeMetaByName` prop·`MAX_EMPHASIS_BADGES` 상한 로직 제거. `ProductSelectionStep`의 `fetchBadges`·`badgeMaster`·`badgeMetaByName`도 제거. `is_popular`/`is_new` boolean 칩은 그대로(카테고리 칩 + 인기 + NEW). `products.badges` 코드 참조 0(drop 후 에러 0). §상품 카드 배지 영역·동적 배지 절·핵심 발견 16·17 갱신.
+> 마지막 갱신: 2026-07-02 **검색 타이핑 렉 해결 + 검색 대상 단순화(4→1)**(frontend-engineer, 건우님 실동작 피드백). ①타이핑 렉 근본 해결 — 검색 input을 별도 `ProductSearchBar.jsx`로 분리(자체 `useState` + 내부 `useDebouncedValue` 250ms). input 값은 컴포넌트 내부에서만 갱신되고 **debounce된 값만** `onSearch`로 상위(`ProductSelectionStep`)에 올림. 기존엔 `searchTerm`이 상위 controlled state라 매 키입력(IME 조합 포함)마다 `ProductSelectionStep`+검사군 트리(MUI Card/Collapse 다수) 전체가 리렌더돼 자모 입력이 "가→가나다" 뭉텅이로 지연됐음. 이제 입력은 input만, 트리는 디바운스 후 1회만 갱신 → 조합 방해 제거. 상위엔 `useDebouncedValue`·`searchTerm` state·`TextField`·`InputAdornment`·`SearchIcon` import 제거, `debouncedSearch`는 SearchBar가 세팅하는 순수 state로 축소. ②검색 대상 = **상품명 원본(`name`) 단일**(4필드 폐지). 기존 검사명·약어·`option_name`·`option_label` 4필드 매칭을 `options.some(p => matchesSearch(p.name, ...))` 하나로 교체. 근거(건우님 통찰): 원본 상품명에 검사명·약어·말머리·옵션이 모두 포함(예 `K·BASC-3 한국판 정서-행동 평가시스템 부모보고형-청소년용_검사지/온라인코드(20)`) → name 단일로 정확도 유지+단순화. 검사군 단위 노출(옵션 하나라도 매칭이면 그 검사군 노출)·자동 펼침·접기 토글 자유 로직은 그대로. ③`TestGroupCard`를 `React.memo`로 감쌈 — 검색어 변경 시 매칭 안 된 카드의 불필요 재렌더 skip. memo 유효화를 위해 `onToggle`이 `(id, expanded)`를 받도록 시그니처 변경(부모가 인라인 화살표 대신 안정 콜백 `toggleGroup` 직접 전달), `onAdd`/`onIncrement`/`onDecrement`/`getCartQuantity`는 기존 `useCallback`(cart 의존)이라 검색어 변경엔 안정. order_items 불변(옵션=개별 product, cart 무변경). testGroupDisplay 그룹핑 무변경(테스트 10 유지). 검증: lint 0(변경 3파일)·build·vitest 113 passed.
+> 이전 갱신: 2026-07-02 **검사 위계 진열 UX 4건 수정**(frontend-engineer, 건우님 실동작 피드백). ①검색 속도 — `useDebouncedValue`(신규 훅, 250ms)로 검색어 디바운스. 입력은 즉시 반영(TextField value)·필터/검색 계산만 지연. 그룹핑(`testGroups`)은 `baseProducts` 기준 1회·검색어 비의존(재그룹핑 없음, 기존 유지). 매 키입력 리렌더 → 타이핑 멈춘 뒤 1회로 감소(필터연산 실측 1.58ms/회, 실병목=검사군 카드+옵션 트리 리렌더). ②말머리 검색 — 매칭에 `option_label` 추가(검사명·약어·`option_name`·`option_label`). "교사용"·"청소년" 등 말머리로 검사군 노출. ③접기/펼치기 자유 — 검색 자동 펼침을 **초기 상태로만**. `expandedGroups[id]===undefined`(미조작)면 검색 매칭 여부 따름·정의됐으면 사용자 값 우선. `toggleGroup(id, currentExpanded)`가 현재 표시 상태 반대로 토글(자동 펼침 카드도 즉시 접힘). 검색어 변경 시 사용자 조작 리셋. ④옵션1개 UX 통일(**시안 §(3) 번복**) — 옵션 수 무관 모든 검사군 동일 UX(접힘→펼침→옵션 세로 리스트→담기). `TestGroupCard`의 `isSingle` 분기·바로담기 카드·`OptionPrice variant='single'` 제거. order_items 불변(옵션=개별 product, cart 무변경). testGroupDisplay 로직 무변경(그룹핑은 옵션 수 비의존, 테스트 10 유지). 검증: lint 0(변경 파일)·build·vitest 113 passed.
+> 이전 갱신: 2026-07-02 **검사 위계 2뎁스 FE 구현**(frontend-engineer). 시안(아래 갱신)을 실 코드로 반영: `TestGroupCard.jsx`(신규, 3상태 카드) + `ProductSelectionStep.jsx`(검사군 리스트 ↔ 평면 그리드 분기) + `utils/testGroupDisplay.js`(그룹핑 순수 로직, 단위 테스트 10). 검사군 메타(약어·검사명·정렬)는 `fetchTestGroups()`(api/testGroups.js, graceful)로 마스터 조회 후 클라 병합 — `products` 단독엔 `test_group_id`만 있어 메타 조회 필요(GROUP BY RPC는 없음). `is_active=false` 상품·`test_groups.is_active=false` 검사군 고객 진열 제외. 검색=검사군 단위(검사명·약어·`option_name`) + 자동 펼침. graceful(컬럼 미적용 시 전부 평면). order_items 불변(옵션=개별 product, cart `{...product, quantity}`). 검증: lint 0·build·vitest 113 passed(신규 10).
+> 이전 갱신: 2026-07-02 **검사 위계 2뎁스 시안 확정 — `test_group_id` 방식**(product-designer). 폐기된 `parent_code`/클라파싱 절을 새 명세로 교체: 검사군 카드 3상태(접힘/펼침/옵션1개)를 DB 컬럼값(`test_groups.name`·`.abbr`, `products.option_label`·`option_name`·`is_common`·`sort_order`) 기반으로 재정의. 말머리=`[대괄호]` 폐지·소프트 회색 틴트 라벨(`gray[100]` 배경)·괄호수량 풀어쓰기(`(20)`→`20개`, 시드 단계 정제). 검사군 카드 가격 완전 은닉(최저가 앵커도 안 함, 룰 11·12). 옵션1개는 펼침 화살표 대신 우측 담기버튼으로 구분. 진열=`is_active=true` 옵션만. graceful(룰 14) 계승. §검사군 카드 절·핵심 발견 11~14 갱신.
+> 이전 갱신: 2026-06-29 **동적 배지 기능 폐기 — 인기/신상품 칩은 유지**(건우님 결정). 상품 카드 동적 배지(`products.badges`) 렌더·`badgeMetaByName` prop·`MAX_EMPHASIS_BADGES` 상한 로직 제거. `ProductSelectionStep`의 `fetchBadges`·`badgeMaster`·`badgeMetaByName`도 제거. `is_popular`/`is_new` boolean 칩은 그대로(카테고리 칩 + 인기 + NEW). `products.badges` 코드 참조 0(drop 후 에러 0). §상품 카드 배지 영역·동적 배지 절·핵심 발견 16·17 갱신.
 > 이전 갱신: 2026-06-29 **상품 카드 이미지 플레이스홀더 폐기 — 이미지 없으면 슬롯 자체 미렌더**(건우님 결정). 기존 카테고리 색 틴트 박스+ImageIcon 플레이스홀더 제거, `getProductImageUrl(image_filename)`이 null이거나 onError면 `ProductImageSlot`이 `return null`(슬롯 미렌더, 빈 박스 0). 상품명/배지/가격이 카드 상단부터 자연 배치. 이유: 행사 단위로 이미지 유무가 갈림(도구=전부 있음 / 검사·도서=전부 없음, 혼재 없음), 도서·검사는 상품명·옵션 직관성이 이미지보다 중요. **혼재 처리 로직 추가 안 함(오버엔지니어링 방어).** §상품 카드 절 참조.
 > 이전 갱신: 2026-06-29 상품 카드 1:1 이미지 슬롯 추가(PRD `DOCS/PRD_상품이미지.md`, P1). `products.image_filename`→`product-images` 공개 버킷 `getPublicUrl`. graceful(컬럼·버킷 미적용 환경 회귀 0). (※ 플레이스홀더는 위 결정으로 폐기.)
 > 이전 갱신: 2026-06-29 배지 "최대 2개"는 **표출 정책(본 카드 한정)** 임을 명시 — 입력단(A6 폼·엑셀)은 무제한, 상위 2개 선별 책임은 본 카드 가드레일에 있음(건우님 확정 #1·#2, §상품 카드 동적 배지 절). 카드 코드 변경 없음(정책 문서화).
@@ -12,9 +16,10 @@
 
 ## 참조 파일
 - 실 컴포넌트: `inpsyt-order-frontend/src/components/OrderPage.jsx` (418줄, 3-step 컨테이너)
-- 자식 단계: `ProductSelectionStep.jsx`(③ 계층 진열 반영) / `CustomerInfoStep.jsx`(282줄) / `OrderReviewStep.jsx`(140줄)
-- 보조: `OrderStepIndicator.jsx`(110줄), `FloatingBottomBar.jsx`(189줄), `CartBottomSheet.jsx`(215줄), `ProductCard.jsx`(213줄, 도서·평면 그리드 카드), `TestGroupCard.jsx`(③ 검사군 2뎁스 카드), `CostSummary.jsx`(135줄)
-- 진열 유틸: `utils/productGroup.js`(③ 그룹핑 `groupProducts` / 표시명 파싱 `parseProductName` / 할인가 `getDiscountedPrice`) + `productGroup.test.js`
+- 자식 단계: `ProductSelectionStep.jsx` / `CustomerInfoStep.jsx`(282줄) / `OrderReviewStep.jsx`(140줄)
+- 보조: `OrderStepIndicator.jsx`(110줄), `FloatingBottomBar.jsx`(189줄), `CartBottomSheet.jsx`(215줄), `ProductCard.jsx`(213줄, 평면 그리드 카드), `CostSummary.jsx`(135줄)
+- `TestGroupCard.jsx`(검사군 3상태 카드 — 접힘/펼침/옵션1개) + `utils/testGroupDisplay.js`(`normalizeCategory`/`buildGroupMetaMap`/`groupTestProducts` — 그룹핑·정렬 순수 로직) + `utils/testGroupDisplay.test.js`(단위 테스트 10). **(2026-07-02 FE 구현)** `test_group_id` 방식. ~~`productGroup.js`(`groupProducts`/`parseProductName`) 클라파싱~~ 은 폐기(2026-07-01) — 표시명은 DB 컬럼값(`test_groups.name`/`.abbr`, `products.option_name`/`option_label`).
+- 검사군 마스터 조회: `src/api/testGroups.js`의 `fetchTestGroups()`(graceful — 테이블 미존재 시 `[]`). A6 검사군 관리와 공유하는 API 계층.
 - Edge Function: `supabase/functions/create-order/index.ts` (서버측 금액 재계산 + INSERT)
 - 진입 리다이렉트: `GoRedirect.jsx` (`active_event_slug` 사용)
 - DB 스키마: `supabase/migrations/20250722070000_create_orders_table.sql` + `20250805_add_new_order_fields.sql` + `20260406_add_status_history_to_orders.sql` + `20260406_add_access_token_to_orders.sql` + 그 외 events/order_items/products/site_settings 관련 파일
@@ -69,10 +74,12 @@
 - [ ] 페이지 제목 텍스트: "상품을 선택해주세요" — `variant="h3"`, `fontWeight: 800`
 - [ ] 부제(조건부, `eventName` 있을 때): "{이벤트명}" + `discountRate > 0`이면 " · {N}% 할인 적용" 접미사 — `variant="body2"`, `color: text.secondary`
 
-#### 검색바 (line 165-188)
+#### 검색바 (`ProductSearchBar.jsx` — 2026-07-02 입력 격리 분리)
 - [ ] `TextField` 풀너비, 시작 아이콘 `SearchIcon`(text.disabled)
 - [ ] 플레이스홀더: "상품명으로 검색 (띄어쓰기로 여러 키워드)"
 - [ ] 시각: **흰색 기본 아웃라인 TextField(글로벌 테마), `sx={{ mb: 2 }}`만.** (2026-06-01 건우님 결정 — /preview 목업 정합. 기존 회색 채움 `#F2F4F6`/height48/보더투명 폐기. 단 플레이스홀더의 멀티키워드 힌트는 기능 안내라 유지)
+- [ ] **입력 격리(2026-07-02, 타이핑 렉 해결):** input 값·debounce는 `ProductSearchBar` 내부 로컬 `useState`+`useDebouncedValue`(250ms)로 가둔다. 상위(`ProductSelectionStep`)엔 **debounce된 값만** `onSearch(debounced)`로 전달. 매 키입력(IME 조합 포함)에 검사군 트리가 리렌더되지 않아야 함(조합 뭉텅이 입력 방지). controlled `value`를 상위 state로 두는 방식 금지.
+- [ ] **검색 대상 = 상품명 원본(`name`) 단일.** 검사명·약어·말머리·옵션이 원본 상품명에 모두 포함되므로 `name` 하나로 검색(기존 검사명·약어·`option_name`·`option_label` 4필드 매칭 폐지, 2026-07-02 건우님). 매칭 판정은 검사군 단위 — 검사군의 옵션 중 `name` 매칭이 하나라도 있으면 그 검사군 노출. `matchesSearch`(공백 AND·특수문자 무시 정규화)는 그대로.
 
 #### 뷰 모드 칩 (line 192-219)
 - [ ] 가로 스크롤 영역, 칩 3개:
@@ -95,7 +102,9 @@
 > - 칩 시각(`radii.sm`·filled secondary)은 기존 패턴 유지. 소분류 색 칩 미적용(AI 시그니처 컬러 인디케이터 금지).
 > - **저장 위치 확정**: A5 판매 대분류 = `events.visible_categories` 신규 text[] 컬럼(tags 겸용 기각, `20260624000000_DRAFT` 마이그레이션). graceful: 컬럼/GRANT 미적용 환경에서는 OrderPage가 `visible_categories` 뺀 레거시 select로 fallback → 전체 노출 유지.
 
-#### 상품 진열 — 검사군 2뎁스 + 도서 그리드 (③ 상품 계층화, 2026-06-16)
+> ⚠️ **2026-07-01 정정**: 아래 §③(`parent_code` 자동추출 + 클라 파싱 `parseProductName` + `TestGroupCard`/`productGroup.js`) 방식은 **폐기**됐고 현 브랜치에 **미구현**(해당 컴포넌트·유틸·`20260616000000` 마이그레이션 부재 — grep 확인). 검사 위계는 `DOCS/PRD_검사위계.md`의 **`test_group_id`(시드 적재) + DB 컬럼(`option_name`/`option_label`)** 방식으로 재설계됨. 표시명은 클라 파싱이 아니라 **DB 컬럼값**을 쓴다. 아래 서술은 폐기된 이력이며 FE 신규 구현 시 새 방식으로 교체 예정. **가격 은닉·검색=검사군 단위·graceful 원칙(룰 11·12·14)은 새 방식에서도 계승.**
+
+#### [폐기·미구현] 상품 진열 — 검사군 2뎁스 (③ 자동추출 방식, 2026-06-16)
 - [ ] **레이아웃 분기**: 검사·도구(`parent_code` truthy로 그룹핑됨) = **풀폭 1열 리스트**(`TestGroupCard`) / 도서·평면(`parent_code` null) = **기존 그리드**(`ProductCard`).
   - '전체' 카테고리 뷰: `[검사 리스트 블록 → 도서 그리드 블록]` 순. 각 블록 위 `overline` 미니헤더("검사 · 도구" / "도서") — 단일 카테고리 선택 시 미니헤더 미표시.
   - '검사' 칩 = 리스트 블록만 / 그 외 평면 카테고리('도서' 등) 칩 = 그리드 블록만.
@@ -108,20 +117,30 @@
   - 검색 중에는 학회 태그·뷰 모드 무시
   - **검색 = 검사군 단위**: ①groupName 1차 매칭 → ②실패 시 옵션명(optionName) fallback. fallback 매칭 검사군은 펼친 상태로 노출. 옵션 낱개 결과는 쏟아내지 않음. 도서는 상품명 직접 매칭. 매칭 옵션 별색 하이라이트 안 함(룰 E).
 
-#### 검사군 카드 (`TestGroupCard.jsx`, ③ 2026-06-16)
-> 2뎁스 인라인 아코디언. 바텀시트·상세진입 기각(맥락 끊김·CartBottomSheet 중첩 방지). 3상태.
-- [ ] **(1) 접힘**: `ProductCard`와 동일 1.5px 보더 Card(radius lg, shadow none).
-  - 배지(소프트 틴트, `ProductCard`와 동일 패턴): "검사"(`info` 틴트) + 그룹 내 하나라도 인기면 `StarIcon`+"인기"(`accent.attention` 틴트) + 하나라도 신규면 "NEW"(`error` 틴트).
-  - 검사명 `subtitle1`(16/700). "옵션 N개" `body2`/`text.secondary` — **가격 미표기**(건우님 확정: 검사군 카드 가격 오해·노안 숫자부담 제거).
-  - 우측 `ExpandMore`/`ExpandLess`. 그룹에 담긴 옵션 있으면 보더 `primary` + "담음 N" 배지(`primary` 틴트).
-  - `role=button`·`aria-expanded`·Enter/Space 토글.
-- [ ] **(2) 펼침**: 카드 내부 `Divider` 아래 옵션 행 세로 리스트(**카드 안 카드 금지** — 행+Divider).
-  - 옵션 행 = 좌측 옵션명(`body2`/600, 2줄 wrap) + 가격 / 우측 담기 or 수량 스테퍼.
-  - 가격 = `ProductCard` 로직 재사용(`getDiscountedPrice`): 할인 시 정가 line-through + `%`(빨강) + 할인가(`primary`), 비할인 단독.
-  - 담기 = 회색 outlined(테마 기본) / 스테퍼 = `primary`(수량 1에서 − = `DeleteIcon`).
-  - 행 클릭 무반응, 담기/스테퍼만 동작(`e.stopPropagation`). 펼침 = MUI `Collapse`, `easing.toss` 0.2s.
-- [ ] **(3) 옵션 1개**(실측 25군): 펼침 없이 접힘 카드에 가격·담기 즉시. "옵션 N개"·펼침 인디케이터 미표시.
+#### 검사군 카드 (`TestGroupCard.jsx` — 2026-07-02 FE 구현 완료)
+> **방식 확정(2026-07-02, product-designer 시안 → FE 구현 → UX 수정):** `test_group_id` 기반. 2뎁스 인라인 아코디언. 바텀시트·상세진입 기각(맥락 끊김·CartBottomSheet 중첩 방지). **옵션 수와 무관하게 모든 검사군이 동일 UX**(접힘→펼침→옵션 세로 리스트→담기). ~~옵션1개 특별 분기(3상태)~~ 는 **2026-07-02 번복**(건우님 실동작 피드백 — 옵션 수에 따라 UX가 갈리면 오히려 혼란, 일관된 펼침이 나음). 옵션1개 검사군도 "옵션 1개" + 펼침 화살표 → 펼치면 옵션 행(담기).
+> **데이터 소스 = DB 컬럼값**(클라 파싱 아님): 검사명·약어 = `test_groups.name`/`.abbr`(마스터 `fetchTestGroups()`로 조회 후 클라 병합), 옵션 행 = 소속 `products`의 `option_label`(말머리)·`option_name`(형태명)·`list_price`·`is_common`·`sort_order`. 옵션 정렬 = `sort_order`(NULL 폴백 원본순) → 이름. 진열 = `is_active=true`인 옵션만(숨김 옵션 미노출) + `test_groups.is_active=true` 검사군만. 검사군에 노출 옵션 0개면 카드 미표시.
+> **구현 메모:** 배지·스테퍼는 `ProductCard`의 `BadgeBox`(export)·스테퍼 패턴 재사용(시각 통일). 옵션 행 가격 `subtitle1`/800, 옵션1개 카드 가격 `subtitle1`/800 + fontSize 1.125rem(목업 `.single-price` 정합). 펼침 영역 `maxHeight 320 + overflowY auto`(다옵션 대응). 그룹핑·정렬은 `utils/testGroupDisplay.js` 순수 함수(단위 테스트 10).
+
+> **상태 = 접힘 / 펼침 2상태(옵션 수 무관 동일).** 옵션1개 특별 분기 없음(2026-07-02 번복).
+
+- [ ] **(1) 접힘**: `ProductCard`와 동일 1.5px 보더 Card(`radii.lg`, shadow none). CardContent `p:2`.
+  - 배지(소프트 틴트 `BadgeBox` 재사용 — 솔리드 칩·그라데이션 금지, 높이 18·radius 4): "검사"(`info` 틴트) + 그룹 내 하나라도 `is_popular`면 `StarIcon`(11px)+"인기"(`accent.attention` 틴트) + 하나라도 `is_new`면 "NEW"(`error` 틴트). 그룹에 담긴 옵션 있으면 "담음 N"(`primary` 틴트).
+  - **약어**(`abbr`) `caption`/600/`text.secondary` — 좌상단 보조 위계(검사명보다 낮음). abbr 없으면 이 줄 미렌더.
+  - **검사명**(`name`) `subtitle1`(16/700) — 카드 주인공. 잘림 없이 wrap.
+  - "옵션 N개" `body2`/`text.secondary` — **옵션 수 무관 항상 표시(옵션 1개도 "옵션 1개").** **가격 미표기**(건우님 확정 룰 11·12: 검사군 카드 가격 은닉. 최저가 앵커도 안 함 — A/B 비교 불필요·노안 숫자부담·옵션별 차이 오해 제거).
+  - 우측 `ExpandMore`/`ExpandLess`(32×32) — **옵션 수 무관 항상 표시**(옵션1개도 화살표로 펼침). 그룹에 담긴 옵션 있으면 카드 보더 `primary.main`.
+  - `role=button`·`aria-expanded`·Enter/Space 토글. 카드 헤더 전체가 hit-area(≥44). 포커스 시 `shadow-focus` 링.
+- [ ] **(2) 펼침**: 카드 헤더 아래 `Divider`(top 1px `divider`) → 옵션 행 세로 리스트(**카드 안 카드 금지** — 행+`Divider`, `easing.toss` 0.2s `Collapse`). **행 누적만, 열 분리 금지**(PRD §2 세로 확정).
+  - **옵션 행 구조**(좌측 옵션 정보 / 우측 액션):
+    - **말머리 라벨**(`option_label`) — 있으면: `caption`/600/`text.secondary`, `gray[100]` 소프트 틴트 배경 + `2px 6px` padding + radius 4px 인라인 라벨(**`[대괄호]` 금지** — 배경 틴트로 구분). `is_common=true`면 라벨 문구 "공용". 말머리 없으면 이 줄 미렌더.
+    - **형태명**(`option_name`) — `body2`/600/`text.primary`, 2줄 wrap. **괄호 수량 풀어쓰기**: `검사지/온라인코드(20)` → "검사지·온라인코드 20개"(표시 정제는 시드 단계에서 `option_name`에 반영, 클라 변환 아님). 형태명이 본문 위계, 말머리가 보조.
+    - **가격**(`ProductCard` 할인 로직 재사용): 할인 시 정가 `caption` line-through(`text.disabled`) + `{N}%` `caption`/700 빨강(`error.main`) + 할인가 `subtitle1`/800 `primary.main`. 비할인은 최종가 `subtitle1`/800 `text.primary` 단독.
+  - **우측 액션**: 카트에 없으면 "담기" 회색 outlined(테마 기본, height 40, min-width 64) / 있으면 수량 스테퍼(`primary.main` bg, 흰 텍스트, 수량 1에서 − = `DeleteIcon`, 2↑ = `RemoveIcon`).
+  - 옵션 행 자체 클릭 무반응, 담기/스테퍼만 동작(`e.stopPropagation`).
+- [ ] ~~**(3) 옵션 1개 검사군**: 펼침 없이 접힘 카드에 가격·담기 즉시 노출~~ — **2026-07-02 번복(건우님 실동작 피드백).** 옵션 수에 따라 UX가 갈리면 오히려 혼란 → **옵션1개도 위 (1)접힘·(2)펼침과 완전히 동일**하게 처리. 옵션1개 검사군도 "옵션 1개" + 펼침 화살표를 표시하고, 카드 클릭 시 펼쳐 옵션 행(말머리·형태명·가격·담기)을 보여준다. 검사군 카드 가격 은닉 규칙도 동일 적용(옵션1개여도 카드에 가격 없음, 가격은 펼친 옵션 행에서만). `TestGroupCard`의 `isSingle` 분기·`OptionPrice variant='single'`·바로담기 카드 코드는 제거됨.
 - [ ] **다문화 등 옵션 다수(8개↑)**: 펼친 옵션 영역 `maxHeight 320 + overflowY auto`, 컨테이너 `display:flex; flexDirection:column; minHeight:0`(스크롤 결함 교훈).
+- [ ] **레이아웃**: 검사군 카드는 **풀폭 1열 리스트**(그리드 아님 — 옵션 세로 리스트가 좁은 폭에서도 안정). 도서 등 평면 상품은 기존 그리드 유지. graceful: `test_group_id` 없으면(미적용/미분류) 전부 평면 그리드(기존 동작 보존, 룰 14).
 
 #### 상품 카드 (`ProductCard.jsx`)
 - [ ] 보더 1.5px — 장바구니에 있으면 `primary.main`, 없으면 `divider`
@@ -394,9 +413,10 @@
 - `id`, `name`, `product_code`, `category`, `list_price`, `is_discountable`, `is_popular`, `is_new`, `tags`
 - `sub_category` (text, nullable) — **소분류**. (P1) 단일 대분류 행사에서 카테고리 칩을 이 값으로 그림(마스터 `subcategories` 연동). 노출·탐색 전용.
 - ~~`badges` (text[])~~ — **(2026-06-29 폐기)** 동적 배지 기능 제거. 컬럼 DB drop 예정, 코드 참조 0.
-- `parent_code` (text, nullable — ③ `20260616000000_add_product_hierarchy_columns.sql`): 검사군 묶음 키. 검사·도구는 `regexp_replace(product_code, '_[0-9]+$', '')`로 자동 백필, 도서·평면=null. 클라 그룹핑 키.
-- `option_type` (text, nullable — 동 마이그레이션): 옵션 종류 정규화값(온라인코드/전문가지침서/검사지/SET/모듈/기록지/기타). 현재 진열 클라에서는 미사용(표시명은 name 클라 파싱), ②회원게이팅이 '온라인코드' 식별에 사용 예정.
-- **graceful**: 두 컬럼 미적용 환경에서도 `parent_code`가 없으면 전부 평면 → 진열 기존 동작 보존.
+- ~~`parent_code`·`option_type` (③ `20260616000000`)~~ — **(2026-07-01 폐기·미구현)** `parent_code` 자동추출 방식은 실데이터에서 검사군을 잘못 묶어 폐기(PRD_검사위계.md 대안검토). 아래 신규 컬럼으로 대체.
+- `test_group_id` (bigint, nullable FK → `test_groups.id` — 검사 위계): 소속 검사군. 시드(`상품매핑.xlsx`)로 적재. **약어는 검사군 유일키가 아님**(SCID-5 등 1약어→N검사명) → `test_groups`는 surrogate PK, 적재는 (약어+검사명) 단위.
+- `option_name`(형태 옵션명)·`option_label`(말머리)·`is_common`(공용 bool)·`sort_order`·`is_active`(노출 bool, 기본 true) — 검사 위계 신규 가법 컬럼. 표시명은 **DB 컬럼값**(클라 파싱 아님).
+- **graceful**: `test_group_id`가 없으면(미적용/미분류) 전부 평면 진열 → 기존 동작 보존.
 
 ### `site_settings` 테이블 (단일 행)
 - `free_shipping_threshold` (default 30000)
@@ -435,15 +455,18 @@
 8. **현장구매 정보는 현재 `customer_request`의 `[현장구매]` prefix로만 기록된다.** `is_on_site_sale` boolean 컬럼이 DB엔 있지만, `create-order` 함수가 INSERT 페이로드에 넣지 않는다. 시안 결정과 별개로 데이터 정합성 정리가 필요한 잠재 부채.
 9. **CTA 라운드 14, 일반 카드 라운드 16 등 인라인 px이 다수.** M1 토큰(`radius-button`=8, `radius-md`=10)으로 흡수 대상.
 10. **`fontSize: '0.8125rem'`(13px), `0.6875rem`(11px) 같은 인라인 값이 카드·칩에 다수.** 02 §타이포 §사용 규칙 약속 2 흡수 표를 그대로 적용.
-11. **검사군 카드는 가격을 표시하지 않는다.** 검사명 + "옵션 N개"만. 가격은 펼친 옵션 행에서만 노출(건우님 확정 — 검사군 단위 가격은 옵션별 차이로 오해 소지·노안 숫자부담). 시안이 검사군 카드에 대표가/최저가를 그리면 안 된다.
-12. **검사군 진열은 graceful이어야 한다.** `parent_code` 컬럼/값이 없는 환경(마이그레이션 미적용)에선 전부 평면(기존 그리드)으로 떨어진다. truthy 행만 그룹핑. 미적용이어도 화면이 깨지면 안 됨 — `groupProducts`가 falsy를 flat으로 흘려보냄.
-13. **표시명은 클라 파싱이다(backend 별도 컬럼 없음).** groupName/optionName은 name의 마지막 `_` 기준 분리. 검사명에 `_`가 다수면 "마지막 `_`" 기준이라 옵션명만 안전 분리, 그래도 실패하면 풀네임 fallback. backend는 `parent_code`(코드 기반)로만 그룹핑 키를 주고, 화면 라벨은 클라가 만든다.
-14. **검색은 검사군 단위.** groupName 1차 → 옵션명 fallback. 옵션 낱개가 검색결과로 쏟아지지 않는다. fallback 매칭 검사군은 펼친 채로 노출. 같은 검사군의 여러 옵션 담기는 `order_items`에 개별 product로 자연 저장(스냅샷 4필드 계약 불변).
+11. **검사군 카드는 가격을 완전히 은닉한다.** 검사명 + "옵션 N개"만. 대표가·**최저가 앵커도 표시하지 않는다**(건우님 확정 2026-07-02 — A/B 비교 불필요, 옵션별 차이 오해·노안 숫자부담 제거). 가격은 펼친 옵션 행에서만 노출. 시안이 검사군 카드에 어떤 가격도 그리면 안 된다. **(2026-07-02 번복) 옵션 1개 검사군도 예외 없이 동일** — 카드에 가격 없음, "옵션 1개" + 화살표로 펼쳐 옵션 행에서 가격 노출(옵션 수에 따라 UX가 갈리면 혼란, 일관 펼침).
+12. **말머리는 `[대괄호]`가 아니라 소프트 회색 틴트 라벨이다.** `option_label`을 `gray[100]` 배경 + `caption`/600 인라인 라벨로 표시(별색 아님 — 기존 소프트 틴트 배지 패턴 재사용). `is_common=true`면 "공용". 괄호 수량은 풀어쓴다(`(20)`→`20개` — 시드 단계에서 `option_name`에 반영, 클라 변환 아님). 형태명(`option_name`)이 본문 위계, 말머리가 보조. 시안이 대괄호·별색·괄호수량 원본을 그대로 쓰면 안 된다.
+13. **표시명은 DB 컬럼값이다(클라 파싱 폐기).** 검사명·약어 = `test_groups.name`/`.abbr`, 옵션 = `products.option_label`·`option_name`. `parent_code` + 클라 `parseProductName` 방식은 2026-07-01 폐기. FE는 컬럼값을 그대로 렌더(마지막 `_` 파싱 로직 없음). 진열 옵션 = `is_active=true`인 것만(숨김 옵션 고객 미노출), 정렬 = `sort_order`→이름.
+14. **검사군 진열은 graceful이어야 한다.** `test_group_id`가 없는 환경(마이그레이션 미적용)·미분류 상품은 전부 평면(기존 그리드)으로 떨어진다. 미적용이어도 화면이 깨지면 안 됨. 검색은 **검사군 단위**로, **대상은 상품명 원본(`name`) 단일**(2026-07-02 — 기존 검사명·약어·`option_name`·`option_label` 4필드 매칭 폐지. 원본 상품명에 검사명·약어·말머리·옵션이 모두 포함되므로 name 하나로 정확도 유지+단순화). 검사군의 옵션 중 `name` 매칭이 하나라도 있으면 그 검사군 노출, 옵션 낱개 쏟아냄 없음. **타이핑 렉 방지 = 입력 격리**(2026-07-02): 검색 input을 별도 `ProductSearchBar`로 분리(로컬 `useState`+내부 `useDebouncedValue` 250ms), debounce된 값만 상위에 전달 — 매 키입력(IME 조합)에 검사군 트리가 리렌더되지 않는다(조합 뭉텅이 입력 방지). controlled value를 상위 state로 두면 렉 재발. `TestGroupCard`는 `React.memo`(검색어 변경 시 비매칭 카드 재렌더 skip). **자동 펼침은 초기 상태로만** — 검색 매칭 검사군은 처음에 펼쳐지되, 사용자가 각 카드를 자유롭게 접고 펼 수 있다(검색 중에도). 검색어 변경 시 사용자 펼침 조작은 리셋된다. 같은 검사군 여러 옵션 담기는 `order_items`에 개별 product로 자연 저장(스냅샷 4필드 계약 불변).
 15. **(P1) 단일 대분류 행사는 대분류 칩을 숨기고 소분류 칩으로 탐색.** 오티즘=도구 단일 → "도구" 상위 칩 숨김, 하위 소분류(인지/언어/상담) 칩 노출. 시안/구현이 도구 상위 칩을 그대로 노출하면 PRD 의도(소분류 탐색)가 깨진다. 저장 위치 확정(A5 확인 필요)과 연동되므로 1차는 사양만.
 16. ~~카드당 배지 최대 2개·우선순위~~ — **(2026-06-29 폐기)** 동적 배지 기능 제거. 카드는 인기/신상품 boolean 칩만(카테고리 칩 + 인기 + NEW).
 17. ~~미등록 배지명은 고객 화면 미표시~~ — **(2026-06-29 폐기)** 동적 배지 기능 제거.
 
 ## 변경 이력
+- 2026-07-02 **검색 타이핑 렉 해결 + 검색 대상 단순화 4→1 (`feature/product-hierarchy`, 실 코드 변경, 건우님 실동작 피드백)**. **①타이핑 렉(핵심)**: 신규 `ProductSearchBar.jsx`(로컬 `useState`+내부 `useDebouncedValue` 250ms, debounce된 값만 `onSearch(debounced)`로 상위 전달). `ProductSelectionStep`에서 `searchTerm` state·상위 `useDebouncedValue`·`TextField`/`InputAdornment`/`SearchIcon` import 제거 → `debouncedSearch`는 SearchBar가 세팅하는 순수 state. 기존엔 controlled `value`가 상위 state라 매 키입력(IME 조합)마다 `ProductSelectionStep`+검사군 트리(Card/Collapse 다수) 전체 리렌더 → 자모가 "가→가나다" 뭉텅이로 입력. 이제 input만 갱신·트리는 디바운스 후 1회. **②검색 대상 name 단일**: `filteredGroups` 검색 필터를 `options.some(p => matchesSearch(p.name, debouncedSearch))` 하나로 교체(4필드 폐지). 원본 상품명에 검사명·약어·말머리·옵션 전부 포함 → 정확도 유지. 검사군 단위 노출·자동 펼침·토글 자유 무변경. **③`TestGroupCard` `React.memo`**: 비매칭 카드 재렌더 skip. memo 유효화 위해 `onToggle`이 `(id, expanded)` 받도록 변경(부모가 인라인 화살표 → 안정 콜백 `toggleGroup` 직접 전달, 시그니처 `(groupId, currentExpanded)` 기존 일치). `TestGroupCard` 내부 `handleToggle = () => onToggle(id, expanded)`로 헤더 onClick/onKeyDown 연결. `onAdd`/`onIncrement`/`onDecrement`/`getCartQuantity`는 기존 `useCallback`(cart 의존)이라 검색어 변경엔 안정 → memo 효과 유효. **보존(무변경)**: `utils/testGroupDisplay.js`·테스트 10·그룹핑·`ProductCard`·cart/order_items(옵션=개별 product)·트리플탭·뷰모드/카테고리 칩·행사 필터·무한스크롤·할인/무료배송·자동펼침/접기 로직. **검증**: lint(변경 3파일 신규 위반 0, 기존 send-alimtalk 9에러 무관)·vite build·vitest 113 passed·2 skipped. 상단 갱신·§검색바 절·핵심 발견 14 갱신.
+- 2026-07-02 **검사 위계 진열 UX 4건 수정 (`feature/product-hierarchy`, 실 코드 변경, 건우님 실동작 피드백)**. **①검색 속도**: `hooks/useDebouncedValue.js`(신규, 250ms) — `searchTerm`(입력 즉시)/`debouncedSearch`(필터·검색 계산) 분리. `filteredGroups`·`filteredProducts`·페이지리셋 useMemo/useEffect 의존성을 `debouncedSearch`로 교체. 그룹핑(`testGroups`)은 `baseProducts` 기준 유지(검색어 비의존, 재그룹핑 없음). **②말머리 검색**: `filteredGroups` 옵션 매칭에 `matchesSearch(p.option_label, ...)` OR 추가. **③접기/펼치기 자유**: `expanded` 판정을 `expandedGroups[id]!==undefined ? 값 : searchMatchedGroupIds.has(id)`로 변경(자동펼침=초기값). `toggleGroup(id, currentExpanded)`가 현재 표시 상태 반대로 토글. `debouncedSearch` 변경 시 `setExpandedGroups({})` 리셋. **④옵션1개 UX 통일(시안 §(3) 번복)**: `TestGroupCard`의 `isSingle` 분기·바로담기 카드 return·`headBody` 가격 분기·`OptionPrice variant='single'` 제거 → 옵션 수 무관 접힘/펼침 2상태. **보존(무변경)**: `utils/testGroupDisplay.js`·테스트 10(그룹핑은 옵션 수 비의존)·`ProductCard`·cart/order_items·트리플탭·뷰모드/카테고리 칩·행사 필터·무한스크롤·할인/무료배송. **검증**: lint(변경 파일 신규 위반 0, 기존 send-alimtalk 9에러 무관)·vite build·vitest 113 passed·2 skipped. 검색 필터 실측 1.58ms/회(1134상품×3필드) — 실병목은 카드 리렌더, debounce로 매키입력→멈춘 뒤 1회. 상단 갱신·§검사군 카드 절((1)(3)·상태 메모)·핵심 발견 11·14 갱신.
+- 2026-07-02 **검사 위계 2뎁스 진열 FE 구현 (`feature/product-hierarchy`, 실 코드 변경)**. **신규**: `TestGroupCard.jsx`(검사군 3상태 카드 — 접힘/펼침 인라인 아코디언/옵션1개 즉시담기; `BadgeBox`·스테퍼 패턴 재사용; 말머리=`gray[100]` 소프트 틴트 라벨·대괄호 없음; 옵션 세로 리스트 행 누적·열 분리 없음; `maxHeight 320` 스크롤; role=button·aria-expanded·Enter/Space 토글), `utils/testGroupDisplay.js`(그룹핑·정렬 순수 로직 — `test_group_id` 클라 useMemo 그룹핑, `sort_order` ASC NULL 폴백, 도구→검사 정규화), `utils/testGroupDisplay.test.js`(10 tests). **변경**: `ProductSelectionStep.jsx` — 검사군 리스트(풀폭 1열) ↔ 평면 그리드(도서·미분류) 분기 진열, `fetchTestGroups()` 병렬 로드, `is_active!==false` 노출 필터, 검색=검사군 단위(검사명·약어·`option_name` → 매칭 검사군 펼친 채 노출, 옵션 낱개 안 쏟음), 카테고리 필터 검사군 연동, 핸들러 useCallback화. `ProductCard.jsx` — `BadgeBox` export(TestGroupCard 재사용). **가격 은닉**(검사군 카드 가격 없음, 옵션1개만 예외). **graceful**: `test_group_id`/마스터 미적용 시 전부 평면(기존 그리드) — 회귀 0. **order_items 불변**: 옵션=개별 product, cart `{...product, quantity}`, create-order 무변경. **보존**: 트리플탭·뷰모드/카테고리 칩·행사 태그/판매대분류 필터·무한스크롤(평면)·무료배송/할인·`ProductCard` 이미지 슬롯·인기/NEW 칩 전부 무변경. **검증**: lint(대상 4파일 신규 위반 0)·vite build·vitest 113 passed(신규 10)·2 skipped. `theme.js` 무수정. 핵심 발견 11~14·§검사군 카드 절·참조 파일 갱신.
 - 2026-06-29 **동적 배지 기능 폐기 — 인기/신상품 칩은 유지 (실 코드 변경, 건우님 결정)**. `ProductCard.jsx` — 동적 배지 렌더(`product.badges` map)·`badgeMetaByName` prop·`MAX_EMPHASIS_BADGES` 상한·priority 정렬 로직 제거. `visibleBadges`는 인기(`is_popular`)·신규(`is_new`) boolean만(시각 순서 인기→NEW). `ProductSelectionStep.jsx` — `fetchBadges` import·`badgeMaster` state·badge fetch useEffect·`badgeMetaByName` memo·ProductCard에 넘기던 `badgeMetaByName` prop 제거(`MASTER_COLOR_FALLBACK` import도 미사용으로 제거). `products.badges` 코드 참조 0(drop 후 에러 0). 카테고리 칩·`hideCategoryBadge`·이미지 슬롯·할인 표시·수량 스테퍼 전부 무변경. **검증**: lint(변경 파일 신규 위반 0, 기존 send-alimtalk 9에러 무관)·vite build 통과. theme.js 무수정. §상품 카드 배지 영역·핵심 발견 16·17 갱신.
 - 2026-06-29 **상품 카드 이미지 플레이스홀더 폐기 (실 코드 변경, 건우님 결정)**. `ProductCard.jsx` `ProductImageSlot` — `getProductImageUrl(image_filename)`이 null이거나 `onError`면 `return null`(슬롯 미렌더). 기존 카테고리 색 틴트 박스 + `ImageIcon`(28px) 플레이스홀더 코드·`isTest`/`tint` 분기 제거, `ImageIcon` import 삭제. 슬롯 없을 때 배지 영역이 CardContent flex column 첫 요소로 자연 상단 배치(레이아웃 안 깨짐, 빈 박스 0). **이미지 있는 상품은 1:1 슬롯 정상(회귀 0).** 이유: 행사 단위 이미지 유무 분리(혼재 없음)·도서/검사 상품명 직관성 우선. **혼재 처리 로직 추가 안 함(오버엔지니어링 방어), theme.js 무수정, AI 시그니처 없음.** A6 `ProductThumb`도 동형(미등록 셀 비움). **검증**: lint(변경 파일 신규 위반 0, 기존 send-alimtalk 9에러 무관)·vite build 통과. §상품 카드 절·핵심 발견 17 갱신.
 - 2026-06-25 행사별 판매 대분류 필터 **구현**(`feature/product-hierarchy`) — **실 코드 변경**: (1) `OrderPage.jsx` events select에 `visible_categories` 추가 + 컬럼/GRANT 미적용 graceful fallback(레거시 select 재조회), `ProductSelectionStep`에 `visibleCategories` prop 전달. (2) `ProductSelectionStep.jsx` `baseProducts` 필터 — **원본 category** 기준(도구→검사 정규화 전), NULL/빈 배열=전체 노출(기존 동작 보존), eventTags와 AND 공존. 단일 대분류 행사(`length===1`)는 대분류 칩 숨기고 `sub_category` 칩(localeCompare 정렬·미지정 "기타"·2종 미만 시 칩 줄 숨김), 카테고리 필터도 sub_category 기준. (3) 데이터 모델 `events.visible_categories` 추가. **보존(무변경)**: 도구→검사 정규화(칩 표시·다중/NULL/빈 행사 fallback), eventTags 필터, 뷰모드/검색/정렬/페이지네이션, ProductCard 동작. **검증**: lint(변경 4파일 0 이슈, 기존 send-alimtalk 9에러는 무관)·build 통과. 라이브 검증은 마이그레이션 적용 후.

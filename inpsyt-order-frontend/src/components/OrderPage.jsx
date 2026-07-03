@@ -211,7 +211,10 @@ const OrderPage = () => {
         },
       });
 
-      if (invokeError) throw invokeError;
+      if (invokeError) {
+        const body = await invokeError.context?.json?.().catch(() => null);
+        throw new Error(body?.error || invokeError.message);
+      }
       if (data.error) throw new Error(data.error);
 
       const token = data.order?.access_token;
