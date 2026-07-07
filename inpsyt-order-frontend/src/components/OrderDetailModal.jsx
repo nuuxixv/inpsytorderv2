@@ -588,7 +588,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
                 </FormControl>
               )}
             />
-            {order.status === 'pending' && canEdit && (
+            {currentStatus === 'pending' && canEdit && (
               <InfoRow
                 label="주문 성격"
                 labelWidth={96}
