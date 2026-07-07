@@ -518,7 +518,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
               <OpenInNewIcon fontSize="small" />
             </IconButton>
           )}
-          {canEdit && order.status === 'paid' && !order.is_on_site_sale && (
+          {canEdit && currentStatus === 'paid' && (
             <Button
               size="small"
               variant="outlined"
