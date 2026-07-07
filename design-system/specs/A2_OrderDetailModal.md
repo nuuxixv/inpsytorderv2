@@ -3,7 +3,7 @@
 > 이 시트는 어드민 주문 상세·편집 모달의 정보·기능·데이터 구조의 단일 진실 소스다.
 > 시안 부재 화면이므로 실 컴포넌트(`OrderDetailModal.jsx`)가 사실상의 기획이다. 시안이 작성되면 이 시트에 모든 항목이 1:1로 반영되어야 한다.
 > 임의 단순화·통합·생략은 건우님의 명시적 승인 후 이 시트를 먼저 갱신한 다음에만 허용된다.
-> 마지막 갱신: 2026-05-29 신설 (M3-13 선행 — 시안 부재 단일 진실 소스 박기).
+> 마지막 갱신: 2026-07-07 섹션별 인라인 편집 재설계.
 
 ## 참조 파일
 - 실 컴포넌트: `inpsyt-order-frontend/src/components/OrderDetailModal.jsx` (607줄)
@@ -15,8 +15,12 @@
   - `supabase.from('site_settings').select('*').single()` (line 91-97) — 배송비 정책
   - `supabase.from('orders').select(...).eq('id', parent_order_id).single()` (line 158-163) — 부모 주문 로드
   - `supabase.from('orders').select(...).eq('parent_order_id', order.id)` (line 167-171) — 자식 주문들 로드
-  - `supabase.rpc('update_order_details', { order_id_param, updates_param, items_param })` (line 224) — 편집 저장
-  - `supabase.from('orders').update({ status }).eq('id', order.id)` (line 241) — 상태만 변경
+  - **(2026-07-07 재설계) `update_order_details` RPC 호출 폐지.** 섹션별 부분 UPDATE로 전환:
+    - 주문자: `supabase.from('orders').update({ customer_name, phone_number, inpsyt_id }).eq('id', order.id)` (`handleSaveCustomer`)
+    - 배송지: `supabase.from('orders').update({ shipping_address, customer_request }).eq('id', order.id)` (`handleSaveShipping`)
+    - 메모: `supabase.from('orders').update({ admin_memo }).eq('id', order.id)` (`handleSaveMemo`)
+    - 상품(비연계 단일 주문만): `order_items.delete().eq('order_id', order.id)` → `order_items.insert(bulk)` → `orders.update({ total_cost, discount_amount, delivery_fee, final_payment }).eq('id', order.id)` (`handleSaveItems`)
+  - `supabase.from('orders').update({ status }).eq('id', order.id)` — 상태만 변경(현행 유지)
   - `supabase.from('order_items').delete().eq('order_id', order.id)` + `supabase.from('orders').delete().eq('id', order.id)` (line 274-277) — 삭제
 - DB 함수: `supabase/migrations/20260415_004_update_order_functions.sql` 의 `update_order_details(order_id_param int, updates_param jsonb, items_param jsonb)`
 - 상태 이력 트리거: `supabase/migrations/20260406_add_status_history_to_orders.sql` — `status` 변경 시 `status_history` jsonb에 자동 누적
@@ -36,13 +40,14 @@
 
 ## 표시 정보 (라벨 단위, 누락 금지)
 
-### 헤더 (line 346-380)
-- [ ] 모달 제목: “상품주문정보 조회” (Typography variant h6)
-- [ ] (조건부, `order.access_token`) `OpenInNewIcon` 외부 링크 — `/order/status/{access_token}` 새 탭, title “고객 주문 조회 페이지” — line 349-360
-- [ ] (조건부, `orders:edit` AND `status === 'paid'` AND `!is_on_site_sale`) “알림톡 재발송” 버튼 (outlined) — `alimtalk_status === 'failed'`면 `color="error"`로 시각 강조, 그 외 primary — line 362-371
-- [ ] (조건부, `orders:edit`) “편집” / “저장” 토글 버튼 — line 372
-- [ ] (조건부, `master` AND `!isEditing`) `DeleteIcon` 삭제 아이콘 (error color) — line 373-377
-- [ ] 닫기 아이콘 `CloseIcon` — line 378
+### 헤더 (2026-07-07 재설계)
+- [ ] 모달 제목: “상품주문정보 조회” (Typography variant h5)
+- [ ] **⋮ 드롭다운**(`MoreVertIcon`, X 왼쪽, `access_token` 또는 `master`일 때만 노출) — MUI Menu(EventManagementPage 패턴):
+  - ① “고객 주문서 열기”(`OpenInNewIcon`, `order.access_token` 있을 때만, `/order/status/{token}` 새 탭)
+  - ② Divider(둘 다 노출 시)
+  - ③ “주문건 삭제”(`DeleteIcon`, color error.main, `master`만, 기존 `deleteConfirmOpen` 다이얼로그 재사용)
+- [ ] 닫기 아이콘 `CloseIcon`
+- **제거**: 전역 편집/저장 토글 버튼(섹션별 인라인 편집으로 대체), 상단 알림톡 재발송 버튼(→ 알림톡 InfoRow 인라인), 헤더 OpenInNew 아이콘(→ ⋮), 헤더 삭제 아이콘(→ ⋮)
 
 ### 주문 상세 정보 섹션 (Table, line 382)
 - [ ] **상품주문번호** — `displayId` 가공:
@@ -50,13 +55,14 @@
   - linkedChildren 있으면 `{id}-{N+1}` (이 주문이 parent, N=자식 수)
   - 그 외 `{id}` 그대로
 - [ ] **주문일** — `new Date(order.created_at).toLocaleString('ko-KR')` 풀 포맷 (yyyy. M. d. 오전/오후 hh:mm:ss)
-- [ ] **학회명** — 조회 시 `events.find(e => e.id === order.event_id)?.name || 'N/A'` / 편집 시 학회 Select (전체 events 옵션, name만 표시)
+- [ ] **학회명** — **(2026-07-07) 읽기전용 확정**: `events.find(e => e.id === order.event_id)?.name || 'N/A'` 텍스트만. 편집 Select 제거. 할인율 계산도 항상 `order.event_id` 기준
 - [ ] **상태** — Select 상시 노출 (편집 모드 아닐 때도 변경 가능). `orders:edit` 없으면 disabled. **변경 즉시 저장** (`handleSaveStatusOnly`). 5개 옵션: `statusToKorean` 전체 (pending/paid/completed/cancelled/refunded)
 - [ ] **주문 성격** (조건부, `status === 'pending'` AND `orders:edit`) — ToggleButtonGroup exclusive [일반배송 | 현장수령]. `order.is_on_site_sale`로 초기 선택 표시. pending 아니면 행 자체 비노출(결제 후 금액 변경 방지). 변경 시 배송비 재계산(현장수령→0, 일반배송→정가 기준 무료배송 임계치, create-order `is_on_site_sale ? 0` 규칙과 동일) + before→after 캡션(배송비/최종결제) 즉시 표시 + "변경 저장" 버튼 노출. 저장 = `orders` 직접 단일 UPDATE `{ is_on_site_sale, delivery_fee, final_payment }`(update_order_details 경유 금지)
-- [ ] **알림톡** (조건부, `!is_on_site_sale` — 현장수령은 발송 대상이 아니라 행 자체 비노출):
+- [ ] **알림톡** (조건부, `!is_on_site_sale` — 현장수령은 발송 대상이 아니라 행 자체 비노출). **(2026-07-07) 위치를 "상태" InfoRow 바로 아래로 이동**:
   - failed: “실패 {alimtalk_attempted_at ko-KR}: {alimtalk_error}” — error.main, fontWeight 600
   - sent (`alimtalk_status='sent'` 또는 레거시 `alimtalk_sent_at`만 존재): “발송됨 {alimtalk_sent_at ko-KR}”
   - 그 외: “미발송” (muted)
+  - **우측 인라인 재발송 버튼**(outlined small, 조건 `orders:edit` AND `status==='paid'`, 실패 시 `color="error"`) — 헤더에서 이 행으로 이동. `handleResendAlimtalk` 재사용
   - 재발송·paid 자동발송 결과로 로컬 상태(`alimtalk`) 즉시 갱신 — 모달 재오픈 없이 반영
 
 ### 상태 이력 섹션 (조건부, line 384-386, 544-604)
@@ -87,8 +93,9 @@
 - [ ] **확인 필요** — child 주문(이 모달의 order가 child) 에서도 “연계 주문 연결” 버튼은 숨겨지지만, 부모 주문 1개와 형제 자식 주문(같은 parent 공유)을 함께 보여주지는 않음. parent–child 트리의 1단계만 본다.
 
 ### 주문 상품 목록 섹션 (Table, line 427)
-- [ ] 헤더: 상품명 · 정가 · 할인가 · 수량 · 합계 · (조건부, `orders:edit`) 현장수령 · (조건부, `orders:edit` 편집 모드) 작업
-- [ ] **현장수령 컬럼** (조건부, `orders:edit`) — 각 상품행 Checkbox. `item.on_site_pickup` 반영. **편집모드 무관 상시 활성**(canEdit일 때). 체크 즉시 `order_items.on_site_pickup` UPDATE(낙관적 반영, 실패 시 원복+에러 토스트). **금액 불변**. `item.id` 없으면(미저장 신규행) disabled. 연계 병합 아이템은 각 item의 원본 `order_id`(groupLinkedOrders 주입)로 UPDATE 타깃 지정
+- [ ] **(2026-07-07) 편집 잠금 정책**: 연계 주문(`parent_order_id != null || linkedChildren.length > 0`)이면 **Edit 아이콘 숨김 + 읽기전용 + 안내 캡션 "연계 주문의 상품은 각 개별 주문 상세에서 수정하세요."** (자식 아이템의 부모 흡수 붕괴 차단). 비연계 단일 주문만 상품 섹션 편집 허용
+- [ ] 헤더: 상품명 · 정가 · 할인가 · 수량 · 합계 · (조건부, `orders:edit`) 현장수령 · (조건부, `orders:edit` AND `editingSection==='items'`) 작업
+- [ ] **현장수령 컬럼** (조건부, `orders:edit`) — 각 상품행 Checkbox. `item.on_site_pickup` 반영. **편집모드 무관 상시 활성**(canEdit일 때). **(2026-07-07) 단, `editingSection==='items'`인 동안 disable**(편집버퍼 충돌 방지). 체크 즉시 `order_items.on_site_pickup` UPDATE(낙관적 반영, 실패 시 원복+에러 토스트). **금액 불변**. `item.id` 없으면(미저장 신규행) disabled. 연계 병합 아이템은 각 item의 원본 `order_id`(groupLinkedOrders 주입)로 UPDATE 타깃 지정
   - **B=true(`order.is_on_site_sale`) 시 A 체크 잠금**(B가 A의 상위 계층): 체크박스 `disabled` + `checked` 강제 표시(개별 값과 무관하게 전체 현장수령으로 간주), 컬럼 헤더 라벨 "현장수령"→"전체 현장수령", title "전체 현장수령 주문 — 개별 지정 불가". **A 값(`on_site_pickup`)은 DB로 변경하지 않음(보존)** — disabled라 `handleToggleOnSitePickup` 미호출, `handleSaveOnSiteSale`도 `orders`만 UPDATE. B를 일반배송으로 되돌리면 보존된 원래 개별 체크가 그대로 복원(추가 작업 없음)
 - [ ] 행 데이터: `editedOrderItems`(편집 중) 또는 `order.mergedItems || order.order_items`(조회)
 - [ ] 상품명 — 조회: `item.product_name || productsMap[item.product_id]?.name || '알 수 없는 상품'` / 편집: Autocomplete (전체 products 옵션, name으로 검색, getOptionLabel name)
@@ -134,10 +141,15 @@
 
 ## 액션·기능 (누락 금지)
 
-### 편집 토글·저장
-- [ ] **편집** 버튼 (orders:edit, isEditing=false) → isEditing=true → 모든 필드 입력 가능 + 합계 라이브 재계산 (useEffect line 125-149)
-- [ ] **저장** 버튼 (orders:edit, isEditing=true) → `handleSaveAll` → `supabase.rpc('update_order_details', { order_id_param, updates_param, items_param })` → 성공 토스트 → `onUpdate()` → `onClose()`
-- [ ] 편집 모드일 때 학회 변경 → 즉시 모든 상품의 할인가·합계 재계산 (selectedEvent.discount_rate 기준)
+### 섹션별 인라인 편집·저장 (2026-07-07 재설계 — 전역 편집 폐지)
+- [ ] 편집 state = 단일 `editingSection`(`null | 'customer' | 'shipping' | 'memo' | 'items'`). 한 번에 한 섹션만 편집
+- [ ] 각 SectionCard 헤더 action 슬롯: 조회 시 **Edit 아이콘**(`EditIcon` fontSize 18, `orders:edit` 시만, title "편집"). 편집 시 값 InfoRow→TextField, action 슬롯→[취소](text)·[저장](contained small). 저장 중 `CircularProgress size 14`
+- [ ] **편집 중 카드 강조**: 테두리 `primary.main` 1px만(배경 물들이기·컬러바 금지)
+- [ ] **소프트 가드**: 한 섹션 편집 중이면 다른 섹션 Edit 아이콘 `disabled` + title "편집 중인 섹션을 먼저 저장하거나 취소하세요". 물리적 dim/클릭차단 없음
+- [ ] **저장 후**: 모달 유지 + 해당 섹션 조회상태 복귀(`onClose` 금지) + `onUpdate()` 재조회
+- [ ] **취소**: 해당 섹션 `edited*` state만 `order` 원본값으로 재초기화
+- [ ] 저장 경로: 주문자/배송지/메모 = `orders` 부분 UPDATE, 상품(비연계 단일만) = `order_items` 재작성 + `orders` 금액 4필드 UPDATE. **`update_order_details` RPC 미사용**
+- [ ] 할인율은 학회 읽기전용화로 항상 `order.event_id` 기준 재계산(상품 편집 중 `editingSection==='items'`)
 
 ### 상태 변경 (편집 모드 무관 — 항상 즉시 저장)
 - [ ] 상태 Select 변경 → `handleSaveStatusOnly(newStatus)` → `supabase.from('orders').update({ status }).eq('id', order.id)` → 토스트 + `onUpdate()`
@@ -183,10 +195,9 @@
 
 ## 입력 폼 구조 (편집 모드 — 분리/통합 절대 금지)
 
-`OrderDetailModal`은 편집 모드에서 12개 필드를 다룬다. 시안에서 어떤 통합도 금지.
+`OrderDetailModal`은 섹션별 편집에서 아래 필드를 다룬다. 어떤 통합도 금지. **(2026-07-07) 학회는 읽기전용 확정으로 편집 필드에서 제외**.
 
-- [ ] **학회**: Select (events 전체)
-- [ ] **상태**: Select (statusToKorean 전체)
+- [ ] **상태**: Select (statusToKorean 전체, 편집모드 무관 즉시저장)
 - [ ] **주문자명**: TextField
 - [ ] **연락처**: TextField + 자동 포맷터 (digit only 11자리)
 - [ ] **인싸이트 ID**: TextField
@@ -266,7 +277,7 @@
 
 ## 핵심 발견 (CTO 검수 권장)
 
-1. **`update_order_details` RPC 시그니처 불일치 — 부채.** 클라이언트(`handleSaveAll`, line 199-212)는 `total_cost, discount_amount, delivery_fee, inpsyt_id` 를 포함해 `updates_param` 으로 보내지만, 마이그레이션의 RPC 본문은 이 4개를 UPDATE 절에 포함하지 않는다. 편집 모드에서 인싸이트 ID와 결제 세부 컬럼을 수정해도 final_payment만 반영되고 나머지는 silent fail. RPC를 수정하거나 클라이언트가 보내는 필드를 줄여 정합시켜야 함. **CTO 결정 사안**.
+1. **(해소 2026-07-07) `update_order_details` RPC 시그니처 불일치 부채.** 섹션별 인라인 편집 재설계로 `handleSaveAll`+RPC 호출을 폐지하고 섹션별 `orders` 부분 UPDATE로 전환. `inpsyt_id`는 `handleSaveCustomer`가 직접 UPDATE, 금액 4필드(`total_cost·discount_amount·delivery_fee·final_payment`)는 `handleSaveItems`가 직접 UPDATE → 이전에 silent fail하던 필드들이 정상 반영. RPC는 더 이상 이 모달에서 호출되지 않음(마이그레이션 함수 자체는 잔존하나 미사용).
 
 2. **삭제는 트랜잭션 보호 없음.** `order_items` 삭제 → `orders` 삭제 두 쿼리가 별도 호출(line 274-277). 첫 번째만 성공하면 고아 order_items가 남거나, 두 번째만 실패하면 빈 주문이 남는다. `delete_order` RPC로 묶거나 ON DELETE CASCADE를 검토할 부채.
 
@@ -301,3 +312,13 @@
   - B: 주문 상세 정보 섹션에 "주문 성격" ToggleButtonGroup(pending·`orders:edit` 전용). 전환 시 배송비 재계산(create-order `is_on_site_sale ? 0` 규칙 정합, 정가 기준 무료배송 임계치) + before→after 캡션 + "변경 저장" 버튼. `orders` 직접 단일 UPDATE(is_on_site_sale/delivery_fee/final_payment), update_order_details 경유 안 함.
   - 정보구조 보존: 기존 표시 항목·필드 삭제/통합 0. 현장수령 컬럼·주문 성격 행만 신규 추가.
 - 2026-07-07 A/B 계층 UX 보정 — B(`is_on_site_sale`)를 A의 상위 계층으로. B=true면 상품별 A 체크박스 disabled + checked 강제 표시, 헤더 라벨 "전체 현장수령"으로 치환. **A 값(`on_site_pickup`)은 DB 불변 보존** — B 일반배송 복귀 시 원래 개별 체크 자동 복원. `handleSaveOnSiteSale`은 `orders`만 UPDATE 재확인(order_items 무접촉).
+- 2026-07-07 섹션별 인라인 편집 재설계 (CTO·CPO 검수 통과) —
+  - 전역 `isEditing`+`handleSaveAll`(RPC 통째 재작성) 폐지 → 단일 `editingSection` state(`null|customer|shipping|memo|items`). 섹션마다 Edit 아이콘으로 그 칸만 독립 편집·저장·취소.
+  - 저장 경로: 주문자(`customer_name·phone_number·inpsyt_id`)·배송지(`shipping_address`+`customer_request`)·메모(`admin_memo`)는 `orders` 부분 UPDATE. 상품(비연계 단일 주문만)은 `order_items` delete→bulk insert + `orders` 금액 4필드 UPDATE. `update_order_details` RPC 미사용.
+  - **연계 주문 상품 잠금**(치명 리스크 차단): 연계면 상품 Edit 숨김 + 읽기전용 + 안내 캡션. 자식 아이템의 부모 흡수 붕괴 차단.
+  - 소프트 가드(다른 섹션 Edit disabled+title, 물리 차단 없음), 저장 후 모달 유지(조회상태 복귀)+`onUpdate()`.
+  - 헤더 재구성: 편집/저장·알림톡 재발송·OpenInNew·삭제 아이콘 제거 → ⋮ 드롭다운(고객 주문서 열기 / 주문건 삭제, EventManagementPage 패턴).
+  - 알림톡 InfoRow를 "상태" 아래로 이동 + 우측 인라인 재발송 버튼. 학회명 읽기전용화(할인율 계산 `order.event_id` 기준). 현장수령 체크박스는 `editingSection==='items'` 중 disable.
+  - 모달 radius: 데스크톱 `modalStyle`에 `overflow:'hidden'` 추가, 헤더 isMobile 전용 radius 정리.
+  - 정보구조 보존: 배송지 3필드·배송메모·관리자메모 분리 유지. 표시 항목·라벨 삭제/통합 0. AI 시그니처(컬러바·그라데이션·가짜통계) 0.
+  - 핵심 발견 1(RPC 시그니처 불일치 부채) 해소 — inpsyt_id·금액 4필드가 부분 UPDATE로 정상 반영.
