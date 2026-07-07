@@ -61,7 +61,7 @@
 - [ ] 분류 칩 — **누락 금지** (핵심 발견 #2): `StatusBadge kind="category"`, 라벨은 원본 `rawCategory`, 색은 정규화 후 키('도구'→'검사'→test) — book/test 색은 CATEGORY_COLORS
 - [ ] 단가 `price_at_purchase`, 수량 `quantity`, 합계 = 단가×수량 — 모두 tabular-nums 우측 정렬
 - [ ] 뷰 모드별 그레이드: book 뷰에서 검사 상품, test 뷰에서 도서 상품은 opacity 0.35 + gray[50] 배경
-- [ ] **상품별 현장수령**(`item.on_site_pickup === true`): 뷰 모드와 무관하게 해당 상품 행 dim(기존 isGreyed 패턴 재사용, opacity 0.35 + gray[50]) + 상품명 옆 "현장수령" 배지(StatusBadge kind=category, warning 톤). 출고 제외 표시일 뿐 수량·상품명·금액은 그대로 노출(숨김 금지)
+- [ ] **상품별 현장수령**(`isWholeOnSite || item.on_site_pickup === true`): 뷰 모드와 무관하게 해당 상품 행 dim(기존 isGreyed 패턴 재사용, opacity 0.35 + gray[50]) + 상품명 옆 "현장수령" 배지(StatusBadge kind=category, warning 톤). 출고 제외 표시일 뿐 수량·상품명·금액은 그대로 노출(숨김 금지). **B=true(`isWholeOnSite`, 상위 계층)면 개별 체크와 무관하게 전체 상품행이 일관되게 dim+배지** — A/B 계층 표시 일관성 확보
 
 ### 그룹 카드 — 합계 영역
 - [ ] 배송비(조건부): `delivery_fee > 0`일 때 "배송비 {N}원 포함" (caption, 우측 정렬)

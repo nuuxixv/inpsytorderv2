@@ -333,7 +333,7 @@ const FulfillmentGroupCard = ({
           const productName = item.product_name || item.products?.name || '-';
           // 뷰 모드별 그레이드 (사양 line 61) + 상품별 현장수령 (출고 제외)
           const normalized = normalizeCategory(rawCategory);
-          const isOnSitePickup = item.on_site_pickup === true;
+          const isOnSitePickup = isWholeOnSite || item.on_site_pickup === true;
           const isGreyed =
             isOnSitePickup ? true :
             viewMode === 'book' ? normalized === '검사' :
