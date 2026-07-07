@@ -52,6 +52,7 @@
 - [ ] **주문일** — `new Date(order.created_at).toLocaleString('ko-KR')` 풀 포맷 (yyyy. M. d. 오전/오후 hh:mm:ss)
 - [ ] **학회명** — 조회 시 `events.find(e => e.id === order.event_id)?.name || 'N/A'` / 편집 시 학회 Select (전체 events 옵션, name만 표시)
 - [ ] **상태** — Select 상시 노출 (편집 모드 아닐 때도 변경 가능). `orders:edit` 없으면 disabled. **변경 즉시 저장** (`handleSaveStatusOnly`). 5개 옵션: `statusToKorean` 전체 (pending/paid/completed/cancelled/refunded)
+- [ ] **주문 성격** (조건부, `status === 'pending'` AND `orders:edit`) — ToggleButtonGroup exclusive [일반배송 | 현장수령]. `order.is_on_site_sale`로 초기 선택 표시. pending 아니면 행 자체 비노출(결제 후 금액 변경 방지). 변경 시 배송비 재계산(현장수령→0, 일반배송→정가 기준 무료배송 임계치, create-order `is_on_site_sale ? 0` 규칙과 동일) + before→after 캡션(배송비/최종결제) 즉시 표시 + "변경 저장" 버튼 노출. 저장 = `orders` 직접 단일 UPDATE `{ is_on_site_sale, delivery_fee, final_payment }`(update_order_details 경유 금지)
 - [ ] **알림톡** (조건부, `!is_on_site_sale` — 현장수령은 발송 대상이 아니라 행 자체 비노출):
   - failed: “실패 {alimtalk_attempted_at ko-KR}: {alimtalk_error}” — error.main, fontWeight 600
   - sent (`alimtalk_status='sent'` 또는 레거시 `alimtalk_sent_at`만 존재): “발송됨 {alimtalk_sent_at ko-KR}”
@@ -86,7 +87,8 @@
 - [ ] **확인 필요** — child 주문(이 모달의 order가 child) 에서도 “연계 주문 연결” 버튼은 숨겨지지만, 부모 주문 1개와 형제 자식 주문(같은 parent 공유)을 함께 보여주지는 않음. parent–child 트리의 1단계만 본다.
 
 ### 주문 상품 목록 섹션 (Table, line 427)
-- [ ] 헤더: 상품명 · 정가 · 할인가 · 수량 · 합계 · (조건부, `orders:edit` 편집 모드) 작업
+- [ ] 헤더: 상품명 · 정가 · 할인가 · 수량 · 합계 · (조건부, `orders:edit`) 현장수령 · (조건부, `orders:edit` 편집 모드) 작업
+- [ ] **현장수령 컬럼** (조건부, `orders:edit`) — 각 상품행 Checkbox. `item.on_site_pickup` 반영. **편집모드 무관 상시 활성**(canEdit일 때). 체크 즉시 `order_items.on_site_pickup` UPDATE(낙관적 반영, 실패 시 원복+에러 토스트). **금액 불변**. `item.id` 없으면(미저장 신규행) disabled. 연계 병합 아이템은 각 item의 원본 `order_id`(groupLinkedOrders 주입)로 UPDATE 타깃 지정
 - [ ] 행 데이터: `editedOrderItems`(편집 중) 또는 `order.mergedItems || order.order_items`(조회)
 - [ ] 상품명 — 조회: `item.product_name || productsMap[item.product_id]?.name || '알 수 없는 상품'` / 편집: Autocomplete (전체 products 옵션, name으로 검색, getOptionLabel name)
 - [ ] 정가 — `item.list_price || productsMap[item.product_id]?.list_price || 0`.toLocaleString()원
@@ -140,6 +142,16 @@
 - [ ] 상태 Select 변경 → `handleSaveStatusOnly(newStatus)` → `supabase.from('orders').update({ status }).eq('id', order.id)` → 토스트 + `onUpdate()`
 - [ ] `status → paid` 전환 시 `is_on_site_sale=false` 면 **`sendAlimtalk(order.id)` 비동기 호출** → 결과 토스트 (성공/실패)
 - [ ] DB 트리거가 `status_history` 자동 누적
+
+### 현장수령 (상품별 · A)
+- [ ] **권한**: `orders:edit`. 편집모드 진입 불필요(상시 활성)
+- [ ] `handleToggleOnSitePickup(index)` → 낙관적 로컬 토글 → `supabase.from('order_items').update({ on_site_pickup }).eq('id', item.id).eq('order_id', targetOrderId)` → 실패 시 원복 + 에러 토스트, 성공 시 `onUpdate()`
+- [ ] 금액 계산에 영향 없음(A는 금액 불변)
+
+### 주문 성격 전환 (주문 단위 · B, pending 전용)
+- [ ] **권한·조건**: `orders:edit` AND `status === 'pending'`
+- [ ] 세그먼트 전환 → 로컬 상태만 변경(즉시 저장 아님). 변경 시 배송비·최종결제 before→after 캡션 + "변경 저장" 버튼 노출
+- [ ] `handleSaveOnSiteSale` → `supabase.from('orders').update({ is_on_site_sale, delivery_fee, final_payment }).eq('id', order.id)` → 성공 토스트 + `onUpdate()` + `onClose()`. **update_order_details 경유 안 함**(그 RPC는 이 3필드 중 final_payment만 반영)
 
 ### 알림톡 재발송
 - [ ] **노출 조건**: `orders:edit` AND `status === 'paid'` AND `!is_on_site_sale`
@@ -204,7 +216,7 @@
 - `id` (bigint), `parent_order_id` (bigint nullable), `customer_name` (text), `phone_number` (text)
 - `shipping_address` (jsonb) — `{ postcode, address, detail }`
 - `customer_request` (text), `admin_memo` (text), `inpsyt_id` (text)
-- `is_on_site_sale` (boolean) — 알림톡 재발송 노출 조건에 사용
+- `is_on_site_sale` (boolean) — 알림톡 재발송 노출 조건 + B 주문 성격 전환(pending 전용, UPDATE 대상: is_on_site_sale/delivery_fee/final_payment)에 사용
 - `event_id` (bigint, FK)
 - `status` (text — pending/paid/completed/cancelled/refunded)
 - `status_history` (jsonb) — 트리거 자동 갱신
@@ -217,8 +229,9 @@
 - `created_at` (timestamptz)
 
 ### `order_items` (조회·일괄 재삽입)
-- `order_id, product_id, quantity, price_at_purchase`
+- `id, order_id, product_id, quantity, price_at_purchase`
 - 스냅샷: `product_name, product_code, category, list_price`
+- `on_site_pickup` (boolean, DEFAULT false) — 상품별 현장수령(출고 제외) 플래그. 현장수령 체크박스가 `.eq('id', item.id)` 직접 UPDATE. `handleSaveAll`의 items_param에도 `on_site_pickup` 포함(편집저장 시 유실 방지). `ALL_ITEMS_SELECT`(api/orders.js)에 `id, on_site_pickup` 포함
 
 ### `events` (join)
 - `id, name, discount_rate`
@@ -282,3 +295,7 @@
   - 보존: 모든 API/RPC/Edge Function 호출(`update_order_details`, `linkOrders`, `searchOrdersForLinking`, `sendAlimtalk`, 삭제·status 단건 update, `site_settings` 조회), 권한별 분기, 편집 토글, 자동 알림톡, Daum 우편번호 Dialog.
   - 부채 5건은 손대지 않음(별도 사이클 — CTO 검수 권장).
 - 2026-06-10 알림톡 발송 결과 가시화 — 주문 상세 정보 섹션에 “알림톡” InfoRow 추가(발송됨 {시각} / 실패 {시각}: {사유} / 미발송, 현장수령은 행 비노출). `alimtalk_status='failed'`면 헤더 재발송 버튼 `color="error"` 강조. 재발송·paid 자동발송 결과를 로컬 상태로 즉시 반영 + `onUpdate()`로 목록 칩 동기화. 핵심 발견 4번 해소.
+- 2026-07-07 현장수령(A·B) 추가 —
+  - A: 주문 상품 목록에 `orders:edit` 조건 "현장수령" 체크박스 컬럼 신설. 상시 활성 즉시 저장(`order_items.on_site_pickup` UPDATE, `.eq('id', item.id).eq('order_id', targetOrderId)`), 낙관적 반영·실패 원복. 금액 불변. `handleSaveAll` items_param에 `on_site_pickup` 보존. `ALL_ITEMS_SELECT`에 `id, on_site_pickup` 추가.
+  - B: 주문 상세 정보 섹션에 "주문 성격" ToggleButtonGroup(pending·`orders:edit` 전용). 전환 시 배송비 재계산(create-order `is_on_site_sale ? 0` 규칙 정합, 정가 기준 무료배송 임계치) + before→after 캡션 + "변경 저장" 버튼. `orders` 직접 단일 UPDATE(is_on_site_sale/delivery_fee/final_payment), update_order_details 경유 안 함.
+  - 정보구조 보존: 기존 표시 항목·필드 삭제/통합 0. 현장수령 컬럼·주문 성격 행만 신규 추가.

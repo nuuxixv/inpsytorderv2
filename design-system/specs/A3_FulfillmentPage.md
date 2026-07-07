@@ -47,9 +47,12 @@
 - [ ] 메모: `admin_memo`(trim), multiline, 값 있으면 복사
 - [ ] InfoRow 복사 패턴: 값 텍스트 직후 16px ContentCopy 아이콘(gray[400]) 상시 노출, 값+아이콘 단일 클릭 타깃, hover 알파 배경+아이콘 primary, 행 minHeight 40. 우측 끝 44px IconButton 패턴은 폐기(2026-06-12)
 
+### 그룹 카드 — 현장수령 안내 (조건부)
+- [ ] **주문 전체 현장수령** 판정(OR): `order.is_on_site_sale === true` OR (상품이 1개 이상이며 모든 item `on_site_pickup === true`)일 때 헤더 안내줄 노출 — "현장수령" 배지(StatusBadge kind=category, warning 톤) + "현장 수령 주문건 · 택배 출고 불필요" 캡션. **숨김 금지**(판매량 파악용, 수량·상품명·금액 그대로 노출)
+
 ### 그룹 카드 — 액션 행 (ActionSlot, 버튼 없으면 행 자체 미렌더)
-- [ ] "출고 처리" 버튼: `status='paid'` + `orders:edit`일 때만. contained success + CheckCircleIcon
-- [ ] "출고 취소" 버튼: `status='completed'` + `orders:edit`일 때만. outlined
+- [ ] "출고 처리" 버튼: `status='paid'` + `orders:edit`일 때만. contained success + CheckCircleIcon. **주문 전체 현장수령이면 라벨 "확인 완료"로 치환**(status는 그대로 completed로 UPDATE — 라벨만 치환)
+- [ ] "출고 취소" 버튼: `status='completed'` + `orders:edit`일 때만. outlined. **주문 전체 현장수령이면 라벨 "확인완료 취소"로 치환**(status는 그대로 paid로 UPDATE)
 - [ ] 조회 전용(`orders:edit` 미보유) 사용자는 액션 행 자체가 보이지 않음
 - [ ] 구 "단축 복사" 5종 아이콘 버튼 행은 폐기(2026-06-12) — 인라인 복사로 일원화
 
@@ -58,6 +61,7 @@
 - [ ] 분류 칩 — **누락 금지** (핵심 발견 #2): `StatusBadge kind="category"`, 라벨은 원본 `rawCategory`, 색은 정규화 후 키('도구'→'검사'→test) — book/test 색은 CATEGORY_COLORS
 - [ ] 단가 `price_at_purchase`, 수량 `quantity`, 합계 = 단가×수량 — 모두 tabular-nums 우측 정렬
 - [ ] 뷰 모드별 그레이드: book 뷰에서 검사 상품, test 뷰에서 도서 상품은 opacity 0.35 + gray[50] 배경
+- [ ] **상품별 현장수령**(`item.on_site_pickup === true`): 뷰 모드와 무관하게 해당 상품 행 dim(기존 isGreyed 패턴 재사용, opacity 0.35 + gray[50]) + 상품명 옆 "현장수령" 배지(StatusBadge kind=category, warning 톤). 출고 제외 표시일 뿐 수량·상품명·금액은 그대로 노출(숨김 금지)
 
 ### 그룹 카드 — 합계 영역
 - [ ] 배송비(조건부): `delivery_fee > 0`일 때 "배송비 {N}원 포함" (caption, 우측 정렬)
@@ -105,8 +109,12 @@
 - `event_id` (bigint, FK → events)
 - `inpsyt_id` (text, nullable)
 
+### `orders` 추가 필드
+- `is_on_site_sale` (boolean) — 주문 전체 현장수령 판정(OR 규칙)에 사용
+
 ### join: `events(name)`, `order_items(...)`
-- `order_items`: `product_id`, `quantity`, `price_at_purchase`, `product_name`, `product_code`, `category`, `list_price`
+- `order_items`: `id`, `product_id`, `quantity`, `price_at_purchase`, `product_name`, `product_code`, `category`, `list_price`, `on_site_pickup`
+- `order_items.on_site_pickup` (boolean, DEFAULT false) — 상품별 현장수령 dim·배지 + 주문 전체 현장수령 판정에 사용
 - `order_items.products(name, category)` — order_items 스냅샷이 없을 때 fallback
 
 ### 클라이언트 가공 (`groupLinkedOrders`)
@@ -139,3 +147,4 @@
 ## 변경 이력
 - 2026-05-13 신설 — PR #6 출고 시안 검수 중 주소 통합·카테고리 누락·서식 불일치 3건 발견. 게이트 1.5 절차 신설과 함께 작성.
 - 2026-06-12 전면 재작성 — 구 좌우 패널 구조 기술 폐기, 현 그룹 카드 구조 반영. 출고 고도화 사이클: 명칭 "출고 관리" 개칭 / 상태 세그먼트(기본 출고 대기) / 검색 / InfoRow 인라인 복사(우측 IconButton·단축 복사 행 폐기) / 고객명 인라인 복사 / 일괄 처리 안전화(eligible만 + 확인 다이얼로그 + 선택 초기화) / 출고 취소 / "출고처리 완료" 중복 칩 제거.
+- 2026-07-07 현장수령 연동 — `getFulfillmentOrders` select에 `orders.is_on_site_sale` + `order_items.id, on_site_pickup` 추가. OR 규칙(주문 is_on_site_sale OR item on_site_pickup)으로 현장수령 판정. 상품별 현장수령: 기존 isGreyed dim 재사용 + "현장수령" 배지. 주문 전체 현장수령: 헤더 안내줄("택배 출고 불필요") + 액션 라벨 "출고 처리"→"확인 완료"/"출고 취소"→"확인완료 취소" 치환(status는 여전히 completed/paid로 UPDATE, 라벨만 치환). **숨김 금지**(판매량 파악용).

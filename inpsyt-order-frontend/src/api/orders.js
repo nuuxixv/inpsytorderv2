@@ -15,7 +15,7 @@ import { SHIPPING_DEFAULTS } from '../constants/shipping';
  * @returns {Promise<{data: Array, count: number}>} 주문 목록과 전체 개수
  * @throws {Error} 데이터 조회 실패 시 에러 발생
  */
-const ALL_ITEMS_SELECT = 'order_items(product_id, quantity, price_at_purchase, product_name, product_code, category, list_price)';
+const ALL_ITEMS_SELECT = 'order_items(id, product_id, quantity, price_at_purchase, product_name, product_code, category, list_price, on_site_pickup)';
 
 const applyBaseFilters = (query, { searchTerm, selectedStatuses, selectedEvents, startDate, endDate }) => {
   if (searchTerm) query = query.ilike('customer_name', `%${searchTerm}%`);
@@ -100,10 +100,10 @@ export const getFulfillmentOrders = async ({ eventId, statuses, dateFrom, dateTo
     .from('orders')
     .select(`
       id, parent_order_id, customer_name, phone_number, shipping_address,
-      final_payment, delivery_fee, status, created_at,
+      final_payment, delivery_fee, status, created_at, is_on_site_sale,
       customer_request, admin_memo, event_id, inpsyt_id,
       events(name),
-      order_items(product_id, quantity, price_at_purchase, product_name, product_code, category, list_price,
+      order_items(id, product_id, quantity, price_at_purchase, product_name, product_code, category, list_price, on_site_pickup,
         products(name, category)
       )
     `)
@@ -221,15 +221,17 @@ export const groupLinkedOrders = (orders) => {
     if (!order.parent_order_id) {
       // Parent order
       const children = childrenMap[order.id] || [];
+      // 각 아이템이 속한 원본 order_id를 주입 (현장수령 UPDATE 타깃 식별용 — 자식 아이템은 order_id가 다름)
       const mergedItems = [
-        ...(order.order_items || []),
-        ...children.flatMap(c => c.order_items || []),
+        ...(order.order_items || []).map(i => ({ ...i, order_id: order.id })),
+        ...children.flatMap(c => (c.order_items || []).map(i => ({ ...i, order_id: c.id }))),
       ];
       const mergedTotal = (order.final_payment || 0) + children.reduce((s, c) => s + (c.final_payment || 0), 0);
       return { ...order, linkedChildren: children, mergedItems, mergedTotal };
     } else {
       // Child order - return as-is
-      return { ...order, linkedChildren: [], mergedItems: order.order_items || [], mergedTotal: order.final_payment || 0 };
+      const mergedItems = (order.order_items || []).map(i => ({ ...i, order_id: order.id }));
+      return { ...order, linkedChildren: [], mergedItems, mergedTotal: order.final_payment || 0 };
     }
   });
 };
