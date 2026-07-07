@@ -33,6 +33,9 @@ import {
   CircularProgress,
   Collapse,
   Autocomplete,
+  Checkbox,
+  ToggleButtonGroup,
+  ToggleButton,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -73,6 +76,10 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
   const [totalDiscount, setTotalDiscount] = useState(0);
   const [shippingFee, setShippingFee] = useState(0);
   const [finalTotal, setFinalTotal] = useState(0);
+
+  // B — 주문 성격(일반배송/현장수령) 전환. pending 전용.
+  const [isOnSiteSale, setIsOnSiteSale] = useState(false);
+  const [onSiteSaving, setOnSiteSaving] = useState(false);
 
   const [alimtalk, setAlimtalk] = useState({ status: null, sentAt: null, attemptedAt: null, error: null });
   const [linkedParent, setLinkedParent] = useState(null);
@@ -116,6 +123,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
       setEditedEventId(order.event_id || '');
       setEditedAdminMemo(order.admin_memo || '');
       setEditedInpsytId(order.inpsyt_id || '');
+      setIsOnSiteSale(order.is_on_site_sale ?? false);
       setAlimtalk({
         status: order.alimtalk_status || null,
         sentAt: order.alimtalk_sent_at || null,
@@ -203,6 +211,33 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
     setEditedOrderItems(updatedItems);
   };
 
+  // 상품별 현장수령 즉시 저장 (편집모드 무관, 낙관적 반영 + 실패 시 원복)
+  const handleToggleOnSitePickup = async (index) => {
+    const item = editedOrderItems[index];
+    if (!item?.id) {
+      addNotification('저장 후 현장수령을 지정할 수 있습니다.', 'warning');
+      return;
+    }
+    const next = !item.on_site_pickup;
+    // 아이템이 속한 원본 주문 id (연계 자식 아이템은 order.id와 다름)
+    const targetOrderId = item.order_id ?? order.id;
+
+    setEditedOrderItems(prev => prev.map((it, i) => (i === index ? { ...it, on_site_pickup: next } : it)));
+
+    const { error } = await supabase
+      .from('order_items')
+      .update({ on_site_pickup: next })
+      .eq('id', item.id)
+      .eq('order_id', targetOrderId);
+
+    if (error) {
+      setEditedOrderItems(prev => prev.map((it, i) => (i === index ? { ...it, on_site_pickup: !next } : it)));
+      addNotification(`현장수령 저장 실패: ${error.message}`, 'error');
+      return;
+    }
+    onUpdate();
+  };
+
 
   const handleSaveAll = async () => {
     try {
@@ -229,7 +264,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
         const product = productsMap[item.product_id];
         const originalPrice = product?.list_price || 0;
         const discountedPrice = originalPrice * (1 - discountRate);
-        return { order_id: order.id, product_id: item.product_id, quantity: item.quantity, price_at_purchase: discountedPrice, product_name: product?.name || null, product_code: product?.product_code || null, category: product?.category || null, list_price: product?.list_price || null };
+        return { order_id: order.id, product_id: item.product_id, quantity: item.quantity, price_at_purchase: discountedPrice, product_name: product?.name || null, product_code: product?.product_code || null, category: product?.category || null, list_price: product?.list_price || null, on_site_pickup: item.on_site_pickup ?? false };
       });
 
       const { error } = await supabase.rpc('update_order_details', { order_id_param: order.id, updates_param: orderUpdates, items_param: orderItemsPayload });
@@ -243,6 +278,46 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
     } catch (error) {
       console.error('Client-side error in handleSaveAll:', error);
       addNotification(`주문 정보 업데이트 실패: ${error.message}`, 'error');
+    }
+  };
+
+  // B — 주문 성격 전환 (pending 전용). 배송비 재계산 + orders 원자적 UPDATE.
+  // create-order 규칙과 동일: onSite면 0, 아니면 정가(total_cost) 기준 무료배송 임계치.
+  const computeShipping = (onSite) => {
+    if (onSite) return 0;
+    const base = order.total_cost || 0;
+    return base >= settings.free_shipping_threshold || base === 0 ? 0 : settings.shipping_cost;
+  };
+
+  const nextShippingFee = computeShipping(isOnSiteSale);
+  const subtotalAfterDiscount = (order.total_cost || 0) - (order.discount_amount || 0);
+  const nextFinalPayment = subtotalAfterDiscount + nextShippingFee;
+  const onSiteChanged = isOnSiteSale !== (order.is_on_site_sale ?? false);
+
+  const handleOnSiteSaleChange = (_, value) => {
+    if (value === null) return;
+    setIsOnSiteSale(value === 'onsite');
+  };
+
+  const handleSaveOnSiteSale = async () => {
+    setOnSiteSaving(true);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          is_on_site_sale: isOnSiteSale,
+          delivery_fee: nextShippingFee,
+          final_payment: nextFinalPayment,
+        })
+        .eq('id', order.id);
+      if (error) throw error;
+      addNotification(isOnSiteSale ? '현장수령으로 전환되었습니다.' : '일반배송으로 전환되었습니다.', 'success');
+      onUpdate();
+      onClose();
+    } catch (err) {
+      addNotification(`주문 성격 전환 실패: ${err.message}`, 'error');
+    } finally {
+      setOnSiteSaving(false);
     }
   };
 
@@ -513,6 +588,44 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
                 </FormControl>
               )}
             />
+            {order.status === 'pending' && canEdit && (
+              <InfoRow
+                label="주문 성격"
+                labelWidth={96}
+                multiline
+                value={(
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, width: '100%' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                      <ToggleButtonGroup
+                        value={isOnSiteSale ? 'onsite' : 'delivery'}
+                        exclusive
+                        size="small"
+                        onChange={handleOnSiteSaleChange}
+                      >
+                        <ToggleButton value="delivery" sx={{ px: 2 }}>일반배송</ToggleButton>
+                        <ToggleButton value="onsite" sx={{ px: 2 }}>현장수령</ToggleButton>
+                      </ToggleButtonGroup>
+                      {onSiteChanged && (
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={handleSaveOnSiteSale}
+                          disabled={onSiteSaving}
+                          startIcon={onSiteSaving ? <CircularProgress size={14} /> : null}
+                        >
+                          변경 저장
+                        </Button>
+                      )}
+                    </Box>
+                    {onSiteChanged && (
+                      <Typography variant="caption" color="text.secondary">
+                        배송비 {(order.delivery_fee || 0).toLocaleString()}원 → {nextShippingFee.toLocaleString()}원 · 최종결제 {(order.final_payment || 0).toLocaleString()}원 → {nextFinalPayment.toLocaleString()}원
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+              />
+            )}
             {!order.is_on_site_sale && (
               <InfoRow
                 label="알림톡"
@@ -674,13 +787,14 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
                   <TableCell align="right" sx={{ minWidth: 80, whiteSpace: 'nowrap' }}>할인가</TableCell>
                   <TableCell align="right" sx={{ minWidth: 60, whiteSpace: 'nowrap' }}>수량</TableCell>
                   <TableCell align="right" sx={{ minWidth: 80, whiteSpace: 'nowrap' }}>합계</TableCell>
+                  {canEdit && <TableCell align="center" sx={{ minWidth: 64, whiteSpace: 'nowrap' }}>현장수령</TableCell>}
                   {canEdit && isEditing && <TableCell sx={{ minWidth: 50, whiteSpace: 'nowrap' }}>작업</TableCell>}
                 </TableRow>
               </TableHead>
               <TableBody>
                 {productsLoading ? (
                   <TableRow>
-                    <TableCell colSpan={canEdit && isEditing ? 6 : 5} align="center">
+                    <TableCell colSpan={5 + (canEdit ? 1 : 0) + (canEdit && isEditing ? 1 : 0)} align="center">
                       <CircularProgress size={24} />
                     </TableCell>
                   </TableRow>
@@ -725,6 +839,18 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
                           ) : (item.quantity)}
                         </TableCell>
                         <TableCell align="right" sx={{ fontFeatureSettings: '"tnum" 1' }}>{itemTotal.toLocaleString()}원</TableCell>
+                        {canEdit && (
+                          <TableCell align="center" sx={{ p: 0.5 }}>
+                            <Checkbox
+                              size="small"
+                              checked={!!item.on_site_pickup}
+                              onChange={() => handleToggleOnSitePickup(index)}
+                              disabled={!item.id}
+                              title={item.id ? '현장수령 (출고 제외)' : '저장 후 지정 가능'}
+                              sx={{ p: 0.5 }}
+                            />
+                          </TableCell>
+                        )}
                         {canEdit && isEditing && (
                           <TableCell sx={{ p: 1 }}>
                             <IconButton onClick={() => handleRemoveOrderItem(index)} color="error" size="small" title="삭제">

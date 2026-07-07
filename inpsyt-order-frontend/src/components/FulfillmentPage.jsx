@@ -100,6 +100,11 @@ const FulfillmentGroupCard = ({
   const adminMemo = order.admin_memo?.trim();
   const hasActions = canShip && (order.status === 'paid' || isCompleted);
 
+  // 현장수령 판정 (OR 규칙): 주문 자체가 현장수령이거나 모든 상품이 현장수령이면 주문 전체 현장수령
+  const isWholeOnSite =
+    order.is_on_site_sale === true ||
+    (displayItems.length > 0 && displayItems.every(i => i.on_site_pickup === true));
+
   return (
     <SectionCard
       padding={0}
@@ -276,6 +281,16 @@ const FulfillmentGroupCard = ({
         />
       </Box>
 
+      {/* 현장수령 주문 전체 안내 — 택배 출고 불필요 (status는 completed로 처리, 라벨만 치환) */}
+      {isWholeOnSite && (
+        <Box sx={{ px: 3, py: 1, borderBottom: `1px solid ${theme.gray[100]}`, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          <StatusBadge kind="category" value="onsite" label="현장수령" size="sm" sx={{ borderColor: alpha(theme.palette.warning.main, 0.35), color: theme.palette.warning.dark }} />
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            현장 수령 주문건 · 택배 출고 불필요
+          </Typography>
+        </Box>
+      )}
+
       {/* 액션 행 (출고 처리 / 출고 취소) — 버튼 없으면 미렌더 */}
       {hasActions && (
         <ActionSlot
@@ -294,7 +309,7 @@ const FulfillmentGroupCard = ({
               startIcon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
               onClick={() => onShip(order.id)}
             >
-              출고 처리
+              {isWholeOnSite ? '확인 완료' : '출고 처리'}
             </Button>
           )}
           {isCompleted && (
@@ -303,7 +318,7 @@ const FulfillmentGroupCard = ({
               variant="outlined"
               onClick={() => onUnship(order.id)}
             >
-              출고 취소
+              {isWholeOnSite ? '확인완료 취소' : '출고 취소'}
             </Button>
           )}
         </ActionSlot>
@@ -316,9 +331,11 @@ const FulfillmentGroupCard = ({
           const catKey = categoryKey(rawCategory);
           const catColor = CATEGORY_COLORS[catKey] || theme.gray[500];
           const productName = item.product_name || item.products?.name || '-';
-          // 뷰 모드별 그레이드 (사양 line 61)
+          // 뷰 모드별 그레이드 (사양 line 61) + 상품별 현장수령 (출고 제외)
           const normalized = normalizeCategory(rawCategory);
+          const isOnSitePickup = item.on_site_pickup === true;
           const isGreyed =
+            isOnSitePickup ? true :
             viewMode === 'book' ? normalized === '검사' :
             viewMode === 'test' ? normalized === '도서' :
             false;
@@ -343,17 +360,28 @@ const FulfillmentGroupCard = ({
                 '&:hover': isGreyed ? {} : { bgcolor: theme.gray[50] },
               }}
             >
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  color: 'text.primary',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {productName}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    color: 'text.primary',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {productName}
+                </Typography>
+                {isOnSitePickup && (
+                  <StatusBadge
+                    kind="category"
+                    value="onsite"
+                    label="현장수령"
+                    size="sm"
+                    sx={{ flexShrink: 0, borderColor: alpha(theme.palette.warning.main, 0.35), color: theme.palette.warning.dark }}
+                  />
+                )}
+              </Box>
               <Box>
                 {rawCategory && (
                   <StatusBadge
