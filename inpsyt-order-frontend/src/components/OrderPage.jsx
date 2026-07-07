@@ -203,6 +203,7 @@ const OrderPage = () => {
             detail: customerInfo.detailAddress,
           },
           inpsyt_id: customerInfo.inpsytId,
+          is_on_site_sale: isOnsitePurchase,
           customer_request: isOnsitePurchase
             ? `[현장구매] ${customerInfo.request || ''}`.trim()
             : customerInfo.request,

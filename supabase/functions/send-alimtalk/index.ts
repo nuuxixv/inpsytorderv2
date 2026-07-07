@@ -45,14 +45,7 @@ serve(async (req) => {
       })
     }
 
-    // 2. 현장 수령 주문은 발송 안 함
-    if (order.is_on_site_sale) {
-      return new Response(JSON.stringify({ skipped: true, reason: '현장 수령 주문' }), {
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-        status: 200,
-      })
-    }
-
+    // 현장수령 주문도 접수 알림톡을 발송한다(건우님 결정 2026-07-06). 과거의 is_on_site_sale 스킵 제거.
     const recipientPhone = order.phone_number?.replace(/-/g, '') ?? ''
     const customerName = order.customer_name ?? ''
     const eventName = order.events?.name ?? ''
