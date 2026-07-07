@@ -30,23 +30,29 @@ const getBannerConfig = (order) => {
         icon: '⏳',
         label: STATUS_TO_KOREAN.pending,
         color: STATUS_COLORS.pending,
-        subMessage: edd
-          ? [`지금 결제 시 ${fmt(edd)} 도착`, '담당자를 통해 결제해 주세요.']
-          : ['담당자를 통해 결제해 주세요.'],
+        subMessage: order.is_on_site_sale
+          ? ['담당자를 통해 결제해 주세요.']
+          : edd
+            ? [`지금 결제 시 ${fmt(edd)} 도착`, '담당자를 통해 결제해 주세요.']
+            : ['담당자를 통해 결제해 주세요.'],
       };
     case 'paid':
       return {
         icon: '📦',
         label: STATUS_TO_KOREAN.paid,
         color: STATUS_COLORS.paid,
-        subMessage: edd ? `${fmt(edd)} 도착 예정` : '출고 준비 중입니다.',
+        subMessage: order.is_on_site_sale
+          ? '결제 완료 · 현장 수령 주문입니다'
+          : edd ? `${fmt(edd)} 도착 예정` : '출고 준비 중입니다.',
       };
     case 'completed':
       return {
         icon: '🎉',
         label: STATUS_TO_KOREAN.completed,
         color: STATUS_COLORS.completed,
-        subMessage: completedAt ? `${fmt(completedAt)} 배송 출발` : '배송 출발',
+        subMessage: order.is_on_site_sale
+          ? '현장 수령 완료'
+          : completedAt ? `${fmt(completedAt)} 배송 출발` : '배송 출발',
       };
     case 'cancelled':
       return {

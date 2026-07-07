@@ -350,13 +350,14 @@
      - `phone_number` ← `customerInfo.phone`
      - `shipping_address` — 객체 `{ postcode, address, detail }` (DB 표시에서는 `detailAddress`/`detail` 둘 다 fallback 처리됨 — A3 시트 참조 — **확인 필요**)
      - `inpsyt_id` ← `customerInfo.inpsytId`
-     - `customer_request` — `isOnsitePurchase`면 `[현장구매] {원본}`으로 prefix
+     - `is_on_site_sale` ← `isOnsitePurchase` (2026-07-06 추가 — 현장구매 여부를 서버로 명시 전송)
+     - `customer_request` — `isOnsitePurchase`면 `[현장구매] {원본}`으로 prefix (기존 데이터 식별·운영자 가독성 위해 유지)
      - `cart` — `[{ product_id, quantity }]` 배열
      - `event_id`
   4. 응답 토큰(`data.order.access_token`)이 있으면 `/order/status/{token}`으로 navigate
   5. 토큰 없으면 `showSuccessDialog` 열기(fallback)
   6. 실패 시 에러 알림 표시
-  7. `is_on_site_sale` 컬럼은 본 페이로드에 명시되지 않음 — **DB 컬럼 `is_on_site_sale boolean DEFAULT false`은 존재(20250805 마이그레이션)하나, create-order 함수가 이를 INSERT하지 않음. 현장구매 모드는 현재 `customer_request`에 `[현장구매]` 접두사로만 기록되는 형태 — 확인 필요**
+  7. `is_on_site_sale` 컬럼 — **해소됨(2026-07-06).** create-order 페이로드에 `is_on_site_sale: isOnsitePurchase` 전송(위 3번 목록). 서버(create-order)가 이 값을 INSERT하고 현장구매 시 배송비를 부과하지 않음. `customer_request`의 `[현장구매]` 접두사는 기존 데이터 식별·운영자 가독성을 위해 병행 유지.
 
 - [ ] 서버측 금액 재계산 (`supabase/functions/create-order/index.ts:57-84`):
   - 클라이언트가 보낸 금액은 신뢰하지 않음. 서버가 `products`·`events`·`site_settings`를 다시 조회해 재계산.
@@ -395,7 +396,7 @@
 - `discount_amount` (numeric)
 - `delivery_fee` (numeric) — `20250805`의 `shipping_cost`와 컬럼명 차이 — 확인 필요
 - `final_payment` (numeric)
-- `is_on_site_sale` (boolean, default false) — 현재 create-order에서 채우지 않음 (위 확인 필요 항목)
+- `is_on_site_sale` (boolean, default false) — create-order가 클라이언트 `is_on_site_sale` 페이로드를 받아 INSERT (2026-07-06 해소). true면 배송비 미부과.
 - `status` (text) — `pending`/`paid`/`completed`/`cancelled`/`refunded` (생성 시점엔 컬럼 default 또는 status_history만 박힘)
 - `status_history` (jsonb, default 빈 배열) — `20260406_add_status_history_to_orders.sql`. INSERT 시 첫 항목 명시.
 - `access_token` (uuid, default `gen_random_uuid()`) — `20260406_add_access_token_to_orders.sql`. 결제 완료 후 `/order/status/{token}` URL 키
@@ -452,7 +453,7 @@
 5. **`hasOnlineCode`일 때만 인싸이트 ID 필드가 뜬다.** 카트에 온라인코드 상품(카테고리 또는 이름 매칭)이 있을 때 조건부 노출. 시안에서 항상 보이거나 항상 숨기면 안 된다.
 6. **`OrderReviewStep`의 "배송지" InfoRow는 표시용 통합이지만, 입력·DB는 분리.** 이 자리에서만 한 줄로 join해서 보여줘도 된다. 단, A3 출고 화면(운영자용)의 표시까지 한 줄로 따라가면 안 된다 — 거기는 분리.
 7. **에러 메시지 "성함, 연락처, 이메일"의 "이메일"은 잔재 문구.** `email` 컬럼은 2026-04-08에 제거됐다(`20260408_drop_email_column.sql`). 코드가 이 메시지에서 "이메일" 단어를 아직 들고 있다. 시안·구현 모두 "성함, 연락처"로 정리해야 정합성이 맞는다.
-8. **현장구매 정보는 현재 `customer_request`의 `[현장구매]` prefix로만 기록된다.** `is_on_site_sale` boolean 컬럼이 DB엔 있지만, `create-order` 함수가 INSERT 페이로드에 넣지 않는다. 시안 결정과 별개로 데이터 정합성 정리가 필요한 잠재 부채.
+8. **~~현장구매 정보는 현재 `customer_request`의 `[현장구매]` prefix로만 기록된다.~~ 해소됨(2026-07-06).** create-order 페이로드에 `is_on_site_sale`을 전송하고 서버가 INSERT·배송비 미부과 처리한다. `[현장구매]` prefix는 기존 데이터 식별·운영자 가독성을 위해 병행 유지. C3(OrderStatusPage) 상태 문구도 `is_on_site_sale`로 직접 분기(현장수령 담백형 문구).
 9. **CTA 라운드 14, 일반 카드 라운드 16 등 인라인 px이 다수.** M1 토큰(`radius-button`=8, `radius-md`=10)으로 흡수 대상.
 10. **`fontSize: '0.8125rem'`(13px), `0.6875rem`(11px) 같은 인라인 값이 카드·칩에 다수.** 02 §타이포 §사용 규칙 약속 2 흡수 표를 그대로 적용.
 11. **검사군 카드는 가격을 완전히 은닉한다.** 검사명 + "옵션 N개"만. 대표가·**최저가 앵커도 표시하지 않는다**(건우님 확정 2026-07-02 — A/B 비교 불필요, 옵션별 차이 오해·노안 숫자부담 제거). 가격은 펼친 옵션 행에서만 노출. 시안이 검사군 카드에 어떤 가격도 그리면 안 된다. **(2026-07-02 번복) 옵션 1개 검사군도 예외 없이 동일** — 카드에 가격 없음, "옵션 1개" + 화살표로 펼쳐 옵션 행에서 가격 노출(옵션 수에 따라 UX가 갈리면 혼란, 일관 펼침).

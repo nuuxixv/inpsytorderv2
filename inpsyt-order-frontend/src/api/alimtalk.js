@@ -19,7 +19,7 @@ const recordAlimtalkResult = async (orderId, fields) => {
  * 주문 ID를 받아 결제 완료 알림톡을 발송합니다.
  * 브라우저에서 직접 호출 (PC Chrome에서만 정상 동작, iOS는 msgagent 측 제한으로 101 에러).
  * 발송 시도 결과는 orders.alimtalk_status/alimtalk_error/alimtalk_attempted_at에 기록.
- * skipped(현장수령)·발송 전 실패(번호 없음 등)는 기록하지 않음.
+ * 발송 전 실패(번호 없음 등)는 기록하지 않음. 현장수령 주문도 발송한다.
  * @param {number} orderId
  * @returns {{ success: boolean, skipped?: boolean, error?: string }}
  */
@@ -31,7 +31,7 @@ export const sendAlimtalk = async (orderId) => {
     .single();
 
   if (orderError || !order) return { success: false, error: '주문을 찾을 수 없습니다.' };
-  if (order.is_on_site_sale) return { success: true, skipped: true };
+  // 현장수령 주문도 접수 알림톡을 발송한다(건우님 결정 2026-07-06). 과거의 is_on_site_sale 스킵 제거.
   if (!order.phone_number) return { success: false, error: '수신자 연락처가 없습니다.' };
 
   const attemptedAt = new Date().toISOString();

@@ -34,3 +34,16 @@
 - [ ] 만료 개념 없음 — 토큰은 한 번 발급되면 계속 유효. 학회 종료 후에도 접근 가능
 - [ ] 잘못된 토큰(존재하지 않는 UUID): RPC가 null 반환 → "주문을 찾을 수 없습니다" 화면
 - [ ] 형식 오류 토큰(UUID 아닌 문자열): Supabase가 `rpcError` 반환 → 동일하게 catch 흡수 → 동일 화면
+
+## 상단 상태 배너 문구 (`getBannerConfig`, `OrderStatusPage.jsx:22-73`)
+- 이모지·`STATUS_COLORS` 5종·라벨(`STATUS_TO_KOREAN`)은 고정. `subMessage`만 상태·현장구매 여부로 분기.
+- `edd`(도착예정일) = `!order.is_on_site_sale ? order.events?.estimated_delivery_date : null` — 현장구매는 항상 null.
+- **현장수령 문구는 `order.is_on_site_sale`로 직접 분기**(2026-07-06). edd null 사유가 현장구매인지 단순 미설정인지 구분 못 하므로 edd 유무 분기만으로는 부정확 → 플래그 직접 판정.
+
+| status | 이모지 | 배송 주문(is_on_site_sale=false) | 현장수령(is_on_site_sale=true) |
+|---|---|---|---|
+| pending | ⏳ | edd 있으면 `['지금 결제 시 {edd} 도착', '담당자를 통해 결제해 주세요.']`, 없으면 `['담당자를 통해 결제해 주세요.']` | `['담당자를 통해 결제해 주세요.']` |
+| paid | 📦 | edd 있으면 `{edd} 도착 예정`, 없으면 `출고 준비 중입니다.` | `결제 완료 · 현장 수령 주문입니다` |
+| completed | 🎉 | completedAt 있으면 `{completedAt} 배송 출발`, 없으면 `배송 출발` | `현장 수령 완료` |
+| cancelled | ❌ | `결제 전 취소된 주문건입니다.` | (동일) |
+| refunded | ↩️ | `결제 취소된 주문건입니다.` | (동일) |

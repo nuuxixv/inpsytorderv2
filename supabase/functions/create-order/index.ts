@@ -10,6 +10,7 @@ serve(async (req) => {
   }
 
   // 실제 요청 본문 파싱
+  const parsedBody = await req.json()
   const {
     customer_name,
     phone_number,
@@ -18,7 +19,9 @@ serve(async (req) => {
     customer_request,
     cart, // Array of { product_id, quantity }
     event_id,
-  } = await req.json()
+  } = parsedBody
+  // 현장구매 여부 — 미전송(구 프론트) 대비 안전 기본값 false
+  const is_on_site_sale = parsedBody.is_on_site_sale ?? false
 
   const supabaseClient = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
@@ -110,8 +113,10 @@ serve(async (req) => {
     const FREE_SHIPPING_THRESHOLD = settings?.free_shipping_threshold ?? 30000
 
     const totalDiscountAmount = totalOriginalPrice - totalDiscountedPrice
-    const shippingCost =
-      totalOriginalPrice >= FREE_SHIPPING_THRESHOLD || totalOriginalPrice === 0
+    // 현장구매는 배송이 없으므로 배송비 무조건 0. 그 외에는 정가 기준 무료배송 임계치 로직 유지.
+    const shippingCost = is_on_site_sale
+      ? 0
+      : totalOriginalPrice >= FREE_SHIPPING_THRESHOLD || totalOriginalPrice === 0
         ? 0
         : SHIPPING_FEE
     const finalCost = totalDiscountedPrice + shippingCost
@@ -129,6 +134,7 @@ serve(async (req) => {
         discount_amount: totalDiscountAmount,
         delivery_fee: shippingCost,
         final_payment: finalCost,
+        is_on_site_sale,
         event_id,
         status_history: [{ status: 'pending', changed_at: new Date().toISOString() }],
       })
