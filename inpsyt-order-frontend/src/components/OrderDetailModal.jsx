@@ -845,8 +845,8 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
                               size="small"
                               checked={order.is_on_site_sale ? true : !!item.on_site_pickup}
                               onChange={() => handleToggleOnSitePickup(index)}
-                              disabled={order.is_on_site_sale || !item.id || order.status !== 'pending'}
-                              title={order.is_on_site_sale ? '전체 현장수령 주문 — 개별 지정 불가' : (order.status !== 'pending' ? '결제완료 후에는 현장수령을 수정할 수 없습니다' : (item.id ? '현장수령 (출고 제외)' : '저장 후 지정 가능'))}
+                              disabled={order.is_on_site_sale || !item.id || currentStatus !== 'pending'}
+                              title={order.is_on_site_sale ? '전체 현장수령 주문 — 개별 지정 불가' : (currentStatus !== 'pending' ? '결제완료 후에는 현장수령을 수정할 수 없습니다' : (item.id ? '현장수령 (출고 제외)' : '저장 후 지정 가능'))}
                               sx={{ p: 0.5 }}
                             />
                           </TableCell>
