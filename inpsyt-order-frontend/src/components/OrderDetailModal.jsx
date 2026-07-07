@@ -787,7 +787,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
                   <TableCell align="right" sx={{ minWidth: 80, whiteSpace: 'nowrap' }}>할인가</TableCell>
                   <TableCell align="right" sx={{ minWidth: 60, whiteSpace: 'nowrap' }}>수량</TableCell>
                   <TableCell align="right" sx={{ minWidth: 80, whiteSpace: 'nowrap' }}>합계</TableCell>
-                  {canEdit && <TableCell align="center" sx={{ minWidth: 64, whiteSpace: 'nowrap' }}>현장수령</TableCell>}
+                  {canEdit && <TableCell align="center" sx={{ minWidth: 64, whiteSpace: 'nowrap' }}>{order.is_on_site_sale ? '전체 현장수령' : '현장수령'}</TableCell>}
                   {canEdit && isEditing && <TableCell sx={{ minWidth: 50, whiteSpace: 'nowrap' }}>작업</TableCell>}
                 </TableRow>
               </TableHead>
@@ -843,10 +843,10 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
                           <TableCell align="center" sx={{ p: 0.5 }}>
                             <Checkbox
                               size="small"
-                              checked={!!item.on_site_pickup}
+                              checked={order.is_on_site_sale ? true : !!item.on_site_pickup}
                               onChange={() => handleToggleOnSitePickup(index)}
-                              disabled={!item.id}
-                              title={item.id ? '현장수령 (출고 제외)' : '저장 후 지정 가능'}
+                              disabled={order.is_on_site_sale || !item.id}
+                              title={order.is_on_site_sale ? '전체 현장수령 주문 — 개별 지정 불가' : (item.id ? '현장수령 (출고 제외)' : '저장 후 지정 가능')}
                               sx={{ p: 0.5 }}
                             />
                           </TableCell>

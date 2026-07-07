@@ -89,6 +89,7 @@
 ### 주문 상품 목록 섹션 (Table, line 427)
 - [ ] 헤더: 상품명 · 정가 · 할인가 · 수량 · 합계 · (조건부, `orders:edit`) 현장수령 · (조건부, `orders:edit` 편집 모드) 작업
 - [ ] **현장수령 컬럼** (조건부, `orders:edit`) — 각 상품행 Checkbox. `item.on_site_pickup` 반영. **편집모드 무관 상시 활성**(canEdit일 때). 체크 즉시 `order_items.on_site_pickup` UPDATE(낙관적 반영, 실패 시 원복+에러 토스트). **금액 불변**. `item.id` 없으면(미저장 신규행) disabled. 연계 병합 아이템은 각 item의 원본 `order_id`(groupLinkedOrders 주입)로 UPDATE 타깃 지정
+  - **B=true(`order.is_on_site_sale`) 시 A 체크 잠금**(B가 A의 상위 계층): 체크박스 `disabled` + `checked` 강제 표시(개별 값과 무관하게 전체 현장수령으로 간주), 컬럼 헤더 라벨 "현장수령"→"전체 현장수령", title "전체 현장수령 주문 — 개별 지정 불가". **A 값(`on_site_pickup`)은 DB로 변경하지 않음(보존)** — disabled라 `handleToggleOnSitePickup` 미호출, `handleSaveOnSiteSale`도 `orders`만 UPDATE. B를 일반배송으로 되돌리면 보존된 원래 개별 체크가 그대로 복원(추가 작업 없음)
 - [ ] 행 데이터: `editedOrderItems`(편집 중) 또는 `order.mergedItems || order.order_items`(조회)
 - [ ] 상품명 — 조회: `item.product_name || productsMap[item.product_id]?.name || '알 수 없는 상품'` / 편집: Autocomplete (전체 products 옵션, name으로 검색, getOptionLabel name)
 - [ ] 정가 — `item.list_price || productsMap[item.product_id]?.list_price || 0`.toLocaleString()원
@@ -299,3 +300,4 @@
   - A: 주문 상품 목록에 `orders:edit` 조건 "현장수령" 체크박스 컬럼 신설. 상시 활성 즉시 저장(`order_items.on_site_pickup` UPDATE, `.eq('id', item.id).eq('order_id', targetOrderId)`), 낙관적 반영·실패 원복. 금액 불변. `handleSaveAll` items_param에 `on_site_pickup` 보존. `ALL_ITEMS_SELECT`에 `id, on_site_pickup` 추가.
   - B: 주문 상세 정보 섹션에 "주문 성격" ToggleButtonGroup(pending·`orders:edit` 전용). 전환 시 배송비 재계산(create-order `is_on_site_sale ? 0` 규칙 정합, 정가 기준 무료배송 임계치) + before→after 캡션 + "변경 저장" 버튼. `orders` 직접 단일 UPDATE(is_on_site_sale/delivery_fee/final_payment), update_order_details 경유 안 함.
   - 정보구조 보존: 기존 표시 항목·필드 삭제/통합 0. 현장수령 컬럼·주문 성격 행만 신규 추가.
+- 2026-07-07 A/B 계층 UX 보정 — B(`is_on_site_sale`)를 A의 상위 계층으로. B=true면 상품별 A 체크박스 disabled + checked 강제 표시, 헤더 라벨 "전체 현장수령"으로 치환. **A 값(`on_site_pickup`)은 DB 불변 보존** — B 일반배송 복귀 시 원래 개별 체크 자동 복원. `handleSaveOnSiteSale`은 `orders`만 UPDATE 재확인(order_items 무접촉).
