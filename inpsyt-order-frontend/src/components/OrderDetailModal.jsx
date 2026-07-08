@@ -57,9 +57,13 @@ import { SectionCard, StatusBadge, InfoRow, ActionSlot, PriceBlock } from './ui'
 // 사양 시트: design-system/specs/A2_OrderDetailModal.md
 // (M3-13 시안 정합본. 시안 부재 — 사양 시트 단일 진실 소스 기반 토큰·합성 컴포넌트 적용.)
 
-const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, products, events, addNotification, onUpdate, productsLoading, hasPermission }) => {
+const OrderDetailModal = ({ order: orderProp, open, onClose, statusToKorean, productsMap, products, events, addNotification, onUpdate, productsLoading, hasPermission }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  // order를 로컬 미러 state로 — 섹션 저장 후 onUpdate(부모 목록 재조회)를 기다리지 않고
+  // 모달 화면을 즉시 갱신하기 위함. prop이 바뀌면(다른 주문 열기·부모 재조회) 동기화.
+  const [order, setOrder] = useState(orderProp);
 
   // Initialize state with empty/default values, not from props directly.
   // editingSection: null | 'customer' | 'shipping' | 'memo' | 'items' — 한 번에 한 섹션만 편집
@@ -117,35 +121,37 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
       });
   }, []);
 
-  // This useEffect is the single source of truth for setting state from the order prop.
+  // 단일 진실 소스 — prop이 바뀔 때만 로컬 order + 편집 버퍼를 재초기화한다.
+  // (로컬 setOrder 병합으로는 재실행되지 않음 → 저장 직후 편집 버퍼가 튀지 않는다.)
   useEffect(() => {
-    if (order) {
-      setEditedOrderItems(JSON.parse(JSON.stringify(order.mergedItems || order.order_items || [])));
-      setCurrentStatus(order.status || '');
-      setEditedCustomerName(order.customer_name || '');
-      setEditedPhoneNumber(order.phone_number || '');
-      setEditedShippingAddress(order.shipping_address?.address || '');
-      setEditedShippingPostcode(order.shipping_address?.postcode || '');
-      setEditedShippingDetail(order.shipping_address?.detail || '');
-      setEditedCustomerRequest(order.customer_request || '');
-      setEditedAdminMemo(order.admin_memo || '');
-      setEditedInpsytId(order.inpsyt_id || '');
-      setIsOnSiteSale(order.is_on_site_sale ?? false);
+    if (orderProp) {
+      setOrder(orderProp);
+      setEditedOrderItems(JSON.parse(JSON.stringify(orderProp.mergedItems || orderProp.order_items || [])));
+      setCurrentStatus(orderProp.status || '');
+      setEditedCustomerName(orderProp.customer_name || '');
+      setEditedPhoneNumber(orderProp.phone_number || '');
+      setEditedShippingAddress(orderProp.shipping_address?.address || '');
+      setEditedShippingPostcode(orderProp.shipping_address?.postcode || '');
+      setEditedShippingDetail(orderProp.shipping_address?.detail || '');
+      setEditedCustomerRequest(orderProp.customer_request || '');
+      setEditedAdminMemo(orderProp.admin_memo || '');
+      setEditedInpsytId(orderProp.inpsyt_id || '');
+      setIsOnSiteSale(orderProp.is_on_site_sale ?? false);
       setAlimtalk({
-        status: order.alimtalk_status || null,
-        sentAt: order.alimtalk_sent_at || null,
-        attemptedAt: order.alimtalk_attempted_at || null,
-        error: order.alimtalk_error || null,
+        status: orderProp.alimtalk_status || null,
+        sentAt: orderProp.alimtalk_sent_at || null,
+        attemptedAt: orderProp.alimtalk_attempted_at || null,
+        error: orderProp.alimtalk_error || null,
       });
       setEditingSection(null);
 
       // When not in editing mode, show the stored values.
-      setSubtotal(order.total_cost || 0);
-      setTotalDiscount(order.discount_amount || 0);
-      setShippingFee(order.delivery_fee || 0);
-      setFinalTotal(order.final_payment || 0);
+      setSubtotal(orderProp.total_cost || 0);
+      setTotalDiscount(orderProp.discount_amount || 0);
+      setShippingFee(orderProp.delivery_fee || 0);
+      setFinalTotal(orderProp.final_payment || 0);
     }
-  }, [order]);
+  }, [orderProp]);
 
   // Recalculate totals ONLY when editing the items section (비연계 단일 주문)
   useEffect(() => {
@@ -174,18 +180,23 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
 
   }, [editingSection, editedOrderItems, order, productsMap, events, settings]);
 
+  // 연계 부모/자식 fetch — 주문 식별자가 바뀔 때만 재조회.
+  // (deps를 [order]로 두면 로컬 setOrder 병합마다 재fetch되어 childrenLoaded가 리셋되고
+  //  상품 편집이 잠깐 잠긴다. id/parent_order_id는 주문이 실제로 바뀔 때만 변한다.)
   useEffect(() => {
-    if (!order) return;
+    const orderId = orderProp?.id;
+    const parentId = orderProp?.parent_order_id;
+    if (!orderId) return;
     setLinkedParent(null);
     setLinkedChildren([]);
     setChildrenLoaded(false);
 
     // Fetch parent order if this is a child
-    if (order.parent_order_id) {
+    if (parentId) {
       supabase
         .from('orders')
         .select('id, customer_name, phone_number, total_cost, final_payment, delivery_fee, status, created_at')
-        .eq('id', order.parent_order_id)
+        .eq('id', parentId)
         .single()
         .then(({ data }) => { if (data) setLinkedParent(data); });
     }
@@ -194,9 +205,9 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
     supabase
       .from('orders')
       .select('id, customer_name, phone_number, total_cost, final_payment, delivery_fee, status, created_at')
-      .eq('parent_order_id', order.id)
+      .eq('parent_order_id', orderId)
       .then(({ data }) => { setLinkedChildren(data || []); setChildrenLoaded(true); });
-  }, [order]);
+  }, [orderProp?.id, orderProp?.parent_order_id]);
 
 
   const handleAddOrderItem = () => {
@@ -279,6 +290,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
         .update({ customer_name: editedCustomerName, phone_number: editedPhoneNumber, inpsyt_id: editedInpsytId })
         .eq('id', order.id);
       if (error) throw error;
+      setOrder(prev => ({ ...prev, customer_name: editedCustomerName, phone_number: editedPhoneNumber, inpsyt_id: editedInpsytId }));
       addNotification('주문자 정보가 저장되었습니다.', 'success');
       setEditingSection(null);
       onUpdate();
@@ -299,6 +311,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
         .update({ shipping_address, customer_request: editedCustomerRequest })
         .eq('id', order.id);
       if (error) throw error;
+      setOrder(prev => ({ ...prev, shipping_address, customer_request: editedCustomerRequest }));
       addNotification('배송지 정보가 저장되었습니다.', 'success');
       setEditingSection(null);
       onUpdate();
@@ -315,6 +328,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
     try {
       const { error } = await supabase.from('orders').update({ admin_memo: editedAdminMemo }).eq('id', order.id);
       if (error) throw error;
+      setOrder(prev => ({ ...prev, admin_memo: editedAdminMemo }));
       addNotification('관리자 메모가 저장되었습니다.', 'success');
       setEditingSection(null);
       onUpdate();
@@ -365,6 +379,17 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
         .eq('id', order.id);
       if (ordError) throw ordError;
 
+      // 비연계 단일 주문이므로 order_id는 order.id 하나 — 로컬 order도 최신 상품·금액으로 갱신.
+      const localItems = itemsPayload.map(it => ({ ...it, order_id: order.id }));
+      setOrder(prev => ({
+        ...prev,
+        order_items: localItems,
+        mergedItems: localItems,
+        total_cost: subtotal,
+        discount_amount: totalDiscount,
+        delivery_fee: shippingFee,
+        final_payment: finalTotal,
+      }));
       addNotification('주문 상품이 저장되었습니다.', 'success');
       setEditingSection(null);
       onUpdate();
@@ -422,6 +447,7 @@ const OrderDetailModal = ({ order, open, onClose, statusToKorean, productsMap, p
       addNotification(`주문 ${order.id}의 상태가 '${statusToKorean[newStatus]}'으로 업데이트되었습니다.`, 'success');
       onUpdate();
       setCurrentStatus(newStatus);
+      setOrder(prev => ({ ...prev, status: newStatus }));
 
       // paid 전환 시 알림톡 자동 발송 (현장 수령 제외)
       if (newStatus === 'paid' && !order.is_on_site_sale) {
