@@ -1,6 +1,5 @@
 import { supabase } from '../supabaseClient';
 import { format, startOfDay, endOfDay } from 'date-fns';
-import { SHIPPING_DEFAULTS } from '../constants/shipping';
 
 /**
  * 필터 및 페이지네이션 옵션에 따라 주문 목록을 가져옵니다.
@@ -99,7 +98,7 @@ export const getFulfillmentOrders = async ({ eventId, statuses, dateFrom, dateTo
   let query = supabase
     .from('orders')
     .select(`
-      id, parent_order_id, customer_name, phone_number, shipping_address,
+      id, parent_order_id, is_group_parent, representative_child_id, customer_name, phone_number, shipping_address,
       final_payment, delivery_fee, status, created_at, is_on_site_sale,
       customer_request, admin_memo, event_id, inpsyt_id,
       events(name),
@@ -120,92 +119,58 @@ export const getFulfillmentOrders = async ({ eventId, statuses, dateFrom, dateTo
 };
 
 /**
- * 두 주문을 연계시킵니다. childOrderId의 parent_order_id를 parentOrderId로 설정하고
- * 배송비를 자동 조정합니다.
- * @param {string} parentOrderId 부모 주문 ID
- * @param {string} childOrderId 자식 주문 ID
- * @param {object} [settings] 사이트 환경설정 (배송비 임계치 등)
+ * N개 주문을 합배송 그룹으로 연계합니다 (껍데기 부모 모델).
+ * 서버 RPC(link_orders_into_group)가 단일 트랜잭션으로:
+ *   껍데기 부모 INSERT + 자식 parent_order_id 연결 + 배송비 조정을 수행합니다.
+ * @param {Array<number>} childOrderIds 연계할 자식 주문 ID 배열 (2건 이상)
+ * @param {number} repChildId 대표(묶음 배송지·배송비 담당) 자식 주문 ID
+ * @returns {Promise<number>} 생성된 껍데기 부모 주문 ID
+ * @throws {Error} 권한 부족 / 이미 그룹 / 학회 불일치 / 취소·환불 포함 시
  */
-export const linkOrders = async (parentOrderId, childOrderId, settings = {}) => {
-  const { data: orders, error: fetchError } = await supabase
-    .from('orders')
-    .select('id, total_cost, discount_amount, delivery_fee, final_payment, status, customer_name')
-    .in('id', [parentOrderId, childOrderId]);
-
-  if (fetchError) throw fetchError;
-
-  const parent = orders.find(o => o.id === parentOrderId);
-  const child = orders.find(o => o.id === childOrderId);
-  if (!parent || !child) throw new Error('주문을 찾을 수 없습니다.');
-
-  const threshold = settings.free_shipping_threshold ?? SHIPPING_DEFAULTS.FREE_SHIPPING_THRESHOLD;
-  const combinedListPrice = parent.total_cost + child.total_cost;
-  const PAID_STATUSES = ['paid', 'completed'];
-
-  // child의 배송비는 항상 0 (합배송)
-  let newFinalPayment = child.total_cost - child.discount_amount;
-
-  // parent가 배송비를 이미 납부한 경우, 합산 금액 무관하게 child에서 차감
-  // (박 선생님이 3,000원 냈으면 김 선생님은 그만큼 덜 내는 구조)
-  if (PAID_STATUSES.includes(parent.status) && parent.delivery_fee > 0) {
-    newFinalPayment -= parent.delivery_fee;
-  }
-
-  const { error } = await supabase
-    .from('orders')
-    .update({ parent_order_id: parentOrderId, delivery_fee: 0, final_payment: newFinalPayment })
-    .eq('id', childOrderId);
-
+export const linkOrders = async (childOrderIds, repChildId) => {
+  const { data, error } = await supabase.rpc('link_orders_into_group', {
+    p_child_ids: childOrderIds,
+    p_rep_child_id: repChildId,
+  });
   if (error) throw error;
-
-  return {
-    combinedListPrice,
-    freeShipping: combinedListPrice >= threshold,
-    parentPaidShipping: PAID_STATUSES.includes(parent.status) ? parent.delivery_fee : 0,
-    newFinalPayment,
-    originalFinalPayment: child.final_payment,
-    saved: child.final_payment - newFinalPayment,
-  };
+  return data; // 껍데기 부모 id
 };
 
 /**
- * 합배송된 주문을 다시 분리합니다 (부모 주문과의 연결 해제).
- * @param {string} orderId 분리할 주문 ID
- * @param {object} [settings] 사이트 환경설정 (배송비 임계치 등)
+ * 대표 주문 취소 시 새 대표에게 배송지·배송비를 위임합니다 (§4).
+ * 옛 대표의 status=cancelled 전환은 별도 status 변경 경로가 담당합니다.
+ * @param {number} groupParentId 껍데기 부모 주문 ID
+ * @param {number} oldRepChildId 취소되는 옛 대표 자식 ID
+ * @param {number} newRepChildId 새 대표 자식 ID (프론트에서 선택/자동 결정)
+ * @returns {Promise<{group_parent_id:number, new_rep_child_id:number, delivery_fee:number,
+ *   needs_onsite_fee:boolean, onsite_fee_amount:number, shell_total:number, group_status:string}>}
  */
-export const unlinkOrders = async (orderId, settings = {}) => {
-  const { data: order, error: fetchError } = await supabase
-    .from('orders')
-    .select('total_cost, discount_amount')
-    .eq('id', orderId)
-    .single();
-
-  if (fetchError) throw fetchError;
-
-  const threshold = settings.free_shipping_threshold ?? SHIPPING_DEFAULTS.FREE_SHIPPING_THRESHOLD;
-  const shippingFee = settings.shipping_cost ?? SHIPPING_DEFAULTS.SHIPPING_COST;
-
-  // 개별 주문 기준으로 배송비 재계산
-  const deliveryFee = order.total_cost >= threshold ? 0 : shippingFee;
-  const finalPayment = order.total_cost - order.discount_amount + deliveryFee;
-
-  const { error } = await supabase
-    .from('orders')
-    .update({
-      parent_order_id: null,
-      delivery_fee: deliveryFee,
-      final_payment: finalPayment,
-    })
-    .eq('id', orderId);
-
+export const reassignGroupRepresentative = async (groupParentId, oldRepChildId, newRepChildId) => {
+  const { data, error } = await supabase.rpc('reassign_group_representative', {
+    p_group_parent_id: groupParentId,
+    p_old_rep_child_id: oldRepChildId,
+    p_new_rep_child_id: newRepChildId,
+  });
   if (error) throw error;
-  return { success: true };
+  return data;
 };
 
 /**
- * 주어진 주문 목록에서 연계 주문을 그룹화하여 병합된 주문 객체를 반환합니다.
- * - 부모 주문: { ...order, linkedChildren: [...], mergedItems: [...], mergedTotal: N }
+ * @deprecated 합배송 껍데기 부모 모델에서는 연계 해제를 지원하지 않습니다 (설계 §3).
+ *   붙이면 확정 — 정 필요하면 자식 개별 취소 + 재주문. 호출 시 예외를 던집니다.
+ */
+export const unlinkOrders = async () => {
+  throw new Error('연계 해제는 지원하지 않습니다 (합배송은 확정). 개별 취소 후 재주문하세요.');
+};
+
+/**
+ * 주어진 주문 목록에서 합배송(껍데기 부모 + 자식)을 그룹화하여 병합된 주문 객체를 반환합니다.
+ * - 껍데기 부모(is_group_parent): { ...order, linkedChildren:[...], mergedItems: 자식 아이템, mergedTotal: 자식 합 }
+ *   (껍데기는 order_items 없음·final_payment=자식합이므로 자식 금액만 집계 — 중복 합산 금지)
+ *   대표(배송지·배송비 담당) 자식은 껍데기 order.representative_child_id 로 명시 노출된다
+ *   (getOrders 는 select('*') 로 자동 포함). 프론트는 이 값을 직접 신뢰한다(추정 로직 없음).
  * - 자식 주문: 그대로 반환 (parent_order_id 유지)
+ * - 비연계 단독: 자기 상품·금액
  */
 export const groupLinkedOrders = (orders) => {
   // Build a map of children by parent_order_id
@@ -218,22 +183,48 @@ export const groupLinkedOrders = (orders) => {
   });
 
   return orders.map(order => {
+    const children = childrenMap[order.id] || [];
+
+    if (order.is_group_parent) {
+      // 껍데기 부모 — 자식 아이템만 병합(껍데기 자체는 상품 없음), 금액은 자식 합
+      const mergedItems = children.flatMap(c => (c.order_items || []).map(i => ({ ...i, order_id: c.id })));
+      const mergedTotal = children.reduce((s, c) => s + (c.final_payment || 0), 0);
+      return { ...order, linkedChildren: children, mergedItems, mergedTotal };
+    }
+
     if (!order.parent_order_id) {
-      // Parent order
-      const children = childrenMap[order.id] || [];
-      // 각 아이템이 속한 원본 order_id를 주입 (현장수령 UPDATE 타깃 식별용 — 자식 아이템은 order_id가 다름)
+      // 비연계 단독 (레거시 실 부모 방어 포함 — 자식 있으면 함께 병합)
       const mergedItems = [
         ...(order.order_items || []).map(i => ({ ...i, order_id: order.id })),
         ...children.flatMap(c => (c.order_items || []).map(i => ({ ...i, order_id: c.id }))),
       ];
       const mergedTotal = (order.final_payment || 0) + children.reduce((s, c) => s + (c.final_payment || 0), 0);
       return { ...order, linkedChildren: children, mergedItems, mergedTotal };
-    } else {
-      // Child order - return as-is
-      const mergedItems = (order.order_items || []).map(i => ({ ...i, order_id: order.id }));
-      return { ...order, linkedChildren: [], mergedItems, mergedTotal: order.final_payment || 0 };
     }
+
+    // Child order - return as-is
+    const mergedItems = (order.order_items || []).map(i => ({ ...i, order_id: order.id }));
+    return { ...order, linkedChildren: [], mergedItems, mergedTotal: order.final_payment || 0 };
   });
+};
+
+/**
+ * 합배송 그룹(껍데기 부모)을 삭제합니다. master 전용 교정 경로 — "잘못 연계한 그룹 취소"(설계 §3).
+ * 서버 RPC(delete_order_group)가 단일 트랜잭션으로 자식 독립 복원·배송비 원복·껍데기 삭제를 처리합니다.
+ *   · pending 자식: 자기 정가 기준 배송비 재계산 후 금액 자동 반영
+ *   · paid/completed 자식: 금액 불변 + 부족 배송비는 현장 별도결제 안내(needs_onsite_fee)
+ * @param {number} groupParentId 껍데기 부모 주문 ID
+ * @returns {Promise<{group_parent_id:number, restored_children:Array<{id:number,
+ *   customer_name:string, phone_number:string, status:string, delivery_fee:number,
+ *   final_payment:number}>, needs_onsite_fee:boolean, total_onsite_fee_amount:number}>}
+ * @throws {Error} 권한 부족(master 아님) / 합배송 컨테이너 아님
+ */
+export const deleteOrderGroup = async (groupParentId) => {
+  const { data, error } = await supabase.rpc('delete_order_group', {
+    p_group_parent_id: groupParentId,
+  });
+  if (error) throw error;
+  return data;
 };
 
 /**
@@ -252,7 +243,7 @@ export const searchOrdersForLinking = async (term, excludeOrderId) => {
 
   let query = supabase
     .from('orders')
-    .select('id, customer_name, phone_number, total_cost, final_payment, delivery_fee, status, created_at, parent_order_id')
+    .select('id, customer_name, phone_number, total_cost, discount_amount, final_payment, delivery_fee, status, created_at, parent_order_id, is_group_parent, event_id, shipping_address')
     .or(`customer_name.ilike.%${term}%,phone_number.ilike.%${term}%${phoneOrClause}`)
     .is('parent_order_id', null)
     .order('created_at', { ascending: false })
@@ -262,5 +253,6 @@ export const searchOrdersForLinking = async (term, excludeOrderId) => {
 
   const { data, error } = await query;
   if (error) throw error;
-  return data || [];
+  // 껍데기 부모는 연계 후보가 될 수 없음(실 주문만 자식이 된다)
+  return (data || []).filter(o => !o.is_group_parent);
 };

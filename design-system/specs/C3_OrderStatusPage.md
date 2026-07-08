@@ -47,3 +47,6 @@
 | completed | 🎉 | completedAt 있으면 `{completedAt} 배송 출발`, 없으면 `배송 출발` | `현장 수령 완료` |
 | cancelled | ❌ | `결제 전 취소된 주문건입니다.` | (동일) |
 | refunded | ↩️ | `결제 취소된 주문건입니다.` | (동일) |
+
+## 변경 이력
+- 2026-07-08 합배송 껍데기 부모 모델 — `get_order_by_token` shape 변경 대응. 토큰 order를 그룹 루트(껍데기)로 정규화 → `child_orders[]` 배열 순회. **구 `parent_order`/`child_orders[0]` "1차/2차" 뷰 폐기** → "함께 배송되는 주문" 그룹 뷰(주문별 상품 카드 N개 + 주문별/합산 PriceBlock + 대표 배송지 1개 "이 주소로 함께 배송됩니다"). 배너 상태는 `summarizeGroupStatus(child_orders)` 종합값. 취소·현장수령 분기 보존, 카테고리 색칩 금지(텍스트 캡션) 유지. 단일 주문은 기존 흐름 그대로. **후속: get_order_by_token 재작성 마이그레이션과 동시 배포 필요.**

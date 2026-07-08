@@ -4,6 +4,7 @@ import { Box, Typography, CircularProgress, Chip, useTheme } from '@mui/material
 import { alpha } from '@mui/material/styles';
 import { supabase } from '../supabaseClient';
 import { STATUS_COLORS, STATUS_TO_KOREAN } from '../constants/orderStatus';
+import { summarizeGroupStatus } from '../utils/groupOrder';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { InfoRow, PriceBlock } from './ui';
@@ -83,7 +84,6 @@ const OrderStatusPage = () => {
   const white = theme.palette.common.white;
   const { token } = useParams();
   const [order, setOrder] = useState(null);
-  const [linkedOrder, setLinkedOrder] = useState(null); // parent 또는 child
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -96,14 +96,8 @@ const OrderStatusPage = () => {
         if (rpcError) throw rpcError;
         if (!data) throw new Error('not found');
 
+        // 새 shape: 토큰 order를 그룹 루트로 정규화 — 껍데기는 child_orders[] 보유.
         setOrder(data);
-
-        // 사양 §연계 주문 — parent_order 우선, 없으면 child_orders[0]. 3차 이상 미표시(핵심 발견 #3).
-        if (data.parent_order) {
-          setLinkedOrder({ role: 'parent', ...data.parent_order });
-        } else if (data.child_orders?.length > 0) {
-          setLinkedOrder({ role: 'child', ...data.child_orders[0] });
-        }
       } catch {
         setError('주문을 찾을 수 없습니다.');
       } finally {
@@ -134,18 +128,18 @@ const OrderStatusPage = () => {
     );
   }
 
-  const banner = getBannerConfig(order);
+  // 합배송 — 껍데기 루트는 child_orders[] 보유. "함께 배송되는 주문" 그룹 뷰.
+  const children = Array.isArray(order.child_orders) ? order.child_orders : [];
+  const isGroup = order.is_group_parent === true || children.length > 0;
+  const summary = isGroup ? summarizeGroupStatus(children) : null;
+  const bannerOrder = isGroup ? { ...order, status: summary.value } : order;
+
+  const banner = getBannerConfig(bannerOrder);
   const bannerColor = banner.color || theme.gray[500];
-  const isCancelled = ['cancelled', 'refunded'].includes(order.status);
+  const isCancelled = ['cancelled', 'refunded'].includes(bannerOrder.status);
 
-  // 사양 §연계 주문 정렬 — 현재 주문이 child면 parent=1차, 현재=2차. parent면 현재=1차, child=2차.
-  const isChild = !!order.parent_order_id;
-  const firstOrder = isChild ? linkedOrder : order;
-  const secondOrder = isChild ? order : linkedOrder;
-  const hasLinked = !!linkedOrder;
-
-  const totalFinalPayment = hasLinked
-    ? (order.final_payment ?? 0) + (linkedOrder.final_payment ?? 0)
+  const groupTotal = isGroup
+    ? children.reduce((s, c) => s + (c.final_payment || 0), 0)
     : order.final_payment;
 
   return (
@@ -174,57 +168,77 @@ const OrderStatusPage = () => {
       <Box sx={{ px: 3, pt: 3 }}>
         {isCancelled ? (
           <>
-            {/* 사양 §취소 분기 — 결제 요약·주문자 정보·요청사항 카드 모두 숨김. */}
+            {/* 취소 분기 — 결제 요약·주문자 정보·요청사항 카드 숨김. */}
             <SectionTitle>취소된 주문 상품</SectionTitle>
-            <ItemsCard items={order.order_items} cancelled />
+            {isGroup
+              ? children.map((child, idx) => (
+                  <ItemsCard key={child.id ?? idx} items={child.order_items} cancelled />
+                ))
+              : <ItemsCard items={order.order_items} cancelled />}
+          </>
+        ) : isGroup ? (
+          <>
+            {/* 함께 배송되는 주문 — 껍데기 루트 child_orders[] 순회 */}
+            <SectionTitle>함께 배송되는 주문</SectionTitle>
+            {children.map((child, idx) => (
+              <React.Fragment key={child.id ?? idx}>
+                <Typography variant="overline" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
+                  주문 {idx + 1}{child.customer_name ? ` · ${child.customer_name}` : ''}
+                </Typography>
+                <ItemsCard items={child.order_items} />
+              </React.Fragment>
+            ))}
+
+            {/* 결제 요약 — 주문별 + 합산 */}
+            <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${theme.palette.divider}`, borderRadius: `${theme.radii.md}px`, p: 2, mb: 3 }}>
+              <PriceBlock
+                rows={children.map((child, idx) => ({
+                  label: `주문 ${idx + 1} 결제금액`,
+                  value: child.final_payment ?? 0,
+                }))}
+                totalLabel="합산 결제금액"
+                totalValue={groupTotal}
+                totalColor={bannerColor}
+              />
+            </Box>
+
+            {/* 묶음 배송지 — 대표 배송지 1개 */}
+            <SectionTitle>배송지</SectionTitle>
+            <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${theme.palette.divider}`, borderRadius: `${theme.radii.md}px`, p: 2, mb: 3 }}>
+              <InfoRow label="받는 분" value={order.customer_name} labelWidth={80} />
+              <InfoRow label="연락처" value={order.phone_number} labelWidth={80} />
+              {order.shipping_address?.address ? (
+                <InfoRow
+                  label="배송지"
+                  value={`${order.shipping_address.address} ${order.shipping_address.detail || ''}`.trim()}
+                  labelWidth={80}
+                  multiline
+                />
+              ) : (
+                <InfoRow label="배송" value="현장 수령" labelWidth={80} />
+              )}
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                이 주소로 함께 배송됩니다.
+              </Typography>
+            </Box>
           </>
         ) : (
           <>
-            {/* 주문 상품 — 연계 주문 1차/2차 라벨. 단일 주문은 단일 카드. */}
-            {hasLinked ? (
-              <>
-                <SectionTitle>1차 주문 상품</SectionTitle>
-                <ItemsCard items={firstOrder?.order_items} />
-                <SectionTitle>2차 주문 상품</SectionTitle>
-                <ItemsCard items={secondOrder?.order_items} chip="추가 주문" />
-              </>
-            ) : (
-              <>
-                <SectionTitle>주문 상품</SectionTitle>
-                <ItemsCard items={order.order_items} />
-              </>
-            )}
+            {/* 단일 주문 — 기존 흐름 보존 */}
+            <SectionTitle>주문 상품</SectionTitle>
+            <ItemsCard items={order.order_items} />
 
-            {/* 결제 요약 — PriceBlock 합성 컴포넌트. 합계 색은 상태 배너 색을 따라감(핵심 발견 #1). */}
             <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${theme.palette.divider}`, borderRadius: `${theme.radii.md}px`, p: 2, mb: 3 }}>
-              {hasLinked ? (
-                /* 사양 §결제 요약 연계 — 1차/2차/합산 3행. 배송비 행 없음. */
-                <PriceBlock
-                  rows={[
-                    { label: '1차 결제금액', value: firstOrder?.final_payment ?? 0 },
-                    { label: '2차 결제금액', value: secondOrder?.final_payment ?? 0 },
-                  ]}
-                  totalLabel="합산 결제금액"
-                  totalValue={totalFinalPayment}
-                  totalColor={bannerColor}
-                />
-              ) : (
-                /* 사양 §결제 요약 단일 — 배송비 + 최종 결제금액 2행. delivery_fee 0이면 "무료". */
-                <PriceBlock
-                  rows={[
-                    {
-                      label: '배송비',
-                      value: (order.delivery_fee ?? 0) === 0 ? '무료' : order.delivery_fee,
-                    },
-                  ]}
-                  totalLabel="최종 결제금액"
-                  totalValue={order.final_payment}
-                  totalColor={bannerColor}
-                />
-              )}
+              <PriceBlock
+                rows={[
+                  { label: '배송비', value: (order.delivery_fee ?? 0) === 0 ? '무료' : order.delivery_fee },
+                ]}
+                totalLabel="최종 결제금액"
+                totalValue={order.final_payment}
+                totalColor={bannerColor}
+              />
             </Box>
 
-            {/* 주문자 정보 — InfoRow 합성 컴포넌트. 배송지는 입력·DB는 분리, 여기 표시 자리는 한 줄 통합(사양 line 100). */}
             <SectionTitle>주문자 정보</SectionTitle>
             <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${theme.palette.divider}`, borderRadius: `${theme.radii.md}px`, p: 2, mb: 3 }}>
               <InfoRow label="이름" value={order.customer_name} labelWidth={80} />
@@ -232,7 +246,6 @@ const OrderStatusPage = () => {
               {order.inpsyt_id && (
                 <InfoRow label="인싸이트 ID" value={order.inpsyt_id} labelWidth={80} />
               )}
-              {/* 사양 §배송지 분기 — address 있으면 한 줄 통합, 없으면 "현장 수령". 우편번호는 표시 안 함(line 101). */}
               {order.shipping_address?.address ? (
                 <InfoRow
                   label="배송지"
@@ -245,7 +258,6 @@ const OrderStatusPage = () => {
               )}
             </Box>
 
-            {/* 요청사항 — customer_request 있을 때만. 현장구매 시 OrderPage에서 [현장구매] prefix 박힘(원본 그대로 노출). */}
             {order.customer_request && (
               <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${theme.palette.divider}`, borderRadius: `${theme.radii.md}px`, p: 2, mb: 3 }}>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontWeight: 600 }}>요청사항</Typography>

@@ -108,7 +108,9 @@ export const getOrdersForEventRevenue = async (eventId) => {
   if (!eventId) return [];
   const { data, error } = await supabase
     .from('orders')
-    .select('status, delivery_fee, order_items(product_id, category, price_at_purchase, quantity)')
+    // 합배송 껍데기 부모 제외(설계 §7) — 실 매출은 자식 order_items 기반.
+    .select('status, delivery_fee, is_group_parent, order_items(product_id, category, price_at_purchase, quantity)')
+    .eq('is_group_parent', false)
     .eq('event_id', eventId);
 
   if (error) {
