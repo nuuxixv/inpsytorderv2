@@ -391,7 +391,8 @@ const DashboardPage = () => {
     const dateFrom = selectedDate ? new Date(selectedDate + 'T00:00:00+09:00').toISOString() : null;
     const dateTo = selectedDate ? new Date(selectedDate + 'T23:59:59.999+09:00').toISOString() : null;
 
-    let ordersQ = supabase.from('orders').select('id, final_payment, delivery_fee, status, created_at, order_items(product_id, quantity, price_at_purchase, product_name, product_code, category, list_price)').in('event_id', eventIds);
+    // 매출 집계는 껍데기 부모(is_group_parent) 제외 — 실 매출은 자식 order_items 기반(설계 §7).
+    let ordersQ = supabase.from('orders').select('id, final_payment, delivery_fee, status, created_at, is_group_parent, order_items(product_id, quantity, price_at_purchase, product_name, product_code, category, list_price)').eq('is_group_parent', false).in('event_id', eventIds);
     let recentQ = supabase.from('orders').select('*, events(name), order_items(*, products(*))').in('event_id', eventIds).order('created_at', { ascending: false }).limit(5);
     if (dateFrom) {
       ordersQ = ordersQ.gte('created_at', dateFrom).lte('created_at', dateTo);
@@ -413,7 +414,7 @@ const DashboardPage = () => {
       }).map(e => e.id);
 
       if (prevYearEvents.length > 0) {
-        const { data: prevOrders } = await supabase.from('orders').select('final_payment').in('event_id', prevYearEvents);
+        const { data: prevOrders } = await supabase.from('orders').select('final_payment, is_group_parent').eq('is_group_parent', false).in('event_id', prevYearEvents);
         if (prevOrders) {
           const prevTotal = prevOrders.reduce((sum, o) => sum + (o.final_payment || 0), 0);
           const currentTotal = ordersRes.data.reduce((sum, o) => sum + (o.final_payment || 0), 0);

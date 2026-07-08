@@ -322,3 +322,9 @@
   - 모달 radius: 데스크톱 `modalStyle`에 `overflow:'hidden'` 추가, 헤더 isMobile 전용 radius 정리.
   - 정보구조 보존: 배송지 3필드·배송메모·관리자메모 분리 유지. 표시 항목·라벨 삭제/통합 0. AI 시그니처(컬러바·그라데이션·가짜통계) 0.
   - 핵심 발견 1(RPC 시그니처 불일치 부채) 해소 — inpsyt_id·금액 4필드가 부분 UPDATE로 정상 반영.
+- 2026-07-08 OrderSections 추출 + 합배송 재설계 —
+  - **섹션 본문 추출**: 주문 상세(상태/알림톡/주문성격)·상태이력·주문자·배송지·메모·상품·결제 + 섹션별 인라인 편집 로직 전부를 `OrderSections.jsx` 공유 컴포넌트로 이전. `OrderDetailModal`은 헤더/푸터/⋮메뉴/삭제/연계 컨테이너 래퍼로 축소. `GroupOrderModal`의 자식 토글이 동일 `OrderSections`를 재사용(자식 편집).
+  - **상품 편집 잠금 재정의**: `parent_order_id != null` 일괄 잠금 폐지 → 병합 아이템에 다른 주문(order_id 불일치) 아이템이 섞였거나 `is_group_parent`일 때만 잠금. 자식 단건·비연계 단건은 자기 아이템만 → 편집 허용(껍데기 모델은 흡수 붕괴 없음).
+  - **구 연계 연결 Dialog 폐기** → `LinkPreviewDialog`(검색·다중선택·묶음 배송지 RadioGroup·배송비 변화/절감·Case A/B Alert·"다시 나눌 수 없습니다" 확인 체크 → `linkOrders(childIds, repChildId)`). 신규 시그니처(구 2인자 `linkOrders(parentId, childId)` 호출부 제거).
+  - **회귀**: 비연계 단일 주문 편집·저장·상태 변경·알림톡 재발송·삭제·현장수령·주문성격(B) 동작 보존. 정보구조·3필드 분리 유지.
+  - **stale 테스트**: `OrderDetailModal.test.jsx` 2건(전역 편집 버튼·`update_order_details` RPC 기대)은 78e440f(섹션별 편집 재설계)부터 이미 red — 현 아키텍처와 불일치. 이번 리팩터로 신규 실패 없음(회귀 0).

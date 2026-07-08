@@ -38,6 +38,7 @@ import { KeyboardArrowDown as KeyboardArrowDownIcon, ShoppingCart as ShoppingCar
 import { useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import OrderDetailModal from './OrderDetailModal';
+import GroupOrderModal from './GroupOrderModal';
 import NewOrderModal from './NewOrderModal';
 import TableSkeleton from './TableSkeleton';
 import { SearchOff as SearchOffIcon, FilterList as FilterListIcon } from '@mui/icons-material';
@@ -45,6 +46,7 @@ import { getEvents } from '../api/events';
 import { fetchAllProducts } from '../api/products';
 import { getOrders, groupLinkedOrders } from '../api/orders';
 import { sendAlimtalk } from '../api/alimtalk';
+import { buildOrderTree, summarizeGroupStatus, formatGroupCustomerNames, inferRepChild } from '../utils/groupOrder';
 import { PageHeader, SectionCard, StatusBadge, EmptyState, DateField } from './ui';
 import { STATUS_TO_KOREAN } from '../constants/orderStatus';
 
@@ -196,10 +198,11 @@ const OrderManagementPage = () => {
   const [excelMenuAnchor, setExcelMenuAnchor] = React.useState(null);
 
   const handleSelectAllClick = () => {
-    if (state.selectedOrders.length === state.orders.length && state.orders.length > 0) {
+    const selectable = state.orders.filter(o => !o.is_group_parent).map(o => o.id);
+    if (state.selectedOrders.length === selectable.length && selectable.length > 0) {
       dispatch({ type: 'SET_SELECTED_ORDERS', payload: [] });
     } else {
-      dispatch({ type: 'SET_SELECTED_ORDERS', payload: state.orders.map(o => o.id) });
+      dispatch({ type: 'SET_SELECTED_ORDERS', payload: selectable });
     }
   };
 
@@ -481,7 +484,172 @@ const OrderManagementPage = () => {
 
   const productCategories = ['검사', '도서', '도구'];
 
-  const displayedOrders = state.orders;
+  // 합배송 트리 — 껍데기 그룹 노드 + 단독 노드
+  const orderTree = React.useMemo(() => buildOrderTree(state.orders), [state.orders]);
+  // 체크박스·일괄 상태 변경 대상 = 껍데기가 아닌 실 주문만
+  const selectableIds = React.useMemo(
+    () => state.orders.filter(o => !o.is_group_parent).map(o => o.id),
+    [state.orders]
+  );
+  const isEmpty = orderTree.length === 0;
+
+  const openOrder = (order) => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order });
+
+  // ─── 데스크톱 행 렌더 ───────────────────────────────
+  const renderSingleRow = (order) => {
+    const isSelected = state.selectedOrders.indexOf(order.id) !== -1;
+    return (
+      <TableRow key={order.id} hover selected={isSelected} sx={{ cursor: 'pointer' }}>
+        {hasPermission('orders:edit') && (
+          <TableCell padding="checkbox" onClick={(e) => handleSelectOneClick(e, order.id)}>
+            <Checkbox checked={isSelected} />
+          </TableCell>
+        )}
+        <TableCell onClick={() => openOrder(order)}>{formatOrderId(order)}</TableCell>
+        <TableCell onClick={() => openOrder(order)}>{order.customer_name}</TableCell>
+        <TableCell onClick={() => openOrder(order)}>{state.events.find(e => e.id === order.event_id)?.name || 'N/A'}</TableCell>
+        <TableCell onClick={() => openOrder(order)}>{(order.final_payment || 0).toLocaleString()}원</TableCell>
+        <TableCell onClick={() => openOrder(order)}>{format(new Date(order.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
+        <TableCell>
+          <FormControl size="small" variant="outlined" sx={{ minWidth: 120 }} onClick={(e) => e.stopPropagation()}>
+            <Select value={order.status} onChange={(e) => handleStatusChange(order.id, e.target.value)} disabled={!hasPermission('orders:edit')}>
+              {Object.entries(statusToKorean).map(([key, value]) => <MenuItem key={key} value={key}>{value}</MenuItem>)}
+            </Select>
+          </FormControl>
+          {order.alimtalk_status === 'failed' && (<Box sx={{ mt: 0.5 }}><AlimtalkFailBadge /></Box>)}
+        </TableCell>
+      </TableRow>
+    );
+  };
+
+  const renderGroupRows = ({ shell, children }) => {
+    const rep = inferRepChild(shell) || children[0];
+    const repId = rep?.id ?? shell.id;
+    const summary = summarizeGroupStatus(children);
+    const eventName = state.events.find(e => e.id === shell.event_id)?.name || 'N/A';
+    const colSpanForEdit = hasPermission('orders:edit') ? 1 : 0;
+    const rows = [
+      <TableRow key={`shell-${shell.id}`} hover onClick={() => openOrder(shell)} sx={{ cursor: 'pointer', bgcolor: theme.gray[50] }}>
+        {colSpanForEdit === 1 && <TableCell padding="checkbox" />}
+        <TableCell>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>#{repId} 외 {Math.max(0, children.length - 1)}건</Typography>
+            <StatusBadge
+              kind="category"
+              value="onsite"
+              label="연계"
+              size="sm"
+              sx={{ bgcolor: alpha(theme.palette.warning.main, 0.1), borderColor: alpha(theme.palette.warning.main, 0.3), color: theme.palette.warning.dark }}
+            />
+          </Box>
+        </TableCell>
+        <TableCell>{formatGroupCustomerNames(children)}</TableCell>
+        <TableCell>{eventName}</TableCell>
+        <TableCell>{(shell.mergedTotal ?? shell.final_payment ?? 0).toLocaleString()}원</TableCell>
+        <TableCell>{format(new Date(shell.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
+        <TableCell>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.25 }}>
+            <StatusBadge value={summary.value} size="sm" label={statusToKorean[summary.value]} />
+            {summary.caption && <Typography variant="caption" color="text.secondary">{summary.caption}</Typography>}
+          </Box>
+        </TableCell>
+      </TableRow>,
+    ];
+    children.forEach((child) => {
+      rows.push(
+        <TableRow key={`child-${child.id}`} hover onClick={() => openOrder(shell)} sx={{ cursor: 'pointer' }}>
+          {colSpanForEdit === 1 && <TableCell padding="checkbox" />}
+          <TableCell sx={{ borderLeft: `1px solid ${theme.gray[300]}`, pl: 3 }}>
+            <Typography variant="body2" color="text.secondary">#{child.id}</Typography>
+          </TableCell>
+          <TableCell sx={{ color: 'text.secondary' }}>{child.customer_name}</TableCell>
+          <TableCell sx={{ color: 'text.secondary' }}>{eventName}</TableCell>
+          <TableCell sx={{ color: 'text.secondary' }}>{(child.final_payment || 0).toLocaleString()}원</TableCell>
+          <TableCell sx={{ color: 'text.secondary' }}>{format(new Date(child.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
+          <TableCell><StatusBadge value={child.status} size="sm" label={statusToKorean[child.status]} /></TableCell>
+        </TableRow>
+      );
+    });
+    return rows;
+  };
+
+  // ─── 모바일 카드 렌더 ───────────────────────────────
+  const renderMobileSingle = (order) => {
+    const isSelected = state.selectedOrders.indexOf(order.id) !== -1;
+    return (
+      <Card
+        key={order.id}
+        variant="outlined"
+        onClick={() => openOrder(order)}
+        sx={{ borderColor: isSelected ? 'primary.main' : 'divider', borderWidth: isSelected ? 2 : 1 }}
+      >
+        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+            <Box display="flex" alignItems="center" gap={1}>
+              {hasPermission('orders:edit') && (
+                <Checkbox checked={isSelected} onClick={(e) => handleSelectOneClick(e, order.id)} sx={{ p: 0 }} />
+              )}
+              <Typography variant="body2" color="text.secondary">{format(new Date(order.created_at), 'yyyy-MM-dd')}</Typography>
+            </Box>
+            <Box display="flex" alignItems="center" gap={0.75}>
+              {order.alimtalk_status === 'failed' && <AlimtalkFailBadge />}
+              <StatusBadge value={order.status} size="sm" />
+            </Box>
+          </Box>
+          <Box display="flex" justifyContent="space-between" alignItems="flex-end">
+            <Box>
+              <Typography variant="subtitle1">{order.customer_name}</Typography>
+              <Typography variant="body2" color="text.secondary">{state.events.find(e => e.id === order.event_id)?.name || 'N/A'}</Typography>
+            </Box>
+            <Typography variant="subtitle1" color="primary.main">{(order.final_payment || 0).toLocaleString()}원</Typography>
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const renderMobileGroup = ({ shell, children }) => {
+    const rep = inferRepChild(shell) || children[0];
+    const repId = rep?.id ?? shell.id;
+    const summary = summarizeGroupStatus(children);
+    return (
+      <Card key={`shell-${shell.id}`} variant="outlined" onClick={() => openOrder(shell)} sx={{ borderColor: 'divider' }}>
+        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={1} gap={1}>
+            <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>#{repId} 외 {Math.max(0, children.length - 1)}건</Typography>
+              <StatusBadge
+                kind="category"
+                value="onsite"
+                label="연계"
+                size="sm"
+                sx={{ bgcolor: alpha(theme.palette.warning.main, 0.1), borderColor: alpha(theme.palette.warning.main, 0.3), color: theme.palette.warning.dark }}
+              />
+            </Box>
+            <Box display="flex" flexDirection="column" alignItems="flex-end" gap={0.25}>
+              <StatusBadge value={summary.value} size="sm" label={statusToKorean[summary.value]} />
+              {summary.caption && <Typography variant="caption" color="text.secondary">{summary.caption}</Typography>}
+            </Box>
+          </Box>
+          <Box display="flex" justifyContent="space-between" alignItems="flex-end">
+            <Box>
+              <Typography variant="subtitle1">{formatGroupCustomerNames(children)}</Typography>
+              <Typography variant="body2" color="text.secondary">{state.events.find(e => e.id === shell.event_id)?.name || 'N/A'}</Typography>
+            </Box>
+            <Typography variant="subtitle1" color="primary.main">{(shell.mergedTotal ?? shell.final_payment ?? 0).toLocaleString()}원</Typography>
+          </Box>
+          <Box sx={{ mt: 1, pl: 1.5, borderLeft: `1px solid ${theme.gray[300]}`, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            {children.map((child) => (
+              <Box key={child.id} display="flex" justifyContent="space-between" alignItems="center" gap={1}>
+                <Typography variant="caption" color="text.secondary">#{child.id} · {child.customer_name}</Typography>
+                <StatusBadge value={child.status} size="sm" label={statusToKorean[child.status]} />
+              </Box>
+            ))}
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  };
 
   const filterControls = (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -705,7 +873,7 @@ const OrderManagementPage = () => {
           <Box sx={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', px: 1, py: 2 }}>
             {state.loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
-            ) : displayedOrders.length === 0 ? (
+            ) : isEmpty ? (
               activeFilterCount > 0 ? (
                 <EmptyState
                   icon={SearchOffIcon}
@@ -725,45 +893,9 @@ const OrderManagementPage = () => {
               )
             ) : (
               <Stack spacing={2} sx={{ pb: 2 }}>
-                {displayedOrders.map((order) => {
-                  const isSelected = state.selectedOrders.indexOf(order.id) !== -1;
-                  return (
-                    <Card
-                      key={order.id}
-                      variant="outlined"
-                      onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}
-                      sx={{ borderColor: isSelected ? 'primary.main' : 'divider', borderWidth: isSelected ? 2 : 1 }}
-                    >
-                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                          <Box display="flex" alignItems="center" gap={1}>
-                            {hasPermission('orders:edit') && (
-                              <Checkbox
-                                checked={isSelected}
-                                onClick={(event) => handleSelectOneClick(event, order.id)}
-                                sx={{ p: 0 }}
-                              />
-                            )}
-                            <Typography variant="body2" color="text.secondary">
-                              {format(new Date(order.created_at), 'yyyy-MM-dd')}
-                            </Typography>
-                          </Box>
-                          <Box display="flex" alignItems="center" gap={0.75}>
-                            {order.alimtalk_status === 'failed' && <AlimtalkFailBadge />}
-                            <StatusBadge value={order.status} size="sm" />
-                          </Box>
-                        </Box>
-                        <Box display="flex" justifyContent="space-between" alignItems="flex-end">
-                          <Box>
-                            <Typography variant="subtitle1">{order.customer_name}</Typography>
-                            <Typography variant="body2" color="text.secondary">{state.events.find(e => e.id === order.event_id)?.name || 'N/A'}</Typography>
-                          </Box>
-                          <Typography variant="subtitle1" color="primary.main">{(order.final_payment || 0).toLocaleString()}원</Typography>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                {orderTree.map((node) =>
+                  node.type === 'group' ? renderMobileGroup(node) : renderMobileSingle(node.order)
+                )}
               </Stack>
             )}
           </Box>
@@ -775,8 +907,8 @@ const OrderManagementPage = () => {
                   {hasPermission('orders:edit') && (
                     <TableCell padding="checkbox">
                       <Checkbox
-                        indeterminate={state.selectedOrders.length > 0 && state.selectedOrders.length < state.orders.length}
-                        checked={state.orders.length > 0 && state.selectedOrders.length === state.orders.length}
+                        indeterminate={state.selectedOrders.length > 0 && state.selectedOrders.length < selectableIds.length}
+                        checked={selectableIds.length > 0 && state.selectedOrders.length === selectableIds.length}
                         onChange={handleSelectAllClick}
                         inputProps={{ 'aria-label': 'select all orders' }}
                       />
@@ -793,7 +925,7 @@ const OrderManagementPage = () => {
               <TableBody>
                 {state.loading ? (
                   <TableSkeleton rows={ordersPerPage} columns={hasPermission('orders:edit') ? 8 : 7} />
-                ) : displayedOrders.length === 0 ? (
+                ) : isEmpty ? (
                   <TableRow>
                     <TableCell colSpan={hasPermission('orders:edit') ? 8 : 7}>
                       {activeFilterCount > 0 ? (
@@ -816,44 +948,9 @@ const OrderManagementPage = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  displayedOrders.map((order) => {
-                    const isSelected = state.selectedOrders.indexOf(order.id) !== -1;
-                    return (
-                      <TableRow
-                        key={order.id}
-                        hover
-                        role="checkbox"
-                        aria-checked={isSelected}
-                        tabIndex={-1}
-                        selected={isSelected}
-                        sx={{ cursor: 'pointer' }}
-                      >
-                        {hasPermission('orders:edit') && (
-                          <TableCell padding="checkbox" onClick={(event) => handleSelectOneClick(event, order.id)}>
-                            <Checkbox
-                              checked={isSelected}
-                              inputProps={{ 'aria-labelledby': `order-checkbox-${order.id}` }}
-                            />
-                          </TableCell>
-                        )}
-                        <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{formatOrderId(order)}</TableCell>
-                        <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{order.customer_name}</TableCell>
-                        <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{state.events.find(e => e.id === order.event_id)?.name || 'N/A'}</TableCell>
-                        <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{(order.final_payment || 0).toLocaleString()}원</TableCell>
-                        <TableCell onClick={() => dispatch({ type: 'OPEN_ORDER_DETAIL', payload: order })}>{format(new Date(order.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
-                        <TableCell>
-                          <FormControl size="small" variant="outlined" sx={{ minWidth: 120 }} onClick={(e) => e.stopPropagation()}>
-                            <Select value={order.status} onChange={(e) => handleStatusChange(order.id, e.target.value)} disabled={!hasPermission('orders:edit')}>
-                              {Object.entries(statusToKorean).map(([key, value]) => <MenuItem key={key} value={key}>{value}</MenuItem>)}
-                            </Select>
-                          </FormControl>
-                          {order.alimtalk_status === 'failed' && (
-                            <Box sx={{ mt: 0.5 }}><AlimtalkFailBadge /></Box>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
+                  orderTree.map((node) =>
+                    node.type === 'group' ? renderGroupRows(node) : renderSingleRow(node.order)
+                  )
                 )}
               </TableBody>
             </Table>
@@ -865,18 +962,35 @@ const OrderManagementPage = () => {
       </SectionCard>
 
       {state.selectedOrder && !state.productsLoading && (
-        <OrderDetailModal
-          open={state.openOrderDetailModal}
-          onClose={() => dispatch({ type: 'CLOSE_ORDER_DETAIL' })}
-          order={state.selectedOrder}
-          statusToKorean={statusToKorean}
-          productsMap={state.productsMap}
-          products={state.products}
-          events={state.events}
-          addNotification={addNotification}
-          onUpdate={fetchOrders}
-          hasPermission={hasPermission}
-        />
+        state.selectedOrder.is_group_parent ? (
+          <GroupOrderModal
+            open={state.openOrderDetailModal}
+            onClose={() => dispatch({ type: 'CLOSE_ORDER_DETAIL' })}
+            shell={state.selectedOrder}
+            statusToKorean={statusToKorean}
+            productsMap={state.productsMap}
+            products={state.products}
+            events={state.events}
+            addNotification={addNotification}
+            onUpdate={fetchOrders}
+            productsLoading={state.productsLoading}
+            hasPermission={hasPermission}
+          />
+        ) : (
+          <OrderDetailModal
+            open={state.openOrderDetailModal}
+            onClose={() => dispatch({ type: 'CLOSE_ORDER_DETAIL' })}
+            order={state.selectedOrder}
+            statusToKorean={statusToKorean}
+            productsMap={state.productsMap}
+            products={state.products}
+            events={state.events}
+            addNotification={addNotification}
+            onUpdate={fetchOrders}
+            productsLoading={state.productsLoading}
+            hasPermission={hasPermission}
+          />
+        )
       )}
 
       <NewOrderModal

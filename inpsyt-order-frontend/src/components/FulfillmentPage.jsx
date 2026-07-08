@@ -31,8 +31,21 @@ import { getEvents } from '../api/events';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
+import { summarizeGroupStatus } from '../utils/groupOrder';
 import { PageHeader, SectionCard, StatusBadge, InfoRow, ActionSlot, EmptyState } from './ui';
 import { CATEGORY_COLORS, CATEGORY_KEY_BY_LABEL } from '../constants/categoryColors';
+
+const CANCELLED = ['cancelled', 'refunded'];
+
+// 합배송 껍데기는 종합 상태(활성 자식 파생), 그 외는 자기 상태
+const effectiveStatus = (order) =>
+  order.is_group_parent ? summarizeGroupStatus(order.linkedChildren || []).value : order.status;
+
+// 상태 변경 대상 id — 껍데기면 활성 자식 전부, 아니면 자기
+const shipTargetIds = (order) =>
+  order.is_group_parent
+    ? (order.linkedChildren || []).filter((c) => !CANCELLED.includes(c.status)).map((c) => c.id)
+    : [order.id];
 
 // '도구' 카테고리를 '검사'로 정규화 (운영 모델: 도구는 검사와 함께 출고)
 const normalizeCategory = (cat) => {
@@ -83,8 +96,9 @@ const FulfillmentGroupCard = ({
   const displayItems = order.mergedItems || order.order_items || [];
   const itemCount = displayItems.length;
   const isLinked = order.linkedChildren && order.linkedChildren.length > 0;
-  const linkedCount = isLinked ? order.linkedChildren.length + 1 : 0;
-  const isCompleted = order.status === 'completed';
+  const linkedCount = isLinked ? order.linkedChildren.length : 0;
+  const effStatus = effectiveStatus(order);
+  const isCompleted = effStatus === 'completed';
   const mergedTotal = order.mergedTotal ?? order.final_payment ?? 0;
 
   const address = order.shipping_address;
@@ -98,7 +112,7 @@ const FulfillmentGroupCard = ({
 
   const requestNote = order.customer_request?.trim();
   const adminMemo = order.admin_memo?.trim();
-  const hasActions = canShip && (order.status === 'paid' || isCompleted);
+  const hasActions = canShip && (effStatus === 'paid' || isCompleted);
 
   // 현장수령 판정 (OR 규칙): 주문 자체가 현장수령이거나 모든 상품이 현장수령이면 주문 전체 현장수령
   const isWholeOnSite =
@@ -178,7 +192,7 @@ const FulfillmentGroupCard = ({
                 }}
               />
             </Box>
-            <StatusBadge value={order.status} size="sm" />
+            <StatusBadge value={effStatus} size="sm" />
             {isLinked && (
               <Chip
                 label={`연계 ${linkedCount}건`}
@@ -301,13 +315,13 @@ const FulfillmentGroupCard = ({
             borderBottom: `1px solid ${theme.gray[100]}`,
           }}
         >
-          {order.status === 'paid' && (
+          {effStatus === 'paid' && (
             <Button
               size="small"
               variant="contained"
               color="success"
               startIcon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
-              onClick={() => onShip(order.id)}
+              onClick={() => onShip(order)}
             >
               {isWholeOnSite ? '확인 완료' : '출고 처리'}
             </Button>
@@ -316,7 +330,7 @@ const FulfillmentGroupCard = ({
             <Button
               size="small"
               variant="outlined"
-              onClick={() => onUnship(order.id)}
+              onClick={() => onUnship(order)}
             >
               {isWholeOnSite ? '확인완료 취소' : '출고 취소'}
             </Button>
@@ -494,37 +508,42 @@ const FulfillmentPage = () => {
     }
   }, [addNotification]);
 
-  const handleShip = useCallback(async (orderId) => {
-    const order = orders.find(o => o.id === orderId);
-    const name = order?.customer_name || `#${orderId}`;
+  // 출고 처리 — 껍데기 그룹이면 모든 활성 자식을 함께 completed 로 (대표 1건만 바뀌던 결함 수정)
+  const handleShip = useCallback(async (order) => {
+    const name = order?.customer_name || `#${order?.id}`;
+    const ids = shipTargetIds(order);
+    if (ids.length === 0) return;
     try {
       const { error: updateError } = await supabase
         .from('orders')
         .update({ status: 'completed' })
-        .eq('id', orderId);
+        .in('id', ids);
       if (updateError) throw updateError;
       addNotification(`${name}님의 주문이 출고 처리되었습니다.`, 'success');
       loadOrders();
     } catch (err) {
       addNotification(`출고 처리 실패: ${err.message}`, 'error');
     }
-  }, [orders, addNotification, loadOrders]);
+  }, [addNotification, loadOrders]);
 
-  const handleUnship = useCallback(async (orderId) => {
-    const order = orders.find(o => o.id === orderId);
-    const name = order?.customer_name || `#${orderId}`;
+  const handleUnship = useCallback(async (order) => {
+    const name = order?.customer_name || `#${order?.id}`;
+    const ids = order.is_group_parent
+      ? (order.linkedChildren || []).filter(c => c.status === 'completed').map(c => c.id)
+      : [order.id];
+    if (ids.length === 0) return;
     try {
       const { error: updateError } = await supabase
         .from('orders')
         .update({ status: 'paid' })
-        .eq('id', orderId);
+        .in('id', ids);
       if (updateError) throw updateError;
       addNotification(`${name}님의 주문을 출고 대기로 되돌렸습니다.`, 'success');
       loadOrders();
     } catch (err) {
       addNotification(`출고 취소 실패: ${err.message}`, 'error');
     }
-  }, [orders, addNotification, loadOrders]);
+  }, [addNotification, loadOrders]);
 
   const toggleSelect = (id) => {
     setSelectedIds(prev =>
@@ -547,13 +566,13 @@ const FulfillmentPage = () => {
     return isOrderVisible(orderType, viewMode);
   }), [orders, viewMode]);
 
-  const pendingCount = baseOrders.filter(o => o.status === 'paid').length;
-  const completedCount = baseOrders.filter(o => o.status === 'completed').length;
+  const pendingCount = baseOrders.filter(o => effectiveStatus(o) === 'paid').length;
+  const completedCount = baseOrders.filter(o => effectiveStatus(o) === 'completed').length;
   const totalCount = baseOrders.length;
 
   const searchQuery = searchTerm.trim().toLowerCase();
   const filteredOrders = useMemo(() => baseOrders.filter(order => {
-    if (statusFilter !== 'all' && order.status !== statusFilter) return false;
+    if (statusFilter !== 'all' && effectiveStatus(order) !== statusFilter) return false;
     if (searchQuery) {
       return [order.customer_name, order.phone_number, order.inpsyt_id]
         .some(v => (v || '').toLowerCase().includes(searchQuery));
@@ -561,28 +580,33 @@ const FulfillmentPage = () => {
     return true;
   }), [baseOrders, statusFilter, searchQuery]);
 
-  // 선택된 ID 중 실제로 paid 상태인 건만 일괄 처리 대상
-  const eligibleSelectedIds = useMemo(() => {
-    const paidIds = new Set(filteredOrders.filter(o => o.status === 'paid').map(o => o.id));
-    return selectedIds.filter(id => paidIds.has(id));
-  }, [filteredOrders, selectedIds]);
+  // 선택된 카드 중 출고 대기(paid) 상태인 건만 일괄 대상. 껍데기는 활성 자식으로 확장.
+  const eligibleSelected = useMemo(
+    () => filteredOrders.filter(o => selectedIds.includes(o.id) && effectiveStatus(o) === 'paid'),
+    [filteredOrders, selectedIds]
+  );
+  const eligibleSelectedIds = eligibleSelected.map(o => o.id);
+  const bulkTargetIds = useMemo(
+    () => [...new Set(eligibleSelected.flatMap(shipTargetIds))],
+    [eligibleSelected]
+  );
 
   const handleBulkShip = useCallback(async () => {
-    if (eligibleSelectedIds.length === 0) return;
+    if (bulkTargetIds.length === 0) return;
     try {
       const { error: updateError } = await supabase
         .from('orders')
         .update({ status: 'completed' })
-        .in('id', eligibleSelectedIds);
+        .in('id', bulkTargetIds);
       if (updateError) throw updateError;
-      addNotification(`${eligibleSelectedIds.length}개 주문이 일괄 출고 처리되었습니다.`, 'success');
+      addNotification(`${eligibleSelected.length}개 주문이 일괄 출고 처리되었습니다.`, 'success');
       loadOrders();
     } catch (err) {
       addNotification(`일괄 출고 처리 실패: ${err.message}`, 'error');
     } finally {
       setBulkConfirmOpen(false);
     }
-  }, [eligibleSelectedIds, addNotification, loadOrders]);
+  }, [bulkTargetIds, eligibleSelected, addNotification, loadOrders]);
 
   const headerAction = (
     <Box sx={{ display: 'flex', gap: 1 }}>
