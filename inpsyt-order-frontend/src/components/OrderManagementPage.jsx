@@ -46,7 +46,7 @@ import { getEvents } from '../api/events';
 import { fetchAllProducts } from '../api/products';
 import { getOrders, groupLinkedOrders } from '../api/orders';
 import { sendAlimtalk } from '../api/alimtalk';
-import { buildOrderTree, summarizeGroupStatus, formatGroupCustomerNames, inferRepChild } from '../utils/groupOrder';
+import { buildOrderTree, summarizeGroupStatus, formatGroupCustomerNames } from '../utils/groupOrder';
 import { PageHeader, SectionCard, StatusBadge, EmptyState, DateField } from './ui';
 import { STATUS_TO_KOREAN } from '../constants/orderStatus';
 
@@ -523,8 +523,7 @@ const OrderManagementPage = () => {
   };
 
   const renderGroupRows = ({ shell, children }) => {
-    const rep = inferRepChild(shell) || children[0];
-    const repId = rep?.id ?? shell.id;
+    const repId = shell.representative_child_id ?? children[0]?.id ?? shell.id;
     const summary = summarizeGroupStatus(children);
     const eventName = state.events.find(e => e.id === shell.event_id)?.name || 'N/A';
     const colSpanForEdit = hasPermission('orders:edit') ? 1 : 0;
@@ -609,8 +608,7 @@ const OrderManagementPage = () => {
   };
 
   const renderMobileGroup = ({ shell, children }) => {
-    const rep = inferRepChild(shell) || children[0];
-    const repId = rep?.id ?? shell.id;
+    const repId = shell.representative_child_id ?? children[0]?.id ?? shell.id;
     const summary = summarizeGroupStatus(children);
     return (
       <Card key={`shell-${shell.id}`} variant="outlined" onClick={() => openOrder(shell)} sx={{ borderColor: 'divider' }}>

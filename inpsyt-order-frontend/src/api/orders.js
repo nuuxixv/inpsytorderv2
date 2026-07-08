@@ -98,7 +98,7 @@ export const getFulfillmentOrders = async ({ eventId, statuses, dateFrom, dateTo
   let query = supabase
     .from('orders')
     .select(`
-      id, parent_order_id, is_group_parent, customer_name, phone_number, shipping_address,
+      id, parent_order_id, is_group_parent, representative_child_id, customer_name, phone_number, shipping_address,
       final_payment, delivery_fee, status, created_at, is_on_site_sale,
       customer_request, admin_memo, event_id, inpsyt_id,
       events(name),
@@ -167,6 +167,8 @@ export const unlinkOrders = async () => {
  * 주어진 주문 목록에서 합배송(껍데기 부모 + 자식)을 그룹화하여 병합된 주문 객체를 반환합니다.
  * - 껍데기 부모(is_group_parent): { ...order, linkedChildren:[...], mergedItems: 자식 아이템, mergedTotal: 자식 합 }
  *   (껍데기는 order_items 없음·final_payment=자식합이므로 자식 금액만 집계 — 중복 합산 금지)
+ *   대표(배송지·배송비 담당) 자식은 껍데기 order.representative_child_id 로 명시 노출된다
+ *   (getOrders 는 select('*') 로 자동 포함). 프론트는 이 값을 직접 신뢰한다(추정 로직 없음).
  * - 자식 주문: 그대로 반환 (parent_order_id 유지)
  * - 비연계 단독: 자기 상품·금액
  */
@@ -207,17 +209,22 @@ export const groupLinkedOrders = (orders) => {
 };
 
 /**
- * 합배송 그룹(껍데기 부모)을 삭제합니다. master 전용 교정 도구.
- * 서버 RPC(delete_order_group)가 단일 트랜잭션으로 자식 분리·정산 원복·껍데기 삭제를 처리합니다.
- * ⚠️ 이 RPC의 정확한 시그니처·정산 원복 정책은 backend 검수 필요(설계 §3 해제 미지원과 별개의 교정 경로).
+ * 합배송 그룹(껍데기 부모)을 삭제합니다. master 전용 교정 경로 — "잘못 연계한 그룹 취소"(설계 §3).
+ * 서버 RPC(delete_order_group)가 단일 트랜잭션으로 자식 독립 복원·배송비 원복·껍데기 삭제를 처리합니다.
+ *   · pending 자식: 자기 정가 기준 배송비 재계산 후 금액 자동 반영
+ *   · paid/completed 자식: 금액 불변 + 부족 배송비는 현장 별도결제 안내(needs_onsite_fee)
  * @param {number} groupParentId 껍데기 부모 주문 ID
- * @returns {Promise<void>}
+ * @returns {Promise<{group_parent_id:number, restored_children:Array<{id:number,
+ *   customer_name:string, phone_number:string, status:string, delivery_fee:number,
+ *   final_payment:number}>, needs_onsite_fee:boolean, total_onsite_fee_amount:number}>}
+ * @throws {Error} 권한 부족(master 아님) / 합배송 컨테이너 아님
  */
 export const deleteOrderGroup = async (groupParentId) => {
-  const { error } = await supabase.rpc('delete_order_group', {
+  const { data, error } = await supabase.rpc('delete_order_group', {
     p_group_parent_id: groupParentId,
   });
   if (error) throw error;
+  return data;
 };
 
 /**

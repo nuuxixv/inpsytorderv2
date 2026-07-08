@@ -58,33 +58,6 @@ export const formatGroupCustomerNames = (children = []) => {
 };
 
 /**
- * 껍데기 부모 그룹의 자식 중 대표(묶음 배송지·배송비 담당)를 추정한다.
- * 계약에 명시적 rep 플래그가 없어(§검수 필요) 다음 순서로 추정:
- *   1) 껍데기 배송지와 배송지가 일치하는 자식 (동결 복사 원본)
- *   2) delivery_fee > 0 인 자식 (Case B에서 대표만 배송비 보유)
- * @param {object} shell 껍데기 부모(linkedChildren 포함)
- * @returns {object|null} 대표 자식
- */
-export const inferRepChild = (shell) => {
-  const children = shell?.linkedChildren || [];
-  if (children.length === 0) return null;
-
-  const shellAddr = shell.shipping_address || {};
-  const sameAddr = children.find((c) => {
-    const a = c.shipping_address || {};
-    return (
-      (a.address || '') === (shellAddr.address || '') &&
-      (a.detail || '') === (shellAddr.detail || '') &&
-      (a.postcode || '') === (shellAddr.postcode || '')
-    );
-  });
-  if (sameAddr) return sameAddr;
-
-  const withFee = children.find((c) => (c.delivery_fee || 0) > 0);
-  return withFee || null;
-};
-
-/**
  * groupLinkedOrders 결과(플랫)를 트리 구조로 변환한다.
  * 껍데기 부모 → { type:'group', shell, children } / 그 외 → { type:'single', order }
  * 부모가 현재 페이지에 없는 고아 자식은 single 로 폴백(사라짐 방지).

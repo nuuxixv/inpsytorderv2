@@ -31,7 +31,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { supabase } from '../supabaseClient';
 import { deleteOrderGroup, reassignGroupRepresentative } from '../api/orders';
-import { inferRepChild, summarizeGroupStatus } from '../utils/groupOrder';
+import { summarizeGroupStatus } from '../utils/groupOrder';
 import { SHIPPING_DEFAULTS } from '../constants/shipping';
 import { SectionCard, StatusBadge, InfoRow, PriceBlock, ActionSlot } from './ui';
 import OrderSections from './OrderSections';
@@ -62,7 +62,9 @@ const GroupOrderModal = ({ shell, open, onClose, statusToKorean, productsMap, pr
   if (!shell) return null;
 
   const children = shell.linkedChildren || [];
-  const repChild = inferRepChild(shell);
+  // 대표(묶음 배송지·배송비 담당) = 서버 명시값 representative_child_id
+  const repChildId = shell.representative_child_id ?? null;
+  const repChild = repChildId != null ? children.find((c) => c.id === repChildId) : null;
   const summary = summarizeGroupStatus(children);
   const total = shell.mergedTotal ?? shell.final_payment ?? 0;
   const isMaster = hasPermission('master');
@@ -73,7 +75,7 @@ const GroupOrderModal = ({ shell, open, onClose, statusToKorean, productsMap, pr
   // 대표 취소 위임 인터셉트 — OrderSections 상태 변경 전에 호출됨.
   const handleStatusChangeIntercept = async (child, newStatus) => {
     if (!CANCELLED.includes(newStatus)) return false;
-    if (!repChild || child.id !== repChild.id) return false; // 대표가 아니면 일반 처리
+    if (repChildId == null || child.id !== repChildId) return false; // 대표가 아니면 일반 처리
     const siblings = children.filter((c) => c.id !== child.id && !CANCELLED.includes(c.status));
     if (siblings.length === 0) return false; // 남은 활성 주문 없음 — 일반 취소
 
@@ -97,8 +99,15 @@ const GroupOrderModal = ({ shell, open, onClose, statusToKorean, productsMap, pr
   const handleDeleteGroup = async () => {
     setDeleting(true);
     try {
-      await deleteOrderGroup(shell.id);
-      addNotification('합배송을 해제했습니다.', 'success');
+      const result = await deleteOrderGroup(shell.id);
+      if (result?.needs_onsite_fee) {
+        addNotification(
+          `합배송을 해제했습니다. 일부 주문은 결제완료 상태라 배송비 ${(result.total_onsite_fee_amount || 0).toLocaleString()}원을 현장에서 별도 결제로 안내해 주세요.`,
+          'warning'
+        );
+      } else {
+        addNotification('합배송을 해제했습니다.', 'success');
+      }
       setDeleteConfirmOpen(false);
       onUpdate();
       onClose();
