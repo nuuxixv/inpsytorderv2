@@ -133,18 +133,17 @@ const OrderStatusPage = () => {
   const bannerColor = banner.color || theme.gray[500];
   const isCancelled = ['cancelled', 'refunded'].includes(order.status);
 
-  // 합배송 안내 문구 1줄 — 형제 정보는 표시하지 않고 대표자명만 노출.
-  const isGrouped = order.is_grouped === true;
-  const isRepresentative = order.is_representative === true;
-  const hasAddress = Boolean(order.shipping_address?.address);
+  // 합배송 안내 문구 1줄 — 형제 정보는 표시하지 않고 이름만 노출(상품·연락처·주소·금액 미노출).
   let groupNotice = null;
-  if (isGrouped) {
-    if (isRepresentative) {
-      groupNotice = hasAddress
-        ? '주문하신 다른 분과 함께 회원님 주소로 배송됩니다.'
-        : '주문하신 다른 분과 함께 처리됩니다.';
-    } else if (order.representative_name) {
-      groupNotice = `${order.representative_name} 님의 주소로 함께 보내드립니다.`;
+  if (order.is_grouped) {
+    if (order.is_representative) {
+      groupNotice = order.co_recipient_names?.length
+        ? `${order.co_recipient_names.join(', ')} 님의 주문 상품이 함께 배송됩니다.`
+        : '묶음배송 예정입니다.';
+    } else {
+      groupNotice = order.representative_name
+        ? `${order.representative_name} 님의 주소지로 함께 배송됩니다.`
+        : '묶음배송 예정입니다.';
     }
   }
 
