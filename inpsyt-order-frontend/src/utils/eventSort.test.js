@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { sortEventsForDropdown, formatEventStartDate } from './eventSort';
+import { sortEventsForDropdown, groupEventsForDropdown, formatEventStartDate } from './eventSort';
 
 describe('sortEventsForDropdown', () => {
   beforeEach(() => {
@@ -33,6 +33,72 @@ describe('sortEventsForDropdown', () => {
     const events = [{ id: 1, start_date: '2026-01-01' }, { id: 2, start_date: '2026-07-10' }];
     const copy = [...events];
     sortEventsForDropdown(events);
+    expect(events).toEqual(copy);
+  });
+});
+
+describe('groupEventsForDropdown', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-13T03:00:00Z')); // KST 2026-07-13 정오
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('혼합: pinned/rest 분리, 각 그룹 내림차순, null은 rest 맨 뒤', () => {
+    const events = [
+      { id: 1, start_date: '2026-01-01' }, // rest
+      { id: 2, start_date: '2026-07-10' }, // pinned(오늘-3)
+      { id: 3, start_date: null }, // rest(null)
+      { id: 4, start_date: '2026-07-16' }, // pinned(오늘+3)
+      { id: 5, start_date: '2026-12-01' }, // rest
+      { id: 6, start_date: '2026-07-05' }, // rest(오늘-8, 범위 밖)
+    ];
+    const { pinned, rest } = groupEventsForDropdown(events);
+    expect(pinned.map((e) => e.id)).toEqual([4, 2]);
+    expect(rest.map((e) => e.id)).toEqual([5, 6, 1, 3]);
+  });
+
+  it('pinned만: rest는 빈 배열', () => {
+    const events = [
+      { id: 1, start_date: '2026-07-16' },
+      { id: 2, start_date: '2026-07-10' },
+    ];
+    const { pinned, rest } = groupEventsForDropdown(events);
+    expect(pinned.map((e) => e.id)).toEqual([1, 2]);
+    expect(rest).toEqual([]);
+  });
+
+  it('rest만: pinned는 빈 배열', () => {
+    const events = [
+      { id: 1, start_date: '2026-01-01' },
+      { id: 2, start_date: '2026-12-01' },
+    ];
+    const { pinned, rest } = groupEventsForDropdown(events);
+    expect(pinned).toEqual([]);
+    expect(rest.map((e) => e.id)).toEqual([2, 1]);
+  });
+
+  it('전부 null: pinned 비고 rest에 모두', () => {
+    const events = [
+      { id: 1, start_date: null },
+      { id: 2, start_date: null },
+    ];
+    const { pinned, rest } = groupEventsForDropdown(events);
+    expect(pinned).toEqual([]);
+    expect(rest.map((e) => e.id)).toEqual([1, 2]);
+  });
+
+  it('배열 아님 방어', () => {
+    expect(groupEventsForDropdown(null)).toEqual({ pinned: [], rest: [] });
+    expect(groupEventsForDropdown(undefined)).toEqual({ pinned: [], rest: [] });
+  });
+
+  it('원본 배열을 변형하지 않는다', () => {
+    const events = [{ id: 1, start_date: '2026-01-01' }, { id: 2, start_date: '2026-07-10' }];
+    const copy = [...events];
+    groupEventsForDropdown(events);
     expect(events).toEqual(copy);
   });
 });

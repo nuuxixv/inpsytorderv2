@@ -43,7 +43,7 @@ import NewOrderModal from './NewOrderModal';
 import TableSkeleton from './TableSkeleton';
 import { SearchOff as SearchOffIcon, FilterList as FilterListIcon } from '@mui/icons-material';
 import { getEvents } from '../api/events';
-import { sortEventsForDropdown, formatEventStartDate } from '../utils/eventSort';
+import { sortEventsForDropdown, groupEventsForDropdown, formatEventStartDate } from '../utils/eventSort';
 import { fetchAllProducts } from '../api/products';
 import { getOrders, groupLinkedOrders } from '../api/orders';
 import { sendAlimtalk } from '../api/alimtalk';
@@ -683,17 +683,25 @@ const OrderManagementPage = () => {
               : `${selected.length}개 선택`
           }
         >
-          {state.events.map((event) => (
-            <MenuItem key={event.id} value={event.id}>
-              <Checkbox checked={state.selectedEvents.includes(event.id)} size="small" />
-              <ListItemText
-                primary={event.name}
-                secondary={formatEventStartDate(event.start_date) || '시작일 미정'}
-                primaryTypographyProps={{ variant: 'body2' }}
-                secondaryTypographyProps={{ variant: 'caption' }}
-              />
-            </MenuItem>
-          ))}
+          {(() => {
+            const { pinned, rest } = groupEventsForDropdown(state.events);
+            const renderItem = (event) => (
+              <MenuItem key={event.id} value={event.id}>
+                <Checkbox checked={state.selectedEvents.includes(event.id)} size="small" />
+                <ListItemText
+                  primary={event.name}
+                  secondary={formatEventStartDate(event.start_date) || '시작일 미정'}
+                  primaryTypographyProps={{ variant: 'body2' }}
+                  secondaryTypographyProps={{ variant: 'caption' }}
+                />
+              </MenuItem>
+            );
+            return [
+              ...pinned.map(renderItem),
+              pinned.length > 0 && rest.length > 0 && <Divider key="event-group-divider" />,
+              ...rest.map(renderItem),
+            ];
+          })()}
         </Select>
       </FormControl>
 

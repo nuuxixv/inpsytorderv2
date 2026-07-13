@@ -9,6 +9,7 @@ import {
   InputAdornment,
   Select,
   MenuItem,
+  Divider,
   FormControl,
   InputLabel,
   useTheme,
@@ -28,7 +29,7 @@ import QRCode from 'qrcode';
 import { supabase } from '../supabaseClient';
 import { useNotification } from '../hooks/useNotification';
 import { PageHeader, SectionCard, ActionSlot, InfoRow } from './ui';
-import { sortEventsForDropdown, formatEventStartDate } from '../utils/eventSort';
+import { sortEventsForDropdown, groupEventsForDropdown, formatEventStartDate } from '../utils/eventSort';
 
 // 사양 §발견 2: 리다이렉트 베이스는 VITE_APP_URL 우선, 없으면 현재 origin.
 const APP_BASE_URL = import.meta.env?.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
@@ -190,21 +191,29 @@ const SettingsPage = () => {
                   선택 안 함 (비활성)
                 </Typography>
               </MenuItem>
-              {events.map((event) => (
-                <MenuItem key={event.id} value={event.order_url_slug}>
-                  <Box>
-                    <Typography variant="body2" sx={{ color: 'text.primary' }}>
-                      {event.name}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{ color: 'text.disabled' }}
-                    >
-                      {formatEventStartDate(event.start_date) || '시작일 미정'}
-                    </Typography>
-                  </Box>
-                </MenuItem>
-              ))}
+              {(() => {
+                const { pinned, rest } = groupEventsForDropdown(events);
+                const renderItem = (event) => (
+                  <MenuItem key={event.id} value={event.order_url_slug}>
+                    <Box>
+                      <Typography variant="body2" sx={{ color: 'text.primary' }}>
+                        {event.name}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: 'text.disabled' }}
+                      >
+                        {formatEventStartDate(event.start_date) || '시작일 미정'}
+                      </Typography>
+                    </Box>
+                  </MenuItem>
+                );
+                return [
+                  ...pinned.map(renderItem),
+                  pinned.length > 0 && rest.length > 0 && <Divider key="event-group-divider" />,
+                  ...rest.map(renderItem),
+                ];
+              })()}
             </Select>
           </FormControl>
 
