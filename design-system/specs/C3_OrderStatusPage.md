@@ -20,12 +20,10 @@
 주문 제출 직후 자동 리다이렉트되거나, 결제 완료 후 받은 카카오 알림톡(`status='paid'` 트리거 발화)의 URL을 탭해서 들어오는 화면이다. 토큰 한 개만 알면 누구나 접근 가능하지만 토큰이 UUID라 추측 불가. 1차 사용자는 50대 의사가 부스에서 결제 직후, 또는 학회가 끝나고 며칠 뒤 알림톡으로 진입. 화면 한 장에 "지금 어떤 상태인지·언제 받을지·뭘 샀는지·얼마 냈는지" 를 압축해 보여준다. 추가 액션은 없음 — 보기 전용 화면이다. 합배송된 부모/자식 주문은 한 화면에 1차/2차로 통합 표시한다.
 
 ## 진입 흐름
-- [ ] URL 파라미터 `token` 추출 (`useParams`, `OrderStatusPage.jsx:72`)
-- [ ] `token`이 있으면 `supabase.rpc('get_order_by_token', { p_token: token })` 호출 (`fetchOrder`, line 78-102)
-- [ ] RPC 응답 데이터가 있으면 `setOrder(data)` 후 연계 주문 처리:
-  - `data.parent_order` 있으면 `linkedOrder = { role: 'parent', ...data.parent_order }`
-  - 없고 `data.child_orders?.length > 0` 이면 `linkedOrder = { role: 'child', ...data.child_orders[0] }` (첫 번째 child만)
-- [ ] RPC가 데이터 없음(`!data`) 또는 에러(`rpcError`) 시 `setError('주문을 찾을 수 없습니다.')` (line 95-97 catch는 모든 예외를 동일 메시지로 흡수)
+- [ ] URL 파라미터 `token` 추출 (`useParams`)
+- [ ] `token`이 있으면 `supabase.rpc('get_order_by_token', { p_token: token })` 호출 (`fetchOrder`)
+- [ ] RPC 응답은 **토큰 주인 본인 주문 1건만** 반환 → `setOrder(data)`. 형제 주문 상세(child_orders/parent_order)는 응답에 없음(2026-07-13 노출 최소화).
+- [ ] RPC가 데이터 없음(`!data`) 또는 에러(`rpcError`) 시 `setError('주문을 찾을 수 없습니다.')` (catch는 모든 예외를 동일 메시지로 흡수)
 - [ ] `token` 자체가 falsy면 `fetchOrder` 자체를 호출하지 않음 (line 101) — 이 경우 로딩 스피너만 계속 도는 상태가 되므로 **확인 필요** (실제로는 `/order/status/:token` 라우트가 token 없는 경로를 매칭하지 않으므로 도달 어려움)
 
 ### 토큰 기반 접근 제어 (RLS·RPC 구조)
@@ -48,5 +46,17 @@
 | cancelled | ❌ | `결제 전 취소된 주문건입니다.` | (동일) |
 | refunded | ↩️ | `결제 취소된 주문건입니다.` | (동일) |
 
+## 합배송 노출 정책 (2026-07-13 확정)
+합배송이어도 각 고객은 **본인 주문 1건만** 본다. 다른 참여자 정보(이름·상품·연락처·주소·금액)는 백엔드 응답 단계에서 차단 → 화면은 단일 주문과 동일한 본인 주문 카드를 렌더한다.
+- **응답 부가 필드**: `is_grouped`(bool), `is_representative`(bool), `representative_name`(string|null). child_orders/parent_order/is_group_parent/parent_order_id/representative_child_id는 응답에 없음.
+- **안내 문구 1줄** (주문자 정보 카드 하단, caption):
+  - `is_grouped && !is_representative` → `"{representative_name} 님의 주소로 함께 보내드립니다."` (representative_name null이면 문구 생략)
+  - `is_grouped && is_representative && 배송지 있음` → `"주문하신 다른 분과 함께 회원님 주소로 배송됩니다."`
+  - `is_grouped && is_representative && 배송지 없음(현장수령)` → `"주문하신 다른 분과 함께 처리됩니다."` (엣지: 대표가 현장수령이면 "회원님 주소로" 문구가 어색 → 톤 완화)
+  - `is_grouped === false` → 문구 없음(현행)
+- **상태 배너**: 본인 `order.status` 기준(그룹 종합상태 뷰 폐기).
+- **취소 분기**: 본인 `order.order_items`만 취소 표시.
+
 ## 변경 이력
-- 2026-07-08 합배송 껍데기 부모 모델 — `get_order_by_token` shape 변경 대응. 토큰 order를 그룹 루트(껍데기)로 정규화 → `child_orders[]` 배열 순회. **구 `parent_order`/`child_orders[0]` "1차/2차" 뷰 폐기** → "함께 배송되는 주문" 그룹 뷰(주문별 상품 카드 N개 + 주문별/합산 PriceBlock + 대표 배송지 1개 "이 주소로 함께 배송됩니다"). 배너 상태는 `summarizeGroupStatus(child_orders)` 종합값. 취소·현장수령 분기 보존, 카테고리 색칩 금지(텍스트 캡션) 유지. 단일 주문은 기존 흐름 그대로. **후속: get_order_by_token 재작성 마이그레이션과 동시 배포 필요.**
+- 2026-07-13 합배송 고객주문서 노출 최소화 — 위 "합배송 노출 정책" 반영. `summarizeGroupStatus` 기반 그룹 종합 배너·"함께 배송되는 주문" child 순회·묶음 PriceBlock·묶음 배송지 카드 **전부 폐기**, 본인 주문 카드 + 안내 문구 1줄로 전환. `summarizeGroupStatus`/`formatGroupCustomerNames`는 어드민(GroupOrderModal·FulfillmentPage·OrderManagementPage)에서 계속 사용 → utils/groupOrder.js 유지, OrderStatusPage에서만 미사용화. **backend `get_order_by_token` 재작성(본인 1건+부가필드)과 동시 배포.**
+- 2026-07-08 합배송 껍데기 부모 모델(폐기) — 토큰 order를 그룹 루트로 정규화 → `child_orders[]` 순회로 "함께 배송되는 주문" 그룹 뷰. **2026-07-13 노출 최소화로 대체됨.**

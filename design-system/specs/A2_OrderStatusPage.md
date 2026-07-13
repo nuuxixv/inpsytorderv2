@@ -215,6 +215,21 @@
 
 6. **페어 화면 `/order/lookup` 라우트가 App.jsx에 등록되어 있지 않다.** OrderLookupPage 컴포넌트는 존재하지만 라우트 미연결 상태(A2 OrderLookup 시트의 핵심 발견과 교차 참조). OrderStatusPage 자체는 정상 작동(라우트 등록됨, 알림톡·OrderPage·OrderDetailModal에서 진입). 이 사실은 본 시트의 변경 사항은 아니지만 페어 화면의 미연결 상태를 인지하고 시안 진행해야 한다.
 
+## 합배송 노출 정책 (2026-07-13 확정 — 위 "연계 1차/2차" 서술 대체)
+> 아래 표시정보의 "연계 주문(1차/2차)", "합산 결제금액", "child_orders/parent_order" 관련 서술은 **폐기**되었다. 합배송이어도 각 고객은 **본인 주문 1건만** 본다.
+- **정책**: 다른 참여자 정보(이름·상품·연락처·주소·금액)는 백엔드 `get_order_by_token` 응답 단계에서 차단. 화면은 단일 주문과 동일한 본인 주문 카드 렌더.
+- **응답 부가 필드**: `is_grouped`(bool), `is_representative`(bool), `representative_name`(string|null — 대표가 본인이면 null), `co_recipient_names`(string[] — 함께 배송되는 타인 이름, 동일인 제외, 전부 동일인이면 빈 배열). child_orders/parent_order/is_group_parent/parent_order_id는 응답에 없음.
+- **안내 문구 1줄**(주문자 정보 카드 하단, caption, text.secondary) — **4분기** (배송지 유무로 나누지 않음. "회원님"·"처리됩니다" 문구 폐기):
+  - `is_grouped && is_representative && co_recipient_names.length` → `"{co_recipient_names.join(', ')} 님의 주문 상품이 함께 배송됩니다."`
+  - `is_grouped && is_representative && co_recipient_names 빈 배열`(전부 동일인) → `"묶음배송 예정입니다."`
+  - `is_grouped && !is_representative && representative_name` → `"{representative_name} 님의 주소지로 함께 배송됩니다."`
+  - `is_grouped && !is_representative && representative_name === null`(대표가 본인) → `"묶음배송 예정입니다."`
+  - 단일 주문(`is_grouped === false`) → 문구 없음.
+- **상태 배너**: 본인 `order.status` 기준. **취소 분기**: 본인 `order_items`만.
+- **어드민 교차 참조**: 어드민 `GroupOrderModal`은 전원 정보 유지 + 자식별 "고객 주문서 열기" 링크(`/order/status/{child.access_token}`, 새 탭)로 이 화면에 진입. 상세는 설계 스펙 `docs/superpowers/specs/2026-07-09-합배송-고객주문서-노출최소화-design.md` §4.
+
 ## 변경 이력
+- 2026-07-13 (2차) 합배송 안내 문구 4분기 재작성 — 구 2분기("{대표명} 님의 주소로 함께 보내드립니다." / "주문하신 다른 분과 함께 회원님 주소로 배송됩니다.")를 폐기하고 대표/비대표 × 동일인 여부로 4분기화. 응답에 `co_recipient_names`(string[]) 추가. 배송지 유무 분기 제거, "회원님"·"처리됩니다" 문구 완전 삭제. 어드민 `GroupOrderModal`에 자식별 "고객 주문서 열기" 링크 신설(교차 참조).
+- 2026-07-13 합배송 고객주문서 노출 최소화 — 위 "합배송 노출 정책" 반영. 구 "연계 1차/2차" 및 껍데기 그룹 뷰(child 순회·합산 PriceBlock·묶음 배송지)를 폐기하고 본인 주문 카드 + 안내 문구 1줄로 전환. `summarizeGroupStatus` OrderStatusPage 미사용화(utils/groupOrder.js는 어드민 화면에서 계속 사용 → 유지). backend RPC 재작성과 동시 배포.
 - 2026-05-26 신설 — M2 고객용 시안 착수 사전 정독. `OrderStatusPage.jsx` 297줄 전수 + `get_order_by_token` RPC + 5상태 배너 분기 + 연계 주문 1차/2차 정렬 규칙 + 현장구매 가드 + RLS 보안 모델(20260407 anon SELECT 철회 후 토큰 RPC만 허용) 모두 확인. 환각 방지 위해 `customer_request`의 현장구매 prefix 노출 정책, 연계 child가 비어있을 때의 빈 카드 처리, 단일/연계 배송비 행 비대칭 의도 3건은 “확인 필요”로 표기.
 - 2026-05-29 M3-11 시안 정합 — `OrderStatusPage.jsx` 단일 파일 토큰화(시안 `CustomerOrderStatusPreview` 답습). **보존**: 상태 배너 5종 분기·이모지·subMessage 텍스트·`STATUS_COLORS` 배너 색·현장구매(`is_on_site_sale`) `edd` 비표시 가드·연계 주문 1차/2차 정렬(현재 child면 parent=1차, parent면 현재=1차)·`child_orders[0]`만 사용·취소 분기에서 결제/주문자/요청 카드 숨김·`customer_request` 현장구매 prefix 노출·우편번호 미표시·`get_order_by_token` RPC 호출·access_token 검증·문의 메일 링크·빈 상태/로딩 처리. **교체**: 인라인 raw hex 0건(`'#fff'` → `theme.palette.common.white`, `'rgba(255,255,255,...)'` → `alpha(white, ...)`), `borderRadius: '12px'` → `theme.radii.md`, `border: '1px solid' + borderColor: 'divider'` → `border: '1px solid ${theme.palette.divider}'` 통합, `SectionTitle`은 시안과 동일하게 `Typography variant="overline"`(02 §타이포 토큰), 주문자 정보 카드 라벨+값 행 → `InfoRow` 합성 컴포넌트(연락처는 `mono`), 결제 요약 → `PriceBlock` 합성 컴포넌트(합계 색은 배너 색 유지), 상품 가격 셀 `fontFeatureSettings: '"tnum" 1'` 추가, fallback 배너 색 `'#8B95A1'` → `theme.gray[500]`, Chip `borderRadius` 토큰화. **신규 없음**(시안 답습 0건, 카테고리 색 칩 추가 금지 §발견 #4 준수). **사양 핵심 발견 1~6 모두 보존 확인.**

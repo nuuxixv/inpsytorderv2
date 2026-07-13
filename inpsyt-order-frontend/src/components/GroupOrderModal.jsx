@@ -14,7 +14,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Divider,
   CircularProgress,
   Menu,
   MenuItem,
@@ -64,11 +63,9 @@ const GroupOrderModal = ({ shell, open, onClose, statusToKorean, productsMap, pr
   const children = shell.linkedChildren || [];
   // 대표(묶음 배송지·배송비 담당) = 서버 명시값 representative_child_id
   const repChildId = shell.representative_child_id ?? null;
-  const repChild = repChildId != null ? children.find((c) => c.id === repChildId) : null;
   const summary = summarizeGroupStatus(children);
   const total = shell.mergedTotal ?? shell.final_payment ?? 0;
   const isMaster = hasPermission('master');
-  const repToken = repChild?.access_token || shell.access_token;
 
   const addr = shell.shipping_address || {};
 
@@ -149,7 +146,7 @@ const GroupOrderModal = ({ shell, open, onClose, statusToKorean, productsMap, pr
           )}
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          {(repToken || isMaster) && (
+          {isMaster && (
             <IconButton size="small" onClick={(e) => setMenuAnchor(e.currentTarget)} sx={{ color: theme.gray[500] }} aria-label="더보기">
               <MoreVertIcon sx={{ fontSize: 20 }} />
             </IconButton>
@@ -240,6 +237,22 @@ const GroupOrderModal = ({ shell, open, onClose, statusToKorean, productsMap, pr
               </Box>
             </AccordionSummary>
             <AccordionDetails sx={{ bgcolor: theme.gray[50] }}>
+              {child.access_token && (
+                <Box
+                  component="a"
+                  href={`/order/status/${child.access_token}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    display: 'inline-flex', alignItems: 'center', gap: 0.5, mb: 1.5,
+                    color: 'primary.main', textDecoration: 'none', fontSize: theme.typography.body2.fontSize, fontWeight: 500,
+                    '&:hover': { textDecoration: 'underline' },
+                  }}
+                >
+                  <OpenInNewIcon sx={{ fontSize: 16 }} />
+                  고객 주문서 열기
+                </Box>
+              )}
               <OrderSections
                 order={child}
                 statusToKorean={statusToKorean}
@@ -281,20 +294,6 @@ const GroupOrderModal = ({ shell, open, onClose, statusToKorean, productsMap, pr
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         slotProps={{ paper: { sx: { minWidth: 200, borderRadius: `${theme.radii.md}px`, boxShadow: theme.customShadows.md } } }}
       >
-        {repToken && (
-          <MenuItem
-            component="a"
-            href={`/order/status/${repToken}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => setMenuAnchor(null)}
-            sx={{ minHeight: 44 }}
-          >
-            <ListItemIcon><OpenInNewIcon sx={{ fontSize: 18 }} /></ListItemIcon>
-            <ListItemText primary="고객 주문서 열기" primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }} />
-          </MenuItem>
-        )}
-        {repToken && isMaster && <Divider sx={{ my: 0.5 }} />}
         {isMaster && (
           <MenuItem onClick={() => { setMenuAnchor(null); setDeleteConfirmOpen(true); }} sx={{ minHeight: 44, color: 'error.main' }}>
             <ListItemIcon><DeleteIcon sx={{ fontSize: 18, color: theme.palette.error.main }} /></ListItemIcon>

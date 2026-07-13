@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Box, Typography, CircularProgress, Chip, useTheme } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { supabase } from '../supabaseClient';
 import { STATUS_COLORS, STATUS_TO_KOREAN } from '../constants/orderStatus';
-import { summarizeGroupStatus } from '../utils/groupOrder';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { InfoRow, PriceBlock } from './ui';
@@ -96,7 +95,8 @@ const OrderStatusPage = () => {
         if (rpcError) throw rpcError;
         if (!data) throw new Error('not found');
 
-        // 새 shape: 토큰 order를 그룹 루트로 정규화 — 껍데기는 child_orders[] 보유.
+        // 새 shape: 토큰 주인 본인 주문 1건만 반환. 합배송이어도 형제 상세는 응답에 없음
+        // (is_grouped / is_representative / representative_name 만 부가).
         setOrder(data);
       } catch {
         setError('주문을 찾을 수 없습니다.');
@@ -128,19 +128,24 @@ const OrderStatusPage = () => {
     );
   }
 
-  // 합배송 — 껍데기 루트는 child_orders[] 보유. "함께 배송되는 주문" 그룹 뷰.
-  const children = Array.isArray(order.child_orders) ? order.child_orders : [];
-  const isGroup = order.is_group_parent === true || children.length > 0;
-  const summary = isGroup ? summarizeGroupStatus(children) : null;
-  const bannerOrder = isGroup ? { ...order, status: summary.value } : order;
-
-  const banner = getBannerConfig(bannerOrder);
+  // 합배송이어도 본인 주문 1건만 표시. 상태 배너는 본인 order.status 기준.
+  const banner = getBannerConfig(order);
   const bannerColor = banner.color || theme.gray[500];
-  const isCancelled = ['cancelled', 'refunded'].includes(bannerOrder.status);
+  const isCancelled = ['cancelled', 'refunded'].includes(order.status);
 
-  const groupTotal = isGroup
-    ? children.reduce((s, c) => s + (c.final_payment || 0), 0)
-    : order.final_payment;
+  // 합배송 안내 문구 1줄 — 형제 정보는 표시하지 않고 이름만 노출(상품·연락처·주소·금액 미노출).
+  let groupNotice = null;
+  if (order.is_grouped) {
+    if (order.is_representative) {
+      groupNotice = order.co_recipient_names?.length
+        ? `${order.co_recipient_names.join(', ')} 님의 주문 상품이 함께 배송됩니다.`
+        : '묶음배송 예정입니다.';
+    } else {
+      groupNotice = order.representative_name
+        ? `${order.representative_name} 님의 주소지로 함께 배송됩니다.`
+        : '묶음배송 예정입니다.';
+    }
+  }
 
   return (
     <Box sx={{ maxWidth: 480, mx: 'auto', minHeight: '100dvh', bgcolor: 'background.paper' }}>
@@ -168,63 +173,13 @@ const OrderStatusPage = () => {
       <Box sx={{ px: 3, pt: 3 }}>
         {isCancelled ? (
           <>
-            {/* 취소 분기 — 결제 요약·주문자 정보·요청사항 카드 숨김. */}
+            {/* 취소 분기 — 결제 요약·주문자 정보·요청사항 카드 숨김. 본인 주문 상품만. */}
             <SectionTitle>취소된 주문 상품</SectionTitle>
-            {isGroup
-              ? children.map((child, idx) => (
-                  <ItemsCard key={child.id ?? idx} items={child.order_items} cancelled />
-                ))
-              : <ItemsCard items={order.order_items} cancelled />}
-          </>
-        ) : isGroup ? (
-          <>
-            {/* 함께 배송되는 주문 — 껍데기 루트 child_orders[] 순회 */}
-            <SectionTitle>함께 배송되는 주문</SectionTitle>
-            {children.map((child, idx) => (
-              <React.Fragment key={child.id ?? idx}>
-                <Typography variant="overline" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
-                  주문 {idx + 1}{child.customer_name ? ` · ${child.customer_name}` : ''}
-                </Typography>
-                <ItemsCard items={child.order_items} />
-              </React.Fragment>
-            ))}
-
-            {/* 결제 요약 — 주문별 + 합산 */}
-            <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${theme.palette.divider}`, borderRadius: `${theme.radii.md}px`, p: 2, mb: 3 }}>
-              <PriceBlock
-                rows={children.map((child, idx) => ({
-                  label: `주문 ${idx + 1} 결제금액`,
-                  value: child.final_payment ?? 0,
-                }))}
-                totalLabel="합산 결제금액"
-                totalValue={groupTotal}
-                totalColor={bannerColor}
-              />
-            </Box>
-
-            {/* 묶음 배송지 — 대표 배송지 1개 */}
-            <SectionTitle>배송지</SectionTitle>
-            <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${theme.palette.divider}`, borderRadius: `${theme.radii.md}px`, p: 2, mb: 3 }}>
-              <InfoRow label="받는 분" value={order.customer_name} labelWidth={80} />
-              <InfoRow label="연락처" value={order.phone_number} labelWidth={80} />
-              {order.shipping_address?.address ? (
-                <InfoRow
-                  label="배송지"
-                  value={`${order.shipping_address.address} ${order.shipping_address.detail || ''}`.trim()}
-                  labelWidth={80}
-                  multiline
-                />
-              ) : (
-                <InfoRow label="배송" value="현장 수령" labelWidth={80} />
-              )}
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                이 주소로 함께 배송됩니다.
-              </Typography>
-            </Box>
+            <ItemsCard items={order.order_items} cancelled />
           </>
         ) : (
           <>
-            {/* 단일 주문 — 기존 흐름 보존 */}
+            {/* 본인 주문 — 합배송이어도 동일. 형제 정보는 표시하지 않음. */}
             <SectionTitle>주문 상품</SectionTitle>
             <ItemsCard items={order.order_items} />
 
@@ -255,6 +210,11 @@ const OrderStatusPage = () => {
                 />
               ) : (
                 <InfoRow label="배송" value="현장 수령" labelWidth={80} />
+              )}
+              {groupNotice && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                  {groupNotice}
+                </Typography>
               )}
             </Box>
 
