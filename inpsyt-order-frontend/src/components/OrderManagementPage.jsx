@@ -43,6 +43,7 @@ import NewOrderModal from './NewOrderModal';
 import TableSkeleton from './TableSkeleton';
 import { SearchOff as SearchOffIcon, FilterList as FilterListIcon } from '@mui/icons-material';
 import { getEvents } from '../api/events';
+import { sortEventsForDropdown, groupEventsForDropdown, formatEventStartDate } from '../utils/eventSort';
 import { fetchAllProducts } from '../api/products';
 import { getOrders, groupLinkedOrders } from '../api/orders';
 import { sendAlimtalk } from '../api/alimtalk';
@@ -86,7 +87,7 @@ const initialState = {
   selectedStatuses: [],
   events: [],
   selectedEvents: [],
-  startDate: subDays(new Date(), 30),
+  startDate: subDays(new Date(), 7),
   endDate: new Date(),
   products: [],
   productsMap: {},
@@ -134,7 +135,7 @@ function reducer(state, action) {
         searchTerm: '',
         selectedStatuses: [],
         selectedEvents: [],
-        startDate: subDays(new Date(), 30),
+        startDate: subDays(new Date(), 7),
         endDate: new Date(),
         selectedOrders: [],
       };
@@ -190,7 +191,7 @@ const OrderManagementPage = () => {
   // 장기 세션(탭을 며칠간 열어둠)에서 startDate/endDate가 옛날 날짜로 굳는 버그 방지.
   const [state, dispatch] = useReducer(reducer, null, () => ({
     ...initialState,
-    startDate: subDays(new Date(), 30),
+    startDate: subDays(new Date(), 7),
     endDate: new Date(),
     selectedStatuses: searchParams.get('status') ? [searchParams.get('status')] : [],
   }));
@@ -246,7 +247,7 @@ const OrderManagementPage = () => {
   const fetchEvents = useCallback(async () => {
     try {
       const eventsData = await getEvents();
-      dispatch({ type: 'SET_STATE', payload: { events: eventsData } });
+      dispatch({ type: 'SET_STATE', payload: { events: sortEventsForDropdown(eventsData) } });
     } catch {
       addNotification('학회 정보를 불러오는 데 실패했습니다.', 'error');
     }
@@ -478,6 +479,7 @@ const OrderManagementPage = () => {
   const DATE_PRESETS = [
     { label: '오늘', days: 0 },
     { label: '최근 2일', days: 2 },
+    { label: '최근 3일', days: 3 },
     { label: '최근 7일', days: 7 },
     { label: '최근 30일', days: 30 },
   ];
@@ -667,12 +669,12 @@ const OrderManagementPage = () => {
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
       {/* 학회 멀티 선택 */}
       <FormControl size="small" sx={{ minWidth: 200 }}>
-        <InputLabel>학회 선택</InputLabel>
+        <InputLabel>행사 선택</InputLabel>
         <Select
           multiple
           value={state.selectedEvents}
-          label="학회 선택"
-          input={<OutlinedInput label="학회 선택" />}
+          label="행사 선택"
+          input={<OutlinedInput label="행사 선택" />}
           onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'selectedEvents', value: e.target.value } })}
           renderValue={(selected) =>
             selected.length === 0
@@ -682,12 +684,25 @@ const OrderManagementPage = () => {
               : `${selected.length}개 선택`
           }
         >
-          {state.events.map((event) => (
-            <MenuItem key={event.id} value={event.id}>
-              <Checkbox checked={state.selectedEvents.includes(event.id)} size="small" />
-              <ListItemText primary={event.name} primaryTypographyProps={{ variant: 'body2' }} />
-            </MenuItem>
-          ))}
+          {(() => {
+            const { pinned, rest } = groupEventsForDropdown(state.events);
+            const renderItem = (event) => (
+              <MenuItem key={event.id} value={event.id}>
+                <Checkbox checked={state.selectedEvents.includes(event.id)} size="small" />
+                <ListItemText
+                  primary={event.name}
+                  secondary={formatEventStartDate(event.start_date) || '시작일 미정'}
+                  primaryTypographyProps={{ variant: 'body2' }}
+                  secondaryTypographyProps={{ variant: 'caption' }}
+                />
+              </MenuItem>
+            );
+            return [
+              ...pinned.map(renderItem),
+              pinned.length > 0 && rest.length > 0 && <Divider key="event-group-divider" />,
+              ...rest.map(renderItem),
+            ];
+          })()}
         </Select>
       </FormControl>
 

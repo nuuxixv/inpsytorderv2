@@ -9,6 +9,7 @@ import {
   InputAdornment,
   Select,
   MenuItem,
+  Divider,
   FormControl,
   InputLabel,
   useTheme,
@@ -28,6 +29,7 @@ import QRCode from 'qrcode';
 import { supabase } from '../supabaseClient';
 import { useNotification } from '../hooks/useNotification';
 import { PageHeader, SectionCard, ActionSlot, InfoRow } from './ui';
+import { sortEventsForDropdown, groupEventsForDropdown, formatEventStartDate } from '../utils/eventSort';
 
 // 사양 §발견 2: 리다이렉트 베이스는 VITE_APP_URL 우선, 없으면 현재 origin.
 const APP_BASE_URL = import.meta.env?.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
@@ -60,10 +62,10 @@ const SettingsPage = () => {
     try {
       const { data, error } = await supabase
         .from('events')
-        .select('id, name, order_url_slug')
+        .select('id, name, order_url_slug, start_date')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      if (data) setEvents(data);
+      if (data) setEvents(sortEventsForDropdown(data));
     } catch (error) {
       console.error('Error fetching events:', error);
     }
@@ -189,21 +191,29 @@ const SettingsPage = () => {
                   선택 안 함 (비활성)
                 </Typography>
               </MenuItem>
-              {events.map((event) => (
-                <MenuItem key={event.id} value={event.order_url_slug}>
-                  <Box>
-                    <Typography variant="body2" sx={{ color: 'text.primary' }}>
-                      {event.name}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{ color: 'text.disabled' }}
-                    >
-                      {event.order_url_slug}
-                    </Typography>
-                  </Box>
-                </MenuItem>
-              ))}
+              {(() => {
+                const { pinned, rest } = groupEventsForDropdown(events);
+                const renderItem = (event) => (
+                  <MenuItem key={event.id} value={event.order_url_slug}>
+                    <Box>
+                      <Typography variant="body2" sx={{ color: 'text.primary' }}>
+                        {event.name}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: 'text.disabled' }}
+                      >
+                        {formatEventStartDate(event.start_date) || '시작일 미정'}
+                      </Typography>
+                    </Box>
+                  </MenuItem>
+                );
+                return [
+                  ...pinned.map(renderItem),
+                  pinned.length > 0 && rest.length > 0 && <Divider key="event-group-divider" />,
+                  ...rest.map(renderItem),
+                ];
+              })()}
             </Select>
           </FormControl>
 
@@ -387,17 +397,6 @@ const SettingsPage = () => {
           />
         </Box>
       </SectionCard>
-
-      {/* 소분류 마스터 관리는 상품 관리 화면으로 이동(2026-06-29 건우님 결정) */}
-      <Alert
-        severity="info"
-        icon={<InfoIcon sx={{ fontSize: 18 }} />}
-        sx={{ borderRadius: `${theme.radii.md}px`, mb: 3 }}
-      >
-        <Typography variant="caption" sx={{ color: 'text.primary' }}>
-          소분류는 상품 관리 화면(상단 "소분류 관리")에서 관리합니다.
-        </Typography>
-      </Alert>
 
       {/* 안내 Alert — 사양 §하단 안내 */}
       <Alert

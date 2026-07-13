@@ -21,7 +21,7 @@ import {
   CircularProgress,
   useTheme,
 } from '@mui/material';
-import { searchOrdersForLinking, linkOrders } from '../api/orders';
+import { getLinkableOrdersByEvent, linkOrders } from '../api/orders';
 import { supabase } from '../supabaseClient';
 import { SHIPPING_DEFAULTS } from '../constants/shipping';
 import { SectionCard, PriceBlock } from './ui';
@@ -41,8 +41,8 @@ const candidateLabel = (o) => {
 const LinkPreviewDialog = ({ open, onClose, baseOrder, events, addNotification, onLinked }) => {
   const theme = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchLoading, setSearchLoading] = useState(false);
+  const [allCandidates, setAllCandidates] = useState([]); // 같은 학회 연계 후보 전체
+  const [listLoading, setListLoading] = useState(false);
   const [selected, setSelected] = useState([]); // 추가로 묶을 주문 객체들
   const [repId, setRepId] = useState(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -55,29 +55,19 @@ const LinkPreviewDialog = ({ open, onClose, baseOrder, events, addNotification, 
   useEffect(() => {
     if (!open) return;
     setSearchTerm('');
-    setSearchResults([]);
     setSelected([]);
     setRepId(baseOrder?.id ?? null);
     setConfirmed(false);
     supabase.from('site_settings').select('*').single().then(({ data }) => { if (data) setSettings(data); });
-  }, [open, baseOrder]);
 
-  const handleSearch = async () => {
-    if (!searchTerm.trim()) return;
-    setSearchLoading(true);
-    try {
-      const results = await searchOrdersForLinking(searchTerm, baseOrder.id);
-      // 같은 학회 + 취소/환불 제외 후보만
-      const filtered = results.filter(
-        (o) => o.event_id === baseOrder.event_id && !['cancelled', 'refunded'].includes(o.status)
-      );
-      setSearchResults(filtered);
-    } catch (e) {
-      addNotification('검색 실패: ' + e.message, 'error');
-    } finally {
-      setSearchLoading(false);
-    }
-  };
+    // 다이얼로그 열자마자 같은 학회의 연계 가능한 주문을 목록으로 표시
+    if (!baseOrder?.event_id) { setAllCandidates([]); return; }
+    setListLoading(true);
+    getLinkableOrdersByEvent(baseOrder.event_id, baseOrder.id)
+      .then(setAllCandidates)
+      .catch((e) => addNotification('후보 목록 조회 실패: ' + e.message, 'error'))
+      .finally(() => setListLoading(false));
+  }, [open, baseOrder, addNotification]);
 
   const toggleSelect = (order) => {
     setSelected((prev) =>
@@ -86,6 +76,16 @@ const LinkPreviewDialog = ({ open, onClose, baseOrder, events, addNotification, 
   };
 
   if (!baseOrder) return null;
+
+  // 검색어 있으면 로컬 필터(고객명·연락처 부분일치), 없으면 전체
+  const term = searchTerm.trim().toLowerCase();
+  const filteredCandidates = term
+    ? allCandidates.filter(
+        (o) =>
+          (o.customer_name || '').toLowerCase().includes(term) ||
+          (o.phone_number || '').replace(/-/g, '').includes(term.replace(/-/g, ''))
+      )
+    : allCandidates;
 
   const participants = [baseOrder, ...selected];
   const canPreview = participants.length >= 2;
@@ -128,24 +128,26 @@ const LinkPreviewDialog = ({ open, onClose, baseOrder, events, addNotification, 
           {eventName && ` · ${eventName}`}
         </Typography>
 
-        {/* 검색 */}
+        {/* 검색(로컬 필터) */}
         <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
           <TextField
             size="small"
             fullWidth
-            placeholder="고객명 또는 연락처 입력"
+            placeholder="고객명 또는 연락처로 좁히기"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           />
-          <Button variant="contained" onClick={handleSearch} disabled={searchLoading} sx={{ whiteSpace: 'nowrap' }}>
-            {searchLoading ? <CircularProgress size={20} /> : '검색'}
-          </Button>
         </Box>
 
-        {searchResults.length > 0 && (
+        {listLoading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+            <CircularProgress size={24} />
+          </Box>
+        )}
+
+        {!listLoading && filteredCandidates.length > 0 && (
           <List dense sx={{ mb: 1 }}>
-            {searchResults.map((result) => {
+            {filteredCandidates.map((result) => {
               const checked = selected.some((o) => o.id === result.id);
               return (
                 <React.Fragment key={result.id}>
@@ -163,8 +165,10 @@ const LinkPreviewDialog = ({ open, onClose, baseOrder, events, addNotification, 
             })}
           </List>
         )}
-        {searchResults.length === 0 && searchTerm && !searchLoading && (
-          <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 1 }}>검색 결과가 없습니다.</Typography>
+        {!listLoading && filteredCandidates.length === 0 && (
+          <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 1 }}>
+            {searchTerm ? '검색 결과가 없습니다.' : '같은 학회에 연계 가능한 주문이 없습니다.'}
+          </Typography>
         )}
 
         {/* 미리보기 */}

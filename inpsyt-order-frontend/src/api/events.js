@@ -8,7 +8,7 @@ import { supabase } from '../supabaseClient';
 export const getEvents = async () => {
   const { data, error } = await supabase
     .from('events')
-    .select('id, name, discount_rate, tags')
+    .select('id, name, discount_rate, tags, start_date')
     .order('name', { ascending: true });
 
   if (error) {

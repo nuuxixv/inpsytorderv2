@@ -256,3 +256,27 @@ export const searchOrdersForLinking = async (term, excludeOrderId) => {
   // 껍데기 부모는 연계 후보가 될 수 없음(실 주문만 자식이 된다)
   return (data || []).filter(o => !o.is_group_parent);
 };
+
+/**
+ * 같은 학회의 연계 가능한 주문 목록을 검색어 없이 가져옵니다. (합배송 만들기 기본 목록)
+ * parent_order_id가 없고 취소/환불이 아닌 실 주문만 반환.
+ * @param {number} eventId - 기준 주문의 event_id
+ * @param {number} [excludeOrderId] - 목록에서 제외할 기준 주문 id
+ */
+export const getLinkableOrdersByEvent = async (eventId, excludeOrderId) => {
+  let query = supabase
+    .from('orders')
+    .select('id, customer_name, phone_number, total_cost, discount_amount, final_payment, delivery_fee, status, created_at, parent_order_id, is_group_parent, event_id, shipping_address')
+    .eq('event_id', eventId)
+    .is('parent_order_id', null)
+    .not('status', 'in', '("cancelled","refunded")')
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (excludeOrderId) query = query.neq('id', excludeOrderId);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  // 껍데기 부모는 연계 후보가 될 수 없음(실 주문만 자식이 된다)
+  return (data || []).filter(o => !o.is_group_parent);
+};

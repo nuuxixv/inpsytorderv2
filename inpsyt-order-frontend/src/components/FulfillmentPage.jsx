@@ -5,6 +5,7 @@ import {
   Chip,
   Select,
   MenuItem,
+  Divider,
   FormControl,
   InputLabel,
   TextField,
@@ -28,6 +29,7 @@ import SearchOffIcon from '@mui/icons-material/SearchOff';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { getFulfillmentOrders, groupLinkedOrders } from '../api/orders';
 import { getEvents } from '../api/events';
+import { sortEventsForDropdown, groupEventsForDropdown, formatEventStartDate } from '../utils/eventSort';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
@@ -552,14 +554,14 @@ const FulfillmentPage = () => {
   };
 
   useEffect(() => {
-    getEvents().then(setEvents).catch(() => {});
+    getEvents().then((data) => setEvents(sortEventsForDropdown(data))).catch(() => {});
   }, []);
 
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
 
-  // 학회(서버) + 뷰모드 적용 후, 상태·검색 적용 전 — 상태 세그먼트 카운트의 기준
+  // 행사(서버) + 뷰모드 적용 후, 상태·검색 적용 전 — 상태 세그먼트 카운트의 기준
   const baseOrders = useMemo(() => orders.filter(order => {
     if (order.parent_order_id) return false;
     const orderType = classifyOrder(order.mergedItems || order.order_items);
@@ -647,16 +649,29 @@ const FulfillmentPage = () => {
 
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <FormControl size="small" sx={{ minWidth: 200, flex: '0 1 240px' }}>
-            <InputLabel>학회</InputLabel>
+            <InputLabel>행사</InputLabel>
             <Select
               value={filterEvent}
-              label="학회"
+              label="행사"
               onChange={e => setFilterEvent(e.target.value)}
             >
-              <MenuItem value="">전체 학회</MenuItem>
-              {events.map(ev => (
-                <MenuItem key={ev.id} value={ev.id}>{ev.name}</MenuItem>
-              ))}
+              <MenuItem value="">전체 행사</MenuItem>
+              {(() => {
+                const { pinned, rest } = groupEventsForDropdown(events);
+                const renderItem = (ev) => (
+                  <MenuItem key={ev.id} value={ev.id}>
+                    {ev.name}
+                    <Typography component="span" variant="caption" sx={{ color: 'text.secondary', ml: 1 }}>
+                      {formatEventStartDate(ev.start_date) || '시작일 미정'}
+                    </Typography>
+                  </MenuItem>
+                );
+                return [
+                  ...pinned.map(renderItem),
+                  pinned.length > 0 && rest.length > 0 && <Divider key="event-group-divider" />,
+                  ...rest.map(renderItem),
+                ];
+              })()}
             </Select>
           </FormControl>
 
@@ -759,7 +774,7 @@ const FulfillmentPage = () => {
             <EmptyState
               icon={LocalShippingIcon}
               title="해당 조건의 주문이 없습니다"
-              description="학회 필터 또는 뷰 모드를 변경해 보세요"
+              description="행사 필터 또는 뷰 모드를 변경해 보세요"
             />
           )}
         </SectionCard>
