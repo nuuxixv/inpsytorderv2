@@ -561,7 +561,7 @@ const FulfillmentPage = () => {
     loadOrders();
   }, [loadOrders]);
 
-  // 학회(서버) + 뷰모드 적용 후, 상태·검색 적용 전 — 상태 세그먼트 카운트의 기준
+  // 행사(서버) + 뷰모드 적용 후, 상태·검색 적용 전 — 상태 세그먼트 카운트의 기준
   const baseOrders = useMemo(() => orders.filter(order => {
     if (order.parent_order_id) return false;
     const orderType = classifyOrder(order.mergedItems || order.order_items);
@@ -649,13 +649,13 @@ const FulfillmentPage = () => {
 
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <FormControl size="small" sx={{ minWidth: 200, flex: '0 1 240px' }}>
-            <InputLabel>학회</InputLabel>
+            <InputLabel>행사</InputLabel>
             <Select
               value={filterEvent}
-              label="학회"
+              label="행사"
               onChange={e => setFilterEvent(e.target.value)}
             >
-              <MenuItem value="">전체 학회</MenuItem>
+              <MenuItem value="">전체 행사</MenuItem>
               {(() => {
                 const { pinned, rest } = groupEventsForDropdown(events);
                 const renderItem = (ev) => (
@@ -774,7 +774,7 @@ const FulfillmentPage = () => {
             <EmptyState
               icon={LocalShippingIcon}
               title="해당 조건의 주문이 없습니다"
-              description="학회 필터 또는 뷰 모드를 변경해 보세요"
+              description="행사 필터 또는 뷰 모드를 변경해 보세요"
             />
           )}
         </SectionCard>

@@ -13,23 +13,23 @@
 - DB 스키마: `supabase/migrations/20250722070000_create_orders_table.sql` + `20250805_add_new_order_fields.sql` + `20250808040516_add_admin_memo_to_orders.sql` (`orders` 테이블)
 
 ## 사용자 시나리오
-출고 담당자(도서/검사)가 학회 종료 후 사무실 PC에서, 또는 학회 중 태블릿으로 연다. 결제완료(`paid`) 주문을 그룹 카드로 확인하고, 연락처·인싸이트 ID·도로명/상세 주소를 필드 단위로 복사해 택배사/인싸이트 시스템에 붙여넣은 뒤 "출고 처리"(개별) 또는 체크박스 선택 후 "출고 완료 처리"(일괄)로 `status='completed'`로 바꾼다. 실수로 처리한 건은 완료 카드의 "출고 취소"로 `paid`로 되돌린다. 태블릿 겸용이므로 모든 복사 아이콘은 상시 노출(hover-reveal 금지).
+출고 담당자(도서/검사)가 행사 종료 후 사무실 PC에서, 또는 행사 중 태블릿으로 연다. 결제완료(`paid`) 주문을 그룹 카드로 확인하고, 연락처·인싸이트 ID·도로명/상세 주소를 필드 단위로 복사해 택배사/인싸이트 시스템에 붙여넣은 뒤 "출고 처리"(개별) 또는 체크박스 선택 후 "출고 완료 처리"(일괄)로 `status='completed'`로 바꾼다. 실수로 처리한 건은 완료 카드의 "출고 취소"로 `paid`로 되돌린다. 태블릿 겸용이므로 모든 복사 아이콘은 상시 노출(hover-reveal 금지).
 
 ## 표시 정보 (라벨 단위, 누락 금지)
 
 ### 페이지 헤더 (PageHeader)
 - [ ] 제목: **"출고 관리"** + `LocalShippingIcon` (2026-06-12 "출고 현황"에서 개칭)
-- [ ] 서브타이틀: "총 {N}건 · 대기 {N}건 · 완료 {N}건" — 학회+뷰모드 적용 후·상태/검색 적용 전 기준, 로딩 중에는 빈 문자열
+- [ ] 서브타이틀: "총 {N}건 · 대기 {N}건 · 완료 {N}건" — 행사+뷰모드 적용 후·상태/검색 적용 전 기준, 로딩 중에는 빈 문자열
 - [ ] 헤더 우측 액션: "출고 완료 처리 (N)" 버튼 — `orders:edit` 권한 + 선택 건수>0일 때 활성
 
 ### 필터 카드 (SectionCard)
 - [ ] 카드 제목: `FilterListIcon` + "필터"
-- [ ] 학회 선택 드롭다운: 라벨 "학회", 기본값 "전체 학회" + DB 학회 목록
-  - MenuItem: 학회명 + 시작일 `yyyy.M.d`(inline caption, null이면 "시작일 미정")
-  - 옵션 정렬: `sortEventsForDropdown` — 오늘±7일 이내 시작 학회 최상단 고정, 그 다음 나머지. 각 그룹 내부 start_date 내림차순, null 맨 뒤 (`getEvents` 결과에 적용, `src/utils/eventSort.js`)
-  - 렌더: `groupEventsForDropdown`으로 pinned/rest 분리, "전체 학회" 아래 상단 고정 그룹과 내림차순 그룹 사이 `<Divider/>`로 구분(양쪽 그룹 모두 있을 때만)
+- [ ] 행사 선택 드롭다운: 라벨 "행사", 기본값 "전체 행사" + DB 행사 목록
+  - MenuItem: 행사명 + 시작일 `yyyy.M.d`(inline caption, null이면 "시작일 미정")
+  - 옵션 정렬: `sortEventsForDropdown` — 오늘±7일 이내 시작 행사 최상단 고정, 그 다음 나머지. 각 그룹 내부 start_date 내림차순, null 맨 뒤 (`getEvents` 결과에 적용, `src/utils/eventSort.js`)
+  - 렌더: `groupEventsForDropdown`으로 pinned/rest 분리, "전체 행사" 아래 상단 고정 그룹과 내림차순 그룹 사이 `<Divider/>`로 구분(양쪽 그룹 모두 있을 때만)
 - [ ] 검색 TextField 1개: placeholder "이름·연락처·ID 검색" — customer_name·phone_number·inpsyt_id 부분일치(클라이언트, trim·소문자 비교)
-- [ ] 상태 세그먼트 (ToggleButtonGroup): "출고 대기 ({N})" / "출고 완료 ({N})" / "전체" — **기본값 '출고 대기'**. 카운트 N은 학회+뷰모드 적용 후·상태 필터 적용 전 기준(상태 토글을 눌러도 양쪽 N이 살아있음)
+- [ ] 상태 세그먼트 (ToggleButtonGroup): "출고 대기 ({N})" / "출고 완료 ({N})" / "전체" — **기본값 '출고 대기'**. 카운트 N은 행사+뷰모드 적용 후·상태 필터 적용 전 기준(상태 토글을 눌러도 양쪽 N이 살아있음)
 - [ ] 뷰 모드 토글 그룹 — 3개: "전체" / "도서 뷰"(CATEGORY_COLORS.book) / "검사 뷰"(CATEGORY_COLORS.test)
 
 ### 그룹 카드 — 헤더 (FulfillmentGroupCard)
@@ -38,7 +38,7 @@
 - [ ] StatusBadge: `status` 값 (paid/completed)
 - [ ] 연계 칩(조건부): "연계 {N}건" (warning 색, parent 주문에 linkedChildren 있을 때만, N=자식+1)
 - [ ] 결제금액: `mergedTotal ?? final_payment` 천 단위 콤마 + "원", tabular-nums, 우측 정렬
-- [ ] 학회명 + 상품 개수(조건부): "{event.name} · {N}개 상품" (caption)
+- [ ] 행사명 + 상품 개수(조건부): "{event.name} · {N}개 상품" (caption)
 - [ ] 완료 카드는 카드 전체 opacity 0.7 — 별도 "출고처리 완료" 칩은 없음(StatusBadge가 상태 표시, 2026-06-12 중복 제거)
 
 ### 그룹 카드 — 데이터 라인 (InfoRow 5~6줄, 인라인 복사)
@@ -70,7 +70,7 @@
 - [ ] 배송비(조건부): `delivery_fee > 0`일 때 "배송비 {N}원 포함" (caption, 우측 정렬)
 
 ## 액션·기능 (누락 금지)
-- [ ] 학회 필터 변경 → 서버 재조회 (`getFulfillmentOrders`) + 선택 초기화
+- [ ] 행사 필터 변경 → 서버 재조회 (`getFulfillmentOrders`) + 선택 초기화
 - [ ] 검색 입력 → 클라이언트 필터 (이름·연락처·ID 부분일치)
 - [ ] 상태 세그먼트 변경 → 클라이언트 필터 + 선택 초기화 (데이터 로드는 paid+completed 일괄 유지)
 - [ ] 뷰 모드 변경 → 카드 필터링(혼합은 양쪽에 표시) + 상품 행 그레이드 + 선택 초기화
@@ -125,17 +125,17 @@
 - child 주문은 `parent_order_id`가 있는 채로 반환 → 목록 필터에서 숨김
 
 ## 필터·뷰 모드
-- 학회 필터: 단일 선택 or 전체, 기본 `''` (서버 필터)
+- 행사 필터: 단일 선택 or 전체, 기본 `''` (서버 필터)
 - 데이터 로드 상태: 코드 고정 — `['paid', 'completed']` 일괄 조회
 - 상태 세그먼트: `paid`(출고 대기) / `completed`(출고 완료) / `all`. **기본 `paid`**. 클라이언트 필터
 - 검색: 이름·연락처·ID 부분일치. 클라이언트 필터
 - 뷰 모드: `all`/`book`/`test`. 카드 필터링 + 상품 행 그레이드. '도구' 카테고리는 '검사'로 정규화
-- 적용 순서: [서버] 학회 → [클라] parent 숨김 → 뷰모드 → (여기까지가 카운트 기준) → 상태 세그먼트 → 검색
+- 적용 순서: [서버] 행사 → [클라] parent 숨김 → 뷰모드 → (여기까지가 카운트 기준) → 상태 세그먼트 → 검색
 
 ## 빈 상태·로딩·오류 처리
 - 검색 결과 0건: `SearchOffIcon` + "검색 결과가 없습니다" / "이름·연락처·ID를 다시 확인해 보세요"
 - 대기 탭 0건(검색 없음): `CheckCircleIcon` + "출고 대기 주문이 없습니다" / "모두 처리됐어요"
-- 그 외 0건: `LocalShippingIcon` + "해당 조건의 주문이 없습니다" / "학회 필터 또는 뷰 모드를 변경해 보세요"
+- 그 외 0건: `LocalShippingIcon` + "해당 조건의 주문이 없습니다" / "행사 필터 또는 뷰 모드를 변경해 보세요"
 - 로딩: `CircularProgress` size=32 중앙
 - 오류: 상단 `Alert severity="error"` (toast 아님, 화면 안 잔류)
 

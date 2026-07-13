@@ -669,12 +669,12 @@ const OrderManagementPage = () => {
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
       {/* 학회 멀티 선택 */}
       <FormControl size="small" sx={{ minWidth: 200 }}>
-        <InputLabel>학회 선택</InputLabel>
+        <InputLabel>행사 선택</InputLabel>
         <Select
           multiple
           value={state.selectedEvents}
-          label="학회 선택"
-          input={<OutlinedInput label="학회 선택" />}
+          label="행사 선택"
+          input={<OutlinedInput label="행사 선택" />}
           onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'selectedEvents', value: e.target.value } })}
           renderValue={(selected) =>
             selected.length === 0

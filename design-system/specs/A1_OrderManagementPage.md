@@ -38,7 +38,7 @@
 
 ### 필터 영역 (Paper 또는 SwipeableDrawer로 감쌈, line 473-608)
 - [ ] 날짜 프리셋 칩 5종: “오늘” / “최근 2일” / “최근 3일” / “최근 7일” / “최근 30일” (라운드 8px, 클릭 시 startDate·endDate 동시 세팅) — line 462-467
-- [ ] 학회 멀티 선택 드롭다운: 라벨 “학회 선택”, 기본값 “전체”, 1개 선택 시 학회명, 2개+ 시 “N개 선택” — line 490-513
+- [ ] 학회 멀티 선택 드롭다운: 라벨 “행사 선택”, 기본값 “전체”, 1개 선택 시 학회명, 2개+ 시 “N개 선택” — line 490-513
   - MenuItem: 체크박스 + 학회명(primary) + 시작일 `yyyy.M.d`(secondary caption, null이면 “시작일 미정”)
   - 옵션 정렬: `sortEventsForDropdown` — 오늘±7일 이내 시작 학회 최상단 고정, 그 다음 나머지. 각 그룹 내부 start_date 내림차순, null 맨 뒤 (`getEvents` 결과에 적용, `src/utils/eventSort.js`)
   - 렌더: `groupEventsForDropdown`으로 pinned/rest 분리, 상단 고정 그룹과 내림차순 그룹 사이 `<Divider/>`로 구분(양쪽 그룹 모두 있을 때만)
