@@ -160,6 +160,7 @@
 - [ ] **권한**: `orders:edit`. 편집모드 진입 불필요(상시 활성)
 - [ ] `handleToggleOnSitePickup(index)` → 낙관적 로컬 토글 → `supabase.from('order_items').update({ on_site_pickup }).eq('id', item.id).eq('order_id', targetOrderId)` → 실패 시 원복 + 에러 토스트, 성공 시 `onUpdate()`
 - [ ] 금액 계산에 영향 없음(A는 금액 불변)
+- [ ] **(2026-07 확정) 라인 단위 제약 — 부분 현장수령 불가**: `on_site_pickup`은 order_items **라인 단위 BOOLEAN**. "같은 상품 여러 개 중 일부만 현장수령"(예: 3개 중 1개)은 **표현 불가** — 라인 전체가 현장수령이거나 전체 배송. 수량 분할 미지원. 실태조사(전체주문 77건 중 주문전체 현장수령 1건·품목단위 0건, "일부만 현장수령" 운영 경험 0)로 **수량 분할 재설계 기각 확정(YAGNI, 오버엔지니어링 방어)**. 부분 현장수령이 실제로 필요해지면 운영 수기 처리(관리자 메모) 후 재검토.
 
 ### 주문 성격 전환 (주문 단위 · B, pending 전용)
 - [ ] **권한·조건**: `orders:edit` AND `status === 'pending'`
