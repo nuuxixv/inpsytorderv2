@@ -7,6 +7,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Divider,
   Checkbox,
   ListItemText,
   OutlinedInput,
@@ -54,6 +55,7 @@ import { PageHeader, SectionCard, StatCard, StatusBadge, EmptyState } from './ui
 import { computeRevenueByCategory, PAID_STATUSES } from '../utils/revenueByCategory';
 import { CATEGORY_COLORS } from '../constants/categoryColors';
 import FieldReportSection from './FieldReportSection';
+import { groupEventsForDropdown, formatEventStartDate } from '../utils/eventSort';
 // 입금결의서 내보내기는 L2 학회 상세(EventDetailPage) 헤더로 일원화 (2026-06-10 건우님)
 
 // 사양 시트: design-system/specs/A4_DashboardPage.md
@@ -593,17 +595,25 @@ const DashboardPage = () => {
               {filteredEventsForDropdown.length === 0 ? (
                 <MenuItem disabled><em>관련 행사 없음</em></MenuItem>
               ) : (
-                filteredEventsForDropdown.map(ev => (
-                  <MenuItem key={ev.id} value={ev.id}>
-                    <Checkbox checked={selectedEventIds.includes(ev.id)} size="small" />
-                    <ListItemText
-                      primary={ev.name}
-                      secondary={ev.start_date ? new Date(ev.start_date).toLocaleDateString() : '일자 미상'}
-                      primaryTypographyProps={{ variant: 'body2' }}
-                      secondaryTypographyProps={{ variant: 'caption' }}
-                    />
-                  </MenuItem>
-                ))
+                (() => {
+                  const { pinned, rest } = groupEventsForDropdown(filteredEventsForDropdown);
+                  const renderItem = (ev) => (
+                    <MenuItem key={ev.id} value={ev.id}>
+                      <Checkbox checked={selectedEventIds.includes(ev.id)} size="small" />
+                      <ListItemText
+                        primary={ev.name}
+                        secondary={formatEventStartDate(ev.start_date) || '시작일 미정'}
+                        primaryTypographyProps={{ variant: 'body2' }}
+                        secondaryTypographyProps={{ variant: 'caption' }}
+                      />
+                    </MenuItem>
+                  );
+                  return [
+                    ...pinned.map(renderItem),
+                    pinned.length > 0 && rest.length > 0 && <Divider key="event-group-divider" />,
+                    ...rest.map(renderItem),
+                  ];
+                })()
               )}
             </Select>
           </FormControl>

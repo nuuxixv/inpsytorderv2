@@ -55,7 +55,8 @@
     - 빈 배열 + 필터링된 행사 0건 → "관련 행사 없음"
     - 1건 선택 → 해당 학회명
     - 2건+ 선택 → "N개 선택"
-  - 옵션 행: Checkbox + ListItemText(primary=`ev.name`, secondary=`start_date.toLocaleDateString()` 또는 "일자 미상")
+  - 옵션 행: Checkbox + ListItemText(primary=`ev.name`, secondary=`formatEventStartDate(start_date)` 또는 "시작일 미정")
+  - 옵션 정렬·렌더(2026-07-13): `filteredEventsForDropdown`에 `groupEventsForDropdown` 적용 — 오늘±7일 이내 시작 학회를 상단 고정, 그 다음 나머지(각 그룹 start_date 내림차순). 상단 고정 그룹과 내림차순 그룹 사이 `<Divider/>`로 구분(양쪽 그룹 모두 있을 때만). `src/utils/eventSort.js`
   - 관련 행사 없음 시 disabled MenuItem "관련 행사 없음" 노출
 - [ ] 일자 칩(`availableDates.length > 1` 일 때만 노출)
   - **`availableDates` = 단일 상세 행사(`selectedEventIds.length === 1`)의 주문에서 '실제 매출(주문) 발생한 지난 날짜'만 distinct·KST·정렬** (2026-06-01 건우님). `start~end` 전체 enumerate 금지 — 검수/테스트 행사는 1년 내내라 365일 폭주(또 과거엔 전 행사 min→max로 145일+ 버그). 주문 없는 날은 칩 미생성. 넓은 범위/다중 선택 → `[]`(일자 탭 없이 전체 기간만). 2일짜리 행사도 주문 있는 날만(둘 다 있으면 1·2일차)

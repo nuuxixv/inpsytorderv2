@@ -87,7 +87,7 @@ const initialState = {
   selectedStatuses: [],
   events: [],
   selectedEvents: [],
-  startDate: subDays(new Date(), 30),
+  startDate: subDays(new Date(), 3),
   endDate: new Date(),
   products: [],
   productsMap: {},
@@ -135,7 +135,7 @@ function reducer(state, action) {
         searchTerm: '',
         selectedStatuses: [],
         selectedEvents: [],
-        startDate: subDays(new Date(), 30),
+        startDate: subDays(new Date(), 3),
         endDate: new Date(),
         selectedOrders: [],
       };
@@ -191,7 +191,7 @@ const OrderManagementPage = () => {
   // 장기 세션(탭을 며칠간 열어둠)에서 startDate/endDate가 옛날 날짜로 굳는 버그 방지.
   const [state, dispatch] = useReducer(reducer, null, () => ({
     ...initialState,
-    startDate: subDays(new Date(), 30),
+    startDate: subDays(new Date(), 3),
     endDate: new Date(),
     selectedStatuses: searchParams.get('status') ? [searchParams.get('status')] : [],
   }));
@@ -479,6 +479,7 @@ const OrderManagementPage = () => {
   const DATE_PRESETS = [
     { label: '오늘', days: 0 },
     { label: '최근 2일', days: 2 },
+    { label: '최근 3일', days: 3 },
     { label: '최근 7일', days: 7 },
     { label: '최근 30일', days: 30 },
   ];

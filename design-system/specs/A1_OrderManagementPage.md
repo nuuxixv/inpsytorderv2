@@ -37,14 +37,14 @@
 - [ ] (시안만 보유) 부제: 총 N건 / 오늘 접수 M건 — 실 페이지에는 없음. **확인 필요**
 
 ### 필터 영역 (Paper 또는 SwipeableDrawer로 감쌈, line 473-608)
-- [ ] 날짜 프리셋 칩 4종: “오늘” / “최근 2일” / “최근 7일” / “최근 30일” (라운드 8px, 클릭 시 startDate·endDate 동시 세팅) — line 462-467
+- [ ] 날짜 프리셋 칩 5종: “오늘” / “최근 2일” / “최근 3일” / “최근 7일” / “최근 30일” (라운드 8px, 클릭 시 startDate·endDate 동시 세팅) — line 462-467
 - [ ] 학회 멀티 선택 드롭다운: 라벨 “학회 선택”, 기본값 “전체”, 1개 선택 시 학회명, 2개+ 시 “N개 선택” — line 490-513
   - MenuItem: 체크박스 + 학회명(primary) + 시작일 `yyyy.M.d`(secondary caption, null이면 “시작일 미정”)
   - 옵션 정렬: `sortEventsForDropdown` — 오늘±7일 이내 시작 학회 최상단 고정, 그 다음 나머지. 각 그룹 내부 start_date 내림차순, null 맨 뒤 (`getEvents` 결과에 적용, `src/utils/eventSort.js`)
   - 렌더: `groupEventsForDropdown`으로 pinned/rest 분리, 상단 고정 그룹과 내림차순 그룹 사이 `<Divider/>`로 구분(양쪽 그룹 모두 있을 때만)
 - [ ] 주문 상태 멀티 선택 드롭다운: 라벨 “주문 상태”, 5종(`pending`/`paid`/`completed`/`cancelled`/`refunded`) 멀티 체크 가능 — line 516-537
 - [ ] 고객명 검색 TextField: 라벨 “고객명 검색”, 부분 일치(`ilike %term%`) — line 539-546
-- [ ] 시작일 입력: 라벨 “시작일” (기본값 = today − 30) — `ui/DateField`(캘린더 팝오버, native date 폐기, 2026-06-10 통일. 2026-06-15: 직접 타이핑 입력+오늘 강조+6행 고정 캘린더)
+- [ ] 시작일 입력: 라벨 “시작일” (기본값 = today − 3, 2026-07-13 30→3일로 축소) — `ui/DateField`(캘린더 팝오버, native date 폐기, 2026-06-10 통일. 2026-06-15: 직접 타이핑 입력+오늘 강조+6행 고정 캘린더)
 - [ ] 종료일 입력: 라벨 “종료일” (기본값 = today) — `ui/DateField`
 - [ ] “초기화” 버튼 (`RestartAltIcon` 시작 아이콘) — 모든 필터·검색어를 기본값으로 — line 567-573
 - [ ] 상품명 검색 TextField: 라벨 “상품명 검색” — `order_items.product_name` 부분 일치 — line 577-584
@@ -102,7 +102,7 @@
 - [ ] 날짜 프리셋 클릭 → 즉시 두 날짜 모두 변경 (라이브 갱신)
 - [ ] 상품명 검색 → `productSearchTerm` 변경 → order_items.product_name `ilike` (Step 1로 주문 ID 추출 → Step 2로 본 쿼리)
 - [ ] 카테고리 칩 토글 → `selectedProductCategory` 변경 → order_items.category `eq` 필터
-- [ ] 초기화 버튼 → 모든 필터·검색어·날짜 기본값(최근 30일) 복원
+- [ ] 초기화 버튼 → 모든 필터·검색어·날짜 기본값(최근 3일) 복원
 
 ### 선택·일괄
 - [ ] 전체 체크 → 현재 페이지 모든 주문 ID 선택 (line 186-192)
