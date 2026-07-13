@@ -28,6 +28,7 @@ import SearchOffIcon from '@mui/icons-material/SearchOff';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { getFulfillmentOrders, groupLinkedOrders } from '../api/orders';
 import { getEvents } from '../api/events';
+import { sortEventsForDropdown, formatEventStartDate } from '../utils/eventSort';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
@@ -552,7 +553,7 @@ const FulfillmentPage = () => {
   };
 
   useEffect(() => {
-    getEvents().then(setEvents).catch(() => {});
+    getEvents().then((data) => setEvents(sortEventsForDropdown(data))).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -655,7 +656,12 @@ const FulfillmentPage = () => {
             >
               <MenuItem value="">전체 학회</MenuItem>
               {events.map(ev => (
-                <MenuItem key={ev.id} value={ev.id}>{ev.name}</MenuItem>
+                <MenuItem key={ev.id} value={ev.id}>
+                  {ev.name}
+                  <Typography component="span" variant="caption" sx={{ color: 'text.secondary', ml: 1 }}>
+                    {formatEventStartDate(ev.start_date) || '시작일 미정'}
+                  </Typography>
+                </MenuItem>
               ))}
             </Select>
           </FormControl>

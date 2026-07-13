@@ -25,6 +25,8 @@
 ### 필터 카드 (SectionCard)
 - [ ] 카드 제목: `FilterListIcon` + "필터"
 - [ ] 학회 선택 드롭다운: 라벨 "학회", 기본값 "전체 학회" + DB 학회 목록
+  - MenuItem: 학회명 + 시작일 `yyyy.M.d`(inline caption, null이면 "시작일 미정")
+  - 옵션 정렬: `sortEventsForDropdown` — 오늘±7일 이내 시작 학회 최상단 고정, 그 다음 나머지. 각 그룹 내부 start_date 내림차순, null 맨 뒤 (`getEvents` 결과에 적용, `src/utils/eventSort.js`)
 - [ ] 검색 TextField 1개: placeholder "이름·연락처·ID 검색" — customer_name·phone_number·inpsyt_id 부분일치(클라이언트, trim·소문자 비교)
 - [ ] 상태 세그먼트 (ToggleButtonGroup): "출고 대기 ({N})" / "출고 완료 ({N})" / "전체" — **기본값 '출고 대기'**. 카운트 N은 학회+뷰모드 적용 후·상태 필터 적용 전 기준(상태 토글을 눌러도 양쪽 N이 살아있음)
 - [ ] 뷰 모드 토글 그룹 — 3개: "전체" / "도서 뷰"(CATEGORY_COLORS.book) / "검사 뷰"(CATEGORY_COLORS.test)

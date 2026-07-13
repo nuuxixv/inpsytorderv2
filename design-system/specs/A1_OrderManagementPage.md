@@ -26,6 +26,7 @@
 - [ ] 권한 가드: `orders:view` 또는 `master` 권한 없으면 “접근 권한 없음” 메시지만 출력 (line 610-612)
 - [ ] URL 쿼리스트링 `?status=paid` 등으로 진입 시 해당 상태가 초기 필터로 적용됨 (line 181)
 - [ ] 한 행 클릭 → `OrderDetailModal` 오픈 (편집·연계·삭제·알림톡 재발송 가능)
+- [ ] 합배송 만들기(`LinkPreviewDialog`): 열자마자 같은 학회(`baseOrder.event_id`)의 연계 가능한 주문을 기본 목록으로 표시(`getLinkableOrdersByEvent`, parent 없음·취소/환불 제외·껍데기 부모 제외, 최신순 최대 200). 검색바는 로컬 필터(고객명·연락처 부분일치, 서버 재조회 아님). 후보 없으면 “같은 학회에 연계 가능한 주문이 없습니다”
 - [ ] 신규 주문 버튼 → `NewOrderModal` 오픈
 
 ## 표시 정보 (라벨 단위, 누락 금지)
@@ -38,6 +39,8 @@
 ### 필터 영역 (Paper 또는 SwipeableDrawer로 감쌈, line 473-608)
 - [ ] 날짜 프리셋 칩 4종: “오늘” / “최근 2일” / “최근 7일” / “최근 30일” (라운드 8px, 클릭 시 startDate·endDate 동시 세팅) — line 462-467
 - [ ] 학회 멀티 선택 드롭다운: 라벨 “학회 선택”, 기본값 “전체”, 1개 선택 시 학회명, 2개+ 시 “N개 선택” — line 490-513
+  - MenuItem: 체크박스 + 학회명(primary) + 시작일 `yyyy.M.d`(secondary caption, null이면 “시작일 미정”)
+  - 옵션 정렬: `sortEventsForDropdown` — 오늘±7일 이내 시작 학회 최상단 고정, 그 다음 나머지. 각 그룹 내부 start_date 내림차순, null 맨 뒤 (`getEvents` 결과에 적용, `src/utils/eventSort.js`)
 - [ ] 주문 상태 멀티 선택 드롭다운: 라벨 “주문 상태”, 5종(`pending`/`paid`/`completed`/`cancelled`/`refunded`) 멀티 체크 가능 — line 516-537
 - [ ] 고객명 검색 TextField: 라벨 “고객명 검색”, 부분 일치(`ilike %term%`) — line 539-546
 - [ ] 시작일 입력: 라벨 “시작일” (기본값 = today − 30) — `ui/DateField`(캘린더 팝오버, native date 폐기, 2026-06-10 통일. 2026-06-15: 직접 타이핑 입력+오늘 강조+6행 고정 캘린더)

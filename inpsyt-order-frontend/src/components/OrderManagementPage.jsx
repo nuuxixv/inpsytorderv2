@@ -43,6 +43,7 @@ import NewOrderModal from './NewOrderModal';
 import TableSkeleton from './TableSkeleton';
 import { SearchOff as SearchOffIcon, FilterList as FilterListIcon } from '@mui/icons-material';
 import { getEvents } from '../api/events';
+import { sortEventsForDropdown, formatEventStartDate } from '../utils/eventSort';
 import { fetchAllProducts } from '../api/products';
 import { getOrders, groupLinkedOrders } from '../api/orders';
 import { sendAlimtalk } from '../api/alimtalk';
@@ -246,7 +247,7 @@ const OrderManagementPage = () => {
   const fetchEvents = useCallback(async () => {
     try {
       const eventsData = await getEvents();
-      dispatch({ type: 'SET_STATE', payload: { events: eventsData } });
+      dispatch({ type: 'SET_STATE', payload: { events: sortEventsForDropdown(eventsData) } });
     } catch {
       addNotification('학회 정보를 불러오는 데 실패했습니다.', 'error');
     }
@@ -685,7 +686,12 @@ const OrderManagementPage = () => {
           {state.events.map((event) => (
             <MenuItem key={event.id} value={event.id}>
               <Checkbox checked={state.selectedEvents.includes(event.id)} size="small" />
-              <ListItemText primary={event.name} primaryTypographyProps={{ variant: 'body2' }} />
+              <ListItemText
+                primary={event.name}
+                secondary={formatEventStartDate(event.start_date) || '시작일 미정'}
+                primaryTypographyProps={{ variant: 'body2' }}
+                secondaryTypographyProps={{ variant: 'caption' }}
+              />
             </MenuItem>
           ))}
         </Select>
