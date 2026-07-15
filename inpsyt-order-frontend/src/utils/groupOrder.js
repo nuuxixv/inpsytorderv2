@@ -58,6 +58,29 @@ export const formatGroupCustomerNames = (children = []) => {
 };
 
 /**
+ * 합배송 자식 상태 변경 시 대표 배송지 위임 방식을 분기한다 (목록·모달 공유 단일 소스).
+ * - passthrough: 일반 상태 변경 (취소/환불 아님 · 대표 아님 · 남은 활성 형제 0건 중 하나)
+ * - auto: 대표 취소·환불 && 남은 활성 형제 정확히 1건 → 그 1건에 배송지 자동 위임
+ * - pick: 대표 취소·환불 && 남은 활성 형제 2건+ → 배송지 받을 주문 선택 필요
+ * 활성 = status가 cancelled/refunded 아님.
+ * @param {{children:Array, repChildId:(number|null), child:{id:number}, newStatus:string}}
+ * @returns {{ mode:'passthrough'|'auto'|'pick', siblings:Array }}
+ */
+export const classifyGroupStatusChange = ({ children = [], repChildId, child, newStatus }) => {
+  const isCancel = INACTIVE.includes(newStatus);
+  const isRep = repChildId != null && child.id === repChildId;
+  const siblings = children.filter((c) => c.id !== child.id && !INACTIVE.includes(c.status));
+
+  if (!isCancel || !isRep || siblings.length === 0) {
+    return { mode: 'passthrough', siblings: [] };
+  }
+  if (siblings.length === 1) {
+    return { mode: 'auto', siblings };
+  }
+  return { mode: 'pick', siblings };
+};
+
+/**
  * groupLinkedOrders 결과(플랫)를 트리 구조로 변환한다.
  * 껍데기 부모 → { type:'group', shell, children } / 그 외 → { type:'single', order }
  * 부모가 현재 페이지에 없는 고아 자식은 single 로 폴백(사라짐 방지).

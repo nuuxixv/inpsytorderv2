@@ -30,7 +30,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { supabase } from '../supabaseClient';
 import { deleteOrderGroup, reassignGroupRepresentative } from '../api/orders';
-import { summarizeGroupStatus } from '../utils/groupOrder';
+import { summarizeGroupStatus, classifyGroupStatusChange } from '../utils/groupOrder';
 import { SHIPPING_DEFAULTS } from '../constants/shipping';
 import { SectionCard, StatusBadge, InfoRow, PriceBlock, ActionSlot } from './ui';
 import OrderSections from './OrderSections';
@@ -38,8 +38,6 @@ import ShippingPickModal from './ShippingPickModal';
 
 // 껍데기 모달 (설계 §5.2 / 위임 §2). 껍데기 자체 편집 없음 — 조망 + 자식 토글 편집.
 // 내부 용어(대표·껍데기·부모·자식) UI 노출 금지 — "합배송 건·묶음 배송지·주문 1·2".
-
-const CANCELLED = ['cancelled', 'refunded'];
 
 const GroupOrderModal = ({ shell, open, onClose, statusToKorean, productsMap, products, events, addNotification, onUpdate, productsLoading, hasPermission }) => {
   const theme = useTheme();
@@ -71,12 +69,10 @@ const GroupOrderModal = ({ shell, open, onClose, statusToKorean, productsMap, pr
 
   // 대표 취소 위임 인터셉트 — OrderSections 상태 변경 전에 호출됨.
   const handleStatusChangeIntercept = async (child, newStatus) => {
-    if (!CANCELLED.includes(newStatus)) return false;
-    if (repChildId == null || child.id !== repChildId) return false; // 대표가 아니면 일반 처리
-    const siblings = children.filter((c) => c.id !== child.id && !CANCELLED.includes(c.status));
-    if (siblings.length === 0) return false; // 남은 활성 주문 없음 — 일반 취소
+    const { mode, siblings } = classifyGroupStatusChange({ children, repChildId, child, newStatus });
+    if (mode === 'passthrough') return false; // 일반 처리 위임
 
-    if (siblings.length === 1) {
+    if (mode === 'auto') {
       try {
         await reassignGroupRepresentative(shell.id, child.id, siblings[0].id);
         const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', child.id);

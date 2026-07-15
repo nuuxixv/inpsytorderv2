@@ -43,7 +43,7 @@
   - 옵션 정렬: `sortEventsForDropdown` — 오늘±7일 이내 시작 학회 최상단 고정, 그 다음 나머지. 각 그룹 내부 start_date 내림차순, null 맨 뒤 (`getEvents` 결과에 적용, `src/utils/eventSort.js`)
   - 렌더: `groupEventsForDropdown`으로 pinned/rest 분리, 상단 고정 그룹과 내림차순 그룹 사이 `<Divider/>`로 구분(양쪽 그룹 모두 있을 때만)
 - [ ] 주문 상태 멀티 선택 드롭다운: 라벨 “주문 상태”, 5종(`pending`/`paid`/`completed`/`cancelled`/`refunded`) 멀티 체크 가능 — line 516-537
-- [ ] 고객명 검색 TextField: 라벨 “고객명 검색”, 부분 일치(`ilike %term%`) — line 539-546
+- [ ] 통합 검색 TextField: 라벨 “이름·연락처·ID·주문번호 검색”. `applyBaseFilters`가 `.or()`로 다중 필드 부분일치(`customer_name`·`phone_number`·`inpsyt_id` ilike). 추가 규칙: (1) 연락처 10/11자리 숫자면 하이픈 삽입 변형도 `phone_number.ilike` 절 append(`searchOrdersForLinking`과 동일), (2) `#?숫자` 형태면 `id.eq.{숫자}` 절 추가(비숫자면 미추가 — PostgREST 에러 방지), (3) 검색어 내 콤마는 `.or()` 파서 충돌 방지로 공백 치환. 단일쿼리·상품필터 Step1 idQuery 양쪽 공유 — api/orders.js:19-42
 - [ ] 시작일 입력: 라벨 “시작일” (기본값 = today − 7, 2026-07-13 30→3→7일 조정) — `ui/DateField`(캘린더 팝오버, native date 폐기, 2026-06-10 통일. 2026-06-15: 직접 타이핑 입력+오늘 강조+6행 고정 캘린더)
 - [ ] 종료일 입력: 라벨 “종료일” (기본값 = today) — `ui/DateField`
 - [ ] “초기화” 버튼 (`RestartAltIcon` 시작 아이콘) — 모든 필터·검색어를 기본값으로 — line 567-573
@@ -75,7 +75,7 @@
 - [ ] “학회명” 컬럼 — `events.find(e => e.id === order.event_id)?.name`, 없으면 "N/A" — line 817
 - [ ] “총 금액” 컬럼 — `order.final_payment.toLocaleString()`원 (천 단위 콤마, 원 단위) — line 818
 - [ ] “주문일시” 컬럼 — `yyyy-MM-dd HH:mm` — line 819
-- [ ] “상태” 컬럼 — `Select` (5개 상태), `orders:edit` 없으면 disabled — line 820-826
+- [ ] “상태” 컬럼 — `Select`. 옵션은 **상태기계 필터**(`getStatusOptions(order.status)`, `orderStatus.js`): 현재 상태 선두 + 허용 전이만(`pending→[paid,cancelled]`, `paid→[refunded]`). completed 전이는 목록 노출 금지(출고관리 전용), pending 회귀 금지. `orders:edit` 없으면 disabled. **옵션이 현재상태 1개뿐인 종결(completed·cancelled·refunded)이면 Select 대신 읽기전용 `StatusBadge` 렌더**
 - [ ] (조건부, `alimtalk_status === 'failed'`) 상태 셀 하단 “알림톡 실패” 칩 — error 토큰(`palette.error.main` alpha 채움+보더), 미발송(null)·sent는 칩 없음
 - [ ] 행 클릭 시 (체크박스·상태 셀 제외) `OrderDetailModal` 오픈 — line 815-819 onClick
 - [ ] 체크박스는 행 클릭 이벤트 stopPropagation — line 194-212
@@ -114,9 +114,13 @@
 - [ ] 신규 주문 버튼 → `NewOrderModal` 오픈 (`orders:edit` 필요)
 - [ ] 행 클릭 → `OrderDetailModal` 오픈
 - [ ] 상태 셀 Select 변경 → `orders.status` 업데이트 + `status_history` 트리거로 이력 추가 + (newStatus=paid면) `sendAlimtalk(orderId)` 비동기 호출 — line 418-436
+- [ ] **합배송 자식 행 상태 편집** — 자식 행 상태 배지가 Select로 전환(옵션=`getStatusOptions(child.status)`, 종결이면 읽기전용 배지). 껍데기 행은 읽기전용 종합 배지 유지. `handleGroupChildStatusChange(node, child, newStatus)`가 `classifyGroupStatusChange`로 분기:
+  - `passthrough` → 기존 `handleStatusChange(child.id, newStatus)`(paid 시 알림톡 자동발송 포함)
+  - `auto`(대표 취소·환불 && 남은 활성 1건) → `reassignGroupRepresentative` 후 status update → “묶음 배송지를 자동으로 옮기고 주문을 취소했습니다.” 토스트 → 재조회
+  - `pick`(남은 활성 2건+) → 페이지 레벨 `ShippingPickModal`로 새 묶음 배송지 선택. **위임 경로를 건너뛰면 그룹 배송이 깨짐** — GroupOrderModal 모달 경로와 동일 규칙(단일 소스 `utils/groupOrder.js`)
 
 ### 엑셀
-- [ ] 엑셀 메뉴 클릭 → `handleExcelDownload(type)` — `getOrders`를 currentPage=1, ordersPerPage=`totalOrders`로 1회 더 조회 후 `xlsx`로 시트 작성
+- [ ] 엑셀 메뉴 클릭 → `handleExcelDownload(type)` — `getOrders`를 currentPage=1, ordersPerPage=`totalOrders`로 1회 더 조회 후 **`utils/orderExcel.js`의 `exportOrderExcel({ orders, type, events, productsMap, eventFilterName })`** 로 시트 작성(행 빌드+워크북+파일저장 순수 유틸, 출고관리와 공유). `eventFilterName`=단일 학회 필터 시 학회명. rowCount 0이면 “출고 데이터 없음” 토스트. 아이템 소스 `order.mergedItems || order.order_items`
 - [ ] book 필터: `category === '도서'` 인 order_items만 행 분해
 - [ ] test 필터: `category` 가 `검사` 포함 또는 `온라인검사`인 order_items만
 - [ ] all: 모든 order_items
@@ -292,4 +296,5 @@ frontend가 M3 사이클에서 흡수해야 할 항목:
 ## 변경 이력
 - 2026-05-28 신설 — M3 frontend 위임 사전 작성. 게이트 1.5 통과 목적. 시안(`OrderManagementPreview.jsx`) vs 실 페이지(`OrderManagementPage.jsx`) 차이 10건 적출. RPC 부채 1건, viewer 엑셀 권한 1건 부채 후보로 기록.
 - 2026-06-10 알림톡 발송 결과 가시화 — `alimtalk_status`/`alimtalk_error`/`alimtalk_attempted_at` 컬럼 추가(backend 병렬)에 맞춰 발송 결과 DB 기록 사양 신설. 데스크톱 상태 셀·모바일 카드에 “알림톡 실패” 칩(error 토큰) 추가. 단건 paid 전환 시 알림톡 결과 수신 후 목록 재조회. 차이 적출 10번(알림톡 발송 트리거 UI 시그널 없음) 부분 해소.
+- 2026-07-15 주문 코어 고도화 (P1+P2+P3) — (P2) 목록 상태 Select를 상태기계(`ALLOWED_TRANSITIONS`·`getStatusOptions`, `orderStatus.js`)로 필터: 단독 행·합배송 자식 행 모두 현재 상태 선두+허용 전이만 노출, completed 전이는 목록 금지(출고관리 전용), 종결(completed·cancelled·refunded)은 읽기전용 배지. 합배송 자식 행을 목록에서 직접 편집 가능(기존은 읽기전용 배지) — 대표 취소·환불 시 `classifyGroupStatusChange`(`utils/groupOrder.js`, GroupOrderModal과 공유 단일 소스)로 auto(1건 자동 위임)/pick(`ShippingPickModal`)/passthrough 분기. GroupOrderModal `handleStatusChangeIntercept`도 동일 함수로 리팩터(동작·문구 불변). (P1) 검색을 이름·연락처·ID·주문번호 다중 필드 `.or()`로 확장(연락처 하이픈 변형·주문번호 id.eq·콤마 방어). (P3) 엑셀 빌드를 `utils/orderExcel.js`로 추출(출고관리와 공유, 출력 바이트 불변). TDD: `orderStatus.test.js`·`groupOrder.test.js`·`orderExcel.test.js`.
 - 2026-07-08 합배송 껍데기 부모 모델 — 트리 목록으로 전환. `is_group_parent` 껍데기 행(`#{대표} 외 N건` + [연계] 배지 + 유니크 이름 + 종합 상태 배지(읽기전용)+캡션 `summarizeGroupStatus`) + 자식 행 들여쓰기(borderLeft 1px grey.300, 개별 상태 읽기전용). 어느 행이든 클릭 = `GroupOrderModal`. 비연계 단독은 기존 행(상태 Select) 그대로. 체크박스·일괄 상태 변경은 껍데기 제외 실 주문만. `groupLinkedOrders`가 껍데기 자식합만 집계(중복 합산 제거), `buildOrderTree`/`summarizeGroupStatus`/`formatGroupCustomerNames`/`inferRepChild`는 `utils/groupOrder.js`. **후속: get_order_by_token·link_orders_into_group 마이그레이션 적용과 동시 배포 필요.** 검색은 자식 이름 매칭 시 껍데기 부모가 같은 페이지에 없으면 자식이 단독으로 surfacing(부모 병합은 후속 — 껍데기 선조회 미구현).

@@ -36,20 +36,21 @@ import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import { KeyboardArrowDown as KeyboardArrowDownIcon, ShoppingCart as ShoppingCartIcon, RestartAlt as RestartAltIcon } from '@mui/icons-material';
 import { useSearchParams } from 'react-router-dom';
-import * as XLSX from 'xlsx';
 import OrderDetailModal from './OrderDetailModal';
 import GroupOrderModal from './GroupOrderModal';
 import NewOrderModal from './NewOrderModal';
+import ShippingPickModal from './ShippingPickModal';
 import TableSkeleton from './TableSkeleton';
 import { SearchOff as SearchOffIcon, FilterList as FilterListIcon } from '@mui/icons-material';
 import { getEvents } from '../api/events';
 import { sortEventsForDropdown, groupEventsForDropdown, formatEventStartDate } from '../utils/eventSort';
 import { fetchAllProducts } from '../api/products';
-import { getOrders, groupLinkedOrders } from '../api/orders';
+import { getOrders, groupLinkedOrders, reassignGroupRepresentative } from '../api/orders';
 import { sendAlimtalk } from '../api/alimtalk';
-import { buildOrderTree, summarizeGroupStatus, formatGroupCustomerNames } from '../utils/groupOrder';
+import { buildOrderTree, summarizeGroupStatus, formatGroupCustomerNames, classifyGroupStatusChange } from '../utils/groupOrder';
+import { exportOrderExcel } from '../utils/orderExcel';
 import { PageHeader, SectionCard, StatusBadge, EmptyState, DateField } from './ui';
-import { STATUS_TO_KOREAN } from '../constants/orderStatus';
+import { STATUS_TO_KOREAN, getStatusOptions } from '../constants/orderStatus';
 
 const statusToKorean = STATUS_TO_KOREAN;
 
@@ -197,6 +198,7 @@ const OrderManagementPage = () => {
   }));
   const [bulkStatus, setBulkStatus] = React.useState('');
   const [excelMenuAnchor, setExcelMenuAnchor] = React.useState(null);
+  const [pick, setPick] = React.useState({ open: false, oldRep: null, candidates: [], newStatus: null, groupParentId: null });
 
   const handleSelectAllClick = () => {
     const selectable = state.orders.filter(o => !o.is_group_parent).map(o => o.id);
@@ -364,65 +366,22 @@ const OrderManagementPage = () => {
       });
       if (error) throw error;
 
-      const dataForExcel = [];
-      const isFilteredByEvent = state.selectedEvents.length === 1;
-      
-      allOrders.forEach(order => {
-        const orderEvent = state.events.find(e => e.id === order.event_id)?.name || 'N/A';
-        
-        const itemsToExport = order.order_items.filter(item => {
-           const itemCategory = item.category || state.productsMap[item.product_id]?.category;
-           if (!itemCategory && !state.productsMap[item.product_id]) return false;
+      const eventFilterName = state.selectedEvents.length === 1
+        ? state.events.find(e => e.id === state.selectedEvents[0])?.name
+        : null;
 
-           if (type === 'book') return itemCategory === '도서';
-           if (type === 'test') return itemCategory?.includes('검사') || itemCategory === '온라인검사';
-           return true;
-        });
-
-        if (itemsToExport.length === 0) return;
-
-        itemsToExport.forEach(item => {
-           const product = state.productsMap[item.product_id];
-           const row = {
-             '주문일시': format(new Date(order.created_at), 'yyyy-MM-dd HH:mm'),
-             '주문번호': order.id,
-             '고객명': order.customer_name,
-             '연락처': order.phone_number,
-             '배송 주소': `${order.shipping_address?.postcode || ''} ${order.shipping_address?.address || ''} ${order.shipping_address?.detail || ''}`.trim(),
-             '고객 요청사항': order.customer_request || '-',
-             '관리자 메모': order.admin_memo || '-',
-           };
-
-           if (!isFilteredByEvent) {
-             row['학회명'] = orderEvent;
-           }
-
-           row['카테고리'] = item.category || product?.category || 'N/A';
-           row['상품명'] = item.product_name || product?.name || 'N/A';
-           row['주문 수량'] = item.quantity;
-           row['실결제금액(참고)'] = order.final_payment;
-           row['상태'] = statusToKorean[order.status] || order.status;
-
-           dataForExcel.push(row);
-        });
+      const { rowCount } = exportOrderExcel({
+        orders: allOrders,
+        type,
+        events: state.events,
+        productsMap: state.productsMap,
+        eventFilterName,
       });
 
-      if (dataForExcel.length === 0) {
+      if (rowCount === 0) {
         addNotification(`해당 조건에 맞는 주문 내역이 없습니다. (출고 데이터 없음)`, 'warning');
         return;
       }
-
-      const worksheet = XLSX.utils.json_to_sheet(dataForExcel);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, '출고목록');
-      
-      const dateStr = format(new Date(), 'yyyyMMdd');
-      const eventPrefix = isFilteredByEvent
-        ? `[${state.events.find(e => e.id === state.selectedEvents[0])?.name}]_`
-        : '';
-      const typeStr = type === 'book' ? '도서출고목록' : type === 'test' ? '검사출고목록' : '통합주문목록';
-      
-      XLSX.writeFile(workbook, `${eventPrefix}${typeStr}_${dateStr}.xlsx`);
       addNotification('엑셀 파일이 성공적으로 생성되었습니다.', 'success');
     } catch (err) {
       addNotification(`엑셀 다운로드 실패: ${err.message}`, 'error');
@@ -451,6 +410,36 @@ const OrderManagementPage = () => {
       addNotification(`주문 상태 업데이트 실패: ${err.message}`, 'error');
     }
   }, [fetchOrders, addNotification, state.orders]);
+
+  // 합배송 자식 행 상태 변경 — 대표 취소·환불 시 배송지 위임 경로를 태운다 (GroupOrderModal과 동일 규칙).
+  const handleGroupChildStatusChange = async (node, child, newStatus) => {
+    const { mode, siblings } = classifyGroupStatusChange({
+      children: node.children,
+      repChildId: node.shell.representative_child_id,
+      child,
+      newStatus,
+    });
+
+    if (mode === 'passthrough') {
+      handleStatusChange(child.id, newStatus);
+      return;
+    }
+
+    if (mode === 'auto') {
+      try {
+        await reassignGroupRepresentative(node.shell.id, child.id, siblings[0].id);
+        const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', child.id);
+        if (error) throw error;
+        addNotification('묶음 배송지를 자동으로 옮기고 주문을 취소했습니다.', 'success');
+        fetchOrders();
+      } catch (e) {
+        addNotification('배송지 위임 실패: ' + e.message, 'error');
+      }
+      return;
+    }
+
+    setPick({ open: true, oldRep: child, candidates: siblings, newStatus, groupParentId: node.shell.id });
+  };
 
   const formatOrderId = (order) => {
     if (order.parent_order_id) {
@@ -513,18 +502,26 @@ const OrderManagementPage = () => {
         <TableCell onClick={() => openOrder(order)}>{(order.final_payment || 0).toLocaleString()}원</TableCell>
         <TableCell onClick={() => openOrder(order)}>{format(new Date(order.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
         <TableCell>
-          <FormControl size="small" variant="outlined" sx={{ minWidth: 120 }} onClick={(e) => e.stopPropagation()}>
-            <Select value={order.status} onChange={(e) => handleStatusChange(order.id, e.target.value)} disabled={!hasPermission('orders:edit')}>
-              {Object.entries(statusToKorean).map(([key, value]) => <MenuItem key={key} value={key}>{value}</MenuItem>)}
-            </Select>
-          </FormControl>
+          {(() => {
+            const options = getStatusOptions(order.status);
+            return options.length <= 1 ? (
+              <StatusBadge value={order.status} size="sm" label={statusToKorean[order.status]} />
+            ) : (
+              <FormControl size="small" variant="outlined" sx={{ minWidth: 120 }} onClick={(e) => e.stopPropagation()}>
+                <Select value={order.status} onChange={(e) => handleStatusChange(order.id, e.target.value)} disabled={!hasPermission('orders:edit')}>
+                  {options.map((key) => <MenuItem key={key} value={key}>{statusToKorean[key]}</MenuItem>)}
+                </Select>
+              </FormControl>
+            );
+          })()}
           {order.alimtalk_status === 'failed' && (<Box sx={{ mt: 0.5 }}><AlimtalkFailBadge /></Box>)}
         </TableCell>
       </TableRow>
     );
   };
 
-  const renderGroupRows = ({ shell, children }) => {
+  const renderGroupRows = (node) => {
+    const { shell, children } = node;
     const repId = shell.representative_child_id ?? children[0]?.id ?? shell.id;
     const summary = summarizeGroupStatus(children);
     const eventName = state.events.find(e => e.id === shell.event_id)?.name || 'N/A';
@@ -557,6 +554,7 @@ const OrderManagementPage = () => {
       </TableRow>,
     ];
     children.forEach((child) => {
+      const childOptions = getStatusOptions(child.status);
       rows.push(
         <TableRow key={`child-${child.id}`} hover onClick={() => openOrder(shell)} sx={{ cursor: 'pointer' }}>
           {colSpanForEdit === 1 && <TableCell padding="checkbox" />}
@@ -567,7 +565,17 @@ const OrderManagementPage = () => {
           <TableCell sx={{ color: 'text.secondary' }}>{eventName}</TableCell>
           <TableCell sx={{ color: 'text.secondary' }}>{(child.final_payment || 0).toLocaleString()}원</TableCell>
           <TableCell sx={{ color: 'text.secondary' }}>{format(new Date(child.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
-          <TableCell><StatusBadge value={child.status} size="sm" label={statusToKorean[child.status]} /></TableCell>
+          <TableCell>
+            {childOptions.length <= 1 ? (
+              <StatusBadge value={child.status} size="sm" label={statusToKorean[child.status]} />
+            ) : (
+              <FormControl size="small" variant="outlined" sx={{ minWidth: 120 }} onClick={(e) => e.stopPropagation()}>
+                <Select value={child.status} onChange={(e) => handleGroupChildStatusChange(node, child, e.target.value)} disabled={!hasPermission('orders:edit')}>
+                  {childOptions.map((key) => <MenuItem key={key} value={key}>{statusToKorean[key]}</MenuItem>)}
+                </Select>
+              </FormControl>
+            )}
+          </TableCell>
         </TableRow>
       );
     });
@@ -731,7 +739,7 @@ const OrderManagementPage = () => {
       </FormControl>
 
       <TextField
-        label="고객명 검색"
+        label="이름·연락처·ID·주문번호 검색"
         variant="outlined"
         size="small"
         sx={{ flex: 1, minWidth: 160 }}
@@ -1013,6 +1021,19 @@ const OrderManagementPage = () => {
         events={state.events}
         products={state.products}
         settings={state.settings}
+      />
+
+      {/* 합배송 대표 취소 위임 — 남은 활성 주문 2건+일 때 묶음 배송지 선택 */}
+      <ShippingPickModal
+        open={pick.open}
+        onClose={() => setPick({ open: false, oldRep: null, candidates: [], newStatus: null, groupParentId: null })}
+        groupParentId={pick.groupParentId}
+        oldRep={pick.oldRep}
+        candidates={pick.candidates}
+        newStatus={pick.newStatus}
+        settings={state.settings}
+        addNotification={addNotification}
+        onDone={() => { setPick({ open: false, oldRep: null, candidates: [], newStatus: null, groupParentId: null }); fetchOrders(); }}
       />
     </Box>
   );

@@ -17,7 +17,30 @@ import { format, startOfDay, endOfDay } from 'date-fns';
 const ALL_ITEMS_SELECT = 'order_items(id, product_id, quantity, price_at_purchase, product_name, product_code, category, list_price, on_site_pickup)';
 
 const applyBaseFilters = (query, { searchTerm, selectedStatuses, selectedEvents, startDate, endDate }) => {
-  if (searchTerm) query = query.ilike('customer_name', `%${searchTerm}%`);
+  if (searchTerm) {
+    // 콤마는 PostgREST .or() 파서와 충돌 → 공백으로 치환
+    const term = searchTerm.replace(/,/g, ' ').trim();
+    if (term) {
+      const clauses = [
+        `customer_name.ilike.%${term}%`,
+        `phone_number.ilike.%${term}%`,
+        `inpsyt_id.ilike.%${term}%`,
+      ];
+      // 연락처 하이픈 변형 (10/11자리 숫자) — searchOrdersForLinking과 동일 규칙
+      const digits = term.replace(/-/g, '');
+      if (/^\d{10,11}$/.test(digits)) {
+        const phoneVariant = digits.length === 11
+          ? `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
+          : `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+        if (phoneVariant !== term) clauses.push(`phone_number.ilike.%${phoneVariant}%`);
+      }
+      // 주문번호(#123 또는 123)만 id 정확 일치 절 추가 (비숫자면 미추가 — PostgREST 에러 방지)
+      if (/^#?\d+$/.test(term)) {
+        clauses.push(`id.eq.${term.replace(/^#/, '')}`);
+      }
+      query = query.or(clauses.join(','));
+    }
+  }
   if (selectedStatuses?.length > 0) query = query.in('status', selectedStatuses);
   if (selectedEvents?.length > 0) query = query.in('event_id', selectedEvents);
   if (startDate && endDate) {

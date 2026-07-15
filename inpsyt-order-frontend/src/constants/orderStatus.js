@@ -23,3 +23,17 @@ export const STATUS_COLORS = {
 
 // 매출에 포함되는 상태 (취소/환불 제외)
 export const REVENUE_STATUSES = ['pending', 'paid', 'completed'];
+
+// 목록·모달에서 허용하는 상태 전이 (단일 소스).
+// completed(처리완료)는 출고관리 전용 — 목록에서 노출 금지. pending 회귀도 금지.
+export const ALLOWED_TRANSITIONS = {
+  pending:   ['paid', 'cancelled'],
+  paid:      ['refunded'],
+  completed: [],
+  cancelled: [],
+  refunded:  [],
+};
+
+// 현재 상태를 선두로 허용 전이를 이어붙인 옵션 배열 (중복 제거, 순서 유지).
+export const getStatusOptions = (current) =>
+  [...new Set([current, ...(ALLOWED_TRANSITIONS[current] || [])])];

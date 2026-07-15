@@ -20,7 +20,14 @@
 ### 페이지 헤더 (PageHeader)
 - [ ] 제목: **"출고 관리"** + `LocalShippingIcon` (2026-06-12 "출고 현황"에서 개칭)
 - [ ] 서브타이틀: "총 {N}건 · 대기 {N}건 · 완료 {N}건" — 행사+뷰모드 적용 후·상태/검색 적용 전 기준, 로딩 중에는 빈 문자열
-- [ ] 헤더 우측 액션: "출고 완료 처리 (N)" 버튼 — `orders:edit` 권한 + 선택 건수>0일 때 활성
+- [ ] 헤더 우측 액션: **"엑셀 다운로드" 버튼**(outlined, `KeyboardArrowDown` 아이콘) + "출고 완료 처리 (N)" 버튼(`orders:edit` 권한 + 선택 건수>0일 때 활성)
+
+### 엑셀 다운로드 (헤더 액션)
+- [ ] "엑셀 다운로드" 버튼 클릭 → Menu 3종: 📘 도서 출고 전용 엑셀(`book`) / 📄 검사 출고 전용 엑셀(`test`) / (Divider) / 전체 통합 엑셀 (백업용)(`all`) — 주문관리(A1)와 동일 라벨·패턴
+- [ ] `handleFulfillmentExcel(type)` → `utils/orderExcel.js`의 `exportOrderExcel` 호출. **소스 = 이미 로드된 `filteredOrders`(현재 행사·상태·검색·뷰모드 필터 반영, 재조회 없음)**. `eventFilterName`=행사 필터 선택 시 학회명(선택 시 파일명 `[학회명]_` 접두 + 학회명 컬럼 생략). `productsMap`은 없어 `{}` 전달 — 아이템 분류·상품명은 order_items 스냅샷(`category`/`product_name`) 또는 `products` join으로 판정
+- [ ] 아이템 소스 `order.mergedItems || order.order_items` — 합배송 껍데기는 mergedItems(자식 병합)로 내보냄
+- [ ] 컬럼 순서·필터·파일명 규칙은 A1 엑셀과 완전 동일(단일 유틸 공유). rowCount 0이면 "해당 조건에 맞는 출고 데이터가 없습니다." 토스트, 파일 미생성
+- [ ] 조회 전용(`orders:edit` 미보유)도 엑셀 다운로드 가능(A1과 동일 — 출고 정보 전달 목적)
 
 ### 필터 카드 (SectionCard)
 - [ ] 카드 제목: `FilterListIcon` + "필터"
@@ -148,6 +155,7 @@
 6. **출고 취소는 completed→paid 단순 복귀.** 알림톡 재발송 없음(발송은 주문관리 플로우의 명시적 호출 전용). status_history·audit_log는 DB 트리거가 기록.
 
 ## 변경 이력
+- 2026-07-15 출고 엑셀 다운로드 추가 (P3) — 헤더에 "엑셀 다운로드" 버튼+Menu(도서/검사/전체) 신설. 주문관리(A1)와 엑셀 로직을 `utils/orderExcel.js`(`exportOrderExcel`/`buildOrderExcelRows`)로 공유. 소스는 이미 로드된 `filteredOrders`(현재 행사·상태·검색·뷰모드 반영, 재조회 없음), 합배송 껍데기는 `mergedItems`로 내보냄. 컬럼·필터·파일명 규칙은 A1과 동일. 조회 전용 사용자도 다운로드 가능.
 - 2026-05-13 신설 — PR #6 출고 시안 검수 중 주소 통합·카테고리 누락·서식 불일치 3건 발견. 게이트 1.5 절차 신설과 함께 작성.
 - 2026-06-12 전면 재작성 — 구 좌우 패널 구조 기술 폐기, 현 그룹 카드 구조 반영. 출고 고도화 사이클: 명칭 "출고 관리" 개칭 / 상태 세그먼트(기본 출고 대기) / 검색 / InfoRow 인라인 복사(우측 IconButton·단축 복사 행 폐기) / 고객명 인라인 복사 / 일괄 처리 안전화(eligible만 + 확인 다이얼로그 + 선택 초기화) / 출고 취소 / "출고처리 완료" 중복 칩 제거.
 - 2026-07-07 현장수령 연동 — `getFulfillmentOrders` select에 `orders.is_on_site_sale` + `order_items.id, on_site_pickup` 추가. OR 규칙(주문 is_on_site_sale OR item on_site_pickup)으로 현장수령 판정. 상품별 현장수령: 기존 isGreyed dim 재사용 + "현장수령" 배지. 주문 전체 현장수령: 헤더 안내줄("택배 출고 불필요") + 액션 라벨 "출고 처리"→"확인 완료"/"출고 취소"→"확인완료 취소" 치환(status는 여전히 completed/paid로 UPDATE, 라벨만 치환). **숨김 금지**(판매량 파악용).
