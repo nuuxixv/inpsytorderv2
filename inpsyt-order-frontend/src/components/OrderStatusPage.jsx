@@ -7,6 +7,7 @@ import { STATUS_COLORS, STATUS_TO_KOREAN } from '../constants/orderStatus';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { InfoRow, PriceBlock } from './ui';
+import { formatPhone } from '../utils/formatPhone';
 
 // 사양 시트: design-system/specs/A2_OrderStatusPage.md
 // (= C3_OrderStatusPage.md 와 동일 화면. M3-11 시안 정합본.)
@@ -197,7 +198,7 @@ const OrderStatusPage = () => {
             <SectionTitle>주문자 정보</SectionTitle>
             <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${theme.palette.divider}`, borderRadius: `${theme.radii.md}px`, p: 2, mb: 3 }}>
               <InfoRow label="이름" value={order.customer_name} labelWidth={80} />
-              <InfoRow label="연락처" value={order.phone_number} labelWidth={80} />
+              <InfoRow label="연락처" value={formatPhone(order.phone_number)} labelWidth={80} />
               {order.inpsyt_id && (
                 <InfoRow label="인싸이트 ID" value={order.inpsyt_id} labelWidth={80} />
               )}

@@ -31,6 +31,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { supabase } from '../supabaseClient';
 import { deleteOrderGroup, reassignGroupRepresentative } from '../api/orders';
 import { summarizeGroupStatus, classifyGroupStatusChange } from '../utils/groupOrder';
+import { formatPhone } from '../utils/formatPhone';
 import { SHIPPING_DEFAULTS } from '../constants/shipping';
 import { SectionCard, StatusBadge, InfoRow, PriceBlock, ActionSlot } from './ui';
 import OrderSections from './OrderSections';
@@ -157,7 +158,7 @@ const GroupOrderModal = ({ shell, open, onClose, statusToKorean, productsMap, pr
         <SectionCard title="묶음 배송지" padding={20}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             <InfoRow label="받는 분" value={shell.customer_name || 'N/A'} labelWidth={96} />
-            <InfoRow label="연락처" value={shell.phone_number || 'N/A'} mono muted={!shell.phone_number} labelWidth={96} />
+            <InfoRow label="연락처" value={formatPhone(shell.phone_number) || 'N/A'} mono muted={!shell.phone_number} labelWidth={96} />
             <InfoRow label="우편번호" value={addr.postcode || 'N/A'} mono muted={!addr.postcode} labelWidth={96} />
             <InfoRow label="도로명" value={addr.address || 'N/A'} multiline labelWidth={96} />
             <InfoRow label="상세 주소" value={addr.detail || 'N/A'} multiline muted={!addr.detail} labelWidth={96} />

@@ -36,6 +36,7 @@ import { supabase } from '../supabaseClient';
 import { sendAlimtalk } from '../api/alimtalk';
 import { SHIPPING_DEFAULTS } from '../constants/shipping';
 import { SectionCard, StatusBadge, InfoRow, PriceBlock } from './ui';
+import { formatPhone } from '../utils/formatPhone';
 
 // 사양 시트: design-system/specs/A2_OrderDetailModal.md
 // OrderDetailModal(단일 주문)과 GroupOrderModal(껍데기 자식 토글)이 공유하는 섹션 본문.
@@ -611,7 +612,7 @@ const OrderSections = ({
             mono={editingSection !== 'customer'}
             value={editingSection === 'customer'
               ? renderEditableField(editedPhoneNumber, handlePhoneInput, '010-0000-0000')
-              : (order.phone_number || 'N/A')}
+              : (formatPhone(order.phone_number) || 'N/A')}
           />
           <InfoRow
             label="인싸이트 ID"

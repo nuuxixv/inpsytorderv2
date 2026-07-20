@@ -26,7 +26,7 @@
 - [ ] 권한 가드: `orders:view` 또는 `master` 권한 없으면 “접근 권한 없음” 메시지만 출력 (line 610-612)
 - [ ] URL 쿼리스트링 `?status=paid` 등으로 진입 시 해당 상태가 초기 필터로 적용됨 (line 181)
 - [ ] 한 행 클릭 → `OrderDetailModal` 오픈 (편집·연계·삭제·알림톡 재발송 가능)
-- [ ] 합배송 만들기(`LinkPreviewDialog`): 열자마자 같은 학회(`baseOrder.event_id`)의 연계 가능한 주문을 기본 목록으로 표시(`getLinkableOrdersByEvent`, parent 없음·취소/환불 제외·껍데기 부모 제외, 최신순 최대 200). 검색바는 로컬 필터(고객명·연락처 부분일치, 서버 재조회 아님). 후보 없으면 “같은 학회에 연계 가능한 주문이 없습니다”
+- [ ] 합배송 만들기(`LinkPreviewDialog`): 열자마자 같은 학회(`baseOrder.event_id`)의 연계 가능한 주문을 기본 목록으로 표시(`getLinkableOrdersByEvent`, parent 없음·취소/환불 제외·껍데기 부모 제외, 최신순 최대 200). 검색바는 로컬 필터(고객명 부분일치 + 연락처는 `normalizePhone` 숫자 비교, 서버 재조회 아님). 후보 없으면 “같은 학회에 연계 가능한 주문이 없습니다”
 - [ ] 신규 주문 버튼 → `NewOrderModal` 오픈
 
 ## 표시 정보 (라벨 단위, 누락 금지)
@@ -43,7 +43,7 @@
   - 옵션 정렬: `sortEventsForDropdown` — 오늘±7일 이내 시작 학회 최상단 고정, 그 다음 나머지. 각 그룹 내부 start_date 내림차순, null 맨 뒤 (`getEvents` 결과에 적용, `src/utils/eventSort.js`)
   - 렌더: `groupEventsForDropdown`으로 pinned/rest 분리, 상단 고정 그룹과 내림차순 그룹 사이 `<Divider/>`로 구분(양쪽 그룹 모두 있을 때만)
 - [ ] 주문 상태 멀티 선택 드롭다운: 라벨 “주문 상태”, 5종(`pending`/`paid`/`completed`/`cancelled`/`refunded`) 멀티 체크 가능 — line 516-537
-- [ ] 통합 검색 TextField: 라벨 “이름·연락처·ID·주문번호 검색”. `applyBaseFilters`가 `.or()`로 다중 필드 부분일치(`customer_name`·`phone_number`·`inpsyt_id` ilike). 추가 규칙: (1) 연락처 10/11자리 숫자면 하이픈 삽입 변형도 `phone_number.ilike` 절 append(`searchOrdersForLinking`과 동일), (2) `#?숫자` 형태면 `id.eq.{숫자}` 절 추가(비숫자면 미추가 — PostgREST 에러 방지), (3) 검색어 내 콤마는 `.or()` 파서 충돌 방지로 공백 치환. 단일쿼리·상품필터 Step1 idQuery 양쪽 공유 — api/orders.js:19-42
+- [ ] 통합 검색 TextField: 라벨 “이름·연락처·ID·주문번호 검색”. `applyBaseFilters`가 `.or()`로 다중 필드 부분일치(`customer_name`·`phone_number`·`inpsyt_id` ilike). 추가 규칙: (1) **연락처 숫자 통검색 — 검색어의 숫자만 추출(`term.replace(/\D/g,'')`)해 2자리 이상이면 `phone_number.ilike.%{digits}%` 절 append. `phone_number` 정본이 숫자만 저장이므로 하이픈/공백/괄호 무엇으로 입력해도 매칭(`searchOrdersForLinking`과 동일 규칙)**, (2) `#?숫자` 형태면 `id.eq.{숫자}` 절 추가(비숫자면 미추가 — PostgREST 에러 방지), (3) 검색어 내 콤마·괄호는 `.or()` 파서 충돌 방지로 공백 치환. 단일쿼리·상품필터 Step1 idQuery 양쪽 공유 — api/orders.js:19-42
 - [ ] 시작일 입력: 라벨 “시작일” (기본값 = today − 7, 2026-07-13 30→3→7일 조정) — `ui/DateField`(캘린더 팝오버, native date 폐기, 2026-06-10 통일. 2026-06-15: 직접 타이핑 입력+오늘 강조+6행 고정 캘린더)
 - [ ] 종료일 입력: 라벨 “종료일” (기본값 = today) — `ui/DateField`
 - [ ] “초기화” 버튼 (`RestartAltIcon` 시작 아이콘) — 모든 필터·검색어를 기본값으로 — line 567-573
@@ -184,7 +184,7 @@
 - `id` (bigint, 시퀀스) — 표시는 `#id` 또는 `#id(parent_id)` 또는 `#id-{children+1}`
 - `parent_order_id` (bigint, nullable) — 합배송 자식 주문은 이 값으로 부모 가리킴
 - `customer_name` (text)
-- `phone_number` (text, nullable) — 하이픈 포함 포맷
+- `phone_number` (text, nullable) — **정본=숫자만 저장(DB 트리거 정규화). 표시는 `formatPhone` 유틸로 하이픈 포맷, 검색은 `normalizePhone`로 숫자만 비교**
 - `shipping_address` (jsonb, nullable) — `{ postcode, address, detail }`
 - `is_on_site_sale` (boolean, default false)
 - `customer_request` (text, nullable)

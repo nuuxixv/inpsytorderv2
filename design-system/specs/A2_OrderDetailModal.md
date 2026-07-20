@@ -73,7 +73,8 @@
 
 ### 주문자 정보 섹션 (Table, line 387)
 - [ ] **주문자명** — 조회: `order.customer_name` / 편집: TextField
-- [ ] **연락처** — 조회: `order.phone_number || 'N/A'` / 편집: TextField + **011자리수 포맷터** (`010-XXXX-XXXX`, 최대 11자리 digit). hyphen 자동 삽입 규칙: ≤3=raw, 4-7=`XXX-XXXX`, 8+=`XXX-XXXX-XXXX`
+- [ ] **연락처** — 조회: `formatPhone(order.phone_number) || 'N/A'`(하이픈 포맷 표시) / 편집: TextField + **011자리수 포맷터** (`010-XXXX-XXXX`, 최대 11자리 digit). hyphen 자동 삽입 규칙: ≤3=raw, 4-7=`XXX-XXXX`, 8+=`XXX-XXXX-XXXX` (입력 하이픈 UX 유지 — 저장 시 DB 트리거가 숫자만으로 정규화)
+- **불변식: `phone_number` 정본=숫자만 저장(DB 트리거). 표시는 `formatPhone`, 검색은 `normalizePhone` 숫자 비교. 쓰기(insert/update)는 하이픈 포함 값을 그대로 보내도 트리거가 정규화 — 프론트는 표시/검색만 정규화 담당**
 - [ ] **인싸이트 ID** — 조회: `order.inpsyt_id || 'N/A'` / 편집: TextField (자유 입력)
 
 ### 배송지 정보 섹션 (Table, line 388) — **3필드 분리 절대 금지**
@@ -121,7 +122,7 @@
 ### 연계 주문 검색 Dialog (linkDialogOpen, line 441-500)
 - [ ] 제목: “연계 주문 연결”
 - [ ] 안내문: “현재 주문(#{order.id})을 다른 주문의 추가 주문으로 연결합니다. 고객명 또는 연락처로 원주문을 검색하세요.”
-- [ ] 검색 TextField (placeholder “고객명 또는 연락처 입력”) + “검색” 버튼 (Enter 키도 트리거)
+- [ ] 검색 TextField (placeholder “고객명 또는 연락처 입력”) + “검색” 버튼 (Enter 키도 트리거). `searchOrdersForLinking`: 고객명 ilike + **연락처 숫자만 추출(2자리↑) `phone_number.ilike.%{digits}%`**(하이픈/괄호 무관)
 - [ ] 결과 List dense, 각 항목:
   - primary: `#{id} · {customer_name} · {final_payment.toLocaleString()}원`
   - secondary: `{created_at yyyy. MM. dd}` · **굵게**(`연계 시 {saved.toLocaleString()}원 절감 ({freeShipping ? '무료배송' : '합배송'})`) — `freeShipping`이면 #10B981(초록), 아니면 #6366F1(보라)

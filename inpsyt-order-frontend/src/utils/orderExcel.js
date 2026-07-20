@@ -3,6 +3,7 @@
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 import { STATUS_TO_KOREAN } from '../constants/orderStatus';
+import { formatPhone } from './formatPhone';
 
 // type별 아이템 필터: book=도서, test=검사 계열, all=전체(분류 없고 상품정보도 없으면 제외)
 const matchesType = (itemCategory, type, hasProduct) => {
@@ -38,7 +39,7 @@ export const buildOrderExcelRows = ({ orders, type, events = [], productsMap = {
         '주문일시': format(new Date(order.created_at), 'yyyy-MM-dd HH:mm'),
         '주문번호': order.id,
         '고객명': order.customer_name,
-        '연락처': order.phone_number,
+        '연락처': formatPhone(order.phone_number),
         '배송 주소': `${order.shipping_address?.postcode || ''} ${order.shipping_address?.address || ''} ${order.shipping_address?.detail || ''}`.trim(),
         '고객 요청사항': order.customer_request || '-',
         '관리자 메모': order.admin_memo || '-',

@@ -25,6 +25,7 @@ import { getLinkableOrdersByEvent, linkOrders } from '../api/orders';
 import { supabase } from '../supabaseClient';
 import { SHIPPING_DEFAULTS } from '../constants/shipping';
 import { SectionCard, PriceBlock } from './ui';
+import { normalizePhone } from '../utils/formatPhone';
 
 // 합배송 연계 생성 미리보기 (설계 §5.2 / 위임 §5).
 // 검색 → 대상 다중선택 → 미리보기(묶음 배송지 선택·배송비 변화·Case A/B·확인 체크) → linkOrders(childIds, repChildId)
@@ -79,11 +80,12 @@ const LinkPreviewDialog = ({ open, onClose, baseOrder, events, addNotification, 
 
   // 검색어 있으면 로컬 필터(고객명·연락처 부분일치), 없으면 전체
   const term = searchTerm.trim().toLowerCase();
+  const termDigits = normalizePhone(term);
   const filteredCandidates = term
     ? allCandidates.filter(
         (o) =>
           (o.customer_name || '').toLowerCase().includes(term) ||
-          (o.phone_number || '').replace(/-/g, '').includes(term.replace(/-/g, ''))
+          (termDigits.length >= 2 && normalizePhone(o.phone_number).includes(termDigits))
       )
     : allCandidates;
 

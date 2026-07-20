@@ -18,22 +18,17 @@ const ALL_ITEMS_SELECT = 'order_items(id, product_id, quantity, price_at_purchas
 
 const applyBaseFilters = (query, { searchTerm, selectedStatuses, selectedEvents, startDate, endDate }) => {
   if (searchTerm) {
-    // 콤마는 PostgREST .or() 파서와 충돌 → 공백으로 치환
-    const term = searchTerm.replace(/,/g, ' ').trim();
+    // 콤마·괄호는 PostgREST .or() 파서와 충돌 → 공백으로 치환
+    const term = searchTerm.replace(/[,()]/g, ' ').trim();
     if (term) {
       const clauses = [
         `customer_name.ilike.%${term}%`,
         `phone_number.ilike.%${term}%`,
         `inpsyt_id.ilike.%${term}%`,
       ];
-      // 연락처 하이픈 변형 (10/11자리 숫자) — searchOrdersForLinking과 동일 규칙
-      const digits = term.replace(/-/g, '');
-      if (/^\d{10,11}$/.test(digits)) {
-        const phoneVariant = digits.length === 11
-          ? `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
-          : `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-        if (phoneVariant !== term) clauses.push(`phone_number.ilike.%${phoneVariant}%`);
-      }
+      // 연락처는 숫자 정본 저장 → 검색어의 숫자만 추출해 부분 일치
+      const digits = term.replace(/\D/g, '');
+      if (digits.length >= 2) clauses.push(`phone_number.ilike.%${digits}%`);
       // 주문번호(#123 또는 123)만 id 정확 일치 절 추가 (비숫자면 미추가 — PostgREST 에러 방지)
       if (/^#?\d+$/.test(term)) {
         clauses.push(`id.eq.${term.replace(/^#/, '')}`);
@@ -255,19 +250,19 @@ export const deleteOrderGroup = async (groupParentId) => {
  * parent_order_id가 없는 주문만 반환 (이미 child인 주문은 parent가 될 수 없음).
  */
 export const searchOrdersForLinking = async (term, excludeOrderId) => {
-  const digits = term.replace(/-/g, '');
-  let phoneVariant = term;
-  if (/^\d{10,11}$/.test(digits)) {
-    phoneVariant = digits.length === 11
-      ? `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
-      : `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-  }
-  const phoneOrClause = phoneVariant !== term ? `,phone_number.ilike.%${phoneVariant}%` : '';
+  const cleaned = term.replace(/[,()]/g, ' ').trim();
+  const clauses = [
+    `customer_name.ilike.%${cleaned}%`,
+    `phone_number.ilike.%${cleaned}%`,
+  ];
+  // 연락처는 숫자 정본 저장 → 검색어의 숫자만 추출해 부분 일치
+  const digits = cleaned.replace(/\D/g, '');
+  if (digits.length >= 2) clauses.push(`phone_number.ilike.%${digits}%`);
 
   let query = supabase
     .from('orders')
     .select('id, customer_name, phone_number, total_cost, discount_amount, final_payment, delivery_fee, status, created_at, parent_order_id, is_group_parent, event_id, shipping_address')
-    .or(`customer_name.ilike.%${term}%,phone_number.ilike.%${term}%${phoneOrClause}`)
+    .or(clauses.join(','))
     .is('parent_order_id', null)
     .order('created_at', { ascending: false })
     .limit(10);

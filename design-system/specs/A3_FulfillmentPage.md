@@ -35,7 +35,7 @@
   - MenuItem: 행사명 + 시작일 `yyyy.M.d`(inline caption, null이면 "시작일 미정")
   - 옵션 정렬: `sortEventsForDropdown` — 오늘±7일 이내 시작 행사 최상단 고정, 그 다음 나머지. 각 그룹 내부 start_date 내림차순, null 맨 뒤 (`getEvents` 결과에 적용, `src/utils/eventSort.js`)
   - 렌더: `groupEventsForDropdown`으로 pinned/rest 분리, "전체 행사" 아래 상단 고정 그룹과 내림차순 그룹 사이 `<Divider/>`로 구분(양쪽 그룹 모두 있을 때만)
-- [ ] 검색 TextField 1개: placeholder "이름·연락처·ID 검색" — customer_name·phone_number·inpsyt_id 부분일치(클라이언트, trim·소문자 비교)
+- [ ] 검색 TextField 1개: placeholder "이름·연락처·ID 검색" — 클라이언트 필터: 이름·ID는 부분일치(trim·소문자), **연락처는 `normalizePhone(phone).includes(normalizePhone(검색어))` 숫자 비교(검색어 숫자 2자리↑일 때만). 하이픈/공백/괄호 무관 매칭**
 - [ ] 상태 세그먼트 (ToggleButtonGroup): "출고 대기 ({N})" / "출고 완료 ({N})" / "전체" — **기본값 '출고 대기'**. 카운트 N은 행사+뷰모드 적용 후·상태 필터 적용 전 기준(상태 토글을 눌러도 양쪽 N이 살아있음)
 - [ ] 뷰 모드 토글 그룹 — 3개: "전체" / "도서 뷰"(CATEGORY_COLORS.book) / "검사 뷰"(CATEGORY_COLORS.test)
 
@@ -49,7 +49,7 @@
 - [ ] 완료 카드는 카드 전체 opacity 0.7 — 별도 "출고처리 완료" 칩은 없음(StatusBadge가 상태 표시, 2026-06-12 중복 제거)
 
 ### 그룹 카드 — 데이터 라인 (InfoRow 5~6줄, 인라인 복사)
-- [ ] 연락처: `phone_number`, mono(tnum), 값 있으면 인라인 복사, 없으면 "-" muted
+- [ ] 연락처: `formatPhone(phone_number)`(하이픈 포맷), mono(tnum), 값 있으면 인라인 복사(복사 값도 `formatPhone` 포맷), 없으면 "-" muted
 - [ ] ID(조건부): `inpsyt_id` 존재 시만 렌더, mono, 인라인 복사 (복사 토스트 라벨 "인싸이트 ID")
 - [ ] 도로명: **우편번호 `[{postcode}]` 병기(caption·tnum) + 도로명주소 한 줄**. 복사는 도로명주소만(우편번호 제외), multiline
 - [ ] 상세: `detailAddress || detail`, multiline, 단독 복사. **도로명과 통합 금지** (핵심 발견 #1)
@@ -105,7 +105,7 @@
 - `id` (bigint)
 - `parent_order_id` (bigint, nullable) — 합배송 시 부모 주문 ID. 있으면 목록에서 숨김
 - `customer_name` (text)
-- `phone_number` (text) — 하이픈 포함 포맷
+- `phone_number` (text) — **정본=숫자만 저장(DB 트리거 정규화). 표시는 `formatPhone`(utils/formatPhone.js), 검색은 `normalizePhone` 숫자 비교**
 - `shipping_address` (jsonb) — **객체 구조, 3요소 분리 유지**:
   - `postcode` (text)
   - `address` (text) — 도로명 (fallback: `roadAddress`, `jibunAddress`)

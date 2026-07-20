@@ -5,6 +5,7 @@ import { Edit as EditIcon, LocalShipping as ShippingIcon } from '@mui/icons-mate
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import CostSummary from './CostSummary';
+import { formatPhone } from '../utils/formatPhone';
 
 const InfoRow = ({ label, value }) => (
   <Box sx={{ display: 'flex', py: 0.75 }}>
@@ -128,7 +129,7 @@ const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoT
           </Box>
 
           <InfoRow label="성함" value={customerInfo.name} />
-          <InfoRow label="연락처" value={customerInfo.phone} />
+          <InfoRow label="연락처" value={formatPhone(customerInfo.phone)} />
           {fullAddress && <InfoRow label="배송지" value={fullAddress} />}
           {customerInfo.inpsytId && <InfoRow label="인싸이트 ID" value={customerInfo.inpsytId} />}
           {customerInfo.request && <InfoRow label="요청사항" value={customerInfo.request} />}

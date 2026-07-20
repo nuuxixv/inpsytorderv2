@@ -37,6 +37,7 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import { summarizeGroupStatus } from '../utils/groupOrder';
+import { formatPhone, normalizePhone } from '../utils/formatPhone';
 import { PageHeader, SectionCard, StatusBadge, InfoRow, ActionSlot, EmptyState } from './ui';
 import { CATEGORY_COLORS, CATEGORY_KEY_BY_LABEL } from '../constants/categoryColors';
 
@@ -239,8 +240,8 @@ const FulfillmentGroupCard = ({
       <Box sx={{ px: 3, py: 1.5, borderBottom: `1px solid ${theme.gray[100]}` }}>
         <InfoRow
           label="연락처"
-          value={order.phone_number || '-'}
-          onCopy={order.phone_number ? () => onCopy('연락처', order.phone_number) : undefined}
+          value={formatPhone(order.phone_number) || '-'}
+          onCopy={order.phone_number ? () => onCopy('연락처', formatPhone(order.phone_number)) : undefined}
           muted={!order.phone_number}
           mono
         />
@@ -580,8 +581,12 @@ const FulfillmentPage = () => {
   const filteredOrders = useMemo(() => baseOrders.filter(order => {
     if (statusFilter !== 'all' && effectiveStatus(order) !== statusFilter) return false;
     if (searchQuery) {
-      return [order.customer_name, order.phone_number, order.inpsyt_id]
-        .some(v => (v || '').toLowerCase().includes(searchQuery));
+      const phoneDigits = normalizePhone(searchQuery);
+      return (
+        (order.customer_name || '').toLowerCase().includes(searchQuery) ||
+        (order.inpsyt_id || '').toLowerCase().includes(searchQuery) ||
+        (phoneDigits.length >= 2 && normalizePhone(order.phone_number).includes(phoneDigits))
+      );
     }
     return true;
   }), [baseOrders, statusFilter, searchQuery]);
