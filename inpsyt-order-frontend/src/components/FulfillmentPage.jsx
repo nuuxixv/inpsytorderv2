@@ -19,7 +19,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Menu,
   useTheme,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
@@ -28,9 +27,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import SearchOffIcon from '@mui/icons-material/SearchOff';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { getFulfillmentOrders, groupLinkedOrders } from '../api/orders';
-import { exportOrderExcel } from '../utils/orderExcel';
 import { getEvents } from '../api/events';
 import { sortEventsForDropdown, groupEventsForDropdown, formatEventStartDate } from '../utils/eventSort';
 import { supabase } from '../supabaseClient';
@@ -483,7 +480,6 @@ const FulfillmentPage = () => {
   const [error, setError] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
-  const [excelMenuAnchor, setExcelMenuAnchor] = useState(null);
 
   const canShip = hasPermission('orders:edit');
 
@@ -619,45 +615,8 @@ const FulfillmentPage = () => {
     }
   }, [bulkTargetIds, eligibleSelected, addNotification, loadOrders]);
 
-  // 현재 필터(행사·상태·검색·뷰모드)가 반영된 filteredOrders를 엑셀로 내보낸다.
-  const handleFulfillmentExcel = (type) => {
-    setExcelMenuAnchor(null);
-    const eventFilterName = filterEvent
-      ? events.find(e => e.id === filterEvent)?.name || null
-      : null;
-    const { rowCount } = exportOrderExcel({
-      orders: filteredOrders,
-      type,
-      events,
-      productsMap: {},
-      eventFilterName,
-    });
-    if (rowCount === 0) {
-      addNotification('해당 조건에 맞는 출고 데이터가 없습니다.', 'warning');
-      return;
-    }
-    addNotification('엑셀 파일이 성공적으로 생성되었습니다.', 'success');
-  };
-
   const headerAction = (
     <Box sx={{ display: 'flex', gap: 1 }}>
-      <Button
-        variant="outlined"
-        onClick={(e) => setExcelMenuAnchor(e.currentTarget)}
-        endIcon={<KeyboardArrowDownIcon />}
-      >
-        엑셀 다운로드
-      </Button>
-      <Menu
-        anchorEl={excelMenuAnchor}
-        open={Boolean(excelMenuAnchor)}
-        onClose={() => setExcelMenuAnchor(null)}
-      >
-        <MenuItem onClick={() => handleFulfillmentExcel('book')}>📘 도서 출고 전용 엑셀</MenuItem>
-        <MenuItem onClick={() => handleFulfillmentExcel('test')}>📄 검사 출고 전용 엑셀</MenuItem>
-        <Divider />
-        <MenuItem onClick={() => handleFulfillmentExcel('all')}>전체 통합 엑셀 (백업용)</MenuItem>
-      </Menu>
       {canShip && (
         <Button
           size="small"

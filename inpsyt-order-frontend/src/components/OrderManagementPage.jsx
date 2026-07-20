@@ -27,14 +27,13 @@ import {
   SwipeableDrawer,
   useMediaQuery,
   useTheme,
-  Menu,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { format, subDays } from 'date-fns';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
-import { KeyboardArrowDown as KeyboardArrowDownIcon, ShoppingCart as ShoppingCartIcon, RestartAlt as RestartAltIcon } from '@mui/icons-material';
+import { ShoppingCart as ShoppingCartIcon, RestartAlt as RestartAltIcon } from '@mui/icons-material';
 import { useSearchParams } from 'react-router-dom';
 import OrderDetailModal from './OrderDetailModal';
 import GroupOrderModal from './GroupOrderModal';
@@ -48,9 +47,8 @@ import { fetchAllProducts } from '../api/products';
 import { getOrders, groupLinkedOrders, reassignGroupRepresentative } from '../api/orders';
 import { sendAlimtalk } from '../api/alimtalk';
 import { buildOrderTree, summarizeGroupStatus, formatGroupCustomerNames, classifyGroupStatusChange } from '../utils/groupOrder';
-import { exportOrderExcel } from '../utils/orderExcel';
 import { PageHeader, SectionCard, StatusBadge, EmptyState, DateField } from './ui';
-import { STATUS_TO_KOREAN, getStatusOptions } from '../constants/orderStatus';
+import { STATUS_TO_KOREAN, ALLOWED_TRANSITIONS } from '../constants/orderStatus';
 
 const statusToKorean = STATUS_TO_KOREAN;
 
@@ -197,7 +195,6 @@ const OrderManagementPage = () => {
     selectedStatuses: searchParams.get('status') ? [searchParams.get('status')] : [],
   }));
   const [bulkStatus, setBulkStatus] = React.useState('');
-  const [excelMenuAnchor, setExcelMenuAnchor] = React.useState(null);
   const [pick, setPick] = React.useState({ open: false, oldRep: null, candidates: [], newStatus: null, groupParentId: null });
 
   const handleSelectAllClick = () => {
@@ -351,45 +348,6 @@ const OrderManagementPage = () => {
     }
   };
 
-  const handleExcelDownload = async (type) => {
-    setExcelMenuAnchor(null);
-    dispatch({ type: 'SET_STATE', payload: { loading: true } });
-    try {
-      const { data: allOrders, error } = await getOrders({
-        currentPage: 1,
-        ordersPerPage: state.totalOrders,
-        searchTerm: state.searchTerm,
-        selectedStatuses: state.selectedStatuses,
-        selectedEvents: state.selectedEvents,
-        startDate: state.startDate,
-        endDate: state.endDate,
-      });
-      if (error) throw error;
-
-      const eventFilterName = state.selectedEvents.length === 1
-        ? state.events.find(e => e.id === state.selectedEvents[0])?.name
-        : null;
-
-      const { rowCount } = exportOrderExcel({
-        orders: allOrders,
-        type,
-        events: state.events,
-        productsMap: state.productsMap,
-        eventFilterName,
-      });
-
-      if (rowCount === 0) {
-        addNotification(`해당 조건에 맞는 주문 내역이 없습니다. (출고 데이터 없음)`, 'warning');
-        return;
-      }
-      addNotification('엑셀 파일이 성공적으로 생성되었습니다.', 'success');
-    } catch (err) {
-      addNotification(`엑셀 다운로드 실패: ${err.message}`, 'error');
-    } finally {
-      dispatch({ type: 'SET_STATE', payload: { loading: false } });
-    }
-  };
-
   const handleStatusChange = useCallback(async (orderId, newStatus) => {
     try {
       const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
@@ -503,13 +461,19 @@ const OrderManagementPage = () => {
         <TableCell onClick={() => openOrder(order)}>{format(new Date(order.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
         <TableCell>
           {(() => {
-            const options = getStatusOptions(order.status);
-            return options.length <= 1 ? (
+            const transitions = ALLOWED_TRANSITIONS[order.status] || [];
+            return transitions.length === 0 ? (
               <StatusBadge value={order.status} size="sm" label={statusToKorean[order.status]} />
             ) : (
               <FormControl size="small" variant="outlined" sx={{ minWidth: 120 }} onClick={(e) => e.stopPropagation()}>
-                <Select value={order.status} onChange={(e) => handleStatusChange(order.id, e.target.value)} disabled={!hasPermission('orders:edit')}>
-                  {options.map((key) => <MenuItem key={key} value={key}>{statusToKorean[key]}</MenuItem>)}
+                <Select
+                  value=""
+                  displayEmpty
+                  renderValue={() => statusToKorean[order.status]}
+                  onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                  disabled={!hasPermission('orders:edit')}
+                >
+                  {transitions.map((key) => <MenuItem key={key} value={key}>{statusToKorean[key]}</MenuItem>)}
                 </Select>
               </FormControl>
             );
@@ -554,7 +518,7 @@ const OrderManagementPage = () => {
       </TableRow>,
     ];
     children.forEach((child) => {
-      const childOptions = getStatusOptions(child.status);
+      const childTransitions = ALLOWED_TRANSITIONS[child.status] || [];
       rows.push(
         <TableRow key={`child-${child.id}`} hover onClick={() => openOrder(shell)} sx={{ cursor: 'pointer' }}>
           {colSpanForEdit === 1 && <TableCell padding="checkbox" />}
@@ -566,12 +530,18 @@ const OrderManagementPage = () => {
           <TableCell sx={{ color: 'text.secondary' }}>{(child.final_payment || 0).toLocaleString()}원</TableCell>
           <TableCell sx={{ color: 'text.secondary' }}>{format(new Date(child.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
           <TableCell>
-            {childOptions.length <= 1 ? (
+            {childTransitions.length === 0 ? (
               <StatusBadge value={child.status} size="sm" label={statusToKorean[child.status]} />
             ) : (
               <FormControl size="small" variant="outlined" sx={{ minWidth: 120 }} onClick={(e) => e.stopPropagation()}>
-                <Select value={child.status} onChange={(e) => handleGroupChildStatusChange(node, child, e.target.value)} disabled={!hasPermission('orders:edit')}>
-                  {childOptions.map((key) => <MenuItem key={key} value={key}>{statusToKorean[key]}</MenuItem>)}
+                <Select
+                  value=""
+                  displayEmpty
+                  renderValue={() => statusToKorean[child.status]}
+                  onChange={(e) => handleGroupChildStatusChange(node, child, e.target.value)}
+                  disabled={!hasPermission('orders:edit')}
+                >
+                  {childTransitions.map((key) => <MenuItem key={key} value={key}>{statusToKorean[key]}</MenuItem>)}
                 </Select>
               </FormControl>
             )}
@@ -811,23 +781,6 @@ const OrderManagementPage = () => {
 
   const headerAction = (
     <Box sx={{ display: 'flex', gap: 1 }}>
-      <Button
-        variant="outlined"
-        onClick={(e) => setExcelMenuAnchor(e.currentTarget)}
-        endIcon={<KeyboardArrowDownIcon />}
-      >
-        엑셀 다운로드
-      </Button>
-      <Menu
-        anchorEl={excelMenuAnchor}
-        open={Boolean(excelMenuAnchor)}
-        onClose={() => setExcelMenuAnchor(null)}
-      >
-        <MenuItem onClick={() => handleExcelDownload('book')}>📘 도서 출고 전용 엑셀</MenuItem>
-        <MenuItem onClick={() => handleExcelDownload('test')}>📄 검사 출고 전용 엑셀</MenuItem>
-        <Divider />
-        <MenuItem onClick={() => handleExcelDownload('all')}>전체 통합 엑셀 (백업용)</MenuItem>
-      </Menu>
       {hasPermission('orders:edit') && (
         <Button variant="contained" color="primary" onClick={() => dispatch({ type: 'OPEN_NEW_ORDER' })}>
           + 신규 주문

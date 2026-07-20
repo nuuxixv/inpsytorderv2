@@ -33,7 +33,3 @@ export const ALLOWED_TRANSITIONS = {
   cancelled: [],
   refunded:  [],
 };
-
-// 현재 상태를 선두로 허용 전이를 이어붙인 옵션 배열 (중복 제거, 순서 유지).
-export const getStatusOptions = (current) =>
-  [...new Set([current, ...(ALLOWED_TRANSITIONS[current] || [])])];

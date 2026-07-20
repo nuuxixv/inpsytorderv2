@@ -19,7 +19,7 @@
 - 우편번호 검색 라이브러리: `react-daum-postcode`
 
 ## 사용자 시나리오
-어드민(master·editor·viewer)이 데스크톱 또는 태블릿에서 본다. 학회 종료 후 사무실에서 결제 누락·취소 처리, 학회 중 부스에서 즉시 신규 현장 주문 추가, 다음 학회 시작 전 도서·검사 출고 엑셀을 받아 인싸이트·학지사 출고팀에 전달하는 세 가지가 주 시나리오. 한 화면에서 1년 800건 누적 전체를 페이지네이션(10건/페이지)으로 훑는다. 페이지 진입 시 기본 30일치만 표시되고, 검색·필터로 좁히는 흐름이다. 모바일은 카드 리스트, 데스크톱은 테이블 + 우측 액션. 부분 실패(알림톡 일부 누락)는 토스트로 알려 모달에서 재발송하도록 안내한다.
+어드민(master·editor·viewer)이 데스크톱 또는 태블릿에서 본다. 학회 종료 후 사무실에서 결제 누락·취소 처리, 학회 중 부스에서 즉시 신규 현장 주문 추가가 주 시나리오. (출고 반출은 출고관리 화면에서 처리하며, 엑셀 반출은 2026-07-20 폐지 — 웹에서 직접 처리.) 한 화면에서 1년 800건 누적 전체를 페이지네이션(10건/페이지)으로 훑는다. 페이지 진입 시 기본 30일치만 표시되고, 검색·필터로 좁히는 흐름이다. 모바일은 카드 리스트, 데스크톱은 테이블 + 우측 액션. 부분 실패(알림톡 일부 누락)는 토스트로 알려 모달에서 재발송하도록 안내한다.
 
 ## 진입 흐름
 - [ ] `/admin/orders` 라우트 — 메인 어드민 메뉴에서 진입
@@ -60,12 +60,8 @@
 - [ ] (조건부, `orders:edit`이고 선택된 주문 있을 때) “N개 선택됨” 라벨 (subtitle1, fontWeight bold) — line 651-653
 - [ ] (조건부) “상태 일괄 변경” Select — 5개 상태 옵션 — line 654-663
 - [ ] (조건부) “적용” 버튼 (contained, `bulkStatus` 비어 있으면 disabled) — line 664-666
-- [ ] (조건부, `orders:edit`) “+ 신규 주문” 버튼 (contained primary) — line 671
-- [ ] “엑셀 다운로드” 버튼 (outlined, `KeyboardArrowDown` 종료 아이콘) — line 672-678
-- [ ] 엑셀 메뉴 3종:
-  - 📘 도서 출고 전용 엑셀 (`type='book'`) — line 684
-  - 📄 검사 출고 전용 엑셀 (`type='test'`) — line 685
-  - 전체 통합 엑셀 (백업용) (`type='all'`) — line 687
+- [ ] (조건부, `orders:edit`) “+ 신규 주문” 버튼 (contained primary)
+- [ ] ~~“엑셀 다운로드” 버튼 + 엑셀 메뉴 3종(도서/검사/전체)~~ — **2026-07-20 폐지.** 웹에서 직접 처리하므로 엑셀 반출 제거(버튼·Menu·`handleExcelDownload`·`exportOrderExcel` 삭제)
 
 ### 데스크톱 테이블 (line 749-833)
 - [ ] 헤더 셀: bgcolor grey.200, fontWeight bold, stickyHeader
@@ -75,7 +71,7 @@
 - [ ] “학회명” 컬럼 — `events.find(e => e.id === order.event_id)?.name`, 없으면 "N/A" — line 817
 - [ ] “총 금액” 컬럼 — `order.final_payment.toLocaleString()`원 (천 단위 콤마, 원 단위) — line 818
 - [ ] “주문일시” 컬럼 — `yyyy-MM-dd HH:mm` — line 819
-- [ ] “상태” 컬럼 — `Select`. 옵션은 **상태기계 필터**(`getStatusOptions(order.status)`, `orderStatus.js`): 현재 상태 선두 + 허용 전이만(`pending→[paid,cancelled]`, `paid→[refunded]`). completed 전이는 목록 노출 금지(출고관리 전용), pending 회귀 금지. `orders:edit` 없으면 disabled. **옵션이 현재상태 1개뿐인 종결(completed·cancelled·refunded)이면 Select 대신 읽기전용 `StatusBadge` 렌더**
+- [ ] “상태” 컬럼 — `Select`. 옵션은 **상태기계 필터**(`ALLOWED_TRANSITIONS[order.status]`, `orderStatus.js`): **허용 전이만** 노출(`pending→[paid,cancelled]`, `paid→[refunded]`). **현재 상태는 메뉴에 넣지 않고 닫힘 표시값으로만 고정**(`value="" + displayEmpty + renderValue={() => 현재상태}`) — 열면 전이 후보만, 닫으면 현재 상태 표시. completed 전이는 목록 노출 금지(출고관리 전용), pending 회귀 금지. `orders:edit` 없으면 disabled. **허용 전이가 0개인 종결(completed·cancelled·refunded)이면 Select 대신 읽기전용 `StatusBadge` 렌더**
 - [ ] (조건부, `alimtalk_status === 'failed'`) 상태 셀 하단 “알림톡 실패” 칩 — error 토큰(`palette.error.main` alpha 채움+보더), 미발송(null)·sent는 칩 없음
 - [ ] 행 클릭 시 (체크박스·상태 셀 제외) `OrderDetailModal` 오픈 — line 815-819 onClick
 - [ ] 체크박스는 행 클릭 이벤트 stopPropagation — line 194-212
@@ -114,18 +110,13 @@
 - [ ] 신규 주문 버튼 → `NewOrderModal` 오픈 (`orders:edit` 필요)
 - [ ] 행 클릭 → `OrderDetailModal` 오픈
 - [ ] 상태 셀 Select 변경 → `orders.status` 업데이트 + `status_history` 트리거로 이력 추가 + (newStatus=paid면) `sendAlimtalk(orderId)` 비동기 호출 — line 418-436
-- [ ] **합배송 자식 행 상태 편집** — 자식 행 상태 배지가 Select로 전환(옵션=`getStatusOptions(child.status)`, 종결이면 읽기전용 배지). 껍데기 행은 읽기전용 종합 배지 유지. `handleGroupChildStatusChange(node, child, newStatus)`가 `classifyGroupStatusChange`로 분기:
+- [ ] **합배송 자식 행 상태 편집** — 자식 행 상태 배지가 Select로 전환(옵션=`ALLOWED_TRANSITIONS[child.status]` 전이만, 현재 상태는 닫힘 표시값으로 고정, 종결이면 읽기전용 배지). 껍데기 행은 읽기전용 종합 배지 유지. `handleGroupChildStatusChange(node, child, newStatus)`가 `classifyGroupStatusChange`로 분기:
   - `passthrough` → 기존 `handleStatusChange(child.id, newStatus)`(paid 시 알림톡 자동발송 포함)
   - `auto`(대표 취소·환불 && 남은 활성 1건) → `reassignGroupRepresentative` 후 status update → “묶음 배송지를 자동으로 옮기고 주문을 취소했습니다.” 토스트 → 재조회
   - `pick`(남은 활성 2건+) → 페이지 레벨 `ShippingPickModal`로 새 묶음 배송지 선택. **위임 경로를 건너뛰면 그룹 배송이 깨짐** — GroupOrderModal 모달 경로와 동일 규칙(단일 소스 `utils/groupOrder.js`)
 
-### 엑셀
-- [ ] 엑셀 메뉴 클릭 → `handleExcelDownload(type)` — `getOrders`를 currentPage=1, ordersPerPage=`totalOrders`로 1회 더 조회 후 **`utils/orderExcel.js`의 `exportOrderExcel({ orders, type, events, productsMap, eventFilterName })`** 로 시트 작성(행 빌드+워크북+파일저장 순수 유틸, 출고관리와 공유). `eventFilterName`=단일 학회 필터 시 학회명. rowCount 0이면 “출고 데이터 없음” 토스트. 아이템 소스 `order.mergedItems || order.order_items`
-- [ ] book 필터: `category === '도서'` 인 order_items만 행 분해
-- [ ] test 필터: `category` 가 `검사` 포함 또는 `온라인검사`인 order_items만
-- [ ] all: 모든 order_items
-- [ ] 컬럼 순서: 주문일시 / 주문번호 / 고객명 / 연락처 / 배송 주소(`postcode + address + detail` 공백 결합) / 고객 요청사항 / 관리자 메모 / (학회필터 1개 아닐 때만) 학회명 / 카테고리 / 상품명 / 주문 수량 / 실결제금액(참고) / 상태 — line 370-391
-- [ ] 파일명: `{[학회명]_}{도서출고목록|검사출고목록|통합주문목록}_{yyyyMMdd}.xlsx`
+### 엑셀 — 폐지 (2026-07-20)
+- 엑셀 반출 기능 전면 제거. 웹에서 직접 처리하므로 엑셀 다운로드 버튼·Menu·`handleExcelDownload`·`exportOrderExcel`(`utils/orderExcel.js`)·`orderExcel.test.js`를 모두 삭제. `xlsx` 패키지는 상품관리 등 다른 화면에서 계속 사용하므로 의존성은 유지.
 
 ### 알림톡 발송 트리거 (ONESHOT 정합)
 - [ ] **단일 상태 변경: status `→ paid` 시점**에 `sendAlimtalk(orderId)` 자동 호출 — line 425-432
@@ -175,7 +166,7 @@
 
 - [ ] **master**: 모든 기능 + `OrderDetailModal`의 삭제 버튼 노출 (`OrderDetailModal.jsx:373-377`)
 - [ ] **`orders:edit` (editor 포함)**: 행 체크박스·일괄 상태 변경 툴바·신규 주문 버튼·상태 셀 Select·상세 모달의 편집/연계/알림톡 재발송 활성
-- [ ] **`orders:view` 만 보유 (viewer)**: 모든 컨트롤 disabled. 조회·필터·엑셀 다운로드만 가능. 신규 주문 버튼·일괄 변경 툴바·체크박스 컬럼 모두 미표시
+- [ ] **`orders:view` 만 보유 (viewer)**: 모든 컨트롤 disabled. 조회·필터만 가능. 신규 주문 버튼·일괄 변경 툴바·체크박스 컬럼 모두 미표시 (엑셀 다운로드는 2026-07-20 폐지)
 - [ ] **권한 둘 다 없음**: “주문 관리 페이지 접근 권한이 없습니다.” 메시지만
 
 ## 데이터 모델
@@ -291,9 +282,10 @@ frontend가 M3 사이클에서 흡수해야 할 항목:
 
 5. **상품 필터(`productSearchTerm` + `selectedProductCategory`) 사용 시 쿼리가 2단계로 분리된다.** Step 1에서 주문 ID 추출(`!inner` join + 카테고리·상품명 eq/ilike), Step 2에서 본 조회. 결과적으로 “검사 카테고리” 필터를 켜도 행 안의 모든 order_items가 표시된다(출고 화면처럼 카테고리만 강조하지 않음). 시안이 카테고리 칩으로 행 안의 상품을 표현한다면 출고 화면(A3)의 그레이드 처리 패턴 차용 검토.
 
-6. **viewer 권한은 의외로 많은 것을 본다.** 체크박스·일괄 변경·신규 주문 버튼·상태 셀 모두 안 보이지만, **엑셀 다운로드는 가능**하다. 도서·검사 출고 엑셀에는 고객명·연락처·주소가 모두 들어간다(line 372-377). 권한 정책 의도가 맞는지 CTO 검수 권장. RLS 완화 금지 원칙 하에서, 이건 RLS 너머 클라이언트 UI 분기만의 문제일 수 있어 별도 점검 필요.
+6. ~~**viewer 권한은 의외로 많은 것을 본다.**~~ **2026-07-20 해소** — 엑셀 반출 기능 전면 폐지로 viewer의 고객정보 반출 경로 자체가 사라짐. viewer는 이제 조회·필터만 가능.
 
 ## 변경 이력
+- 2026-07-20 목록 드롭다운 현재상태 숨김 + 엑셀 반출 폐지 — (1) 목록 상태 Select를 `ALLOWED_TRANSITIONS` 직접 사용으로 변경: 현재 상태는 메뉴에서 제거하고 닫힘 표시값(`value="" + displayEmpty + renderValue`)으로만 고정, 열면 허용 전이 후보만 노출(단독 행·합배송 자식 행 동일). 종결은 읽기전용 배지 유지. `getStatusOptions`는 미사용이 되어 `orderStatus.js`·`orderStatus.test.js`에서 제거(`ALLOWED_TRANSITIONS` 검증은 유지). 상세모달(OrderSections) 상태 Select는 전체 자유전환 유지(미변경). (2) 엑셀 반출 전면 폐지 — 주문관리·출고관리(A3)의 엑셀 다운로드 버튼·Menu·핸들러·`utils/orderExcel.js`·`orderExcel.test.js` 삭제. viewer 고객정보 반출 부채(핵심 발견 6) 동시 해소. `xlsx` 의존성은 상품관리 등 잔존 사용처 있어 유지.
 - 2026-05-28 신설 — M3 frontend 위임 사전 작성. 게이트 1.5 통과 목적. 시안(`OrderManagementPreview.jsx`) vs 실 페이지(`OrderManagementPage.jsx`) 차이 10건 적출. RPC 부채 1건, viewer 엑셀 권한 1건 부채 후보로 기록.
 - 2026-06-10 알림톡 발송 결과 가시화 — `alimtalk_status`/`alimtalk_error`/`alimtalk_attempted_at` 컬럼 추가(backend 병렬)에 맞춰 발송 결과 DB 기록 사양 신설. 데스크톱 상태 셀·모바일 카드에 “알림톡 실패” 칩(error 토큰) 추가. 단건 paid 전환 시 알림톡 결과 수신 후 목록 재조회. 차이 적출 10번(알림톡 발송 트리거 UI 시그널 없음) 부분 해소.
 - 2026-07-15 주문 코어 고도화 (P1+P2+P3) — (P2) 목록 상태 Select를 상태기계(`ALLOWED_TRANSITIONS`·`getStatusOptions`, `orderStatus.js`)로 필터: 단독 행·합배송 자식 행 모두 현재 상태 선두+허용 전이만 노출, completed 전이는 목록 금지(출고관리 전용), 종결(completed·cancelled·refunded)은 읽기전용 배지. 합배송 자식 행을 목록에서 직접 편집 가능(기존은 읽기전용 배지) — 대표 취소·환불 시 `classifyGroupStatusChange`(`utils/groupOrder.js`, GroupOrderModal과 공유 단일 소스)로 auto(1건 자동 위임)/pick(`ShippingPickModal`)/passthrough 분기. GroupOrderModal `handleStatusChangeIntercept`도 동일 함수로 리팩터(동작·문구 불변). (P1) 검색을 이름·연락처·ID·주문번호 다중 필드 `.or()`로 확장(연락처 하이픈 변형·주문번호 id.eq·콤마 방어). (P3) 엑셀 빌드를 `utils/orderExcel.js`로 추출(출고관리와 공유, 출력 바이트 불변). TDD: `orderStatus.test.js`·`groupOrder.test.js`·`orderExcel.test.js`.
