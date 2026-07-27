@@ -8,6 +8,7 @@ import DashboardPage from './DashboardPage';
 import OrderManagementPage from './OrderManagementPage';
 import EventManagementPage from './EventManagementPage';
 import EventDetailPage from './EventDetailPage';
+import EventCreatePage from './EventCreatePage';
 import ProductManagementPage from './ProductManagementPage';
 import UserManagementPage from './UserManagementPage'; // UserManagementPage 임포트
 import FulfillmentPage from './FulfillmentPage';
@@ -252,6 +253,12 @@ const AdminLayout = () => {
             <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/dashboard" element={hasPermission('dashboard:view') ? <DashboardPage /> : <Navigate to="/admin" replace />} />
             <Route path="/orders" element={hasPermission('orders:view') ? <OrderManagementPage /> : <Navigate to="/admin" replace />} />
+
+            {/* 학회 생성 전용 페이지 — :slug? 보다 먼저 매칭(new가 slug로 해석되지 않게) */}
+            <Route
+              path="/events/new"
+              element={hasPermission('events:edit') ? <EventCreatePage /> : <Navigate to="/admin" replace />}
+            />
 
             {/* 학회 관리 (권한 필요) — slug 있으면 L2 상세, 없으면 L1 목록 */}
             <Route

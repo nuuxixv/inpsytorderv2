@@ -386,7 +386,7 @@ const EventManagementPage = () => {
         </Button>
       )}
       {canEdit && (
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/admin/events/new')}>
           학회 추가
         </Button>
       )}
@@ -498,7 +498,7 @@ const EventManagementPage = () => {
               activeFilterCount > 0
                 ? { label: '필터 해제', onClick: resetFilters }
                 : canEdit
-                ? { label: '학회 추가', startIcon: <AddIcon />, onClick: () => handleOpen() }
+                ? { label: '학회 추가', startIcon: <AddIcon />, onClick: () => navigate('/admin/events/new') }
                 : undefined
             }
           />

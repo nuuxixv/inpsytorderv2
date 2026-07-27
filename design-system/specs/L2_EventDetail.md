@@ -21,6 +21,7 @@
 ## 2. 라우트·진입
 - 라우트: `/admin/events/:slug` (slug = `events.url_slug`).
 - 진입: A10 L1 표 행 본문 클릭(⋯ 메뉴는 stopPropagation). 권한 `events:view`.
+- **생성 완료 착지점(2026-07-20):** 전용 생성 페이지 `/admin/events/new`(`A11_EventCreatePage.md`)에서 insert 성공 시 `navigate('/admin/events/{새 slug}')`로 이 화면에 착지한다. **여기서부터 ③진행 상태·④준비 노트·⑤열람 이력으로 이어진다**(생성 화면은 필수 3+선택 7만 받고, 진행상태·노트·열람이력은 이 상세에서 채우는 설계). 예약 slug `new`는 생성 페이지가 차단하므로 L2 slug와 충돌하지 않는다.
 - 잘못된/없는 slug: EmptyState "학회를 찾을 수 없어요" + "학회 목록으로" 액션.
 
 ## 3. 레이아웃 골격 (위→아래, 단일 컬럼 세로 스크롤)

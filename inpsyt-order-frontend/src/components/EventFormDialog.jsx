@@ -12,6 +12,10 @@ import { supabase } from '../supabaseClient';
 import { useNotification } from '../hooks/useNotification';
 import { numberToKoreanCurrency } from '../utils/koreanCurrency';
 import { fetchProductCountByCategory } from '../api/products';
+import {
+  VISIBLE_CATEGORY_OPTIONS, SEASON_OPTIONS, emptyEvent,
+  applyAutofill, normalizeEventPayload, isValidSlug, rateToPercent, percentToRate,
+} from '../utils/eventForm';
 import { DateField } from './ui';
 
 /**
@@ -28,30 +32,6 @@ import { DateField } from './ui';
  *  - onSaved(upsertData): 저장 성공 후 (L1 재조회 / L2 slug 변경 추적)
  *  - onDeleted(): 삭제 성공 후 (L1 재조회 / L2 목록 이동)
  */
-
-// 판매 대분류 — 고정 3종(products.category 도메인과 동일). 소분류는 여기서 선택하지 않음.
-const VISIBLE_CATEGORY_OPTIONS = ['검사', '도서', '도구'];
-
-const SEASON_OPTIONS = ['춘계학술대회', '추계학술대회', '연수강좌', '보수교육', '세미나', '기타'];
-const SEASON_SLUG_MAP = {
-  '춘계학술대회': 'spring', '추계학술대회': 'fall', '연수강좌': 'training',
-  '보수교육': 'edu', '세미나': 'seminar', '기타': 'etc',
-};
-
-// 이 다이얼로그가 관리하는 컬럼만 upsert (L2의 prep_note·진행상태 등 동시 편집 컬럼 오염 방지)
-const FORM_FIELDS = [
-  'name', 'discount_rate', 'order_url_slug', 'start_date', 'end_date', 'estimated_delivery_date',
-  'event_year', 'host_society', 'event_season', 'venue', 'attendee_ids', 'note', 'marketing_cost',
-  'visible_categories',
-];
-const DATE_FIELDS = ['start_date', 'end_date', 'estimated_delivery_date'];
-
-const emptyEvent = () => ({
-  name: '', discount_rate: 0, order_url_slug: '', start_date: '', end_date: '',
-  estimated_delivery_date: '', event_year: new Date().getFullYear(), host_society: '',
-  event_season: '', venue: '', attendee_ids: [], note: '', marketing_cost: null,
-  visible_categories: [],
-});
 
 const EventFormDialog = ({
   open, onClose, event = null, societies = [], staff = [],
@@ -80,35 +60,7 @@ const EventFormDialog = ({
   }, [open, categoryCounts]);
 
   const handleChange = (name, value) => {
-    setForm((prev) => {
-      let newState = { ...prev, [name]: value };
-
-      if (name === 'name' && !isEditing && !newState.order_url_slug) {
-        newState.order_url_slug = value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      }
-      if (name === 'name') newState._nameTouched = true;
-
-      if (['event_year', 'host_society', 'event_season'].includes(name)) {
-        const newYear = name === 'event_year' ? value : prev.event_year;
-        const newSociety = name === 'host_society' ? value : prev.host_society;
-        const newSeason = name === 'event_season' ? value : prev.event_season;
-
-        if (newYear && newSociety && newSeason) {
-          if (!prev._nameTouched) newState.name = `${newYear} ${newSociety} ${newSeason}`;
-
-          if (!isEditing) {
-            const societyObj = societies.find((s) => s.name === newSociety);
-            if (societyObj) {
-              const sPrefix = societyObj.slug_prefix || 'event';
-              const seasonEng = SEASON_SLUG_MAP[newSeason] || 'etc';
-              const randomToken = Math.random().toString(36).slice(2, 6);
-              newState.order_url_slug = `${sPrefix}-${newYear}-${seasonEng}-${randomToken}`;
-            }
-          }
-        }
-      }
-      return newState;
-    });
+    setForm((prev) => applyAutofill(prev, name, value, { societies, isEditing }));
   };
 
   const handleSave = async () => {
@@ -123,8 +75,7 @@ const EventFormDialog = ({
       return;
     }
 
-    const slugRegex = /^[a-z0-9-]+$/;
-    if (!slugRegex.test(form.order_url_slug)) {
+    if (!isValidSlug(form.order_url_slug)) {
       addNotification('고유 주소는 영문 소문자, 숫자, 하이픈만 사용할 수 있습니다.', 'error');
       return;
     }
@@ -146,18 +97,7 @@ const EventFormDialog = ({
     }
 
     // created_by는 소유권 컬럼 — 클라이언트가 덮어쓰지 않음 (insert 시 DB default).
-    const upsertData = Object.fromEntries(FORM_FIELDS.map((k) => [k, form[k]]));
-    // 정합: 빈 배열/빈 비용/빈 날짜 정규화 (uuid[]·integer·date 컬럼).
-    upsertData.attendee_ids = Array.isArray(upsertData.attendee_ids) ? upsertData.attendee_ids : [];
-    // 빈 배열 = 전체 노출(NULL과 동일 의미, 마이그레이션 §의미 규칙). 빈 배열 그대로 저장.
-    upsertData.visible_categories = Array.isArray(upsertData.visible_categories)
-      ? upsertData.visible_categories
-      : [];
-    upsertData.marketing_cost =
-      upsertData.marketing_cost === '' || upsertData.marketing_cost == null
-        ? null
-        : Number(upsertData.marketing_cost);
-    DATE_FIELDS.forEach((k) => { if (!upsertData[k]) upsertData[k] = null; });
+    const upsertData = normalizeEventPayload(form);
 
     const query = isEditing
       ? supabase.from('events').update(upsertData).eq('id', form.id)
@@ -310,11 +250,8 @@ const EventFormDialog = ({
                 label="할인율 (%)"
                 type="number"
                 fullWidth
-                value={form?.discount_rate ? Math.round(form.discount_rate * 100) : 0}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value) || 0;
-                  handleChange('discount_rate', val / 100);
-                }}
+                value={rateToPercent(form?.discount_rate)}
+                onChange={(e) => handleChange('discount_rate', percentToRate(e.target.value))}
                 inputProps={{ step: '1', min: '0', max: '100' }}
                 InputLabelProps={{ shrink: true }}
                 helperText="예: 15 = 15% 할인"
