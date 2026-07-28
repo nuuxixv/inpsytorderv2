@@ -47,6 +47,8 @@ const EventCreatePage = () => {
   // 점진 노출 래치 — 한 번 열리면 값이 지워져도 다시 닫지 않는다.
   const [showRequired, setShowRequired] = useState(false); // 1→2단계
   const [showOptional, setShowOptional] = useState(false); // 2→3단계
+  // 직접입력 경로 — 자동조립 3필드를 숨긴다(노이즈 제거). "자동으로 행사명 만들기"로 복귀 가능.
+  const [manualMode, setManualMode] = useState(false);
 
   // 행사 구분 "직접 입력" 모드 · 주최 학회 인라인 추가 다이얼로그
   const [seasonCustom, setSeasonCustom] = useState(false);
@@ -221,16 +223,6 @@ const EventCreatePage = () => {
   const costNum = form.marketing_cost ? Number(form.marketing_cost) : 0;
   const cats = form.visible_categories || [];
 
-  // 선택 영역 접힘 헤더 — 현재 값 요약(항목명만 X, 실제 값). 할인율 0% 실수 방지.
-  const optionalSummary = [
-    cats.length ? `판매분류 ${cats.join('·')}` : '판매분류 전체',
-    `할인율 ${rateToPercent(form.discount_rate)}%`,
-    form.venue ? `장소 ${form.venue}` : '장소 미입력',
-    costNum > 0 ? `참가비용 ${costNum.toLocaleString('ko-KR')}원` : '참가비용 미입력',
-    `참석자 ${(form.attendee_ids || []).length}명`,
-    form.note ? '비고 있음' : '비고 없음',
-  ].join(' · ');
-
   return (
     <Box>
       <PageHeader
@@ -245,11 +237,14 @@ const EventCreatePage = () => {
 
       {/* 블록 1 — 「행사 정보」: 자동조립 3필드 + 필수 4필드 통합, 점진 노출 */}
       <SectionCard title="행사 정보" sx={{ mb: 2 }}>
-        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-          아래 3가지를 고르면 행사명이 자동으로 만들어집니다.
-        </Typography>
+        {!manualMode && (
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+            아래 3가지를 고르면 행사명이 자동으로 만들어집니다.
+          </Typography>
+        )}
 
-        {/* 1단계 — 연도 · 주최 학회 · 행사 구분 (항상 표시) */}
+        {/* 1단계 — 연도 · 주최 학회 · 행사 구분 (자동조립 경로에서만 표시) */}
+        {!manualMode && (
         <Box
           sx={{
             display: 'grid',
@@ -310,8 +305,9 @@ const EventCreatePage = () => {
             </MenuItem>
           </TextField>
         </Box>
+        )}
 
-        {seasonCustom && (
+        {!manualMode && seasonCustom && (
           <TextField
             fullWidth
             label="행사 구분 직접 입력"
@@ -323,13 +319,28 @@ const EventCreatePage = () => {
           />
         )}
 
+        {/* 직접입력 경로 복귀 링크 — 자동조립을 다시 쓰고 싶을 때(유일한 자동조립 경로 상실 방지) */}
+        {manualMode && (
+          <Box sx={{ mb: 1 }}>
+            <Link
+              component="button"
+              type="button"
+              variant="body2"
+              onClick={() => setManualMode(false)}
+              sx={{ color: 'primary.main' }}
+            >
+              자동으로 행사명 만들기
+            </Link>
+          </Box>
+        )}
+
         {!showRequired && (
           <Box sx={{ mt: 2 }}>
             <Link
               component="button"
               type="button"
               variant="body2"
-              onClick={() => setShowRequired(true)}
+              onClick={() => { setManualMode(true); setShowRequired(true); }}
               sx={{ color: 'primary.main' }}
             >
               행사명을 직접 입력할래요
@@ -386,6 +397,7 @@ const EventCreatePage = () => {
               />
 
               <DateField
+                clickToOpen
                 label="배송 예정일 *"
                 value={form.estimated_delivery_date || ''}
                 onChange={(iso) => handleChange('estimated_delivery_date', iso || '')}
@@ -415,9 +427,6 @@ const EventCreatePage = () => {
                 <Typography variant="subtitle1" sx={{ color: 'text.primary', lineHeight: 1.3 }}>
                   선택 항목 6개
                 </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
-                  {optionalSummary}
-                </Typography>
               </Box>
               <IconButton size="small" aria-label={optionalOpen ? '선택 항목 접기' : '선택 항목 펼치기'}>
                 {optionalOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -426,10 +435,6 @@ const EventCreatePage = () => {
 
             <Collapse in={optionalOpen} unmountOnExit>
               <Box sx={{ px: 2.5, pb: 2.5, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  지금 비워둬도 됩니다. 만든 뒤 행사 상세에서 언제든 채울 수 있어요.
-                </Typography>
-
                 {/* 1행 — 판매 대분류 · 할인율 */}
                 <Box
                   sx={{

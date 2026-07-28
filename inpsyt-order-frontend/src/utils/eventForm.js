@@ -49,8 +49,14 @@ export const SLUG_REGEX = /^[a-z0-9-]+$/;
 export const isValidSlug = (slug) => SLUG_REGEX.test(slug || '');
 
 // 할인율 단위 변환 — UI는 0~100 정수, DB는 /100한 소수.
+// rateToPercent는 클램프하지 않는다 — 기존 이상값(예 1.11→111%)을 그대로 보여줘야 운영자가 인지·수정한다.
 export const rateToPercent = (rate) => Math.round((rate || 0) * 100);
-export const percentToRate = (percent) => (parseFloat(percent) || 0) / 100;
+// percentToRate는 0~100 클램프 — 100% 초과 입력이 discount_rate>1로 저장돼 주문가가 음수가 되는 운영버그 방지.
+export const percentToRate = (percent) => {
+  const n = parseFloat(percent);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(100, Math.max(0, n)) / 100;
+};
 
 /**
  * 저장 payload 정규화 — FORM_FIELDS만 pick, 배열·비용·날짜 컬럼 정합.

@@ -88,8 +88,22 @@ describe('rateToPercent / percentToRate 왕복', () => {
     expect(percentToRate('')).toBe(0);
     expect(percentToRate('abc')).toBe(0);
   });
+  it('0~100 클램프 (100% 초과 → 1, 음수 → 0)', () => {
+    expect(percentToRate('200')).toBe(1);
+    expect(percentToRate('150')).toBe(1);
+    expect(percentToRate('100')).toBe(1);
+    expect(percentToRate('-10')).toBe(0);
+    expect(percentToRate('15')).toBeCloseTo(0.15);
+    expect(percentToRate('')).toBe(0);
+    expect(percentToRate('abc')).toBe(0);
+  });
+  it('rateToPercent는 이상값을 그대로 노출(클램프 안 함)', () => {
+    expect(rateToPercent(1.11)).toBe(111);
+    expect(rateToPercent(2)).toBe(200);
+  });
   it('왕복 보존', () => {
     expect(rateToPercent(percentToRate('30'))).toBe(30);
+    expect(rateToPercent(percentToRate('200'))).toBe(100); // 초과 입력은 100%로 착지
   });
 });
 

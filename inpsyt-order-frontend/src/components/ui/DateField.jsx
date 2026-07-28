@@ -187,6 +187,8 @@ export const CalendarPopover = ({ anchorEl, open, onClose, mode, value, onChange
  * props:
  *  - label, value, onChange
  *  - mode(기본 'single'), disabled, clearable(기본 true), helperText, placeholder, fullWidth(기본 true), sx, size
+ *  - clickToOpen(기본 false): single 필드에서도 range처럼 필드 아무 곳 클릭으로 캘린더를 연다(readOnly, 타이핑 미지원).
+ *    기본 false라 기존 소비처는 무영향(타이핑 계속 지원).
  */
 const formatKoDate = (iso) => (iso ? `${iso.replaceAll('-', '.')}(${WDAY[parseISO(iso).getDay()]})` : '');
 const formatRange = (v) => {
@@ -215,9 +217,12 @@ const parseInput = (raw) => {
 const DateField = ({
   label, value, onChange, mode = 'single',
   disabled = false, clearable = true, helperText, placeholder, fullWidth = true, sx, size,
+  clickToOpen = false,
 }) => {
   const [anchor, setAnchor] = useState(null);
   const isRange = mode === 'range';
+  // range 또는 clickToOpen single: 타이핑 없이 클릭으로 캘린더를 여는 readOnly 모드(서식·동작 일치).
+  const readOnlyMode = isRange || clickToOpen;
 
   const display = isRange ? formatRange(value) : formatKoDate(value);
   const hasValue = isRange ? Boolean(value?.start || value?.end) : Boolean(value);
@@ -255,8 +260,8 @@ const DateField = ({
     if (!disabled) setAnchor(e.currentTarget);
   };
 
-  // range는 타이핑 미지원(2클릭 전제) → 클릭으로 캘린더 열고 readOnly 유지.
-  const inputProps = isRange
+  // readOnlyMode(range·clickToOpen single)는 타이핑 미지원 → 클릭으로 캘린더 열고 readOnly 유지.
+  const inputProps = readOnlyMode
     ? {
         readOnly: true,
         sx: { cursor: disabled ? 'default' : 'pointer', '& input': { cursor: 'inherit', caretColor: 'transparent', fontFeatureSettings: '"tnum" 1' } },
@@ -269,7 +274,7 @@ const DateField = ({
     <>
       <TextField
         label={label}
-        value={isRange ? display : (editing ? draft : display)}
+        value={readOnlyMode ? display : (editing ? draft : display)}
         placeholder={ph}
         fullWidth={fullWidth}
         sx={sx}
@@ -277,11 +282,11 @@ const DateField = ({
         disabled={disabled}
         error={Boolean(inputError)}
         helperText={inputError || helperText}
-        onClick={isRange ? openCalendar : undefined}
-        onChange={isRange ? undefined : (e) => { setEditing(true); setDraft(e.target.value); }}
-        onFocus={isRange ? undefined : () => { setEditing(true); setDraft(display); }}
-        onBlur={isRange ? undefined : commit}
-        onKeyDown={isRange
+        onClick={readOnlyMode ? openCalendar : undefined}
+        onChange={readOnlyMode ? undefined : (e) => { setEditing(true); setDraft(e.target.value); }}
+        onFocus={readOnlyMode ? undefined : () => { setEditing(true); setDraft(display); }}
+        onBlur={readOnlyMode ? undefined : commit}
+        onKeyDown={readOnlyMode
           ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCalendar(e); } }
           : (e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); e.currentTarget.blur(); } }}
         InputLabelProps={{ shrink: true }}
