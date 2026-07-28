@@ -67,11 +67,13 @@ export const normalizeEventPayload = (form) => {
   return payload;
 };
 
-// 필수 3필드 게이트: 행사명·주문 URL(형식 유효)·행사 기간(시작·종료).
+// 필수 4필드 게이트: 행사명·주문 URL(형식 유효)·행사 기간(시작·종료)·배송 예정일.
+// 생성 페이지(EventCreatePage) 전용. 편집 모달(EventFormDialog)은 이 함수를 쓰지 않는다(name·slug만 검증).
 export const isRequiredComplete = (form) => {
   if (!form) return false;
   return Boolean(
-    form.name && form.order_url_slug && isValidSlug(form.order_url_slug) && form.start_date && form.end_date,
+    form.name && form.order_url_slug && isValidSlug(form.order_url_slug)
+    && form.start_date && form.end_date && form.estimated_delivery_date,
   );
 };
 

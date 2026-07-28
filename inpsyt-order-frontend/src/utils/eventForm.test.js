@@ -131,8 +131,9 @@ describe('isRequiredComplete', () => {
     order_url_slug: 'kpa-2026-spring-ab12',
     start_date: '2026-05-01',
     end_date: '2026-05-03',
+    estimated_delivery_date: '2026-05-10',
   };
-  it('필수 3 모두 충족 → true', () => {
+  it('필수 4 모두 충족 → true', () => {
     expect(isRequiredComplete(full)).toBe(true);
   });
   it('name 누락 → false', () => {
@@ -149,6 +150,9 @@ describe('isRequiredComplete', () => {
   });
   it('end_date 누락 → false', () => {
     expect(isRequiredComplete({ ...full, end_date: '' })).toBe(false);
+  });
+  it('estimated_delivery_date 누락 → false', () => {
+    expect(isRequiredComplete({ ...full, estimated_delivery_date: '' })).toBe(false);
   });
   it('null form 방어', () => {
     expect(isRequiredComplete(null)).toBe(false);
