@@ -55,7 +55,6 @@ import { getTodayKST, getEventStatusKST } from '../utils/date';
 import TableSkeleton from './TableSkeleton';
 import SocietyManagementDialog from './SocietyManagementDialog';
 import PaymentReceiptModal from './PaymentReceiptModal';
-import EventFormDialog from './EventFormDialog';
 import { PageHeader, SectionCard, StatusBadge, EmptyState } from './ui';
 
 const dot = (iso) => (iso ? iso.replaceAll('-', '.') : '');
@@ -171,14 +170,10 @@ const EventManagementPage = () => {
 
   const [events, setEvents] = useState([]);
   const [staff, setStaff] = useState([]); // 참석자 후보 (user_profiles, role IN onsite/master)
-  const [availableSocieties, setAvailableSocieties] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // 추가/수정 다이얼로그 — EventFormDialog(공용 추출, L2와 공유)
-  const [formOpen, setFormOpen] = useState(false);
-  const [formEvent, setFormEvent] = useState(null); // null = 신규
   const [societyModalOpen, setSocietyModalOpen] = useState(false);
-  // ⋯ 메뉴 경유 삭제 확인 (다이얼로그 내부 삭제는 EventFormDialog가 자체 처리)
+  // ⋯ 메뉴 경유 삭제 확인
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
@@ -202,12 +197,11 @@ const EventManagementPage = () => {
   const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
-      const [eventsRes, societiesRes, staffRes] = await Promise.all([
+      const [eventsRes, staffRes] = await Promise.all([
         supabase
           .from('events')
           .select('id, name, discount_rate, order_url_slug, start_date, end_date, estimated_delivery_date, event_year, host_society, event_season, status, venue, attendee_ids, note, marketing_cost, created_by, visible_categories')
           .order('start_date', { ascending: true }),
-        supabase.from('societies').select('id, name, slug_prefix').order('name', { ascending: true }),
         supabase
           .from('user_profiles')
           .select('id, name, role, position')
@@ -221,7 +215,6 @@ const EventManagementPage = () => {
       } else {
         setEvents(eventsRes.data || []);
       }
-      if (!societiesRes.error && societiesRes.data) setAvailableSocieties(societiesRes.data);
       if (!staffRes.error && staffRes.data) setStaff(staffRes.data);
     } finally {
       setLoading(false);
@@ -238,16 +231,6 @@ const EventManagementPage = () => {
       supabase.removeChannel(channel);
     };
   }, [fetchEvents]);
-
-  const handleOpen = (event = null) => {
-    setFormEvent(event);
-    setFormOpen(true);
-  };
-
-  const handleClose = () => {
-    setFormOpen(false);
-    setFormEvent(null);
-  };
 
   const handleDeleteConfirm = async () => {
     const { error } = await supabase.from('events').delete().eq('id', deleteTarget.id);
@@ -302,7 +285,15 @@ const EventManagementPage = () => {
   // ⋯ 메뉴
   const openMenu = (anchor, event) => { setMenuAnchor(anchor); setMenuEvent(event); };
   const closeMenu = () => setMenuAnchor(null);
-  const handleMenuEdit = () => { closeMenu(); handleOpen(menuEvent); };
+  const handleMenuEdit = () => {
+    const ev = menuEvent;
+    closeMenu();
+    if (!ev?.order_url_slug) {
+      addNotification('이 학회는 고유 주소가 없어 수정 페이지로 이동할 수 없습니다.', 'warning');
+      return;
+    }
+    navigate(`/admin/events/${ev.order_url_slug}?edit=1`);
+  };
   const handleMenuOpenUrl = () => {
     closeMenu();
     window.open(`${window.location.origin}/order?events=${menuEvent.order_url_slug}`, '_blank');
@@ -738,19 +729,6 @@ const EventManagementPage = () => {
         onClose={() => setReceiptEvent(null)}
         event={receiptEvent}
         staff={staff}
-      />
-
-      {/* 추가/수정 다이얼로그 — 공용 EventFormDialog (L2 학회 상세와 공유) */}
-      <EventFormDialog
-        open={formOpen}
-        onClose={handleClose}
-        event={formEvent}
-        societies={availableSocieties}
-        staff={staff}
-        canEdit={canEdit}
-        canDelete={canDeleteEvent(formEvent)}
-        onSaved={fetchEvents}
-        onDeleted={fetchEvents}
       />
 
       {/* ⋯ 메뉴 경유 삭제 확인 다이얼로그 */}

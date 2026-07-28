@@ -57,7 +57,7 @@
 - [ ] URL 복사 (`handleCopyUrl`) → `${origin}/order?events={slug}` 클립보드 → "주문 URL이 클립보드에 복사되었습니다." 토스트
 - [ ] 새 창 열기 → `window.open` 같은 URL을 새 탭
 - [ ] QR 코드 다이얼로그 열기 (`handleOpenQrDialog`) → SVG QR 생성, 다이얼로그에 표시
-- [ ] 편집(⋯ 메뉴 "수정") 클릭 → **수정 다이얼로그(`EventFormDialog`) 열기 — 편집 경로는 이 화면에 유지**(신규 생성만 전용 페이지로 분리)
+- [ ] 편집(⋯ 메뉴 "수정") 클릭 → **`navigate('/admin/events/{slug}?edit=1')` — L2 학회 상세로 이동해 개요 인라인 편집 자동 진입**(2026-07-28, `EventFormDialog` 모달 폐기). ⋯메뉴 "수정" 항목은 유지(제거 아님). slug 없는 행은 이동 불가 토스트.
 - [ ] "학회 추가" 버튼 → **전용 생성 페이지 `/admin/events/new`로 네비게이트**(모달 아님, 2026-07-20). 빈 상태 `EmptyState`의 "학회 추가" 액션도 동일 경로.
 - [ ] "학회 목록 관리" 버튼 → `SocietyManagementDialog` 열기 (societies 테이블 CRUD)
 - [ ] 학회 저장 (`handleSave`):
@@ -72,9 +72,11 @@
 - [ ] 실시간 갱신: `supabase.channel('events_channel')`로 events 테이블 변경 구독, 변경 발생 시 `fetchEvents()` 호출
 - [ ] QR SVG 다운로드 (`handleDownloadQrSvg`): 파일명 `qr-{slug}.svg`
 
-## 입력 폼 구조 (추가/수정 다이얼로그, line 562-725)
+## 입력 폼 구조 (전용 페이지 + L2 인라인 편집)
 
-> **2026-07-20 — 신규 생성은 전용 페이지 `/admin/events/new`(`A11_EventCreatePage.md`)로 분리.** 이 다이얼로그는 **L1·L2의 기존 행사 편집 전용**으로 계속 사용(신규 경로만 이관, 리스크 격리). 폼 상수·자동조립·slug·저장 정규화 순수 로직은 `src/utils/eventForm.js`로 추출돼 다이얼로그와 생성 페이지가 공유(동작 불변).
+> **⚠ 2026-07-28 — `EventFormDialog` 폐기(파일 삭제).** 이 화면에는 더 이상 추가/수정 다이얼로그가 없다. **신규 생성 = 전용 페이지 `/admin/events/new`(`A11_EventCreatePage.md`), 편집 = L2 개요 인라인 편집(`L2_EventDetail.md` §5-2, `?edit=1` 진입).** 폼 필드는 공용 컴포넌트 3종(`EventAutofillFields`·`EventRequiredFields`·`EventOptionalFields`)+`useSlugCheck` 훅으로 생성·편집이 공유(정본=생성 페이지 버전). 아래 다이얼로그 line 번호·블록 설명은 **폐기된 EventFormDialog 기준 역사 기록**으로만 남긴다.
+>
+> **2026-07-20 — 신규 생성은 전용 페이지 `/admin/events/new`(`A11_EventCreatePage.md`)로 분리.** ~~이 다이얼로그는 L1·L2의 기존 행사 편집 전용으로 계속 사용~~(2026-07-28 폐기). 폼 상수·자동조립·slug·저장 정규화 순수 로직은 `src/utils/eventForm.js`로 추출돼 생성 페이지·편집 폼이 공유(동작 불변).
 > **2026-06-10 — 다이얼로그를 `src/components/EventFormDialog.jsx`로 공용 추출.** EventManagementPage(L1)·EventDetailPage(L2 인라인 수정) 양쪽에서 사용. 폼 구조·검증·자동 채우기 규칙은 아래 그대로 1:1 보존. props = open/onClose/event(null=신규)/societies/staff/canEdit/canDelete/onSaved/onDeleted. 다이얼로그 내부 삭제(주문 건수 확인→확인 다이얼로그)도 컴포넌트가 자체 처리하며, L1의 ⋯ 메뉴 삭제 확인은 페이지(`deleteTarget`)에 잔류.
 > **날짜 필드 = 공용 `ui/DateField`(경량 캘린더)로 교체(2026-06-10).** 표시 `YYYY.MM.DD(요일)`, × 버튼으로 클리어 가능. 빈 날짜는 upsert 시 null 정규화(date 컬럼 — '' 저장 오류 방지, 배송 예정일 비우기 지원).
 > **2026-06-15 datepicker 고도화:** ① 시작일·종료일 별도 2필드 → **`mode="range"` DateField 1개("행사 기간", 호텔 예약식 한 캘린더 2클릭)** 로 통합. `onChange({start,end})`를 `handleChange('start_date',start)`+`handleChange('end_date',end)` 2번 호출로 분해 → **DB 컬럼(start_date/end_date) 구조 그대로 유지.** range 캘린더가 start≤end를 자동 정렬하므로 시작>종료 입력 구조적 차단. ② 배송 예정일은 별개 single 유지. ③ 캘린더 공통: 오늘 셀 테두리 강조(자동선택 안 함), 항상 6행(42셀) 고정 높이(‹ › 위치 불변), single 필드 직접 타이핑 입력(`YYYY.MM.DD`/`YYYY-MM-DD`/`YYYYMMDD` 수용, blur·Enter 시 검증·정규화, 무효 날짜는 helperText 에러+값 미반영). range 필드는 타이핑 미지원(2클릭 전제, 아이콘 클릭으로 캘린더만).
@@ -198,6 +200,7 @@
 
 ## 변경 이력
 
+- 2026-07-28 **편집 경로 L2 이관·`EventFormDialog` 폐기**(frontend-engineer). ⋯메뉴 "수정" → `navigate('/admin/events/{slug}?edit=1')`(L2 개요 인라인 편집 자동 진입, `L2_EventDetail.md` §5-2). EventFormDialog 파일 삭제 — L1에서 추가/수정 다이얼로그 및 관련 state(`formOpen`/`formEvent`/`handleOpen`/`handleClose`)·`availableSocieties`·societies fetch 제거. **⋯메뉴 삭제(`handleMenuDelete`·`deleteTarget`·확인 다이얼로그)는 존치·무변경.** 폼 필드는 공용 컴포넌트 3종(생성·편집 공유, 정본=생성 페이지). backend 무변경.
 - 2026-07-20 **신규 생성 흐름 전용 페이지 분리**(`A11_EventCreatePage.md`, 라우트 `/admin/events/new`) — L1 "학회 추가" 버튼·빈 상태 액션이 모달 대신 전용 페이지로 네비게이트. **편집 경로(⋯ 메뉴 "수정"→`EventFormDialog`)는 이 화면에 그대로 유지**(신규만 이관, 리스크 격리). 폼 순수 로직(`SEASON_OPTIONS`·`FORM_FIELDS`·`applyAutofill`·`normalizeEventPayload`·slug/할인율 헬퍼)을 `src/utils/eventForm.js`로 추출해 다이얼로그·생성 페이지 공유(다이얼로그 동작 1:1 불변). **Step 1 컨트롤 타입 오기 정정**: `event_season`=Autocomplete freeSolo / `host_society`=select(이전 시트가 뒤바꿔 기재, 실 코드 기준 정정 — A11 §핵심발견 3).
 - 2026-06-25 판매 대분류 선택 필드 **구현**(`feature/product-hierarchy`, `EventFormDialog.jsx`) — **실 코드 변경**: (1) Step 2 말미(배송 예정일 아래)에 **판매 대분류 토글 칩**(검사/도서/도구 고정 상수) 추가, A5 핵심발견 2의 3블록·Divider 구조 보존. (2) `FORM_FIELDS`·`emptyEvent`에 `visible_categories` 추가, upsert 배열 보장(빈 배열 그대로 저장). (3) **빈 선택 의미 정정**: PRD "빈=0개" → **빈/NULL=전체 노출**(마이그레이션·CTO 지시서 확정, 기존 행사 보호). helperText 분기 + 1개 이상 시 실 집계 미리보기(`fetchProductCountByCategory`). (4) 데이터 모델·핵심 발견 10·11 정정. **보존(무변경)**: 자동완성·slug 생성·날짜 range·운영정보 블록·삭제 로직·권한 분기. **검증**: lint(변경 0 이슈)·build 통과.
 - 2026-06-24 카테고리·배지 동적화 PRD 반영 (`DOCS/PRD_오티즘_카테고리배지_동적화.md`, P0 트랙·기획 단계) — **사양만 갱신, 실 코드 미변경.** (1) **Step 2 말미에 "판매 대분류 선택" 멀티선택 필드** 추가 — 대분류(검사/도서/도구) 다중 칩, 빈 선택=노출 0개 경고+미리보기. 선택 대분류만 C1 주문서 노출. (2) 저장 위치(events.tags 겸용 vs visible_categories 신규 컬럼)는 **backend 디테일로 "확인 필요"** 표기 — tags 겸용 시 C1 태그 필터 충돌 위험 주석. (3) **폼 구조 2블록 → 3블록 정정**(EventFormDialog 현행: 행사명형식/기본정보/운영정보), 누락됐던 Step 3 운영정보(장소/참석자/비용/비고) 표시정보 추가. (4) 라인 번호 EventFormDialog.jsx 기준으로 갱신. (5) 핵심 발견 9~12 신설. **A5 핵심발견 2(2블록 분리·Divider) 준수**하여 기존 블록 구조·자동완성 의도 보존.

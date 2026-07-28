@@ -45,13 +45,15 @@
 - [ ] 헤더 직하 한 줄: 시간상태 배지(`getEventStatusKST` → 예정/진행 중/종료, `StatusBadge`) + 할인율 칩(>0%, accent.revenue soft).
 - [ ] 뒤로: 헤더 위 text Button "학회 목록" → L1.
 - [ ] 우상단 액션 3 (outlined, 모두 동일 위계 — Primary 채움 없음):
-  - [x] **학회 정보 수정** — **공용 `EventFormDialog.jsx` 인라인 오픈(2026-06-10 — L1 목록 이동 폐기).** 저장 → `loadEvent()` 재조회(slug 변경 시 새 주소로 replace 네비게이트 — 구 slug 미발견 방지). 삭제 가능 조건 = L1 정합(master 전부 / onsite 본인 생성, `created_by` — `EVENT_DETAIL_COLUMNS`에 추가). **다이얼로그가 `event` 객체로 초기화하므로 `visible_categories`(판매 대분류 노출 필터)도 `EVENT_DETAIL_COLUMNS`에 포함(2026-06-25 핫픽스 — 누락 시 수정 저장 때 빈 배열로 덮어써 기존 노출 설정 소거되는 회귀).** 삭제 성공 → 목록 이동.
+  - [x] **학회 정보 수정** — **개요 SectionCard "읽기 요약 ↔ 편집 폼" 모드 스왑(2026-07-28 — EventFormDialog 모달 폐기, 준비노트 편집 idiom과 동일).** 클릭 → `editingOverview=true` → 개요 본문이 공용 폼 컴포넌트 3종(`EventAutofillFields`·`EventRequiredFields`·`EventOptionalFields`, **평면·점진노출 없음**)으로 스왑. 편집 중엔 이 버튼 숨김. 상세는 §5 참조. `visible_categories`는 `EVENT_DETAIL_COLUMNS`에 포함(2026-06-25 핫픽스 유지 — 편집 저장 시 빈 배열 덮어쓰기 회귀 방지).
   - [x] **입금결의서** — `exportDepositResolution`(ExcelJS 동적 import) + 작성자/부서 자동 채움. **유일 진입점(2026-06-10 건우님 확정 — 대시보드 버튼 소거, L2 일원화).**
   - [ ] **지불증** — `PaymentReceiptModal`(A10b) 오픈. 실구현 시 event+staff 전달.
 
 > 확인 필요: 입금결의서/지불증은 결제완료 주문이 0건이거나 미래 학회일 때 노출 여부·disabled 처리. (1차 시안은 항상 노출.)
 
-## 5. 개요 카드 (블록 2 — A10 §7-1 6필드, events 1행 직출력)
+## 5. 개요 카드 (블록 2 — 읽기 요약 ↔ 편집 폼 모드 스왑)
+
+### 5-1. 읽기 요약(기본) — A10 §7-1 6필드, events 1행 직출력
 라벨 단위 6행. `OverviewRow`(라벨 88px 고정폭 + 값).
 - [ ] **장소** = `events.venue`. 미입력 "—".
 - [ ] **날짜** = `start_date ~ end_date` **+요일**(tnum). 헤더와 동일 `YYYY.MM.DD(요일)` 포맷(`formatRange`).
@@ -60,6 +62,19 @@
 - [ ] **비고** = `events.note`. whitespace-pre-wrap(여러 줄). 미입력 "—".
 
 > A10에서 L2 강등된 비고·비용이 여기서 처음 전체 노출(progressive disclosure). 날짜는 헤더와 개요 양쪽 표기 — 헤더=식별 컨텍스트, 개요=정보 행 일관성(의도된 중복, 변경 아님).
+
+### 5-2. 편집 폼(모드 스왑, 2026-07-28) — `events:edit`자만
+- [ ] 헤더 "학회 정보 수정"(§4) → `editingOverview=true` → 개요 본문이 공용 폼 컴포넌트 3종으로 **평면 스왑**(준비노트 편집 idiom과 동일, 점진 노출 없음):
+  - `EventAutofillFields` — 연도·주최학회(드롭다운+`+ 새 학회 추가`)·행사구분(드롭다운+`직접 입력`)
+  - `EventRequiredFields` — 행사명*·주문URL*·행사기간*·배송예정일*. `originalSlug={event.order_url_slug}` 전달 → slug 변경 시 **비차단 경고 캡션**("주소를 바꾸면 배포된 QR·복사한 링크·즐겨찾기·자동이동(/go) 설정이 더 이상 열리지 않습니다.")
+  - `EventOptionalFields` — 판매대분류·할인율·장소·참가비용·참석자(secondary=부서명)·비고
+- [ ] 로컬 편집 상태 = `{ ...event }`. `handleChange = applyAutofill(…{ isEditing:true })` — **slug 자동 재생성 차단**(수동 편집 보존).
+- [ ] slug 검사 = `useSlugCheck(form.order_url_slug, { excludeId: event.id })` — 자기 slug '이미 사용중' 오탐 방지.
+- [ ] **저장 게이트 = `isRequiredComplete`(4필수: 행사명·주문URL·행사기간·배송예정일)** + slug 중복 아님 + 검사 중 아님. 비활성 사유 노출.
+- [ ] 저장 = `normalizeEventPayload(form)` → `supabase.from('events').update().eq('id')` → 성공 시 slug 변경이면 `navigate('/admin/events/{새 slug}', { replace: true })`, 아니면 `loadEvent()` 재조회. (구 EventFormDialog `onSaved` 로직 보존.)
+- [ ] **편집 푸터** = `[삭제(canDelete일 때 error색 mr:auto)] [취소] [저장]`. 삭제 = 연결 주문 건수 확인(>0건 차단 토스트) → 확인 다이얼로그 → `events` 삭제 → 목록 이동. `canDelete = master 전부 / onsite 본인 생성(created_by === myId)`.
+- [ ] **L1 ⋯메뉴 "수정" 경유(`?edit=1`)**: 진입 시 `editingOverview=true` 자동 진입 + 개요로 스크롤, 이후 `edit` param을 `replace`로 제거(새로고침 재진입 방지, `editParamHandledRef` 1회 가드).
+- [ ] 판매 대분류 실 집계 미리보기(`fetchProductCountByCategory`)는 편집 모드 진입 시 1회.
 
 ## 6. 진행 상태 (블록 3 — 3 독립 토글 칩)
 - [ ] events 3 boolean — `draft_done`(기안) / `application_done`(신청) / `payment_resolution_done`(지결). 마이그레이션 `20260608030000_add_event_progress_flags.sql` 적용 완료(DEFAULT false).
@@ -132,7 +147,7 @@
 | 이미지 라이트박스 | MUI `Dialog` | 재사용(신규 라이브러리 0) |
 | 날짜 요일 포맷 | 헬퍼 `weekday`/`dotDay`/`formatRange` | `getDay()` KST 자정 파싱 |
 | 단건 fetch·진행상태·노트·매출주문 | `api/events.js` | **신규 함수 4종** |
-| 학회 정보 수정 다이얼로그 | `EventFormDialog.jsx` | **추출(공용)** — EventManagementPage·L2 import (2026-06-10) |
+| 학회 정보 수정 폼 | `EventAutofillFields`·`EventRequiredFields`·`EventOptionalFields` + `useSlugCheck` | **공용 추출(2026-07-28)** — 생성 페이지·L2 편집 공유. ~~`EventFormDialog.jsx`~~ 폐기(삭제) |
 | 열람 기록·열람자 조회 | `api/events.js` `recordEventView`/`getEventViewers` | **신규 함수 2종** (2026-06-10) |
 | 열람 이력 표 | A7 게시판 "읽음 현황" Table 패턴 | MUI Table(신규 0) |
 
@@ -168,6 +183,7 @@
 - [x] (Q11) **학회 정보 수정** = ~~L1 목록 이동~~ → **해결(2026-06-10 건우님 "버그네, 수정하자").** 다이얼로그를 `EventFormDialog.jsx`로 추출해 L1·L2 공용. L2는 인라인 오픈 + 저장 시 재조회(slug 변경 시 새 주소 이동).
 
 ## 15. 결정 이력
+- 2026-07-28 — **편집을 L2 개요 인라인으로 이관(frontend-engineer).** `EventFormDialog` 모달 폐기(파일 삭제). 개요 SectionCard "읽기 요약 ↔ 편집 폼" 모드 스왑(§5-2). 공용 폼 컴포넌트 3종(`EventAutofillFields`·`EventRequiredFields`·`EventOptionalFields`) + `useSlugCheck` 훅 추출(생성 페이지와 공유, 폼 이원화 부채 제거). 편집도 4필수 게이트(`isRequiredComplete`). slug 변경 비차단 경고 캡션. 삭제(주문건수 확인+확인 다이얼로그)를 편집 푸터로 이식. L1 ⋯메뉴 "수정"→`?edit=1`로 L2 편집 자동 진입. `useSlugCheck` `excludeId`로 자기 slug 오탐 방지. staff 쿼리에 `department` 추가(참석자 secondary=부서명). **backend 무변경.**
 - 2026-06-08 — L2 1차 시안 신설(EventDetailPreview). 에디터·이미지 2차로 분리. 진행상태=3 독립 boolean(마이그레이션 적용). 매출=paid만 hero 축약. (product-designer)
 - 2026-06-08 — **1차 시안 v2(건우님 피드백 4건).** ①날짜 요일 ②매출=지결 완료 시에만 ③준비물 체크리스트 ④학회 자료 섹션. (product-designer)
 - 2026-06-08 — **실구현 완료(frontend-engineer).** 건우님 결정으로 **준비물 위젯+학회자료 → 통합 Toast UI 에디터 1칸**(prep_note·event-images 버킷)으로 대체. 진행상태 실 토글, 매출 실 집계, FieldReportSection 추출(공용), slug 라우팅 분기, 이미지 라이트박스(MUI). 섹션 순서 = 개요→진행→준비 노트→현장보고→매출.

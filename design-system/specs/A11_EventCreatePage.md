@@ -26,7 +26,8 @@
 | 화면 형태 | **단일 페이지·스텝 없음**(위저드/스테퍼 기각) | 07-20 |
 | 행사명 생성 | **자동 조립 유지** — 연도+주최학회+행사구분 → 행사명·주문URL 자동 생성, 수동 수정 가능 | 07-20 |
 | ③진행상태·④준비노트·⑤열람이력 | 이 화면에 **넣지 않는다.** 완료 후 착지하는 **상세 페이지(L2) 섹션** | 07-20 |
-| 기존 행사 편집 | **1차 범위 밖.** `EventFormDialog` 모달 유지 | 07-20 |
+| 기존 행사 편집 | ~~1차 범위 밖·`EventFormDialog` 모달~~ → **L2 개요 인라인 편집으로 이관, EventFormDialog 폐기** | 07-28 |
+| 편집 필수 게이트 | **편집도 4필수**(`isRequiredComplete`) — 운영 DB 11개 행사 전부 4필드 충족(null 0건, 마찰 없음) | 07-28 |
 | 블록 구조 | **자동조립 + 필수를 「행사 정보」 한 블록으로 통합** | 07-28 |
 | 점진 노출 | 3단계(자동조립 → 필수 → 선택), **직접입력 탈출구 필수** | 07-28 |
 | 필수 필드 | **4개** — 행사명·주문URL·행사기간·**배송예정일** | 07-28 |
@@ -39,16 +40,34 @@
 ## 참조 파일
 
 - **신규 컴포넌트:** `inpsyt-order-frontend/src/components/EventCreatePage.jsx`
+- **공용 폼 컴포넌트(2026-07-28 추출):** `EventAutofillFields.jsx` · `EventRequiredFields.jsx` · `EventOptionalFields.jsx` — 생성 페이지·L2 편집이 공유
+- 공용 slug 검사 훅: `inpsyt-order-frontend/src/hooks/useSlugCheck.js`
 - 공용 순수 로직: `inpsyt-order-frontend/src/utils/eventForm.js` (+ `eventForm.test.js`)
-- 기존 편집 폼: `inpsyt-order-frontend/src/components/EventFormDialog.jsx` (같은 utils 소비)
+- ~~기존 편집 폼: `EventFormDialog.jsx`~~ — **폐기(2026-07-28).** 편집은 L2 개요 인라인으로 이관, 공용 폼 컴포넌트 3종으로 이원화 부채 제거
 - 진입점(L1): `EventManagementPage.jsx` — "새 학회 추가" 버튼
-- 착지점(L2): `EventDetailPage.jsx`
+- 착지점·편집: `EventDetailPage.jsx`(L2 개요 인라인 편집)
 - 학회 마스터 관리: `SocietyManagementDialog.jsx`(추가 = 학회명 + URL 태그 2필드)
 - 주문 가능 판정: `OrderPage.jsx:127`
 - 관련 API: `api/events.js`(`getSocieties`), `api/products.js`(`fetchProductCountByCategory`)
 - 공용 UI: `components/ui/`(`PageHeader`, `SectionCard`, `DateField`)
 - DB: `supabase/migrations/` — events 관련 전체, `20260602000000_add_department_to_user_profiles`
 - 연관 사양: `A5_EventManagementPage.md`, `L2_EventDetail.md`, `A10_EventHubList.md`
+
+## 공용 폼 컴포넌트 (생성=점진노출 / 편집=평면) — 2026-07-28
+
+편집을 L2 개요 인라인으로 이관하면서 폼 이원화(EventFormDialog vs EventCreatePage) 부채를 제거했다. **EventCreatePage 버전을 정본**으로 3개 컴포넌트를 추출해 생성·편집이 같은 필드 렌더를 공유한다. 구 EventFormDialog 버전(Autocomplete freeSolo season·역할 secondary·타이핑 배송일)은 폐기.
+
+| 컴포넌트 | props | 필드 | 생성 페이지 | L2 편집 |
+|---|---|---|---|---|
+| `EventAutofillFields` | `{ form, onChange, societies, onSocietyAdded, disabled }` | 연도 · 주최학회(드롭다운+`+ 새 학회 추가` 인라인) · 행사구분(드롭다운+`직접 입력`) | 1단계(점진 노출) | 평면 |
+| `EventRequiredFields` | `{ form, onChange, slugState, originalSlug? }` | 행사명* · 주문URL*(하단 slug 상태) · 행사기간*(range) · 배송예정일*(`clickToOpen`) | 2단계(게이트) | 평면 |
+| `EventOptionalFields` | `{ form, onChange, staff, categoryCounts }` | 판매대분류 · 할인율 · 장소 · 참가비용 · 참석자(`secondary=department`) · 비고 | 3단계(Collapse) | 평면 |
+
+- **정본 규칙(EventCreatePage 버전):** 주최학회·행사구분 드롭다운 강제 · 참석자 secondary=부서명 · 참가비용 라벨 · 배송예정일 `DateField clickToOpen`.
+- **점진 노출·manualMode·복귀 링크는 페이지(EventCreatePage)에 존치** — 컴포넌트는 필드 렌더만 담당. L2 편집은 3컴포넌트를 평면으로 나열(점진 노출 없음).
+- **slug 검사 = `useSlugCheck(slug, { excludeId })`** 훅으로 이관(debounce 400ms·형식·예약·중복). 편집은 `excludeId=event.id`로 자기 slug '이미 사용중' 오탐 방지. `slugState.displayMsg{text,color}`를 `EventRequiredFields`가 하단 캡션으로 렌더.
+- **`onSocietyAdded` 콜백** — 인라인 학회 추가(insert+검증)는 `EventAutofillFields`가 소유하되, `setSocieties`+`applyAutofill(fresh 목록)` 원자 처리는 **부모가 수행**(stale-closure slug 버그 방지). 추가만·삭제 없음.
+- **`originalSlug`(편집만)**: 지정 + slug 변경 감지 시 비차단 경고 캡션 "주소를 바꾸면 배포된 QR·복사한 링크·즐겨찾기·자동이동(/go) 설정이 더 이상 열리지 않습니다." 생성은 미전달 → 경고 없음.
 
 ## 사용자 시나리오
 
@@ -214,7 +233,7 @@
 13. **판매 대분류 빈 선택 = 전체 노출**("0개 노출" 아님). 미지정 컬럼 빈배열 덮어쓰기 회귀 주의(2026-06-25 전례).
 14. **할인율 단위 변환(UI % ↔ DB 소수)** 표기 누락 금지. **`percentToRate` 0~100 클램프**(100% 초과 → 주문가 음수 운영버그), `rateToPercent`는 클램프 안 함(이상값 노출).
 15. **완료 후 L2 착지가 설계의 일부.** ③④⑤로 이어진다.
-16. **편집 모달은 1차에서 그대로 산다.** 이 페이지는 신규 경로만 추가.
+16. ~~편집 모달은 1차에서 그대로 산다~~ → **2026-07-28 갱신: 편집을 L2 개요 인라인으로 이관, `EventFormDialog` 폐기.** 생성·편집이 공용 폼 컴포넌트 3종+`useSlugCheck`를 공유(정본=생성 페이지). 편집도 4필수 게이트.
 
 ## 알려진 이슈 (이번 범위 밖 · 별도 트랙)
 
@@ -228,6 +247,7 @@
 
 ## 변경 이력
 
+- **2026-07-28 편집 이관·공용 폼 추출** — 편집을 `EventFormDialog` 모달에서 **L2 개요 인라인 편집 모드**로 이관, 다이얼로그 폐기(파일 삭제). 폼 이원화 부채 제거: `EventAutofillFields`·`EventRequiredFields`·`EventOptionalFields` 3종 추출(생성=점진노출 / 편집=평면 공유, **EventCreatePage 버전이 정본**). slug 검사 = `useSlugCheck` 훅(`excludeId` 편집 지원). 편집도 4필수 게이트(운영 DB 마찰 0). L1 ⋯메뉴 "수정"→`/admin/events/{slug}?edit=1`(항목 제거 아님, 진입 시 개요 편집 자동 진입+스크롤·param 스트립). slug 변경 비차단 경고 캡션. 삭제(주문건수 확인+확인 다이얼로그)를 L2 편집 푸터로 이식. **backend 무변경.** 생성 페이지는 순수 리팩터(동작·화면 불변).
 - **2026-07-28 프리뷰 QA 5건** — ①직접입력(`manualMode`) 시 자동조립 3필드 숨김 + "자동으로 행사명 만들기" 복귀 링크 ②배송예정일 `DateField clickToOpen`(필드 클릭으로 캘린더, 다른 4개 소비처 무영향) ③선택 블록 현재값 요약 한 줄 제거(계산 코드 포함) ④선택 블록 보조 안내 문장 제거 ⑤★`percentToRate` 0~100 클램프(100% 초과 → 주문가 음수 운영버그, 공용 유틸이라 생성·편집 동시 해결). 필드 13개·정보 구조 불변.
 - **2026-07-28 개정(UX 검토 8건)** — ①자동조립 순서 연도·주최학회·행사구분 ②점진 노출 3단계 + 직접입력 탈출구 ③필수 2×2 배치(행사명·주문URL / 행사기간·배송예정일) ④선택은 필수 충족 후 노출 ⑤선택 배치(판매분류·할인율 한 행)·"비용"→"참가비용"·참석자 secondary를 역할→**부서명** ⑥자동조립을 「행사 정보」 블록으로 **통합**(점진 노출과 블록 경계가 충돌하지 않게) ⑦**배송예정일 필수 승격**(서비스 본질=학회 후 배송) ⑧**주최학회·행사구분 드롭다운 강제** + 메뉴 내 `+ 새 학회 추가`/`직접 입력`. 학회 인라인은 추가만(삭제 제외 — 선택 위젯 내 파괴적 액션 회피). 필드 13개 유지.
 - 2026-07-20 신설 — 모달 13필드 → 단일 페이지 전환 확정(위저드 기각). 행사기간 필수 승격, 즉시 인라인 검증, ③④⑤는 L2 유지, 편집은 범위 밖.

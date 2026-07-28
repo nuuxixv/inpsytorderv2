@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense, lazy } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Box, Typography, Button, IconButton, CircularProgress, Dialog, useTheme,
+  Box, Typography, Button, IconButton, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, useTheme,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
@@ -13,6 +13,7 @@ import {
   StickyNote2Outlined as NoteIcon,
   PaymentsOutlined as CostIcon,
   Edit as EditIcon,
+  Delete as DeleteIcon,
   ReceiptLong as ReceiptLongIcon,
   Description as DescriptionIcon,
   Check as CheckIcon,
@@ -41,12 +42,17 @@ import {
   getEventBySlug, updateEventProgress, updateEventPrepNote, getOrdersForEventRevenue,
   recordEventView, getEventViewers,
 } from '../api/events';
+import { fetchProductCountByCategory } from '../api/products';
+import { applyAutofill, normalizeEventPayload, isRequiredComplete } from '../utils/eventForm';
+import { useSlugCheck } from '../hooks/useSlugCheck';
 import { encodeForStorage } from '../utils/prepNoteImages';
 import { PageHeader, SectionCard, StatCard, StatusBadge, EmptyState, DraftBanner, DraftSavedHint } from './ui';
 import { useFormDraft } from '../hooks/useFormDraft';
 import FieldReportSection from './FieldReportSection';
 import PaymentReceiptModal from './PaymentReceiptModal';
-import EventFormDialog from './EventFormDialog';
+import EventAutofillFields from './EventAutofillFields';
+import EventRequiredFields from './EventRequiredFields';
+import EventOptionalFields from './EventOptionalFields';
 
 // Toast UI 에디터/뷰어 = 무거운 의존성 → 지연 로드(초기/공개 번들 0 영향)
 const PrepNoteEditor = lazy(() => import('./PrepNoteEditor'));
@@ -220,6 +226,7 @@ const EventDetailPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { slug } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, profile, hasPermission } = useAuth();
   const { addNotification } = useNotification();
 
@@ -253,10 +260,19 @@ const EventDetailPage = () => {
   // 라이트박스
   const [lightboxSrc, setLightboxSrc] = useState(null);
 
-  // 학회 정보 수정 — 공용 EventFormDialog 인라인 오픈(2026-06-10, 목록 이동 폐기)
-  const [editOpen, setEditOpen] = useState(false);
+  // 학회 정보 수정 — 개요 SectionCard "읽기 요약 ↔ 편집 폼" 모드 스왑(2026-07-28, 모달 폐기)
+  const [editingOverview, setEditingOverview] = useState(false);
+  const [overviewForm, setOverviewForm] = useState(null);
+  const [savingOverview, setSavingOverview] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [categoryCounts, setCategoryCounts] = useState(null); // 판매 대분류 실 집계 미리보기
+  const overviewRef = useRef(null);
+  const editParamHandledRef = useRef(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  // 개요 편집 폼 slug 검사 — 자기 자신(event.id) 제외.
+  const slugState = useSlugCheck(overviewForm?.order_url_slug || '', { excludeId: event?.id });
 
   // 열람 이력 — master만. null = 미조회/미적용 환경(섹션 숨김)
   const [views, setViews] = useState(null);
@@ -272,7 +288,7 @@ const EventDetailPage = () => {
         getEventBySlug(slug),
         supabase
           .from('user_profiles')
-          .select('id, name, role, position')
+          .select('id, name, role, position, department')
           .in('role', ['master', 'onsite'])
           .order('name', { ascending: true }),
         supabase.from('societies').select('id, name, slug_prefix').order('name', { ascending: true }),
@@ -314,6 +330,29 @@ const EventDetailPage = () => {
       try { setViews(await getEventViewers(eventId)); } catch { setViews(null); }
     })();
   }, [eventId, isMaster]);
+
+  // L1 ⋯메뉴 "수정" 경유(?edit=1) — 진입 시 개요 편집 모드 자동 진입 + 스크롤, 이후 param 제거(새로고침 재진입 방지)
+  useEffect(() => {
+    if (editParamHandledRef.current || !event || !canEdit) return;
+    if (searchParams.get('edit') !== '1') return;
+    editParamHandledRef.current = true;
+    setOverviewForm({ ...event });
+    setEditingOverview(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('edit');
+    setSearchParams(next, { replace: true });
+    setTimeout(() => overviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  }, [event, canEdit, searchParams, setSearchParams]);
+
+  // 판매 대분류 미리보기 카운트 — 편집 모드 진입 시 1회(실 집계만).
+  useEffect(() => {
+    if (!editingOverview || categoryCounts) return undefined;
+    let cancelled = false;
+    fetchProductCountByCategory()
+      .then((c) => { if (!cancelled) setCategoryCounts(c); })
+      .catch(() => { if (!cancelled) setCategoryCounts({}); });
+    return () => { cancelled = true; };
+  }, [editingOverview, categoryCounts]);
 
   // 권한 가드
   if (user && !hasPermission('events:view')) {
@@ -359,6 +398,90 @@ const EventDetailPage = () => {
       setProgress((p) => ({ ...p, [key]: !next })); // 롤백
       addNotification('진행 상태 저장에 실패했습니다.', 'error');
     }
+  };
+
+  // ─── 개요 인라인 편집 ───────────────────────────────────
+  const startEditOverview = () => {
+    setOverviewForm({ ...event });
+    setEditingOverview(true);
+  };
+  const cancelEditOverview = () => {
+    setEditingOverview(false);
+    setOverviewForm(null);
+  };
+  // 편집은 isEditing:true — slug 자동 재생성 차단(수동 편집 보존).
+  const handleOverviewChange = (name, value) => {
+    setOverviewForm((prev) => applyAutofill(prev, name, value, { societies, isEditing: true }));
+  };
+  const handleSocietyAdded = (newSociety) => {
+    const nextSocieties = [...societies, newSociety].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    setSocieties(nextSocieties);
+    setOverviewForm((prev) => applyAutofill(prev, 'host_society', newSociety.name, { societies: nextSocieties, isEditing: true }));
+  };
+
+  const canSaveOverview = isRequiredComplete(overviewForm) && slugState.isAvailable && !savingOverview;
+  let saveDisableReason = '';
+  if (editingOverview && !canSaveOverview && !savingOverview) {
+    if (!overviewForm?.name) saveDisableReason = '행사명을 입력하세요.';
+    else if (!overviewForm?.order_url_slug) saveDisableReason = '주문 URL을 입력하세요.';
+    else if (slugState.formatBad) saveDisableReason = '주문 URL 형식을 확인하세요.';
+    else if (slugState.reserved) saveDisableReason = "'new'는 사용할 수 없는 주소입니다.";
+    else if (!overviewForm?.start_date || !overviewForm?.end_date) saveDisableReason = '행사 기간을 선택하세요.';
+    else if (!overviewForm?.estimated_delivery_date) saveDisableReason = '배송 예정일을 선택하세요.';
+    else if (slugState.isBusy) saveDisableReason = '주문 URL 중복 확인 중입니다.';
+    else if (slugState.taken) saveDisableReason = '이미 사용중인 주문 URL입니다.';
+    else if (slugState.error) saveDisableReason = '주문 URL 중복 검사에 실패했습니다. 다시 시도하세요.';
+  }
+
+  const handleSaveOverview = async () => {
+    if (!canSaveOverview) return;
+    setSavingOverview(true);
+    const payload = normalizeEventPayload(overviewForm);
+    const { error } = await supabase.from('events').update(payload).eq('id', event.id);
+    if (error) {
+      addNotification(`저장 실패: ${error.message}`, 'error');
+      setSavingOverview(false);
+      return;
+    }
+    addNotification('학회 정보를 저장했습니다.', 'success');
+    const newSlug = overviewForm.order_url_slug;
+    setEditingOverview(false);
+    setOverviewForm(null);
+    setSavingOverview(false);
+    // slug 변경 시 새 주소로 이동(구 slug 재조회 시 미발견 방지), 아니면 재조회
+    if (newSlug && newSlug !== slug) {
+      navigate(`/admin/events/${newSlug}`, { replace: true });
+    } else {
+      loadEvent();
+    }
+  };
+
+  // 삭제 — master 전부 / onsite 본인 생성만. 연결 주문 0건일 때만.
+  const canDelete = isMaster || (canEdit && !!event.created_by && event.created_by === myId);
+  const handleDeleteClick = async () => {
+    const { count, error } = await supabase
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', event.id);
+    if (error) {
+      addNotification(`확인 실패: ${error.message}`, 'error');
+      return;
+    }
+    if (count > 0) {
+      addNotification(`이 행사에 연결된 주문 ${count}건이 있어 삭제할 수 없습니다.`, 'warning');
+      return;
+    }
+    setDeleteConfirmOpen(true);
+  };
+  const handleDeleteConfirm = async () => {
+    const { error } = await supabase.from('events').delete().eq('id', event.id);
+    if (error) {
+      addNotification(`삭제 실패: ${error.message}`, 'error');
+      return;
+    }
+    addNotification('행사가 삭제되었습니다.', 'success');
+    setDeleteConfirmOpen(false);
+    navigate('/admin/events', { replace: true });
   };
 
   // 준비 노트 편집 진입 — draft 유무는 배너로 분기. 에디터는 현재 저장본(prep_note)으로 시작.
@@ -423,11 +546,11 @@ const EventDetailPage = () => {
 
   const headerAction = (
     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-      {canEdit && (
+      {canEdit && !editingOverview && (
         <Button
           size="small" variant="outlined"
           startIcon={<EditIcon sx={{ fontSize: 16 }} />}
-          onClick={() => setEditOpen(true)}
+          onClick={startEditOverview}
           sx={{ minHeight: 36 }}
         >
           학회 정보 수정
@@ -488,41 +611,88 @@ const EventDetailPage = () => {
       </Box>
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {/* ─── 개요 ─── */}
-        <SectionCard title="개요" icon={EventNoteIcon}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-            <OverviewRow icon={<PlaceIcon sx={ROW_ICON_SX} />} label="장소">
-              <Typography variant="body2" sx={{ color: event.venue ? 'text.primary' : 'text.disabled', fontWeight: 500 }}>
-                {event.venue || '—'}
-              </Typography>
-            </OverviewRow>
-            <OverviewRow icon={<EventNoteIcon sx={ROW_ICON_SX} />} label="날짜">
-              <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 500, fontFeatureSettings: '"tnum" 1' }}>
-                {formatRange(event.start_date, event.end_date) || '—'}
-              </Typography>
-            </OverviewRow>
-            <OverviewRow icon={<PersonIcon sx={ROW_ICON_SX} />} label="참석자" alignTop>
-              <AttendeePillRow ids={event.attendee_ids || []} staffMap={staffMap} myId={myId} />
-            </OverviewRow>
-            <OverviewRow icon={<CostIcon sx={ROW_ICON_SX} />} label="비용">
-              <Box>
-                <Typography variant="body2" sx={{ color: event.marketing_cost ? 'text.primary' : 'text.disabled', fontWeight: 600, fontFeatureSettings: '"tnum" 1' }}>
-                  {event.marketing_cost ? `${won(event.marketing_cost)}원` : '—'}
-                </Typography>
-                {event.marketing_cost > 0 && (
-                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                    {numberToKoreanCurrency(event.marketing_cost)}원
-                  </Typography>
-                )}
+        {/* ─── 개요 (읽기 요약 ↔ 편집 폼 모드 스왑) ─── */}
+        <Box ref={overviewRef}>
+          <SectionCard title="개요" icon={EventNoteIcon}>
+            {editingOverview && overviewForm ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <EventAutofillFields
+                  form={overviewForm}
+                  onChange={handleOverviewChange}
+                  societies={societies}
+                  onSocietyAdded={handleSocietyAdded}
+                />
+                <EventRequiredFields
+                  form={overviewForm}
+                  onChange={handleOverviewChange}
+                  slugState={slugState}
+                  originalSlug={event.order_url_slug}
+                />
+                <EventOptionalFields
+                  form={overviewForm}
+                  onChange={handleOverviewChange}
+                  staff={staff}
+                  categoryCounts={categoryCounts}
+                />
+
+                {/* 편집 푸터 — [삭제(mr:auto)] [취소] [저장] */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {saveDisableReason && (
+                    <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'right' }}>
+                      {saveDisableReason}
+                    </Typography>
+                  )}
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    <Box sx={{ mr: 'auto' }}>
+                      {canDelete && (
+                        <Button onClick={handleDeleteClick} color="error" startIcon={<DeleteIcon />} disabled={savingOverview}>
+                          삭제
+                        </Button>
+                      )}
+                    </Box>
+                    <Button onClick={cancelEditOverview} disabled={savingOverview}>취소</Button>
+                    <Button variant="contained" onClick={handleSaveOverview} disabled={!canSaveOverview}>
+                      {savingOverview ? '저장중...' : '저장'}
+                    </Button>
+                  </Box>
+                </Box>
               </Box>
-            </OverviewRow>
-            <OverviewRow icon={<NoteIcon sx={ROW_ICON_SX} />} label="비고" alignTop>
-              <Typography variant="body2" sx={{ color: event.note ? 'text.primary' : 'text.disabled', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-                {event.note || '—'}
-              </Typography>
-            </OverviewRow>
-          </Box>
-        </SectionCard>
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                <OverviewRow icon={<PlaceIcon sx={ROW_ICON_SX} />} label="장소">
+                  <Typography variant="body2" sx={{ color: event.venue ? 'text.primary' : 'text.disabled', fontWeight: 500 }}>
+                    {event.venue || '—'}
+                  </Typography>
+                </OverviewRow>
+                <OverviewRow icon={<EventNoteIcon sx={ROW_ICON_SX} />} label="날짜">
+                  <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 500, fontFeatureSettings: '"tnum" 1' }}>
+                    {formatRange(event.start_date, event.end_date) || '—'}
+                  </Typography>
+                </OverviewRow>
+                <OverviewRow icon={<PersonIcon sx={ROW_ICON_SX} />} label="참석자" alignTop>
+                  <AttendeePillRow ids={event.attendee_ids || []} staffMap={staffMap} myId={myId} />
+                </OverviewRow>
+                <OverviewRow icon={<CostIcon sx={ROW_ICON_SX} />} label="비용">
+                  <Box>
+                    <Typography variant="body2" sx={{ color: event.marketing_cost ? 'text.primary' : 'text.disabled', fontWeight: 600, fontFeatureSettings: '"tnum" 1' }}>
+                      {event.marketing_cost ? `${won(event.marketing_cost)}원` : '—'}
+                    </Typography>
+                    {event.marketing_cost > 0 && (
+                      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                        {numberToKoreanCurrency(event.marketing_cost)}원
+                      </Typography>
+                    )}
+                  </Box>
+                </OverviewRow>
+                <OverviewRow icon={<NoteIcon sx={ROW_ICON_SX} />} label="비고" alignTop>
+                  <Typography variant="body2" sx={{ color: event.note ? 'text.primary' : 'text.disabled', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                    {event.note || '—'}
+                  </Typography>
+                </OverviewRow>
+              </Box>
+            )}
+          </SectionCard>
+        </Box>
 
         {/* ─── 진행 상태 ─── */}
         <SectionCard title="진행 상태" icon={EditNoteIcon} subtitle={canEdit ? '칩을 눌러 완료 여부를 표시하세요 (독립 항목)' : undefined}>
@@ -731,27 +901,22 @@ const EventDetailPage = () => {
         )}
       </Box>
 
-      {/* 학회 정보 수정 — 공용 EventFormDialog 인라인 */}
-      {canEdit && (
-        <EventFormDialog
-          open={editOpen}
-          onClose={() => setEditOpen(false)}
-          event={event}
-          societies={societies}
-          staff={staff}
-          canEdit={canEdit}
-          canDelete={isMaster || (canEdit && !!event.created_by && event.created_by === myId)}
-          onSaved={(saved) => {
-            // slug가 바뀌면 새 주소로 이동(구 slug 재조회 시 미발견 방지), 아니면 재조회
-            if (saved?.order_url_slug && saved.order_url_slug !== slug) {
-              navigate(`/admin/events/${saved.order_url_slug}`, { replace: true });
-            } else {
-              loadEvent();
-            }
-          }}
-          onDeleted={() => navigate('/admin/events', { replace: true })}
-        />
-      )}
+      {/* 삭제 확인 다이얼로그 — 개요 편집 푸터 삭제 버튼 경유(주문 0건 확인 후) */}
+      <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>행사 삭제</DialogTitle>
+        <DialogContent>
+          <Typography>
+            <strong>{event.name}</strong> 행사를 삭제합니다.
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
+            이 작업은 되돌릴 수 없습니다.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setDeleteConfirmOpen(false)}>취소</Button>
+          <Button onClick={handleDeleteConfirm} variant="contained" color="error">삭제</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* 지불증 모달 */}
       <PaymentReceiptModal
