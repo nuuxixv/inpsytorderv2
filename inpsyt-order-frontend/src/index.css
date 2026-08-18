@@ -1,4 +1,6 @@
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
+/* 폰트는 여기서 @import 하지 않는다. 렌더블로킹 스타일시트 안의 @import는
+ * 그 자체가 렌더블로킹이라 첫 페인트가 서드파티 CDN 응답을 기다린다(저대역
+ * 행사장에서 빈 화면이 길어진 원인). index.html에서 비동기로 로드한다. */
 
 /* ============================================================
  * Design Tokens — M1 (Appendix_Spec.md §1·§3·§4·§7·§11)

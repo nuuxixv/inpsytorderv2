@@ -4,8 +4,84 @@
     {
       "name": "vite-dev",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--port", "5173"],
+      "runtimeArgs": [
+        "node_modules/vite/bin/vite.js",
+        "--port",
+        "5173"
+      ],
       "port": 5173,
+      "cwd": "inpsyt-order-frontend"
+    },
+    {
+      "name": "vite-preview",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "node_modules/vite/bin/vite.js",
+        "preview",
+        "--port",
+        "4173"
+      ],
+      "port": 4173,
+      "cwd": "inpsyt-order-frontend"
+    },
+    {
+      "name": "slow-preview",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/slow-preview.mjs",
+        "--preset",
+        "venue",
+        "--port",
+        "4274",
+        "--cold"
+      ],
+      "port": 4274,
+      "cwd": "inpsyt-order-frontend"
+    },
+    {
+      "name": "slow-preview-break-font",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/slow-preview.mjs",
+        "--preset",
+        "venue",
+        "--port",
+        "4275",
+        "--cold",
+        "--break-font"
+      ],
+      "port": 4275,
+      "cwd": "inpsyt-order-frontend"
+    },
+    {
+      "name": "slow-preview-break-assets",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/slow-preview.mjs",
+        "--preset",
+        "venue",
+        "--port",
+        "4276",
+        "--cold",
+        "--break-assets"
+      ],
+      "port": 4276,
+      "cwd": "inpsyt-order-frontend"
+    },
+    {
+      "name": "slow-preview-crawl",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/slow-preview.mjs",
+        "--kbps",
+        "120",
+        "--latency",
+        "800",
+        "--port",
+        "4277",
+        "--cold"
+      ],
+      "port": 4277,
       "cwd": "inpsyt-order-frontend"
     }
   ]

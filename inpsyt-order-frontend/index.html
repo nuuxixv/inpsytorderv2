@@ -4,10 +4,126 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 다크모드 차단은 반드시 여기(HTML)에 있어야 한다. index.css의
+         `color-scheme: light`만 있으면 그 CSS가 도착하기 전까지 opt-out 신호가
+         없어, 안드로이드 강제 다크모드가 빈 화면을 검게 칠한다.
+         (2026-07 오티즘 현장 "화면이 까맣게 변함" 원인) -->
+    <meta name="color-scheme" content="light" />
+    <!-- body 마진 리셋을 index.css에만 두면, 그 CSS가 실패했을 때 기본 8px
+         마진이 살아나 폴백 좌우로 캔버스가 드러난다(강제 다크면 그 띠가 검게
+         보인다). 인라인이라 외부 CSS 없이도 성립한다. 값은 index.css와 동일하고
+         MUI CssBaseline이 나중에 주입되므로 정상 동작에는 영향이 없다. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+      }
+    </style>
+    <!-- Pretendard — 비동기 로드. media="print"로 받아 렌더블로킹을 피하고
+         onload에서 적용한다. 첫 페인트가 서드파티 CDN을 기다리지 않는다.
+         가변 폰트 동적 서브셋이라 실제 쓰는 글자 구간만 내려오고, weight
+         500·600·700·800이 한 파일 계열을 공유한다(정적 4종 ≈3.1MB → 필요
+         서브셋 ≈38KB/개). font-display:swap이라 CDN이 막히거나 느려도
+         시스템 폰트로 그려지고 화면이 비지 않는다. -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"
+      media="print"
+      onload="this.media='all'"
+    />
     <title>인싸이트 주문서</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- 부트 폴백: CSS·JS가 도착하기 전/실패했을 때 보이는 유일한 화면.
+           외부 스타일시트가 없어도 성립해야 하므로 인라인 스타일만 쓴다.
+           React createRoot가 마운트되면 이 내용을 교체한다. -->
+      <div
+        id="boot-fallback"
+        style="box-sizing: border-box; min-height: 100vh; background: #ffffff; color: #111111; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 24px; font-family: system-ui, -apple-system, sans-serif; text-align: center"
+      >
+        <p style="margin: 0; font-size: 16px; font-weight: 600">주문서를 불러오고 있습니다</p>
+        <p id="boot-hint" style="margin: 0; font-size: 14px; color: #666666; line-height: 1.6">
+          네트워크 상태에 따라 시간이 걸릴 수 있습니다
+        </p>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
+    <!-- 부트 실패 복구. 모듈 스크립트나 스타일시트 로드가 실패하면(배포로 에셋
+         해시가 바뀐 뒤 캐시된 index.html이 옛 해시를 가리키는 경우 등) 화면이
+         영구히 빈 상태로 남고 재접속해도 같은 캐시를 다시 읽어 반복된다.
+         쿼리를 붙여 캐시를 우회해 1회만 다시 불러온다. 폴백이 이미 교체된
+         뒤(=React 마운트 성공)에는 아무 것도 하지 않는다. -->
+    <script>
+      (function () {
+        var RELOAD_FLAG = 'inpsyt:bootReloaded';
+        var hardFailed = false; // 하드 실패 확정 여부 — 시간 안내가 덮지 못하게 막는다
+
+        function setHint(text) {
+          var hint = document.getElementById('boot-hint');
+          if (hint) hint.textContent = text;
+        }
+
+        function bootFailed() {
+          if (!document.getElementById('boot-fallback')) return; // 마운트 성공
+          try {
+            if (sessionStorage.getItem(RELOAD_FLAG)) {
+              // 자동 재시도를 이미 썼는데 또 실패 = 스스로 회복 불가.
+              // 이 경로에서만 새로고침을 안내한다(시간 지연과 구분).
+              hardFailed = true;
+              setHint('불러오지 못했습니다. 새로고침해 주세요. 반복되면 브라우저를 완전히 닫고 다시 열어주세요.');
+              return;
+            }
+            sessionStorage.setItem(RELOAD_FLAG, '1');
+          } catch (e) {
+            hardFailed = true;
+            setHint('불러오지 못했습니다. 새로고침해 주세요.');
+            return; // 스토리지 차단 환경에서는 무한 새로고침 방지를 위해 포기
+          }
+          // 기존 쿼리(?events=슬러그)를 반드시 보존한다.
+          var sep = window.location.search ? '&' : '?';
+          window.location.replace(
+            window.location.pathname + window.location.search + sep + '_boot=' + Date.now() + window.location.hash
+          );
+        }
+
+        // 우리 번들(동일 출처)만 부트 실패로 본다. 서드파티 폰트 CDN이 실패하는
+        // 것은 font-display:swap으로 시스템 폰트가 대신 그려지면 되는 일이라
+        // 새로고침 대상이 아니다.
+        function isOwnBundleAsset(el) {
+          var href = el.href || el.src;
+          if (!href) return false;
+          try {
+            return new URL(href, window.location.href).origin === window.location.origin;
+          } catch (e) {
+            return false;
+          }
+        }
+
+        window.addEventListener(
+          'error',
+          function (e) {
+            var el = e.target;
+            if (!el || !el.tagName) return;
+            var isScript = el.tagName === 'SCRIPT';
+            var isStylesheet = el.tagName === 'LINK' && el.rel === 'stylesheet';
+            if ((isScript || isStylesheet) && isOwnBundleAsset(el)) bootFailed();
+          },
+          true // 캡처 단계 — 리소스 error는 버블링하지 않는다
+        );
+
+        // 시간 기반 안내. 타이머는 "아직 받는 중"과 "죽었다"를 구분할 수 없으므로
+        // 여기서 새로고침을 유도하면 안 된다. 실제로 받는 중이었다면 새로고침이
+        // 다운로드를 처음부터 되돌려 상황을 더 나쁘게 만든다(저대역에서 load 20초
+        // 관측됨). 사용자의 본능이 새로고침이므로, 하지 말라고 명시한다.
+        // 새로고침 안내는 bootFailed()의 실패 경로에서만 한다.
+        setTimeout(function () {
+          if (!document.getElementById('boot-fallback')) return;
+          if (hardFailed) return; // 이미 실패가 확정됐으면 기다리라고 하지 않는다
+          setHint('네트워크가 느려 시간이 걸리고 있습니다. 그대로 기다려 주세요. 새로고침하면 처음부터 다시 받습니다.');
+        }, 12000);
+      })();
+    </script>
   </body>
 </html>
