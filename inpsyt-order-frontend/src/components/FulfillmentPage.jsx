@@ -15,6 +15,7 @@ import {
   Alert,
   Button,
   Checkbox,
+  FormControlLabel,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -35,10 +36,16 @@ import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import { summarizeGroupStatus } from '../utils/groupOrder';
 import { formatPhone, normalizePhone } from '../utils/formatPhone';
+import { orderHasOnlineCode } from '../utils/onlineCode';
 import { PageHeader, SectionCard, StatusBadge, InfoRow, ActionSlot, EmptyState } from './ui';
 import { CATEGORY_COLORS, CATEGORY_KEY_BY_LABEL } from '../constants/categoryColors';
 
 const CANCELLED = ['cancelled', 'refunded'];
+
+// 출고 안전망 — 온라인코드 상품인데 인싸이트 ID가 공란인 주문. 이게 비어 있으면 코드를 못 넣어준다.
+// orderHasOnlineCode: orders.has_online_code 컬럼 우선, 없으면 order_items 스냅샷(product_name)으로 폴백.
+const isMissingInpsytId = (order) =>
+  orderHasOnlineCode(order) && !(order.inpsyt_id || '').trim();
 
 // 합배송 껍데기는 종합 상태(활성 자식 파생), 그 외는 자기 상태
 const effectiveStatus = (order) =>
@@ -116,6 +123,7 @@ const FulfillmentGroupCard = ({
   const requestNote = order.customer_request?.trim();
   const adminMemo = order.admin_memo?.trim();
   const hasActions = canShip && (effStatus === 'paid' || isCompleted);
+  const needsInpsytId = isMissingInpsytId(order);
 
   // 현장수령 판정 (OR 규칙): 주문 자체가 현장수령이거나 모든 상품이 현장수령이면 주문 전체 현장수령
   const isWholeOnSite =
@@ -231,6 +239,25 @@ const FulfillmentGroupCard = ({
           )}
         </Box>
       </Box>
+
+      {/* 출고 안전망 — 온라인코드 상품인데 인싸이트 ID 공란. 코드를 못 넣어주므로 눈에 띄게 경고. */}
+      {needsInpsytId && (
+        <Box sx={{ px: 3, py: 1, borderBottom: `1px solid ${theme.gray[100]}`, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', bgcolor: alpha(theme.palette.warning.main, 0.08) }}>
+          <Chip
+            label="ID 미입력"
+            size="small"
+            sx={{
+              bgcolor: alpha(theme.palette.warning.main, 0.15),
+              color: theme.palette.warning.dark,
+              border: `1px solid ${alpha(theme.palette.warning.main, 0.4)}`,
+              fontWeight: 700,
+            }}
+          />
+          <Typography variant="caption" sx={{ color: theme.palette.warning.dark, fontWeight: 600 }}>
+            온라인코드 상품 · 인싸이트 ID가 없어요 — 고객에게 확인 필요
+          </Typography>
+        </Box>
+      )}
 
       {/* 데이터 라인 — 사양 line 36-50 정합 */}
       {/* 주소 도로명·상세·우편번호 3줄 분리 표시 (사양 핵심 발견 #1) */}
@@ -475,6 +502,7 @@ const FulfillmentPage = () => {
   const [viewMode, setViewMode] = useState('all');
   const [filterEvent, setFilterEvent] = useState('');
   const [statusFilter, setStatusFilter] = useState('paid');
+  const [onlyMissingId, setOnlyMissingId] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -572,10 +600,16 @@ const FulfillmentPage = () => {
   const pendingCount = baseOrders.filter(o => effectiveStatus(o) === 'paid').length;
   const completedCount = baseOrders.filter(o => effectiveStatus(o) === 'completed').length;
   const totalCount = baseOrders.length;
+  // 온라인코드 ID 누락 건수 — 출고 대기(paid)만 집계. 완료건은 이미 처리됐으니 조치 대상 아님.
+  const missingIdCount = useMemo(
+    () => baseOrders.filter(o => effectiveStatus(o) === 'paid' && isMissingInpsytId(o)).length,
+    [baseOrders],
+  );
 
   const searchQuery = searchTerm.trim().toLowerCase();
   const filteredOrders = useMemo(() => baseOrders.filter(order => {
     if (statusFilter !== 'all' && effectiveStatus(order) !== statusFilter) return false;
+    if (onlyMissingId && !isMissingInpsytId(order)) return false;
     if (searchQuery) {
       const phoneDigits = normalizePhone(searchQuery);
       return (
@@ -585,7 +619,7 @@ const FulfillmentPage = () => {
       );
     }
     return true;
-  }), [baseOrders, statusFilter, searchQuery]);
+  }), [baseOrders, statusFilter, onlyMissingId, searchQuery]);
 
   // 선택된 카드 중 출고 대기(paid) 상태인 건만 일괄 대상. 껍데기는 활성 자식으로 확장.
   const eligibleSelected = useMemo(
@@ -751,6 +785,26 @@ const FulfillmentPage = () => {
               </ToggleButton>
             </ToggleButtonGroup>
           </Box>
+
+          {/* 출고 안전망 필터 — 온라인코드 상품인데 ID 공란인 출고 대기건만 추림 */}
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                color="warning"
+                checked={onlyMissingId}
+                onChange={(e) => { setOnlyMissingId(e.target.checked); setSelectedIds([]); }}
+              />
+            }
+            label={
+              <Typography
+                variant="caption"
+                sx={{ color: missingIdCount > 0 ? 'warning.dark' : 'text.secondary', fontWeight: missingIdCount > 0 ? 700 : 400 }}
+              >
+                온라인코드 ID 누락 ({missingIdCount})
+              </Typography>
+            }
+          />
         </Box>
       </SectionCard>
 
@@ -763,7 +817,13 @@ const FulfillmentPage = () => {
         </Box>
       ) : filteredOrders.length === 0 ? (
         <SectionCard padding={0}>
-          {isSearching ? (
+          {onlyMissingId ? (
+            <EmptyState
+              icon={CheckCircleIcon}
+              title="ID 누락 주문이 없습니다"
+              description="온라인코드 상품에 인싸이트 ID가 모두 입력됐어요"
+            />
+          ) : isSearching ? (
             <EmptyState
               icon={SearchOffIcon}
               title="검색 결과가 없습니다"

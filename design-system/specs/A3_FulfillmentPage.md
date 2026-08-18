@@ -34,6 +34,7 @@
 - [ ] 검색 TextField 1개: placeholder "이름·연락처·ID 검색" — 클라이언트 필터: 이름·ID는 부분일치(trim·소문자), **연락처는 `normalizePhone(phone).includes(normalizePhone(검색어))` 숫자 비교(검색어 숫자 2자리↑일 때만). 하이픈/공백/괄호 무관 매칭**
 - [ ] 상태 세그먼트 (ToggleButtonGroup): "출고 대기 ({N})" / "출고 완료 ({N})" / "전체" — **기본값 '출고 대기'**. 카운트 N은 행사+뷰모드 적용 후·상태 필터 적용 전 기준(상태 토글을 눌러도 양쪽 N이 살아있음)
 - [ ] 뷰 모드 토글 그룹 — 3개: "전체" / "도서 뷰"(CATEGORY_COLORS.book) / "검사 뷰"(CATEGORY_COLORS.test)
+- [ ] **온라인코드 ID 누락 필터 — (2026-08-18 신규, 출고 안전망)** `FormControlLabel`+`Checkbox`(color=warning): "온라인코드 ID 누락 ({N})". 체크 시 `isMissingInpsytId` 주문만 표시. N = 출고 대기(paid) 중 누락 건수(있으면 라벨 warning.dark·bold). 온라인코드 소프트 필수(C1)의 짝 — 이 필터가 없으면 소프트 필수는 지금과 다를 게 없다. 토글 시 선택 초기화
 
 ### 그룹 카드 — 헤더 (FulfillmentGroupCard)
 - [ ] 체크박스 (`orders:edit` 권한 보유 시만, 44×44 터치 영역)
@@ -47,6 +48,7 @@
 ### 그룹 카드 — 데이터 라인 (InfoRow 5~6줄, 인라인 복사)
 - [ ] 연락처: `formatPhone(phone_number)`(하이픈 포맷), mono(tnum), 값 있으면 인라인 복사(복사 값도 `formatPhone` 포맷), 없으면 "-" muted
 - [ ] ID(조건부): `inpsyt_id` 존재 시만 렌더, mono, 인라인 복사 (복사 토스트 라벨 "인싸이트 ID")
+- [ ] **ID 미입력 경고 배너 — (2026-08-18 신규, 출고 안전망)** `isMissingInpsytId(order)`(온라인코드 상품 포함 && `inpsyt_id` 공란)이면 데이터 라인 위에 warning 톤 배너: "ID 미입력" Chip(warning) + "온라인코드 상품 · 인싸이트 ID가 없어요 — 고객에게 확인 필요". 온라인코드 판정 = `utils/onlineCode.js`의 `orderHasOnlineCode`(orders.has_online_code 컬럼 우선, 없으면 order_items 스냅샷 `product_name`으로 폴백 — 컬럼 없어도 동작). AI 시그니처 금지 — 기존 배지/배너 패턴 재사용
 - [ ] 도로명: **우편번호 `[{postcode}]` 병기(caption·tnum) + 도로명주소 한 줄**. 복사는 도로명주소만(우편번호 제외), multiline
 - [ ] 상세: `detailAddress || detail`, multiline, 단독 복사. **도로명과 통합 금지** (핵심 발견 #1)
 - [ ] 요청: `customer_request`(trim), multiline, 값 있으면 복사
@@ -132,10 +134,12 @@
 - 데이터 로드 상태: 코드 고정 — `['paid', 'completed']` 일괄 조회
 - 상태 세그먼트: `paid`(출고 대기) / `completed`(출고 완료) / `all`. **기본 `paid`**. 클라이언트 필터
 - 검색: 이름·연락처·ID 부분일치. 클라이언트 필터
+- **온라인코드 ID 누락(`onlyMissingId`, 2026-08-18)**: 체크 시 `isMissingInpsytId`만. 클라이언트 필터
 - 뷰 모드: `all`/`book`/`test`. 카드 필터링 + 상품 행 그레이드. '도구' 카테고리는 '검사'로 정규화
-- 적용 순서: [서버] 행사 → [클라] parent 숨김 → 뷰모드 → (여기까지가 카운트 기준) → 상태 세그먼트 → 검색
+- 적용 순서: [서버] 행사 → [클라] parent 숨김 → 뷰모드 → (여기까지가 카운트 기준) → 상태 세그먼트 → ID 누락 → 검색
 
 ## 빈 상태·로딩·오류 처리
+- ID 누락 필터 0건: `CheckCircleIcon` + "ID 누락 주문이 없습니다" / "온라인코드 상품에 인싸이트 ID가 모두 입력됐어요" (onlyMissingId 우선)
 - 검색 결과 0건: `SearchOffIcon` + "검색 결과가 없습니다" / "이름·연락처·ID를 다시 확인해 보세요"
 - 대기 탭 0건(검색 없음): `CheckCircleIcon` + "출고 대기 주문이 없습니다" / "모두 처리됐어요"
 - 그 외 0건: `LocalShippingIcon` + "해당 조건의 주문이 없습니다" / "행사 필터 또는 뷰 모드를 변경해 보세요"

@@ -29,6 +29,7 @@ import {
   MergeType as MergeTypeIcon,
   MoreVert as MoreVertIcon,
   Tune as TuneOptionsIcon,
+  HelpOutline as HelpOutlineIcon,
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import { fetchAllProducts } from '../api/products';
@@ -74,6 +75,8 @@ const createEmptyProduct = () => ({
   is_popular: false,
   is_new: false,
   is_active: true,
+  // 온라인코드 포함 3상태: null(미확인)/true(포함)/false(미포함). 신규 상품은 미확인으로 시작 → 운영자가 확정.
+  includes_online_code: null,
   tags: [],
 });
 
@@ -85,6 +88,18 @@ const parseBool = (value) => {
     return ['TRUE', 'Y', 'YES', '1'].includes(normalized);
   }
   return false;
+};
+
+// 온라인코드 3상태 엑셀 파싱 — 공란=NULL(미확인) 유지가 핵심.
+// discount_override(공란=해제)와 의도가 다르다: 여기선 공란이 "아직 확인 안 함"을 뜻하므로
+// null로 보존해야 한다(false로 뭉개면 재업로드 때 미확인 추적이 전부 미포함으로 소실됨).
+// 다운로드가 '포함'/'미포함'/'' 를 쓰므로 라운드트립 정합. TRUE/Y/1·FALSE/N/0 별칭도 허용.
+const parseTriState = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  const s = String(value).trim().toUpperCase();
+  if (['포함', 'TRUE', 'Y', 'YES', '1', 'O'].includes(s)) return true;
+  if (['미포함', 'FALSE', 'N', 'NO', '0', 'X'].includes(s)) return false;
+  return null; // 알 수 없는 값 = 미확인(안전)
 };
 
 const getRowValue = (row, keys) => {
@@ -177,7 +192,14 @@ const renderProductCells = (product, subColorByName, theme, canEdit, onEdit) => 
             sx={{ bgcolor: alpha(theme.palette.info.main, 0.1), color: 'info.main', border: 0 }}
           />
         )}
-        {product.is_active !== false && !product.is_popular && !product.is_new && !product.is_discountable && product.discount_override == null && (
+        {product.includes_online_code === true && (
+          <Chip
+            label="온라인코드"
+            size="small"
+            sx={{ bgcolor: alpha(theme.palette.secondary.main, 0.12), color: 'secondary.main', border: 0 }}
+          />
+        )}
+        {product.is_active !== false && !product.is_popular && !product.is_new && !product.is_discountable && product.discount_override == null && product.includes_online_code !== true && (
           <Typography variant="caption" color="text.secondary">-</Typography>
         )}
       </Box>
@@ -379,6 +401,7 @@ const ProductManagementPage = () => {
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkIsPopular, setBulkIsPopular] = useState(null);
   const [bulkIsNew, setBulkIsNew] = useState(null);
+  const [bulkOnlineCode, setBulkOnlineCode] = useState(null); // null=변경 없음 / true=포함 / false=미포함
   const [bulkTags, setBulkTags] = useState([]);
   const [bulkTagsMode, setBulkTagsMode] = useState('append');
   const [bulkSaving, setBulkSaving] = useState(false);
@@ -456,6 +479,12 @@ const ProductManagementPage = () => {
   const totalDiscountableCount = useMemo(() => allProducts.filter(p => p.is_discountable).length, [allProducts]);
   const totalOverrideCount = useMemo(() => allProducts.filter(p => p.discount_override != null).length, [allProducts]);
   const totalPopularCount = useMemo(() => allProducts.filter(p => p.is_popular).length, [allProducts]);
+  // 온라인코드 미확인 — includes_online_code NULL(미적용 환경이면 undefined도 NULL 취급) & 검사 카테고리.
+  // 온라인코드는 사실상 검사 상품에만 딸리므로 검사군으로 좁혀 미확인 목록을 관리한다.
+  const totalOnlineCodeUnknownCount = useMemo(
+    () => allProducts.filter(p => p.includes_online_code == null && p.category === '검사').length,
+    [allProducts],
+  );
   const categoryCounts = useMemo(() => {
     const result = {};
     categories.forEach(cat => { result[cat] = allProducts.filter(p => p.category === cat).length; });
@@ -495,6 +524,7 @@ const ProductManagementPage = () => {
     if (productQuickFilter === 'discountable') list = list.filter(p => p.is_discountable);
     if (productQuickFilter === 'override') list = list.filter(p => p.discount_override != null);
     if (productQuickFilter === 'popular') list = list.filter(p => p.is_popular);
+    if (productQuickFilter === 'onlineUnknown') list = list.filter(p => p.includes_online_code == null && p.category === '검사');
     if (selectedTags.length > 0) list = list.filter(p => selectedTags.some(tag => p.tags?.includes(tag)));
     return [...list].sort((a, b) => {
       const popDiff = (b.is_popular ? 1 : 0) - (a.is_popular ? 1 : 0);
@@ -611,12 +641,13 @@ const ProductManagementPage = () => {
           return supabase.from('products').insert([body]);
         };
         let { error } = await run(data);
-        // 신규 가법 컬럼(image_filename·is_active·discount_override) 미적용 환경 graceful — PGRST204 시 해당 키 빼고 재시도.
-        if (error && error.code === 'PGRST204' && ('image_filename' in data || 'is_active' in data || 'discount_override' in data)) {
+        // 신규 가법 컬럼(image_filename·is_active·discount_override·includes_online_code) 미적용 환경 graceful — PGRST204 시 해당 키 빼고 재시도.
+        if (error && error.code === 'PGRST204' && ('image_filename' in data || 'is_active' in data || 'discount_override' in data || 'includes_online_code' in data)) {
           const rest = { ...data };
           delete rest.image_filename;
           delete rest.is_active;
           delete rest.discount_override;
+          delete rest.includes_online_code;
           ({ error } = await run(rest));
         }
         if (error) throw error;
@@ -693,13 +724,14 @@ const ProductManagementPage = () => {
   const handleOpenBulkEdit = () => {
     setBulkIsPopular(null);
     setBulkIsNew(null);
+    setBulkOnlineCode(null);
     setBulkTags([]);
     setBulkTagsMode('append');
     setBulkEditOpen(true);
   };
 
   const handleBulkSave = async () => {
-    if (bulkIsPopular === null && bulkIsNew === null && bulkTags.length === 0) {
+    if (bulkIsPopular === null && bulkIsNew === null && bulkOnlineCode === null && bulkTags.length === 0) {
       addNotification('변경할 항목이 없습니다.', 'warning');
       return;
     }
@@ -707,6 +739,17 @@ const ProductManagementPage = () => {
     setBulkSaving(true);
     try {
       const ids = Array.from(selectedIds);
+
+      // includes_online_code 컬럼 미적용 환경 graceful — PGRST204면 해당 키 빼고 1회 재시도.
+      const applyUpdate = async (update, target) => {
+        let { error } = await target(update);
+        if (error && error.code === 'PGRST204' && 'includes_online_code' in update) {
+          const rest = { ...update };
+          delete rest.includes_online_code;
+          ({ error } = await target(rest));
+        }
+        if (error) throw error;
+      };
 
       if (bulkTags.length > 0 && bulkTagsMode === 'append') {
         const { data: existingRows, error: fetchError } = await supabase
@@ -719,19 +762,19 @@ const ProductManagementPage = () => {
           const update = {};
           if (bulkIsPopular !== null) update.is_popular = bulkIsPopular;
           if (bulkIsNew !== null) update.is_new = bulkIsNew;
+          if (bulkOnlineCode !== null) update.includes_online_code = bulkOnlineCode;
           update.tags = Array.from(new Set([...(row.tags || []), ...bulkTags]));
 
-          const { error } = await supabase.from('products').update(update).eq('id', row.id);
-          if (error) throw error;
+          await applyUpdate(update, (u) => supabase.from('products').update(u).eq('id', row.id));
         }
       } else {
         const update = {};
         if (bulkIsPopular !== null) update.is_popular = bulkIsPopular;
         if (bulkIsNew !== null) update.is_new = bulkIsNew;
+        if (bulkOnlineCode !== null) update.includes_online_code = bulkOnlineCode;
         if (bulkTags.length > 0) update.tags = bulkTags;
 
-        const { error } = await supabase.from('products').update(update).in('id', ids);
-        if (error) throw error;
+        await applyUpdate(update, (u) => supabase.from('products').update(u).in('id', ids));
       }
 
       addNotification(`${ids.length}개 상품을 일괄 수정했습니다.`, 'success');
@@ -788,6 +831,8 @@ const ProductManagementPage = () => {
         discount_override: discountOverride,
         is_popular: parseBool(getRowValue(row, ['인기상품', 'is_popular'])),
         is_new: parseBool(getRowValue(row, ['신상품여부', 'is_new'])),
+        // 온라인코드 포함 3상태 — 공란=NULL(미확인) 유지. parseTriState 주석 참조.
+        includes_online_code: parseTriState(getRowValue(row, ['온라인코드포함', 'includes_online_code'])),
         tags: getRowValue(row, ['태그', 'tags'])
           ? String(getRowValue(row, ['태그', 'tags'])).split(',').map((tag) => tag.trim()).filter(Boolean)
           : [],
@@ -897,7 +942,7 @@ const ProductManagementPage = () => {
           delete rest._hier;
           if (rest.image_filename == null) delete rest.image_filename;
           if (!withHierarchy) {
-            // 마이그레이션 미적용(컬럼 없음) 환경 graceful — 신규 컬럼(위계·개별할인율) 제거 후 재시도.
+            // 마이그레이션 미적용(컬럼 없음) 환경 graceful — 신규 컬럼(위계·개별할인율·온라인코드) 제거 후 재시도.
             delete rest.test_group_id;
             delete rest.option_name;
             delete rest.option_label;
@@ -905,6 +950,7 @@ const ProductManagementPage = () => {
             delete rest.sort_order;
             delete rest.is_active;
             delete rest.discount_override;
+            delete rest.includes_online_code;
           }
           return rest;
         });
@@ -918,12 +964,12 @@ const ProductManagementPage = () => {
           // 신규 위계 컬럼 미적용 환경 — 컬럼 미존재 오류면 위계 열 빼고 1회 재시도(구스키마 회귀 0).
           // Edge Fn은 배치 실패 시 행별 폴백으로 200+errors[]를 돌려줄 수 있어, data.errors 도 함께 감지.
           const columnMissing = (msg) => /column|does not exist|PGRST204|schema cache/i.test(msg || '');
-          const newColsSent = payload.some((p) => 'test_group_id' in p || 'option_name' in p || 'option_label' in p || 'is_common' in p || 'sort_order' in p || 'is_active' in p || 'discount_override' in p);
+          const newColsSent = payload.some((p) => 'test_group_id' in p || 'option_name' in p || 'option_label' in p || 'is_common' in p || 'sort_order' in p || 'is_active' in p || 'discount_override' in p || 'includes_online_code' in p);
           const dataColErr = data?.error_count > 0 && (data.errors || []).some((e) => columnMissing(e.error));
           if (newColsSent && ((error && columnMissing(error.message)) || dataColErr)) {
             payload = buildPayload(false);
             ({ data, error } = await supabase.functions.invoke('upload-products-excel', { body: { products: payload } }));
-            if (!error) setUploadLog(prev => [...prev, `청크 ${i + 1}: 신규 컬럼(위계·개별할인율) 미적용 환경 — 기본 열만 반영`]);
+            if (!error) setUploadLog(prev => [...prev, `청크 ${i + 1}: 신규 컬럼(위계·개별할인율·온라인코드) 미적용 환경 — 기본 열만 반영`]);
           }
 
           if (error) {
@@ -1025,6 +1071,7 @@ const ProductManagementPage = () => {
       개별할인율: '',
       인기상품: 'FALSE',
       신상품여부: 'TRUE',
+      온라인코드포함: '포함', // 포함 / 미포함 / 공란(=미확인). 공란은 기존 값 유지 아님 — NULL로 저장.
       태그: '신경정신,치매',
       이미지: 'sample.webp',
       // 검사 위계 열 — 검사 상품만 채움(도서·도구는 공란). 검사군 매칭 키 = (검사군약어, 검사군명).
@@ -1062,6 +1109,8 @@ const ProductManagementPage = () => {
           개별할인율: rateToPercentNullable(product.discount_override),
           인기상품: product.is_popular ? 'TRUE' : 'FALSE',
           신상품여부: product.is_new ? 'TRUE' : 'FALSE',
+          // 3상태 라운드트립 — 포함/미포함/공란(미확인). parseTriState와 문자열 일치.
+          온라인코드포함: product.includes_online_code == null ? '' : product.includes_online_code ? '포함' : '미포함',
           태그: product.tags?.join(',') || '',
           이미지: product.image_filename || '',
           검사군약어: group?.abbr || '',
@@ -1453,6 +1502,14 @@ const ProductManagementPage = () => {
           active: productQuickFilter === 'popular',
           onClick: () => setProductQuickFilter((prev) => (prev === 'popular' ? null : 'popular')),
         })}
+        {renderQuickFilterCard({
+          label: '온라인코드 미확인',
+          value: totalOnlineCodeUnknownCount,
+          Icon: HelpOutlineIcon,
+          baseColor: theme.palette.error.main,
+          active: productQuickFilter === 'onlineUnknown',
+          onClick: () => setProductQuickFilter((prev) => (prev === 'onlineUnknown' ? null : 'onlineUnknown')),
+        })}
         {[
           // 카테고리 색은 design-system Appendix §2-1 / 08 D17 정식 토큰
           // (constants/categoryColors.js). 인라인 hex·theme.palette 우회 금지.
@@ -1808,6 +1865,25 @@ const ProductManagementPage = () => {
               />
               <FormControlLabel control={<Checkbox checked={currentProduct.is_popular} onChange={(event) => setCurrentProduct((prev) => ({ ...prev, is_popular: event.target.checked }))} disabled={!hasPermission('products:edit')} />} label="인기 상품" />
               <FormControlLabel control={<Checkbox checked={currentProduct.is_new} onChange={(event) => setCurrentProduct((prev) => ({ ...prev, is_new: event.target.checked }))} disabled={!hasPermission('products:edit')} />} label="신상품" />
+              {/* 온라인코드 포함 — 3상태(미확인/포함/미포함). 체크박스로 뭉개지 않고 NULL(미확인)을 명시 보존. */}
+              <FormControl size="small" sx={{ minWidth: 180 }} disabled={!hasPermission('products:edit')}>
+                <InputLabel>온라인코드 포함</InputLabel>
+                <Select
+                  label="온라인코드 포함"
+                  value={currentProduct.includes_online_code == null ? 'unknown' : currentProduct.includes_online_code ? 'yes' : 'no'}
+                  onChange={(event) => {
+                    const v = event.target.value;
+                    setCurrentProduct((prev) => ({
+                      ...prev,
+                      includes_online_code: v === 'unknown' ? null : v === 'yes',
+                    }));
+                  }}
+                >
+                  <MenuItem value="unknown">미확인</MenuItem>
+                  <MenuItem value="yes">포함</MenuItem>
+                  <MenuItem value="no">미포함</MenuItem>
+                </Select>
+              </FormControl>
             </Box>
             {/* 노출 여부 — 진열 즉영향 전역 스위치(체크박스와 시각 구분). 되돌리기 가능이라 확인 스텝 없음. */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
@@ -1898,6 +1974,8 @@ const ProductManagementPage = () => {
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 2 }}>
           <TriStateToggle label="인기 상품 (is_popular)" value={bulkIsPopular} onChange={setBulkIsPopular} />
           <TriStateToggle label="신상품 (is_new)" value={bulkIsNew} onChange={setBulkIsNew} />
+          {/* 온라인코드 포함 — ON=포함 / OFF=미포함 / 변경 없음=건드리지 않음(미확인 보존). */}
+          <TriStateToggle label="온라인코드 포함 (includes_online_code)" value={bulkOnlineCode} onChange={setBulkOnlineCode} />
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
               <Typography variant="caption" color="text.secondary">태그</Typography>
