@@ -2,6 +2,16 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.43.0'
 import { corsHeaders } from '../_shared/cors.ts'
 
+// SOURCE OF TRUTH: inpsyt-order-frontend/src/utils/pricing.js (getEffectiveRate/getDiscountedUnit) — 케이스는 pricing.test.js. 수정 시 동기화 필수.
+// 실효 할인율: discount_override(0 포함) 가 있으면 그 값을 무조건 사용, NULL/undefined(컬럼 부재) 면 is_discountable ? 행사율 : 0.
+// ?? 는 null/undefined 만 우측으로 넘김 → override=0 은 0 유지(명시적 정가), override=0.05 는 0.05(행사율보다 낮아도 대체).
+function getEffectiveRate(product: any, eventRate: number): number {
+  return product.discount_override ?? (product.is_discountable ? eventRate : 0)
+}
+function getDiscountedUnit(product: any, eventRate: number): number {
+  return Math.round((product.list_price || 0) * (1 - getEffectiveRate(product, eventRate)))
+}
+
 serve(async (req) => {
 
   // OPTIONS 요청 처리 (가장 먼저 실행)
@@ -42,18 +52,21 @@ serve(async (req) => {
     const productIds = cart.map((item: any) => item.product_id)
 
     // is_active 를 함께 조회 (판매중지 상품 우회 주문 차단).
-    // is_active 컬럼이 없는 환경(마이그레이션 미적용)에서는 select 실패 → 필터 없이 재조회하여 기존 동작 보존.
+    // discount_override(품목별 할인율 오버라이드) 도 primary select 에만 포함.
+    // is_active / discount_override 컬럼이 없는 환경(마이그레이션 미적용)에서는 select 실패 → 필터 없이 재조회하여 기존 동작 보존.
     let products: any[] | null = null
     let hasIsActive = true
 
     const withActive = await supabaseClient
       .from('products')
-      .select('id, name, product_code, category, list_price, is_discountable, is_active')
+      .select('id, name, product_code, category, list_price, is_discountable, is_active, discount_override')
       .in('id', productIds)
 
     if (withActive.error) {
-      // is_active 컬럼 부재 등으로 실패 시 graceful fallback (회귀 0)
-      console.warn('is_active select 실패 — 필터 스킵 fallback:', withActive.error.message)
+      // is_active / discount_override 컬럼 부재 등으로 실패 시 graceful fallback (회귀 0).
+      // 의도적으로 discount_override 를 fallback select 에 넣지 않음 → 컬럼 부재 환경에서
+      // product.discount_override 는 undefined → getEffectiveRate 의 ?? 가 null 처럼 처리 → 행사율 로직 유지.
+      console.warn('is_active/discount_override select 실패 — 필터 스킵 fallback:', withActive.error.message)
       hasIsActive = false
       const { data: fallbackProducts, error: fallbackError } = await supabaseClient
         .from('products')
@@ -102,9 +115,8 @@ serve(async (req) => {
 
         totalOriginalPrice += originalPrice * quantity
 
-        const discountedPrice = product.is_discountable
-          ? Math.round(originalPrice * (1 - discountRate))
-          : originalPrice
+        // 실효 할인율 재계산(정본 공식). override 우선, 없으면 is_discountable ? 행사율 : 0.
+        const discountedPrice = getDiscountedUnit(product, discountRate)
         totalDiscountedPrice += discountedPrice * quantity
       }
     })
@@ -145,10 +157,8 @@ serve(async (req) => {
 
     const orderItemsData = cart.map((item: any) => {
       const product = products.find((p) => p.id === item.product_id)
-      const originalPrice = product ? product.list_price : 0
-      const priceAtPurchase = product.is_discountable
-        ? Math.round(originalPrice * (1 - discountRate))
-        : (product ? originalPrice : 0)
+      // 스냅샷 단가도 총액과 동일한 정본 공식으로 계산(override 반영). 상품 미발견 시 0.
+      const priceAtPurchase = product ? getDiscountedUnit(product, discountRate) : 0
 
       return {
         order_id: newOrder.id,
