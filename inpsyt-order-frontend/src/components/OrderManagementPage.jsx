@@ -234,7 +234,7 @@ const OrderManagementPage = () => {
     try {
       const productsData = await fetchAllProducts();
       const newProductsMap = {};
-      productsData.forEach(p => { newProductsMap[p.id] = { id: p.id, name: p.name, list_price: p.list_price, is_popular: p.is_popular, category: p.category }; });
+      productsData.forEach(p => { newProductsMap[p.id] = { id: p.id, name: p.name, list_price: p.list_price, is_popular: p.is_popular, category: p.category, is_discountable: p.is_discountable, discount_override: p.discount_override }; });
       dispatch({ type: 'SET_STATE', payload: { products: productsData, productsMap: newProductsMap } });
     } catch {
       addNotification('상품 정보를 불러오는 데 실패했습니다.', 'error');

@@ -37,6 +37,7 @@ import { sendAlimtalk } from '../api/alimtalk';
 import { SHIPPING_DEFAULTS } from '../constants/shipping';
 import { SectionCard, StatusBadge, InfoRow, PriceBlock } from './ui';
 import { formatPhone } from '../utils/formatPhone';
+import { getDiscountedUnit } from '../utils/pricing';
 
 // 사양 시트: design-system/specs/A2_OrderDetailModal.md
 // OrderDetailModal(단일 주문)과 GroupOrderModal(껍데기 자식 토글)이 공유하는 섹션 본문.
@@ -138,16 +139,19 @@ const OrderSections = ({
     const discountRate = currentEvent?.discount_rate || 0;
 
     let currentSubtotal = 0;
+    let discountedSubtotal = 0;
     (editedOrderItems || []).forEach(item => {
       const product = productsMap[item.product_id];
       const originalPrice = product?.list_price || 0;
       currentSubtotal += originalPrice * item.quantity;
+      // 상품별 오버라이드·is_discountable·반올림 반영 단가로 소계 재계산.
+      discountedSubtotal += getDiscountedUnit(product, discountRate) * item.quantity;
     });
 
-    const currentTotalDiscount = currentSubtotal * discountRate;
-    const subtotalAfterDiscount = currentSubtotal - currentTotalDiscount;
+    const currentTotalDiscount = currentSubtotal - discountedSubtotal;
+    // 배송비 판정은 정가(할인 전) 총액 기준 유지(회귀 가드).
     const currentShippingFee = currentSubtotal >= settings.free_shipping_threshold ? 0 : settings.shipping_cost;
-    const currentFinalTotal = subtotalAfterDiscount + currentShippingFee;
+    const currentFinalTotal = discountedSubtotal + currentShippingFee;
 
     setSubtotal(currentSubtotal);
     setTotalDiscount(currentTotalDiscount);
@@ -290,8 +294,9 @@ const OrderSections = ({
 
       const itemsPayload = editedOrderItems.map(item => {
         const product = productsMap[item.product_id];
-        const originalPrice = product?.list_price || 0;
-        const discountedPrice = originalPrice * (1 - discountRate);
+        // 서버(create-order)를 우회하는 직접 DB write — 이 공식이 정본.
+        // 상품별 오버라이드·is_discountable·반올림 반영(과거 누락 동시 해소).
+        const discountedPrice = getDiscountedUnit(product, discountRate);
         return {
           order_id: order.id,
           product_id: item.product_id,
@@ -734,7 +739,10 @@ const OrderSections = ({
                   const originalPrice = isItemsEditing
                     ? (product?.list_price || 0)
                     : (item.list_price || product?.list_price || 0);
-                  const discountedPrice = originalPrice * (1 - discountRate);
+                  // 편집 중: 유틸로 재계산. 비편집(기존 아이템): 스냅샷(price_at_purchase) 우선, 없으면 유틸 폴백.
+                  const discountedPrice = isItemsEditing
+                    ? getDiscountedUnit(product, discountRate)
+                    : (item.price_at_purchase != null ? item.price_at_purchase : getDiscountedUnit(product, discountRate));
                   const itemTotal = discountedPrice * item.quantity;
                   return (
                     <TableRow key={index}>

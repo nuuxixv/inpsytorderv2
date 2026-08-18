@@ -61,13 +61,13 @@ const mockEvents = [
 ];
 
 const mockProducts = [
-  { id: 1, name: '테스트 상품 1', list_price: 25000 },
-  { id: 2, name: '테스트 상품 2', list_price: 30000 },
+  { id: 1, name: '테스트 상품 1', list_price: 25000, is_discountable: true },
+  { id: 2, name: '테스트 상품 2', list_price: 30000, is_discountable: true },
 ];
 
 const mockProductsMap = {
-  1: { id: 1, name: '테스트 상품 1', list_price: 25000 },
-  2: { id: 2, name: '테스트 상품 2', list_price: 30000 },
+  1: { id: 1, name: '테스트 상품 1', list_price: 25000, is_discountable: true },
+  2: { id: 2, name: '테스트 상품 2', list_price: 30000, is_discountable: true },
 };
 
 // 컴포넌트를 렌더링하는 헬퍼 함수
