@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeCategory, buildGroupMetaMap, groupTestProducts } from './testGroupDisplay';
+import { normalizeCategory, buildGroupMetaMap, groupTestProducts, productMatchesEventTags } from './testGroupDisplay';
 
 const master = [
   { id: 1, abbr: 'K·BASC-3', name: '한국판 정서-행동 평가시스템', sort_order: 1, is_active: true },
@@ -91,5 +91,37 @@ describe('groupTestProducts', () => {
 
   it('빈 상품 배열은 빈 그룹', () => {
     expect(groupTestProducts([], meta, true)).toEqual([]);
+  });
+
+  it('eventTags 미지정 시 기존 정렬(sort_order) 유지 — graceful', () => {
+    const groups = groupTestProducts(products, meta, true);
+    expect(groups.map(g => g.id)).toEqual([1, 2]);
+  });
+
+  it('행사 태그 매칭 검사군을 최상단으로(옵션 중 하나라도 매칭) — sort_order보다 우선', () => {
+    // 검사군 2(sort_order 2)의 옵션에만 학회 태그. 태그 없으면 [1,2]지만, 매칭 시 [2,1].
+    const tagged = products.map(p =>
+      p.id === 201 ? { ...p, tags: ['대한신경정신의학회'] } : p
+    );
+    const groups = groupTestProducts(tagged, meta, true, ['대한신경정신의학회']);
+    expect(groups.map(g => g.id)).toEqual([2, 1]);
+  });
+});
+
+describe('productMatchesEventTags', () => {
+  it('상품 태그가 행사 태그 중 하나라도 겹치면 true', () => {
+    expect(productMatchesEventTags({ tags: ['대한치매학회'] }, ['대한치매학회'])).toBe(true);
+    expect(productMatchesEventTags({ tags: ['A', '대한치매학회'] }, ['대한치매학회', 'B'])).toBe(true);
+  });
+  it('겹치지 않으면 false', () => {
+    expect(productMatchesEventTags({ tags: ['A'] }, ['B'])).toBe(false);
+  });
+  it('eventTags 비었으면 항상 false(정렬 tiebreak 0으로 수렴)', () => {
+    expect(productMatchesEventTags({ tags: ['A'] }, [])).toBe(false);
+    expect(productMatchesEventTags({ tags: ['A'] })).toBe(false);
+  });
+  it('상품 tags 부재/비배열도 안전하게 false', () => {
+    expect(productMatchesEventTags({}, ['A'])).toBe(false);
+    expect(productMatchesEventTags({ tags: null }, ['A'])).toBe(false);
   });
 });

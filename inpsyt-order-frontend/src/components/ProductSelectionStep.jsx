@@ -11,7 +11,7 @@ import { fetchAllProducts } from '../api/products';
 import { fetchTestGroups } from '../api/testGroups';
 import { useNotification } from '../hooks/useNotification';
 import { matchesSearch } from '../utils/search';
-import { normalizeCategory, buildGroupMetaMap, groupTestProducts } from '../utils/testGroupDisplay';
+import { normalizeCategory, buildGroupMetaMap, groupTestProducts, productMatchesEventTags } from '../utils/testGroupDisplay';
 import ProductCard from './ProductCard';
 import TestGroupCard from './TestGroupCard';
 import ProductSearchBar from './ProductSearchBar';
@@ -91,8 +91,8 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
 
   // 검사군 그룹핑(클라 useMemo). graceful — utils/testGroupDisplay 참조.
   const testGroups = useMemo(
-    () => groupTestProducts(baseProducts, groupMetaById, testGroupMaster.length > 0),
-    [baseProducts, groupMetaById, testGroupMaster.length]
+    () => groupTestProducts(baseProducts, groupMetaById, testGroupMaster.length > 0, eventTags),
+    [baseProducts, groupMetaById, testGroupMaster.length, eventTags]
   );
 
   // 그룹에 속한 product id 집합 — 평면 진열에서 제외하기 위함.
@@ -122,10 +122,8 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
     if (!showTestGroups) return [];
     let groups = testGroups;
 
-    // 학회 태그 — '전체' 모드가 아닐 때만(검색 중엔 무시)
-    if (!hasSearch && viewMode !== 'all' && eventTags?.length > 0) {
-      groups = groups.filter(g => g.options.some(p => Array.isArray(p.tags) && p.tags.some(t => eventTags.includes(t))));
-    }
+    // 학회 태그는 '필터'가 아니라 '정렬'로 일원화(태그 없는 상품도 숨기지 않고 아래로).
+    // 정렬은 testGroups(=groupTestProducts) 단계에서 eventTags 기준으로 이미 적용됨.
 
     // 뷰 모드(검색 중엔 무시) — 그룹 내 하나라도 매칭이면 노출
     if (!hasSearch) {
@@ -145,7 +143,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
     }
 
     return groups;
-  }, [showTestGroups, testGroups, hasSearch, viewMode, eventTags, debouncedSearch]);
+  }, [showTestGroups, testGroups, hasSearch, viewMode, debouncedSearch]);
 
   // 검색 매칭된 검사군 id 집합 — 자동 펼침 판정용
   const searchMatchedGroupIds = useMemo(() => {
@@ -157,9 +155,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
   const filteredProducts = useMemo(() => {
     let list = flatProducts;
 
-    if (!hasSearch && viewMode !== 'all' && eventTags?.length > 0) {
-      list = list.filter(p => Array.isArray(p.tags) && p.tags.some(t => eventTags.includes(t)));
-    }
+    // 학회 태그는 '필터'가 아니라 '정렬'로 일원화 — 아래 sort에서 태그매칭을 최우선으로.
 
     // 카테고리
     if (selectedCategory !== 'all') {
@@ -179,7 +175,10 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
       list = list.filter(p => matchesSearch(p.name, debouncedSearch));
     }
 
+    // 정렬: 태그매칭 desc → 인기 desc → 이름. eventTags 비면 태그 키가 전부 0 → 기존 정렬과 동일.
     return [...list].sort((a, b) => {
+      const tagDiff = (productMatchesEventTags(b, eventTags) ? 1 : 0) - (productMatchesEventTags(a, eventTags) ? 1 : 0);
+      if (tagDiff !== 0) return tagDiff;
       const popDiff = (b.is_popular ? 1 : 0) - (a.is_popular ? 1 : 0);
       if (popDiff !== 0) return popDiff;
       return (a.name || '').localeCompare(b.name || '');
