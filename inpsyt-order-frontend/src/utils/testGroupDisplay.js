@@ -25,6 +25,20 @@ export function productMatchesSubCategory(product, subCategory) {
   return (product.sub_category || '기타') === subCategory;
 }
 
+// 소분류 칩을 노출하는 대분류. 도구는 소분류가 3종(인지·언어·사회성)뿐이라 칩이 잘 좁혀지지만,
+// 검사(17종)·도서(13종, 심리학 하나가 1,543개)는 칩이 과하고 좁혀지지도 않아 숨긴다.
+// 두 대분류는 검사명·도서명 검색이 주 탐색 경로라는 판단(건우님, 2026-08-18).
+export const SUBCATEGORY_CHIP_CATEGORIES = ['도구'];
+
+// 카테고리 칩 줄 노출 여부.
+// - 다중 대분류(일반 학회): 대분류 칩(전체/검사/도서/도구)을 쓰므로 항상 노출.
+// - 단일 대분류: 대분류 칩은 무의미(전부 같은 대분류)라 소분류 칩으로 탐색하되,
+//   위 화이트리스트(도구)만 노출·검사/도서는 숨긴다.
+export function shouldShowCategoryChips(visibleCategories) {
+  if (visibleCategories?.length !== 1) return true;
+  return SUBCATEGORY_CHIP_CATEGORIES.includes(visibleCategories[0]);
+}
+
 /**
  * 검사군 마스터 배열 → 노출 검사군 메타 맵(is_active=false 제외).
  * @param {Array} master test_groups 행 배열

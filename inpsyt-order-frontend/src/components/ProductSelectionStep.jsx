@@ -11,7 +11,7 @@ import { fetchAllProducts } from '../api/products';
 import { fetchTestGroups } from '../api/testGroups';
 import { useNotification } from '../hooks/useNotification';
 import { matchesSearch } from '../utils/search';
-import { normalizeCategory, buildGroupMetaMap, groupTestProducts, productMatchesEventTags, productMatchesSubCategory } from '../utils/testGroupDisplay';
+import { normalizeCategory, buildGroupMetaMap, groupTestProducts, productMatchesEventTags, productMatchesSubCategory, shouldShowCategoryChips } from '../utils/testGroupDisplay';
 import ProductCard from './ProductCard';
 import TestGroupCard from './TestGroupCard';
 import ProductSearchBar from './ProductSearchBar';
@@ -83,7 +83,9 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
     return list;
   }, [allProducts, visibleCategories]);
 
-  // 단일 대분류 행사 — 대분류 칩 숨기고 소분류(sub_category) 칩으로 탐색
+  // 단일 대분류 행사 — 칩이 대분류가 아니라 소분류(sub_category)가 된다.
+  // 노출 여부는 SUBCATEGORY_CHIP_CATEGORIES 화이트리스트로 결정(도구만 노출).
+  // 이 플래그는 ProductCard 카테고리 배지 숨김에도 함께 쓴다.
   const isSingleCategory = visibleCategories?.length === 1;
 
   // 검사군 마스터 맵 — is_active=false 검사군은 제외(고객 미노출).
@@ -284,7 +286,10 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
     { key: 'all', label: '전체' },
     ...categories.map(cat => ({ key: cat, label: cat })),
   ];
-  const showCategoryChips = isSingleCategory ? categories.length >= 2 : true;
+  // 소분류 칩은 도구 단독 행사에만 노출(소분류 3종이라 잘 좁혀짐). 검사·도서 단독 행사는
+  // 숨김(칩 과다·안 좁혀짐, 이름 검색이 주 탐색). 다중 대분류는 대분류 칩 그대로.
+  // 판정은 대분류별 화이트리스트(shouldShowCategoryChips, testGroupDisplay.js).
+  const showCategoryChips = shouldShowCategoryChips(visibleCategories);
 
   const isEmpty = filteredGroups.length === 0 && displayedProducts.length === 0;
 

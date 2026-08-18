@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeCategory, buildGroupMetaMap, groupTestProducts, productMatchesEventTags, productMatchesSubCategory } from './testGroupDisplay';
+import { normalizeCategory, buildGroupMetaMap, groupTestProducts, productMatchesEventTags, productMatchesSubCategory, shouldShowCategoryChips } from './testGroupDisplay';
 
 const master = [
   { id: 1, abbr: 'K·BASC-3', name: '한국판 정서-행동 평가시스템', sort_order: 1, is_active: true },
@@ -147,6 +147,25 @@ describe('소분류 필터 — 검사군 옵션 단위 매칭', () => {
   });
   it('sub_category 없는 옵션 검사군은 "기타"에 매칭', () => {
     expect(filterBySub('기타').map(g => g.id)).toEqual([2]);
+  });
+});
+
+describe('shouldShowCategoryChips — 대분류별 소분류 칩 노출', () => {
+  it('단일 대분류 도구는 소분류 칩 노출', () => {
+    expect(shouldShowCategoryChips(['도구'])).toBe(true);
+  });
+  it('단일 대분류 검사·도서는 소분류 칩 숨김', () => {
+    expect(shouldShowCategoryChips(['검사'])).toBe(false);
+    expect(shouldShowCategoryChips(['도서'])).toBe(false);
+  });
+  it('다중 대분류(일반 학회)는 대분류 칩 노출', () => {
+    expect(shouldShowCategoryChips(['검사', '도서'])).toBe(true);
+    expect(shouldShowCategoryChips(['검사', '도서', '도구'])).toBe(true);
+  });
+  it('visible_categories 미지정(NULL/빈 배열)은 대분류 칩 노출(기존 행사 보존)', () => {
+    expect(shouldShowCategoryChips(null)).toBe(true);
+    expect(shouldShowCategoryChips(undefined)).toBe(true);
+    expect(shouldShowCategoryChips([])).toBe(true);
   });
 });
 
