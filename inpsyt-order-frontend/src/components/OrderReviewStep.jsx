@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import CostSummary from './CostSummary';
 import { formatPhone } from '../utils/formatPhone';
-import { getDiscountedUnit } from '../utils/pricing';
+import { getEffectiveRate, getDiscountedUnit } from '../utils/pricing';
 
 const InfoRow = ({ label, value }) => (
   <Box sx={{ display: 'flex', py: 0.75 }}>
@@ -43,9 +43,6 @@ const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoT
     .filter(Boolean)
     .join(' ');
 
-  // 개별 할인율 상품이 카트에 있으면 부제의 단일 "N% 할인" 숫자를 뺀다(품목별로 달라 오해 방지).
-  const hasOverrideItem = validItems.some((i) => i.discount_override != null);
-
   return (
     <Box sx={{ px: 2, pb: 4 }}>
       {/* Header */}
@@ -56,7 +53,6 @@ const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoT
         {eventName && (
           <Typography variant="body2" color="text.secondary">
             {eventName}
-            {discountRate > 0 && !hasOverrideItem && ` · ${(discountRate * 100).toFixed(0)}% 할인 적용`}
           </Typography>
         )}
       </Box>
@@ -81,6 +77,9 @@ const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoT
           {validItems.map((item, index) => {
             const unitPrice = getItemPrice(item);
             const itemTotal = unitPrice * item.quantity;
+            // 실효율 = discount_override ?? (is_discountable ? discountRate : 0) — 상품 카드와 동일 규칙.
+            const effectiveRate = getEffectiveRate(item, discountRate);
+            const isDiscounted = effectiveRate > 0;
 
             return (
               <Box key={item.id}>
@@ -96,9 +95,23 @@ const OrderReviewStep = ({ cart, customerInfo, settings, discountRate = 0, onGoT
                     <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.25, lineHeight: 1.4 }}>
                       {item.name}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {unitPrice.toLocaleString()}원 x {item.quantity}개
-                    </Typography>
+                    {isDiscounted ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+                        <Typography variant="caption" sx={{ textDecoration: 'line-through', color: 'text.disabled' }}>
+                          {item.list_price.toLocaleString()}원
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 700 }}>
+                          {`${(effectiveRate * 100).toFixed(0)}%`}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {unitPrice.toLocaleString()}원 x {item.quantity}개
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <Typography variant="caption" color="text.secondary">
+                        {unitPrice.toLocaleString()}원 x {item.quantity}개
+                      </Typography>
+                    )}
                   </Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
                     {itemTotal.toLocaleString()}원

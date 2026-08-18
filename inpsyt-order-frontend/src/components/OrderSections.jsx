@@ -744,6 +744,11 @@ const OrderSections = ({
                     ? getDiscountedUnit(product, discountRate)
                     : (item.price_at_purchase != null ? item.price_at_purchase : getDiscountedUnit(product, discountRate));
                   const itemTotal = discountedPrice * item.quantity;
+                  // 할인율·할인액은 위에서 확정된 정가·할인가에서 역산 — 비편집(스냅샷) 주문은 당시 실제 할인율을,
+                  // 편집 중이면 재계산된 할인가 기준을 그대로 반영(현재 행사율을 과거 주문에 재적용하지 않음).
+                  const isRowDiscounted = discountedPrice < originalPrice;
+                  const rowRatePct = originalPrice > 0 ? Math.round((1 - discountedPrice / originalPrice) * 100) : 0;
+                  const rowDiscountAmount = (originalPrice - discountedPrice) * item.quantity;
                   return (
                     <TableRow key={index}>
                       <TableCell sx={{ p: 1 }}>
@@ -762,7 +767,18 @@ const OrderSections = ({
                         ) : (item.product_name || product?.name || '알 수 없는 상품')}
                       </TableCell>
                       <TableCell align="right" sx={{ fontFeatureSettings: '"tnum" 1' }}>{originalPrice.toLocaleString()}원</TableCell>
-                      <TableCell align="right" sx={{ fontFeatureSettings: '"tnum" 1' }}>{discountedPrice.toLocaleString()}원</TableCell>
+                      <TableCell align="right" sx={{ fontFeatureSettings: '"tnum" 1' }}>
+                        {discountedPrice.toLocaleString()}원
+                        {isRowDiscounted ? (
+                          <Typography variant="caption" sx={{ display: 'block', color: 'error.main', fontWeight: 700 }}>
+                            {rowRatePct}% 할인
+                          </Typography>
+                        ) : (
+                          <Typography variant="caption" sx={{ display: 'block', color: 'text.disabled' }}>
+                            -
+                          </Typography>
+                        )}
+                      </TableCell>
                       <TableCell align="right" sx={{ p: 1 }}>
                         {isItemsEditing ? (
                           <TextField
@@ -776,7 +792,14 @@ const OrderSections = ({
                           />
                         ) : (item.quantity)}
                       </TableCell>
-                      <TableCell align="right" sx={{ fontFeatureSettings: '"tnum" 1' }}>{itemTotal.toLocaleString()}원</TableCell>
+                      <TableCell align="right" sx={{ fontFeatureSettings: '"tnum" 1' }}>
+                        {itemTotal.toLocaleString()}원
+                        {isRowDiscounted && (
+                          <Typography variant="caption" sx={{ display: 'block', color: 'error.main' }}>
+                            -{rowDiscountAmount.toLocaleString()}원
+                          </Typography>
+                        )}
+                      </TableCell>
                       {canEdit && (
                         <TableCell align="center" sx={{ p: 0.5 }}>
                           <Checkbox

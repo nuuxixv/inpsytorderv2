@@ -3,7 +3,8 @@
 > 이 시트는 어드민 주문 상세·편집 모달의 정보·기능·데이터 구조의 단일 진실 소스다.
 > 시안 부재 화면이므로 실 컴포넌트(`OrderDetailModal.jsx`)가 사실상의 기획이다. 시안이 작성되면 이 시트에 모든 항목이 1:1로 반영되어야 한다.
 > 임의 단순화·통합·생략은 건우님의 명시적 승인 후 이 시트를 먼저 갱신한 다음에만 허용된다.
-> 마지막 갱신: 2026-08-18 **편집 상품 금액 계산 정정 + 스냅샷 우선**(frontend-engineer, tech-cto 위임). 상품 편집 소계 재계산(useEffect)·저장 payload(order_items 직접 write)·표 표시 3곳(OrderSections)의 할인가를 공용 유틸 `getDiscountedUnit(product, discountRate)`로 교체. 기존 `originalPrice*(1-discountRate)`는 **`Math.round` 누락·`is_discountable` 미반영·`discount_override` 미반영**이었음(동시 해소). **저장 payload는 서버(create-order)를 우회하는 직접 DB write라 이 공식이 정본.** 배송비 판정은 정가(할인 전) 총액 기준 유지(회귀 가드 보존). **표 표시(비편집=기존 아이템)는 스냅샷 우선** — `item.price_at_purchase`가 있으면 그걸 표시, 없을 때만 유틸 폴백. **동작 변경**: 과거 비할인(is_discountable=false) 상품에도 행사 할인이 잘못 적용되던 표시·저장이 바로잡힘(운영 DB 불일치 0건 확인 — 깨질 기존 동작 없음). **근인 = `OrderManagementPage:237` productsMap 화이트리스트**에 `is_discountable`이 없어 OrderSections가 못 보던 것 → map에 `is_discountable`·`discount_override` 추가. 검증: build·lint 신규 0·pricing.test 14. (참고: `OrderDetailModal.test`의 편집 버튼 다중매칭 실패 2건은 SectionCard 다(多)편집 리팩터 이후 잔존한 기존 실패로 본 작업과 무관 — mockProducts에 `is_discountable:true` 추가해 렌더 테스트만 정합화.)
+> 마지막 갱신: 2026-08-18 **상품 표 행별 할인 가시화**(frontend-engineer, 프리뷰 QA 수정). 할인가 셀에 **할인율 % 보조표기**(정가 대비 역산 `round((1−할인가/정가)×100)` — 스냅샷 주문은 당시 실제율, 0%인 행은 `-`), 합계 셀에 **행별 할인액 보조표기**(`−(정가−할인가)×수량`) 추가. 신규 열이 아닌 셀 보조표기(모달 폭 제약). 계산은 `getDiscountedUnit`/스냅샷 우선 규칙 유지, %는 표시된 정가·할인가에서 역산(표시 정합 보장). 목적: 어떤 상품이 몇 % 할인됐는지 육안 구분 + **고객(정가·%·할인가) < 어드민(정가·%·할인가·할인액)** 정보량 원칙. 검증: build·lint 신규 0·pricing.test 14. (OrderDetailModal.test 편집버튼 다중매칭 실패 2건은 기존 실패로 무관 — HEAD 베이스라인 동일 확인.)
+> 이전 갱신: 2026-08-18 **편집 상품 금액 계산 정정 + 스냅샷 우선**(frontend-engineer, tech-cto 위임). 상품 편집 소계 재계산(useEffect)·저장 payload(order_items 직접 write)·표 표시 3곳(OrderSections)의 할인가를 공용 유틸 `getDiscountedUnit(product, discountRate)`로 교체. 기존 `originalPrice*(1-discountRate)`는 **`Math.round` 누락·`is_discountable` 미반영·`discount_override` 미반영**이었음(동시 해소). **저장 payload는 서버(create-order)를 우회하는 직접 DB write라 이 공식이 정본.** 배송비 판정은 정가(할인 전) 총액 기준 유지(회귀 가드 보존). **표 표시(비편집=기존 아이템)는 스냅샷 우선** — `item.price_at_purchase`가 있으면 그걸 표시, 없을 때만 유틸 폴백. **동작 변경**: 과거 비할인(is_discountable=false) 상품에도 행사 할인이 잘못 적용되던 표시·저장이 바로잡힘(운영 DB 불일치 0건 확인 — 깨질 기존 동작 없음). **근인 = `OrderManagementPage:237` productsMap 화이트리스트**에 `is_discountable`이 없어 OrderSections가 못 보던 것 → map에 `is_discountable`·`discount_override` 추가. 검증: build·lint 신규 0·pricing.test 14. (참고: `OrderDetailModal.test`의 편집 버튼 다중매칭 실패 2건은 SectionCard 다(多)편집 리팩터 이후 잔존한 기존 실패로 본 작업과 무관 — mockProducts에 `is_discountable:true` 추가해 렌더 테스트만 정합화.)
 > 이전 갱신: 2026-07-07 섹션별 인라인 편집 재설계.
 
 ## 참조 파일
@@ -102,9 +103,9 @@
 - [ ] 행 데이터: `editedOrderItems`(편집 중) 또는 `order.mergedItems || order.order_items`(조회)
 - [ ] 상품명 — 조회: `item.product_name || productsMap[item.product_id]?.name || '알 수 없는 상품'` / 편집: Autocomplete (전체 products 옵션, name으로 검색, getOptionLabel name)
 - [ ] 정가 — `item.list_price || productsMap[item.product_id]?.list_price || 0`.toLocaleString()원
-- [ ] 할인가 — `originalPrice * (1 - discountRate)`.toLocaleString()원 (학회 할인율 기준)
+- [ ] 할인가 — 편집: `getDiscountedUnit(product, discountRate)` / 조회: 스냅샷 `item.price_at_purchase` 우선, 없으면 유틸 폴백.toLocaleString()원 + **보조표기(별도 열 아님): 할인율 %**. 정가 대비 역산 `round((1 − 할인가/정가) × 100)` — 조회(스냅샷) 주문은 당시 **실제 할인율**을, 편집 중이면 재계산된 할인가 기준을 반영(현재 행사율을 과거 주문에 재적용하지 않음). 할인 있는 행 `N% 할인`(error.main·bold), **할인 0%인 행은 `-`(text.disabled)로 명시**. (2026-08-18 추가 — 육안 구분·고객<어드민 정보량 원칙)
 - [ ] 수량 — 조회: 숫자만 / 편집: TextField type number (min 0)
-- [ ] 합계 — `discountedPrice * quantity`.toLocaleString()원
+- [ ] 합계 — `discountedPrice * quantity`.toLocaleString()원 + **보조표기(별도 열 아님): 행별 할인액** `−((정가 − 할인가) × 수량)`원(error.main, 할인 있는 행만). 모달 폭 제약으로 신규 열 대신 할인가/합계 셀 보조표기 채택. (2026-08-18 추가)
 - [ ] (조건부, 편집 모드) 삭제 아이콘 `CloseIcon`(error) — `handleRemoveOrderItem`
 - [ ] (조건부, 편집 모드) “상품 추가” 버튼 — 첫 번째 product를 quantity 1로 추가 (line 175-182)
 - [ ] (productsLoading 시) CircularProgress 한 줄

@@ -363,8 +363,6 @@ const OrderPage = () => {
             hasOnlineCode={hasOnlineCode}
             isOnsitePurchase={isOnsitePurchase}
             eventName={eventInfo?.name || ''}
-            discountRate={discountRate}
-            cart={cart}
           />
         )}
 

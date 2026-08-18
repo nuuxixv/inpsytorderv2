@@ -16,7 +16,7 @@ import {
   ShoppingCartOutlined as ShoppingCartIcon,
 } from '@mui/icons-material';
 import { EmptyState } from './ui';
-import { getDiscountedUnit } from '../utils/pricing';
+import { getEffectiveRate, getDiscountedUnit } from '../utils/pricing';
 
 const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, discountRate = 0, isOnsitePurchase = false, onProceed }) => {
   const theme = useTheme();
@@ -100,12 +100,15 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
           validItems.map((item, index) => {
             const unitPrice = getItemPrice(item);
             const itemTotal = unitPrice * item.quantity;
+            // 실효율 = discount_override ?? (is_discountable ? discountRate : 0) — 상품 카드와 동일 규칙.
+            const effectiveRate = getEffectiveRate(item, discountRate);
+            const isDiscounted = effectiveRate > 0;
 
             return (
               <Box key={item.id}>
                 <Box sx={{ py: 2 }}>
                   {/* Top row: name + remove */}
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
                     <Typography
                       variant="body2"
                       sx={{ fontWeight: 600, flex: 1, pr: 1, lineHeight: 1.4 }}
@@ -120,6 +123,25 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
                       <CloseIcon sx={{ fontSize: 18 }} />
                     </IconButton>
                   </Box>
+
+                  {/* 단가 표기 — 할인 행: 정가 취소선·할인율·할인 단가 / 무할인 행: 정가만(상품 카드와 동일 시각 언어) */}
+                  {isDiscounted ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
+                      <Typography variant="caption" sx={{ textDecoration: 'line-through', color: 'text.disabled' }}>
+                        {item.list_price.toLocaleString()}원
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 700 }}>
+                        {`${(effectiveRate * 100).toFixed(0)}%`}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 600 }}>
+                        {unitPrice.toLocaleString()}원
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                      {item.list_price.toLocaleString()}원
+                    </Typography>
+                  )}
 
                   {/* Bottom row: quantity stepper + price */}
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
