@@ -73,6 +73,7 @@ npm run build && npm run preview:slow -- --preset venue --cold
 | B | 폰트 CDN 도달 불가 | 서버를 `--break-font`로 띄운다 | 시스템 폰트(또는 로컬 설치본)로 정상 렌더, **새로고침 루프 없음** |
 | C | 배포 후 스테일 에셋 | 서버를 `--break-assets`로 띄운다 | 서버 404 → 폴백 전폭 → `?_boot=` 1회 재시도 → **`?events=` 보존** → 재실패 시 "불러오지 못했습니다" 문구 |
 | D | OS 다크모드 | 브라우저/기기 색상 구성을 dark로 | A~C 전부에서 배경이 흰색 유지 |
+| F | 고대비 모드 | Windows 설정 → 고대비(밤하늘·흰색 각 1회) | 선택된 필터가 미선택과 구분됨, CTA에 테두리 있음, 배지에 테두리 있음, 대비 4.5:1 미만 아이콘 0개 |
 
 시나리오 B·C는 `dist/`를 수정하지 않는다. `sed`로 `index.html`을 고치는 방식은 셸마다 명령이 다르고(PowerShell에는 `sed`가 없다) 백업·복원을 잊으면 `dist`가 망가진 채 남는다. 검수 서버가 서빙 시점에만 응답을 바꾸므로 실제 라우트에서 그대로 재현된다.
 
@@ -91,6 +92,15 @@ npm run build && npm run preview:slow -- --preset venue --cold
 | 폰트 CSS | jsdelivr `blocking` (2,570ms) | `non-blocking` |
 
 수정 전 FCP가 아예 없다는 게 이 장애의 정체다. `#root`가 비어 있어 그릴 것이 없었고, 그 15초 동안 안드로이드 강제 다크가 빈 캔버스를 칠했다. 이 표보다 나빠지면 회귀다.
+
+### 고대비(forced-colors) 모드 (2026-08-18)
+Windows 고대비를 켜면 OS가 우리 색을 시스템 팔레트로 강제 교체한다. 채움만으로 구분하던 것은 전부 사라지므로, 선택·버튼·배지를 테두리와 시스템 선택색으로 표현한다. 규칙은 `index.css`가 아니라 컴포넌트 `sx`·`theme.js`에 둔다(emotion이 나중에 주입해 CSS 파일 규칙이 지기 때문).
+
+- [ ] 선택된 필터 칩 — `background: Highlight` / `color: HighlightText` / `border: 1px solid CanvasText`. 미선택은 `Canvas`/`CanvasText` + 동일 테두리. **테마 레벨에 걸지 않는다** — `filled`는 MUI 기본 variant라 "차단됨"·"N일차" 같은 상태 표시 칩 34곳까지 선택색으로 칠해진다. `ProductSelectionStep.jsx`의 `forcedColorsChipSx`로 선택 칩에만 적용
+- [ ] 칩 내부 아이콘 — `color: inherit`. MUI 기본 색이 남으면 대비 2.95:1로 묻힌다(밤하늘 실측)
+- [ ] contained 버튼 — `ButtonFace`/`ButtonText` + `1px solid ButtonText`. MUI contained는 테두리가 없어 채움이 붕괴하면 경계가 사라진다. 선택 의미의 `Highlight`는 쓰지 않는다(칩 선택 상태와 의미가 섞임)
+- [ ] 배지(`BadgeBox`) — `1px solid CanvasText`. 소프트 틴트는 알파만 남아 배경과 구분 불가가 되므로, 카테고리 구분은 텍스트 라벨이 담당하고 테두리로 형태만 지킨다
+- [ ] `index.css` §11.4는 `:focus-visible`만 담당 — 나머지 규칙은 무효였다(제거)
 
 ### 렌더 예외 (`ErrorBoundary.jsx`, 2026-08-13)
 - [ ] 앱 루트를 `ErrorBoundary`로 감싼다. `CssBaseline`은 **바깥**에 둬서 폴백 상태에서도 body 배경이 유지된다(화면이 어두워지지 않음)

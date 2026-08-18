@@ -26,7 +26,13 @@
 
 Windows에는 "고대비 모드"라는 OS 옵션이 있다. 시각 보조가 필요한 사용자가 켠다. 켜진 순간 **우리 색은 거의 다 의미가 없어진다.** OS가 텍스트는 한 가지 색, 배경은 한 가지 색, 버튼은 한 가지 색, 링크는 한 가지 색으로 강제로 바꿔치기한다.
 
-이걸 감지하는 미디어 쿼리가 `@media (forced-colors: active)`다. 이 안에서는 우리 색을 고집하지 않는다. 대신 **보더와 아이콘**을 OS의 시스템 키워드(`Canvas`, `CanvasText`, `ButtonText`, `Highlight` 같은 것)로 fallback 시켜둔다. 그러면 OS가 자기 색을 끼워넣을 때 보더가 사라지지 않고, 아이콘이 배경에 묻히지 않는다.
+이걸 감지하는 미디어 쿼리가 `@media (forced-colors: active)`다. 이 안에서는 우리 색을 고집하지 않는다. 대신 시스템 키워드(`Canvas`, `CanvasText`, `ButtonFace`, `ButtonText`, `Highlight`, `HighlightText`)로 fallback 시킨다.
+
+**어디에 쓰는지가 핵심이다(2026-08-18 정정).** 이 문서는 오랫동안 "그렇게 해뒀다"고 적고 있었지만, 실제로는 동작하지 않았다. `index.css`에 있던 세이프가드 4개 규칙 중 `:focus-visible` 하나만 유효했고 나머지는 무효였다. `border-color: CanvasText`는 UA가 이미 하는 일이고, `forced-color-adjust: auto`는 기본값이라 아무 일도 안 하며, `.MuiSvgIcon-root { color: CanvasText }`는 **emotion이 나중에 주입하는 `sx` 스타일에 져서 적용되지 않았다.** 그래서 규칙은 MUI 컴포넌트와 같은 층(`theme.js` styleOverrides, 컴포넌트 `sx`)에 둔다. `index.css`의 §11.4 블록은 `:focus-visible`만 담당한다.
+
+**채움으로만 구분하면 고대비에서 사라진다.** forced-colors는 배경 채움을 시스템 색으로 붕괴시킨다. 테두리가 있던 요소(카드·input·미선택 칩)는 전부 살아남았고, 테두리 없이 채움만으로 구분하던 것은 전부 사라졌다. 특히 선택된 필터 칩은 테두리가 없어 배경에 묻히고 미선택 칩만 또렷해져 **선택 상태가 반대로 읽혔다.** 지금은 선택에 `Highlight`/`HighlightText`, 버튼에 `ButtonFace`/`ButtonText` + 테두리, 배지에 테두리를 준다. 자세한 근거와 실측값은 `DOCS/PRD_고대비_가시성.md`.
+
+**소프트 틴트는 고대비에서 못 쓴다.** `alpha()` 틴트는 색만 시스템 색으로 바뀌고 알파는 남아 `rgba(0,0,0,0.14)` = 배경과 구분 불가가 된다. 상태·카테고리 구분은 색이 아니라 텍스트 라벨과 테두리가 담당해야 한다.
 
 여기서 우리가 보장하는 건 **"요소가 어디에 있는지 알아볼 수 있다"**까지다. 우리 브랜드 청록색이 그대로 보일 거라고 약속하지 않는다. 그건 OS의 영역이고, 우리가 깨려는 것도 아니다.
 

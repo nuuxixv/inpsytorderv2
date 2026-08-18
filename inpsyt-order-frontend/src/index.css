@@ -160,26 +160,19 @@ body {
 
 /* ============================================================
  * 가시성 세이프가드 §11.4 — forced-colors: active (Windows 고대비)
- * 우리 브랜드 색을 고집하지 않음. 요소의 경계·아이콘이
- * 사라지지 않게 시스템 키워드로 fallback.
+ * 우리 브랜드 색을 고집하지 않는다.
+ *
+ * 여기에는 MUI 규칙을 두지 않는다. emotion 이 sx 스타일을 나중에 주입하므로
+ * 이 파일의 평범한 클래스 선택자는 진다. 실제로 `.MuiSvgIcon-root { color:
+ * CanvasText }` 는 적용되지 않았다(2026-08 실측). MUI 대응은 theme.js 의
+ * styleOverrides 와 컴포넌트 sx 안에서 한다. (DOCS/PRD_고대비_가시성.md F4)
+ *
+ * 아래에서 제거한 무효 규칙:
+ *  - border-color: CanvasText      → UA 가 이미 강제한다
+ *  - forced-color-adjust: auto     → auto 가 기본값이라 아무 일도 안 한다
+ *  - .MuiSvgIcon-root { color }    → sx 에 져서 적용 안 됨
  * ============================================================ */
 @media (forced-colors: active) {
-  .MuiCard-root,
-  .MuiPaper-root,
-  .MuiOutlinedInput-root,
-  .MuiButton-root,
-  input,
-  select,
-  textarea,
-  button {
-    border-color: CanvasText;
-    forced-color-adjust: auto;
-  }
-
-  .MuiSvgIcon-root {
-    color: CanvasText;
-  }
-
   :focus-visible {
     outline: 2px solid Highlight;
     outline-offset: 2px;
