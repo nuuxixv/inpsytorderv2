@@ -59,7 +59,7 @@ serve(async (req) => {
 
     const withActive = await supabaseClient
       .from('products')
-      .select('id, name, product_code, category, list_price, is_discountable, is_active, discount_override')
+      .select('id, name, product_code, category, list_price, is_discountable, is_active, discount_override, includes_online_code')
       .in('id', productIds)
 
     if (withActive.error) {
@@ -93,6 +93,23 @@ serve(async (req) => {
         )
       }
     }
+
+    // ── 온라인코드 판정 (서버 정본, 한 곳에 모음) ──────────────────────────────
+    // 클라이언트 문자열 판정을 신뢰하지 않는다(가격 서버 재계산과 동일 원칙).
+    // 판정식(합집합): includes_online_code === true  OR  상품명에 '온라인' 포함.
+    //   includes_online_code 컬럼 부재(fallback select) 시 product.includes_online_code
+    //   는 undefined → 첫 항 false → 상품명 판정으로 graceful degrade(회귀 0).
+    const orderHasOnlineCode = (products ?? []).some(
+      (p: any) => p.includes_online_code === true || (p.name && p.name.includes('온라인'))
+    )
+
+    // 정책: 소프트 필수(건우님 결정) — inpsyt_id 공란이어도 주문은 정상 생성. 여기서 400 안 함.
+    //   판정 지점을 여기 한 곳으로 모아, 추후 하드블록 전환 시 아래 3줄만 주석 해제하면 됨.
+    // [HARD BLOCK 전환 지점]
+    // const inpsytIdMissing = !inpsyt_id || String(inpsyt_id).trim() === ''
+    // if (orderHasOnlineCode && inpsytIdMissing) {
+    //   return new Response(JSON.stringify({ error: '온라인코드 상품은 inpsyt 아이디가 필요합니다.' }), { headers: { 'Content-Type': 'application/json', ...corsHeaders }, status: 400 })
+    // }
 
     const { data: event, error: eventError } = await supabaseClient
       .from('events')
@@ -147,6 +164,7 @@ serve(async (req) => {
         delivery_fee: shippingCost,
         final_payment: finalCost,
         is_on_site_sale,
+        has_online_code: orderHasOnlineCode,
         event_id,
         status_history: [{ status: 'pending', changed_at: new Date().toISOString() }],
       })
