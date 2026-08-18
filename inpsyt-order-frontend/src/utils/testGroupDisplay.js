@@ -18,6 +18,13 @@ export function productMatchesEventTags(product, eventTags = []) {
   return Array.isArray(product.tags) && product.tags.some((t) => eventTags.includes(t));
 }
 
+// 상품이 특정 소분류(sub_category)에 속하는지 — 미지정은 '기타' 폴백.
+// 단일 대분류 행사의 소분류 칩 필터에 사용. 평면 상품·검사군 옵션 양쪽에서 재사용
+// (폴백 규칙 복붙 금지, 단일 소스).
+export function productMatchesSubCategory(product, subCategory) {
+  return (product.sub_category || '기타') === subCategory;
+}
+
 /**
  * 검사군 마스터 배열 → 노출 검사군 메타 맵(is_active=false 제외).
  * @param {Array} master test_groups 행 배열

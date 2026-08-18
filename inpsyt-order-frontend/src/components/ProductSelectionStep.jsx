@@ -11,7 +11,7 @@ import { fetchAllProducts } from '../api/products';
 import { fetchTestGroups } from '../api/testGroups';
 import { useNotification } from '../hooks/useNotification';
 import { matchesSearch } from '../utils/search';
-import { normalizeCategory, buildGroupMetaMap, groupTestProducts, productMatchesEventTags } from '../utils/testGroupDisplay';
+import { normalizeCategory, buildGroupMetaMap, groupTestProducts, productMatchesEventTags, productMatchesSubCategory } from '../utils/testGroupDisplay';
 import ProductCard from './ProductCard';
 import TestGroupCard from './TestGroupCard';
 import ProductSearchBar from './ProductSearchBar';
@@ -110,17 +110,25 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
 
   const hasSearch = Boolean(debouncedSearch.trim());
 
-  // 검사군 카테고리 표시 여부 — '전체' 또는 '검사' 선택 시(단일 대분류 행사는 소분류 기준 별도 처리)
-  const showTestGroups = useMemo(() => {
-    if (isSingleCategory) return testGroups.length > 0; // 소분류 필터는 평면 대상, 검사군은 검사 대분류라 여기선 전량
-    if (selectedCategory === 'all') return true;
-    return selectedCategory === '검사';
-  }, [isSingleCategory, selectedCategory, testGroups.length]);
+  // 검사군 카테고리 필터 — 평면(filteredProducts)의 카테고리 필터와 대칭. 검색·뷰모드와
+  // 무관하게 항상 적용(평면 쪽 카테고리 필터가 검색과 무관하게 늘 걸리는 것과 동일 규칙).
+  // - 단일 대분류 행사: 소분류(sub_category) 기준. 옵션 중 하나라도 일치하는 검사군만 노출.
+  //   '기타' 폴백은 평면(p.sub_category || '기타')과 동일 규칙. 검사 상품이 전부 검사군에
+  //   묶인 행사에서도 소분류 칩이 검사군에 걸리게 하는 핵심 수정.
+  // - 일반 학회: 대분류 기준. '전체'/'검사' 선택 시 검사군 전량, 그 외 대분류(도서 등)는 제외.
+  const categoryFilteredGroups = useMemo(() => {
+    if (isSingleCategory) {
+      if (selectedCategory === 'all') return testGroups;
+      return testGroups.filter(g => g.options.some(p => productMatchesSubCategory(p, selectedCategory)));
+    }
+    if (selectedCategory === 'all' || selectedCategory === '검사') return testGroups;
+    return [];
+  }, [isSingleCategory, selectedCategory, testGroups]);
 
   // 검사군 필터·검색 — 검사군 단위(검사명·약어·옵션명 매칭). 매칭 시 자동 펼침.
+  // 노출 여부 판정은 categoryFilteredGroups로 일원화(별도 showTestGroups 게이트 제거).
   const filteredGroups = useMemo(() => {
-    if (!showTestGroups) return [];
-    let groups = testGroups;
+    let groups = categoryFilteredGroups;
 
     // 학회 태그는 '필터'가 아니라 '정렬'로 일원화(태그 없는 상품도 숨기지 않고 아래로).
     // 정렬은 testGroups(=groupTestProducts) 단계에서 eventTags 기준으로 이미 적용됨.
@@ -143,7 +151,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
     }
 
     return groups;
-  }, [showTestGroups, testGroups, hasSearch, viewMode, debouncedSearch]);
+  }, [categoryFilteredGroups, hasSearch, viewMode, debouncedSearch]);
 
   // 검색 매칭된 검사군 id 집합 — 자동 펼침 판정용
   const searchMatchedGroupIds = useMemo(() => {
@@ -160,7 +168,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
     // 카테고리
     if (selectedCategory !== 'all') {
       if (isSingleCategory) {
-        list = list.filter(p => (p.sub_category || '기타') === selectedCategory);
+        list = list.filter(p => productMatchesSubCategory(p, selectedCategory));
       } else {
         list = list.filter(p => normalizeCategory(p.category) === selectedCategory);
       }

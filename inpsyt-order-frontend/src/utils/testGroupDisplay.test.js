@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeCategory, buildGroupMetaMap, groupTestProducts, productMatchesEventTags } from './testGroupDisplay';
+import { normalizeCategory, buildGroupMetaMap, groupTestProducts, productMatchesEventTags, productMatchesSubCategory } from './testGroupDisplay';
 
 const master = [
   { id: 1, abbr: 'K·BASC-3', name: '한국판 정서-행동 평가시스템', sort_order: 1, is_active: true },
@@ -105,6 +105,48 @@ describe('groupTestProducts', () => {
     );
     const groups = groupTestProducts(tagged, meta, true, ['대한신경정신의학회']);
     expect(groups.map(g => g.id)).toEqual([2, 1]);
+  });
+});
+
+describe('productMatchesSubCategory', () => {
+  it('sub_category가 일치하면 true', () => {
+    expect(productMatchesSubCategory({ sub_category: '성인' }, '성인')).toBe(true);
+  });
+  it('sub_category가 다르면 false', () => {
+    expect(productMatchesSubCategory({ sub_category: '성인' }, '아동·청소년')).toBe(false);
+  });
+  it('sub_category 미지정은 "기타"로 폴백', () => {
+    expect(productMatchesSubCategory({}, '기타')).toBe(true);
+    expect(productMatchesSubCategory({ sub_category: null }, '기타')).toBe(true);
+    expect(productMatchesSubCategory({ sub_category: '' }, '기타')).toBe(true);
+    expect(productMatchesSubCategory({ sub_category: '성인' }, '기타')).toBe(false);
+  });
+});
+
+// 단일 대분류 행사에서 소분류 칩이 검사군에 적용되는 규칙(컴포넌트 categoryFilteredGroups의
+// 핵심 로직)을 그룹 데이터로 검증 — 옵션 중 하나라도 매칭이면 그 검사군 노출.
+describe('소분류 필터 — 검사군 옵션 단위 매칭', () => {
+  const meta = buildGroupMetaMap(master);
+  const subProducts = [
+    // 검사군 1 — 옵션 소분류가 섞임(성인 + 아동·청소년) → 성인/아동·청소년 둘 다에서 노출
+    { id: 101, category: '검사', test_group_id: 1, option_name: 'B', sub_category: '성인' },
+    { id: 102, category: '검사', test_group_id: 1, option_name: 'A', sub_category: '아동·청소년' },
+    // 검사군 2 — 옵션 전부 소분류 미지정 → '기타'에서만 노출
+    { id: 201, category: '도구', test_group_id: 2, option_name: '단일' },
+  ];
+  const groups = groupTestProducts(subProducts, meta, true);
+
+  const filterBySub = (sub) => groups.filter(g => g.options.some(p => productMatchesSubCategory(p, sub)));
+
+  it('옵션 중 하나라도 매칭이면 검사군 노출', () => {
+    expect(filterBySub('성인').map(g => g.id)).toEqual([1]);
+    expect(filterBySub('아동·청소년').map(g => g.id)).toEqual([1]);
+  });
+  it('옵션 전부 불일치면 검사군 제외', () => {
+    expect(filterBySub('임상')).toEqual([]);
+  });
+  it('sub_category 없는 옵션 검사군은 "기타"에 매칭', () => {
+    expect(filterBySub('기타').map(g => g.id)).toEqual([2]);
   });
 });
 
