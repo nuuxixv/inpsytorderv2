@@ -51,6 +51,12 @@ export const BadgeBox = ({ bg, color, children }) => (
       display: 'flex',
       alignItems: 'center',
       gap: 0.25,
+      // 고대비: 소프트 틴트는 색만 시스템 색으로 바뀌고 알파는 남아
+      // rgba(0,0,0,0.14) = 배경과 구분 불가가 된다. 테두리로 배지 형태를 지킨다.
+      // 카테고리 구분은 텍스트 라벨이 이미 담당한다. (PRD_고대비_가시성 F3)
+      '@media (forced-colors: active)': {
+        border: '1px solid CanvasText',
+      },
     }}
   >
     {children}

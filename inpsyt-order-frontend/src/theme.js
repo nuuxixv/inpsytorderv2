@@ -212,6 +212,16 @@ const theme = createTheme({
           background: PRIMARY_MAIN,
           '&:hover': { background: PRIMARY_DARK },
         },
+        // 고대비: MUI contained 는 테두리가 없어 채움이 붕괴하면 경계가 사라진다.
+        // 버튼으로 인식되게 시스템 버튼 색과 테두리를 준다. 선택 의미의 Highlight 는
+        // 쓰지 않는다(칩 선택 상태와 의미가 섞임). (PRD_고대비_가시성 F2)
+        contained: {
+          '@media (forced-colors: active)': {
+            background: 'ButtonFace',
+            color: 'ButtonText',
+            border: '1px solid ButtonText',
+          },
+        },
         outlined: {
           borderColor: GRAY[300],
           color: GRAY[800],
@@ -297,6 +307,23 @@ const theme = createTheme({
           fontSize: '0.8125rem',
           borderBottom: `1px solid ${GRAY[200]}`,
           letterSpacing: '-0.01em',
+        },
+      },
+    },
+    MuiSvgIcon: {
+      styleOverrides: {
+        root: {
+          // 고대비: SVG 의 color·fill 은 forced-colors 강제 대상이 아니다(실측).
+          // 그래서 sx 로 지정한 브랜드색이 그대로 남아 배경에 묻힌다
+          // (장바구니 아이콘 rgb(43,57,143) on 검정 = 2.08:1).
+          // 아이콘마다 예외를 두는 대신, 고대비에서는 언제나 주변 글자색을 따르게 한다.
+          // 이러면 선택 칩(HighlightText)·버튼(ButtonText)·본문(CanvasText) 모두
+          // 자기 배경에 맞는 색을 얻는다. !important 는 sx 를 이기기 위해 필요하며
+          // 고대비 모드 안에서만 적용된다. (PRD_고대비_가시성 F5)
+          '@media (forced-colors: active)': {
+            color: 'inherit !important',
+            fill: 'currentColor !important',
+          },
         },
       },
     },

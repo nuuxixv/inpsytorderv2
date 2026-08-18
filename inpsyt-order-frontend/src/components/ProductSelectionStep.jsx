@@ -18,6 +18,22 @@ import ProductSearchBar from './ProductSearchBar';
 
 const PAGE_SIZE = 40;
 
+// 고대비(forced-colors)에서 "선택됨"을 살리는 스타일.
+// 채움이 Canvas로 붕괴하면 테두리 없는 filled 칩은 배경에 묻히고, 테두리가 있는
+// 미선택 칩만 또렷해져 선택 상태가 반대로 읽힌다(2026-08 밤하늘 테마 실측).
+// OS 선택색과 테두리로 되살린다. 테마 레벨에 걸지 않는 이유: filled 는 MUI 기본
+// variant라 "차단됨"·"N일차" 같은 상태 표시 칩 34곳까지 선택색으로 칠해진다.
+// (DOCS/PRD_고대비_가시성.md F1·F5)
+const forcedColorsChipSx = (selected) => ({
+  '@media (forced-colors: active)': {
+    border: '1px solid CanvasText',
+    ...(selected
+      ? { background: 'Highlight', color: 'HighlightText' }
+      : { background: 'Canvas', color: 'CanvasText' }),
+    // 칩 내부 아이콘은 theme.js 의 MuiSvgIcon 전역 고대비 규칙이 글자색을 따르게 만든다.
+  },
+});
+
 const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags = [], eventName = '', visibleCategories = null }) => {
   const theme = useTheme();
   const { addNotification } = useNotification();
@@ -305,6 +321,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
               sx={{
                 flexShrink: 0,
                 fontWeight: viewMode === mode.key ? 700 : 500,
+                ...forcedColorsChipSx(viewMode === mode.key),
                 borderRadius: `${theme.radii.sm}px`,
                 transition: `all 0.15s ${theme.easing.toss}`,
                 '&:active': { transform: 'scale(0.95)' },
@@ -335,6 +352,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
               sx={{
                 flexShrink: 0,
                 fontWeight: selectedCategory === filter.key ? 700 : 500,
+                ...forcedColorsChipSx(selectedCategory === filter.key),
                 borderRadius: `${theme.radii.sm}px`,
                 transition: `all 0.15s ${theme.easing.toss}`,
                 '&:active': { transform: 'scale(0.95)' },
