@@ -20,6 +20,7 @@ import {
 import { supabase } from '../supabaseClient';
 import { useNotification } from '../hooks/useNotification';
 import { matchesSearch } from '../utils/search';
+import { getDiscountedUnit, getEffectiveRate } from '../utils/pricing';
 import { SHIPPING_DEFAULTS } from '../constants/shipping';
 import { PriceBlock, ActionSlot, EmptyState } from './ui';
 
@@ -130,10 +131,8 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
   // Cart helpers
   const getCartItem = (productId) => cart.find(c => c.product.id === productId);
 
-  const calcDiscountedPrice = (product) =>
-    product.is_discountable && discountRate > 0
-      ? Math.round(product.list_price * (1 - discountRate))
-      : product.list_price;
+  // 상품별 오버라이드 반영 단가 — is_discountable·discount_override 공식 일원화.
+  const calcDiscountedPrice = (product) => getDiscountedUnit(product, discountRate);
 
   const handleAddToCart = (product) => {
     if (getCartItem(product.id)) return;
@@ -463,7 +462,7 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
                   filteredProducts.map(product => {
                     const inCart = !!getCartItem(product.id);
                     const discounted = calcDiscountedPrice(product);
-                    const isDisc = product.is_discountable && discountRate > 0;
+                    const isDisc = getEffectiveRate(product, discountRate) > 0;
                     return (
                       <Box
                         key={product.id}

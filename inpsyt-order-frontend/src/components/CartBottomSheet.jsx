@@ -16,6 +16,7 @@ import {
   ShoppingCartOutlined as ShoppingCartIcon,
 } from '@mui/icons-material';
 import { EmptyState } from './ui';
+import { getDiscountedUnit } from '../utils/pricing';
 
 const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, discountRate = 0, isOnsitePurchase = false, onProceed }) => {
   const theme = useTheme();
@@ -36,12 +37,8 @@ const CartBottomSheet = ({ open, onClose, onOpen, cart, onCartChange, settings, 
     onCartChange(cart.filter(p => p.id !== productId));
   };
 
-  const getItemPrice = (item) => {
-    if (item.is_discountable && discountRate > 0) {
-      return Math.round(item.list_price * (1 - discountRate));
-    }
-    return item.list_price;
-  };
+  // 상품별 오버라이드 반영 단가 — cart item은 {...product} 이므로 discount_override를 지닌다.
+  const getItemPrice = (item) => getDiscountedUnit(item, discountRate);
 
   const totalPrice = validItems.reduce((sum, item) => {
     return sum + getItemPrice(item) * item.quantity;

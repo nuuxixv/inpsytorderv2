@@ -5,6 +5,7 @@ import {
   Add as AddIcon, Remove as RemoveIcon, Delete as DeleteIcon, Star as StarIcon,
 } from '@mui/icons-material';
 import { getProductImageUrl } from '../api/productImages';
+import { getEffectiveRate, getDiscountedUnit } from '../utils/pricing';
 
 // 상품 이미지 슬롯(C1 §카드 이미지). 1:1 정방형.
 // 이미지 없으면(또는 onError) 슬롯 자체 미렌더(null) — 플레이스홀더 폐기(건우님 2026-06-29).
@@ -63,10 +64,10 @@ export const BadgeBox = ({ bg, color, children }) => (
 const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, hideCategoryBadge = false, onAdd, onIncrement, onDecrement }) => {
   const theme = useTheme();
   const isInCart = cartQuantity > 0;
-  const isDiscounted = product.is_discountable && discountRate > 0;
-  const discountedPrice = isDiscounted
-    ? Math.round(product.list_price * (1 - discountRate))
-    : product.list_price;
+  // 실효율 = discount_override ?? (is_discountable ? discountRate : 0) — 상품별 오버라이드 반영.
+  const effectiveRate = getEffectiveRate(product, discountRate);
+  const isDiscounted = effectiveRate > 0;
+  const discountedPrice = getDiscountedUnit(product, discountRate);
   // 도구는 검사 하위로 본다 — 배지·필터 모두 '검사'로 표기
   // 단일 대분류 행사(hideCategoryBadge)에서는 카드 상위 카테고리 칩 숨김(전부 같은 대분류라 무의미·혼란)
   const displayCategory = hideCategoryBadge
@@ -159,7 +160,7 @@ const ProductCard = ({ product, discountRate = 0, cartQuantity = 0, hideCategory
                 variant="caption"
                 sx={{ color: 'error.main', fontWeight: 700 }}
               >
-                {`${(discountRate * 100).toFixed(0)}%`}
+                {`${(effectiveRate * 100).toFixed(0)}%`}
               </Typography>
             </Box>
           )}

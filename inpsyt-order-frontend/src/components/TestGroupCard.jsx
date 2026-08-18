@@ -8,6 +8,7 @@ import {
   ExpandMore as ExpandMoreIcon, ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 import { BadgeBox } from './ProductCard';
+import { getEffectiveRate, getDiscountedUnit } from '../utils/pricing';
 
 // 옵션 행 우측 액션 — 담기 outlined / 수량 스테퍼(primary bg).
 // ProductCard 스테퍼와 시각 동일(더 좁은 폭). e.stopPropagation으로 행 클릭과 분리.
@@ -63,10 +64,10 @@ const OptionAction = ({ theme, quantity, onAdd, onIncrement, onDecrement }) => {
 
 // 가격 표기 — ProductCard 할인 로직과 동일 규칙. 펼친 옵션 행 전용.
 const OptionPrice = ({ product, discountRate }) => {
-  const isDiscounted = product.is_discountable && discountRate > 0;
-  const discountedPrice = isDiscounted
-    ? Math.round(product.list_price * (1 - discountRate))
-    : product.list_price;
+  // 실효율 = discount_override ?? (is_discountable ? discountRate : 0) — 상품별 오버라이드 반영.
+  const effectiveRate = getEffectiveRate(product, discountRate);
+  const isDiscounted = effectiveRate > 0;
+  const discountedPrice = getDiscountedUnit(product, discountRate);
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap', mt: 0.75 }}>
@@ -76,7 +77,7 @@ const OptionPrice = ({ product, discountRate }) => {
             {product.list_price.toLocaleString()}원
           </Typography>
           <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 700 }}>
-            {`${(discountRate * 100).toFixed(0)}%`}
+            {`${(effectiveRate * 100).toFixed(0)}%`}
           </Typography>
         </>
       )}

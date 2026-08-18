@@ -3,7 +3,8 @@
 > 이 시트는 어드민 신규 주문 등록 모달의 정보·기능·데이터 구조의 단일 진실 소스다.
 > 시안 부재 화면이므로 실 컴포넌트(`NewOrderModal.jsx`)가 사실상의 기획이다. 시안이 작성되면 이 시트에 모든 항목이 1:1로 반영되어야 한다.
 > 임의 단순화·통합·생략은 건우님의 명시적 승인 후 이 시트를 먼저 갱신한 다음에만 허용된다.
-> 마지막 갱신: 2026-05-29 신설 (M3-13 선행 — 시안 부재 단일 진실 소스 박기).
+> 마지막 갱신: 2026-08-18 **할인 단가 유틸 경유**(frontend-engineer). `calcDiscountedPrice`와 검색 리스트 할인 표시 판정(`isDisc`)을 공용 유틸 `utils/pricing.js`(`getDiscountedUnit`/`getEffectiveRate`)로 교체 — `discount_override` 반영(실효율 = `discount_override ?? (is_discountable ? discountRate : 0)`). override가 NULL/undefined면 순수 no-op. 검증: build·pricing.test 14 passed·lint 신규 0.
+> 이전 갱신: 2026-05-29 신설 (M3-13 선행 — 시안 부재 단일 진실 소스 박기).
 
 ## 참조 파일
 - 실 컴포넌트: `inpsyt-order-frontend/src/components/NewOrderModal.jsx` (572줄)

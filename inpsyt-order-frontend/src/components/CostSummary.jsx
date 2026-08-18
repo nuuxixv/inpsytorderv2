@@ -7,6 +7,7 @@ import {
   LinearProgress,
   useTheme,
 } from '@mui/material';
+import { getDiscountedUnit } from '../utils/pricing';
 
 const CostSummary = ({ cart, settings, discountRate = 0, embedded = false, compact = false, isOnsitePurchase = false }) => {
   const theme = useTheme();
@@ -21,12 +22,8 @@ const CostSummary = ({ cart, settings, discountRate = 0, embedded = false, compa
         const originalPrice = item.list_price || 0;
 
         totalOriginalPrice += originalPrice * quantity;
-
-        if (item.is_discountable) {
-          totalDiscountedPrice += Math.round((originalPrice * (1 - discountRate))) * quantity;
-        } else {
-          totalDiscountedPrice += originalPrice * quantity;
-        }
+        // 상품별 오버라이드 반영 단가 — is_discountable·discount_override 공식 일원화.
+        totalDiscountedPrice += getDiscountedUnit(item, discountRate) * quantity;
       }
     });
 
