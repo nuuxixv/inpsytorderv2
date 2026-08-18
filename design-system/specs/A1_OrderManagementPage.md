@@ -37,15 +37,16 @@
 - [ ] (시안만 보유) 부제: 총 N건 / 오늘 접수 M건 — 실 페이지에는 없음. **확인 필요**
 
 ### 필터 영역 (Paper 또는 SwipeableDrawer로 감쌈, line 473-608)
-- [ ] 날짜 프리셋 칩 5종: “오늘” / “최근 2일” / “최근 3일” / “최근 7일” / “최근 30일” (라운드 8px, 클릭 시 startDate·endDate 동시 세팅) — line 462-467
+- [ ] 날짜 프리셋 칩 6종: “오늘” / “최근 2일” / “최근 3일” / “최근 7일” / “최근 30일” / “전체” (라운드 8px, 클릭 시 startDate·endDate 동시 세팅. “전체”는 두 날짜를 **null**로 세팅 → `applyBaseFilters`가 기간 조건 스킵 = 전 기간 조회. 전 기간 이름 검색용, 2026-08-18) — `DATE_PRESETS` 모듈 상수, 클릭 시 `SET_FILTERS`(다중 필드 원자 갱신)
+  - **활성 표시(2026-08-18)**: 현재 startDate·endDate가 어느 프리셋과 일치하면 그 칩만 `filled`+`color=primary`(나머지 outlined). 판정은 `activePresetDays` useMemo — endDate가 오늘이고 startDate가 프리셋 시작일과 `yyyy-MM-dd` 일치하는 것을 탐색(시분초 무시). 둘 다 null이면 “전체” 활성, 어느 것과도 안 맞으면(사용자 임의 기간) 활성 칩 없음
 - [ ] 학회 멀티 선택 드롭다운: 라벨 “행사 선택”, 기본값 “전체”, 1개 선택 시 학회명, 2개+ 시 “N개 선택” — line 490-513
+  - **행사 선택 시 기간 자동 전체 전환(2026-08-18)**: `selectedEvents`가 **없음→있음**으로 바뀌는 순간에만 startDate·endDate를 null(전체)로 함께 세팅(`handleEventsChange`) — 그 학회 주문이 기간에 안 잘리고 전부 보이게. UI에도 반영돼 “전체” 칩이 활성·기간 필드가 비워짐(조용한 무시 아님). 이후 재선택(있음→있음)·해제(있음→없음)는 기간을 건드리지 않음(사용자가 다시 좁힐 자유 보존)
   - MenuItem: 체크박스 + 학회명(primary) + 시작일 `yyyy.M.d`(secondary caption, null이면 “시작일 미정”)
   - 옵션 정렬: `sortEventsForDropdown` — 오늘±7일 이내 시작 학회 최상단 고정, 그 다음 나머지. 각 그룹 내부 start_date 내림차순, null 맨 뒤 (`getEvents` 결과에 적용, `src/utils/eventSort.js`)
   - 렌더: `groupEventsForDropdown`으로 pinned/rest 분리, 상단 고정 그룹과 내림차순 그룹 사이 `<Divider/>`로 구분(양쪽 그룹 모두 있을 때만)
 - [ ] 주문 상태 멀티 선택 드롭다운: 라벨 “주문 상태”, 5종(`pending`/`paid`/`completed`/`cancelled`/`refunded`) 멀티 체크 가능 — line 516-537
 - [ ] 통합 검색 TextField: 라벨 “이름·연락처·ID·주문번호 검색”. `applyBaseFilters`가 `.or()`로 다중 필드 부분일치(`customer_name`·`phone_number`·`inpsyt_id` ilike). 추가 규칙: (1) **연락처 숫자 통검색 — 검색어의 숫자만 추출(`term.replace(/\D/g,'')`)해 2자리 이상이면 `phone_number.ilike.%{digits}%` 절 append. `phone_number` 정본이 숫자만 저장이므로 하이픈/공백/괄호 무엇으로 입력해도 매칭(`searchOrdersForLinking`과 동일 규칙)**, (2) `#?숫자` 형태면 `id.eq.{숫자}` 절 추가(비숫자면 미추가 — PostgREST 에러 방지), (3) 검색어 내 콤마·괄호는 `.or()` 파서 충돌 방지로 공백 치환. 단일쿼리·상품필터 Step1 idQuery 양쪽 공유 — api/orders.js:19-42
-- [ ] 시작일 입력: 라벨 “시작일” (기본값 = today − 7, 2026-07-13 30→3→7일 조정) — `ui/DateField`(캘린더 팝오버, native date 폐기, 2026-06-10 통일. 2026-06-15: 직접 타이핑 입력+오늘 강조+6행 고정 캘린더)
-- [ ] 종료일 입력: 라벨 “종료일” (기본값 = today) — `ui/DateField`
+- [ ] 기간 입력: 라벨 “기간” — `ui/DateField mode="range"` **단일 캘린더 2클릭**(첫 클릭=시작·둘째 클릭=종료, `시작 ≤ 종료` 자동 정렬은 range 캘린더가 처리). 기본값 = today−7 ~ today(최근 7일). 시작일·종료일 2필드 분리 폐기(2026-08-18 통합). reducer는 Date 객체 저장 유지 — `value={{start,end}}`는 `format(…,'yyyy-MM-dd')`로 ISO 변환, `onChange({start,end})`는 `new Date(iso)`로 되돌려 `startDate`·`endDate` 두 상태로 분해 `SET_FILTERS`. ×(클리어) 시 `{start:'',end:''}` → 두 상태 null(전체 기간)
 - [ ] “초기화” 버튼 (`RestartAltIcon` 시작 아이콘) — 모든 필터·검색어를 기본값으로 — line 567-573
 - [ ] 상품명 검색 TextField: 라벨 “상품명 검색” — `order_items.product_name` 부분 일치 — line 577-584
 - [ ] 카테고리 칩 4종: “전체” / “검사 구매” / “도서 구매” / “도구 구매” — secondary 색, filled/outlined 토글 — line 585-604
@@ -94,8 +95,9 @@
 - [ ] 학회 멀티 선택 → `selectedEvents` 변경 → `currentPage=1` 리셋 → 재조회
 - [ ] 주문 상태 멀티 선택 → `selectedStatuses` 변경 → 재조회
 - [ ] 고객명 검색 → `searchTerm` 변경 → `ilike %term%` 조회
-- [ ] 시작일·종료일 → `ui/DateField`(캘린더 팝오버, ISO yyyy-MM-dd 주고받음). reducer는 Date 객체 저장 유지 — 컴포넌트 경계에서 Date↔ISO 어댑팅
-- [ ] 날짜 프리셋 클릭 → 즉시 두 날짜 모두 변경 (라이브 갱신)
+- [ ] 기간(range DateField) → 단일 캘린더 2클릭으로 start·end 동시 산출(ISO yyyy-MM-dd 주고받음). reducer는 Date 객체 저장 유지 — 컴포넌트 경계에서 Date↔ISO 어댑팅. 두 날짜 모두 null이면 `applyBaseFilters`가 기간 조건 스킵(전체 기간)
+- [ ] 날짜 프리셋 클릭 → 즉시 두 날짜 모두 변경 (라이브 갱신). “전체” 프리셋·range 클리어(×)·행사 첫 선택 시 두 날짜 null → 전 기간 조회
+- [ ] 행사 첫 선택(없음→있음) → 기간 자동 전체(null) + “전체” 칩 활성. `activeFilterCount`는 기간을 세지 않으므로(항상 값 존재) 전체 기간 전환이 카운트를 왜곡하지 않음
 - [ ] 상품명 검색 → `productSearchTerm` 변경 → order_items.product_name `ilike` (Step 1로 주문 ID 추출 → Step 2로 본 쿼리)
 - [ ] 카테고리 칩 토글 → `selectedProductCategory` 변경 → order_items.category `eq` 필터
 - [ ] 초기화 버튼 → 모든 필터·검색어·날짜 기본값(최근 7일) 복원

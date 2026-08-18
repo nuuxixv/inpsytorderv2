@@ -52,6 +52,15 @@ import { STATUS_TO_KOREAN, ALLOWED_TRANSITIONS } from '../constants/orderStatus'
 
 const statusToKorean = STATUS_TO_KOREAN;
 
+const DATE_PRESETS = [
+  { label: '오늘', days: 0 },
+  { label: '최근 2일', days: 2 },
+  { label: '최근 3일', days: 3 },
+  { label: '최근 7일', days: 7 },
+  { label: '최근 30일', days: 30 },
+  { label: '전체', days: null },
+];
+
 // 알림톡 발송 실패 칩 — failed만 표시 (미발송 null·sent는 표시 안 함)
 const AlimtalkFailBadge = ({ sx }) => {
   const theme = useTheme();
@@ -128,6 +137,8 @@ function reducer(state, action) {
         return { ...state, selectedOrders: action.payload };
     case 'SET_FILTER':
       return { ...state, currentPage: 1, selectedOrders: [], [action.payload.key]: action.payload.value };
+    case 'SET_FILTERS':
+      return { ...state, currentPage: 1, selectedOrders: [], ...action.payload };
     case 'CLEAR_FILTERS':
       return {
         ...state,
@@ -410,9 +421,23 @@ const OrderManagementPage = () => {
   };
 
   const handleDatePreset = (days) => {
+    if (days === null) {
+      dispatch({ type: 'SET_FILTERS', payload: { startDate: null, endDate: null } });
+      return;
+    }
     const now = new Date();
-    dispatch({ type: 'SET_FILTER', payload: { key: 'startDate', value: days === 0 ? new Date(now.getFullYear(), now.getMonth(), now.getDate()) : subDays(now, days) } });
-    dispatch({ type: 'SET_FILTER', payload: { key: 'endDate', value: now } });
+    const start = days === 0 ? new Date(now.getFullYear(), now.getMonth(), now.getDate()) : subDays(now, days);
+    dispatch({ type: 'SET_FILTERS', payload: { startDate: start, endDate: now } });
+  };
+
+  // 행사를 처음 선택하는 순간(없음→있음)에만 기간을 전체로 전환 — 그 학회 주문이 기간에 안 잘리게.
+  // 이후 재선택·해제는 기간을 건드리지 않는다(사용자가 다시 좁힐 자유 보존).
+  const handleEventsChange = (value) => {
+    if (state.selectedEvents.length === 0 && value.length > 0) {
+      dispatch({ type: 'SET_FILTERS', payload: { selectedEvents: value, startDate: null, endDate: null } });
+    } else {
+      dispatch({ type: 'SET_FILTER', payload: { key: 'selectedEvents', value } });
+    }
   };
 
   const activeFilterCount = [
@@ -423,13 +448,21 @@ const OrderManagementPage = () => {
     Boolean(selectedProductCategory),
   ].filter(Boolean).length;
 
-  const DATE_PRESETS = [
-    { label: '오늘', days: 0 },
-    { label: '최근 2일', days: 2 },
-    { label: '최근 3일', days: 3 },
-    { label: '최근 7일', days: 7 },
-    { label: '최근 30일', days: 30 },
-  ];
+  // 현재 startDate·endDate가 어느 프리셋과 일치하는지 판정(시분초 무시, yyyy-MM-dd 비교).
+  // 'all'=전체 기간, 숫자=해당 일수 프리셋, null=사용자 임의 기간(활성 칩 없음).
+  const activePresetDays = React.useMemo(() => {
+    if (!state.startDate && !state.endDate) return 'all';
+    if (!state.startDate || !state.endDate) return null;
+    const now = new Date();
+    if (format(state.endDate, 'yyyy-MM-dd') !== format(now, 'yyyy-MM-dd')) return null;
+    const startStr = format(state.startDate, 'yyyy-MM-dd');
+    for (const { days } of DATE_PRESETS) {
+      if (days === null) continue;
+      const presetStart = days === 0 ? new Date(now.getFullYear(), now.getMonth(), now.getDate()) : subDays(now, days);
+      if (format(presetStart, 'yyyy-MM-dd') === startStr) return days;
+    }
+    return null;
+  }, [state.startDate, state.endDate]);
 
   const productCategories = ['검사', '도서', '도구'];
 
@@ -633,16 +666,20 @@ const OrderManagementPage = () => {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
       {/* 날짜 프리셋 */}
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-        {DATE_PRESETS.map(({ label, days }) => (
-          <Chip
-            key={label}
-            label={label}
-            size="small"
-            variant="outlined"
-            onClick={() => handleDatePreset(days)}
-            sx={{ fontWeight: 500, cursor: 'pointer' }}
-          />
-        ))}
+        {DATE_PRESETS.map(({ label, days }) => {
+          const active = days === null ? activePresetDays === 'all' : activePresetDays === days;
+          return (
+            <Chip
+              key={label}
+              label={label}
+              size="small"
+              variant={active ? 'filled' : 'outlined'}
+              color={active ? 'primary' : 'default'}
+              onClick={() => handleDatePreset(days)}
+              sx={{ fontWeight: active ? 700 : 500, cursor: 'pointer' }}
+            />
+          );
+        })}
       </Box>
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
       {/* 학회 멀티 선택 */}
@@ -653,7 +690,7 @@ const OrderManagementPage = () => {
           value={state.selectedEvents}
           label="행사 선택"
           input={<OutlinedInput label="행사 선택" />}
-          onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'selectedEvents', value: e.target.value } })}
+          onChange={(e) => handleEventsChange(e.target.value)}
           renderValue={(selected) =>
             selected.length === 0
               ? '전체'
@@ -717,20 +754,19 @@ const OrderManagementPage = () => {
         onChange={(e) => dispatch({ type: 'SET_FILTER', payload: { key: 'searchTerm', value: e.target.value } })}
       />
       <DateField
-        label="시작일"
+        mode="range"
+        label="기간"
         size="small"
         fullWidth={false}
-        sx={{ minWidth: 150 }}
-        value={state.startDate ? format(state.startDate, 'yyyy-MM-dd') : ''}
-        onChange={(iso) => dispatch({ type: 'SET_FILTER', payload: { key: 'startDate', value: iso ? new Date(iso) : null } })}
-      />
-      <DateField
-        label="종료일"
-        size="small"
-        fullWidth={false}
-        sx={{ minWidth: 150 }}
-        value={state.endDate ? format(state.endDate, 'yyyy-MM-dd') : ''}
-        onChange={(iso) => dispatch({ type: 'SET_FILTER', payload: { key: 'endDate', value: iso ? new Date(iso) : null } })}
+        sx={{ minWidth: 260 }}
+        value={{
+          start: state.startDate ? format(state.startDate, 'yyyy-MM-dd') : '',
+          end: state.endDate ? format(state.endDate, 'yyyy-MM-dd') : '',
+        }}
+        onChange={({ start, end }) => dispatch({
+          type: 'SET_FILTERS',
+          payload: { startDate: start ? new Date(start) : null, endDate: end ? new Date(end) : null },
+        })}
       />
       <Button
         variant="outlined"
