@@ -107,14 +107,14 @@ const OrderPage = () => {
         // 해당 컬럼을 뺀 레거시 select로 재조회 → 전체 노출(기존 동작)로 graceful fallback.
         let { data: eventData, error: eventError } = await supabase
           .from('events')
-          .select('id, name, discount_rate, tags, start_date, end_date, estimated_delivery_date, visible_categories')
+          .select('id, name, discount_rate, tags, host_society, start_date, end_date, estimated_delivery_date, visible_categories')
           .eq('order_url_slug', eventSlug)
           .single();
 
         if (eventError) {
           const fallback = await supabase
             .from('events')
-            .select('id, name, discount_rate, tags, start_date, end_date, estimated_delivery_date')
+            .select('id, name, discount_rate, tags, host_society, start_date, end_date, estimated_delivery_date')
             .eq('order_url_slug', eventSlug)
             .single();
           eventData = fallback.data;
@@ -350,7 +350,7 @@ const OrderPage = () => {
             cart={cart}
             onCartChange={setCart}
             discountRate={discountRate}
-            eventTags={eventInfo?.tags || []}
+            eventTags={[...new Set([...(eventInfo?.tags || []), eventInfo?.host_society].filter(Boolean))]}
             eventName={eventInfo?.name || ''}
             visibleCategories={eventInfo?.visible_categories}
           />
