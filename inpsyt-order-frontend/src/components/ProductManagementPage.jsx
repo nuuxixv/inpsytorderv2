@@ -812,6 +812,18 @@ const ProductManagementPage = () => {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(worksheet);
 
+      // '온라인코드포함' 열이 시트에 있는지 헤더로 판정한다.
+      //   열 없음        → 페이로드에서 키 자체를 빼 기존 값을 건드리지 않는다(구양식 업로드 보호).
+      //   열 있고 셀 공란 → NULL(미확인)로 저장(운영자가 의도적으로 비운 것).
+      // 행 단위로는 구분할 수 없다 — sheet_to_json 은 빈 셀의 키를 만들지 않아
+      // "열 없음"과 "셀 공란"이 둘 다 undefined 로 온다. 그래서 헤더를 직접 읽는다.
+      // 이 구분이 없으면 담당자가 확정한 값(미확인 SET 165개 판정 등)이 구양식 시트 한 번에 전부 NULL로 소실된다.
+      // 옆 _hier 열들의 "구양식엔 없음 → undefined면 미변경" 규약과 동일한 사상.
+      const headerRow = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: 0 })[0] || [];
+      const headerNames = headerRow.map((h) => String(h ?? '').trim());
+      const hasOnlineCodeColumn =
+        headerNames.includes('온라인코드포함') || headerNames.includes('includes_online_code');
+
       const allProducts = rows.map((row, idx) => {
         // 개별 할인율 — 공란=NULL(해제), 값=clamp(0..100)/100. (현행 '할인여부' 공란=FALSE 규칙과 정합)
         const discountOverride = percentToRateNullable(getRowValue(row, ['개별할인율', 'discount_override']));
@@ -831,8 +843,10 @@ const ProductManagementPage = () => {
         discount_override: discountOverride,
         is_popular: parseBool(getRowValue(row, ['인기상품', 'is_popular'])),
         is_new: parseBool(getRowValue(row, ['신상품여부', 'is_new'])),
-        // 온라인코드 포함 3상태 — 공란=NULL(미확인) 유지. parseTriState 주석 참조.
-        includes_online_code: parseTriState(getRowValue(row, ['온라인코드포함', 'includes_online_code'])),
+        // 온라인코드 포함 3상태. 열이 없는 시트면 키를 아예 넣지 않아 기존 값을 보존한다(위 주석 참조).
+        ...(hasOnlineCodeColumn
+          ? { includes_online_code: parseTriState(getRowValue(row, ['온라인코드포함', 'includes_online_code'])) }
+          : {}),
         tags: getRowValue(row, ['태그', 'tags'])
           ? String(getRowValue(row, ['태그', 'tags'])).split(',').map((tag) => tag.trim()).filter(Boolean)
           : [],

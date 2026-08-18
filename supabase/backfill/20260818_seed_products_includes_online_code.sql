@@ -120,7 +120,15 @@ WHERE category IN ('도서','도구');
 UPDATE public.products
 SET includes_online_code = true
 WHERE includes_online_code IS NULL
+  AND category = '검사'            -- ★ 검사로 한정. 온라인코드는 검사 전용이다.
   AND name ILIKE '%온라인%';
+-- ★ category='검사' 한정 이유(실측 근거):
+--   도서 5건이 상품명에 '온라인'을 포함한다 — '온라인상담개론(김환)',
+--   '온라인마케팅성공마스터10단계(나연재)', '온라인상담의기술(이슬아)',
+--   '온라인수업에서팀학습어떻게할까(박수정)', '온라인청년극우의성차별인종주의~(김정은)'.
+--   전부 '온라인'을 주제로 다룬 책이고 온라인코드와 무관하다.
+--   한정하지 않으면 규칙2(도서·도구→false)보다 먼저 걸려 true 로 오염되고,
+--   고객이 이 책을 살 때 인싸이트 ID를 요구받는다. (현행 운영 코드의 오탐과 동일 원인)
 
 -- R2: 도서·도구 전량 → false. (온라인코드는 검사 전용) 기대 영향행: 3467.
 UPDATE public.products
@@ -156,17 +164,56 @@ WHERE s.includes_online_code IS NULL
 
 -- (V1) 3상태 전체 분포. 기대: true 432 / false 3510 / null 651 / 합 4593.
 SELECT
-  count(*) FILTER (WHERE includes_online_code IS TRUE)  AS "true_expect_432",
-  count(*) FILTER (WHERE includes_online_code IS FALSE) AS "false_expect_3510",
-  count(*) FILTER (WHERE includes_online_code IS NULL)  AS "null_expect_651",
-  count(*)                                              AS "total_expect_4593"
+  count(*) FILTER (WHERE includes_online_code IS TRUE)  AS is_true,
+  count(*) FILTER (WHERE includes_online_code IS FALSE) AS is_false,
+  count(*) FILTER (WHERE includes_online_code IS NULL)  AS is_null,
+  count(*)                                              AS total
 FROM public.products;
 
+-- (V1-b) 불변식 검증 — 절대 카운트가 아니라 "0이어야 하는 것"을 본다.
+--   절대 카운트로 검증하지 않는 이유: 이 서비스는 학회 기간에 어드민이 상품을 실시간으로
+--   등록·활성화한다. 실제로 본 스크립트 작성 중 검사 활성 상품이 1,126 → 1,133 으로 늘었다.
+--   따라서 하드코딩한 기대치는 실행 시점에 반드시 틀어지고, 운영자는 정상인데도 STOP 하거나
+--   반대로 경고를 무시하는 습관이 생긴다. 아래 3개는 데이터가 늘어도 항상 0이어야 한다.
+--   ⚠ 하나라도 0이 아니면 STOP 하고 원인을 확인할 것.
+SELECT
+  -- 상품명에 '온라인'이 있는데 아직 미분류인 것 → 규칙 1 누락
+  count(*) FILTER (
+    WHERE name ILIKE '%온라인%' AND includes_online_code IS NULL
+  ) AS leak_online_name_still_null,
+  -- 도서·도구인데 미분류인 것 → 규칙 2 누락(온라인코드는 검사 전용)
+  count(*) FILTER (
+    WHERE category IN ('도서','도구') AND includes_online_code IS NULL
+  ) AS leak_book_tool_still_null,
+  -- 도서·도구인데 true 로 찍힌 것 → 상품명 오탐(예: '온라인 강의' 같은 도서)
+  count(*) FILTER (
+    WHERE category IN ('도서','도구') AND includes_online_code IS TRUE
+  ) AS suspect_book_tool_true
+FROM public.products;
+
+-- (V1-c) 검사 A버킷(검사군에 온라인코드 옵션이 없는 SET)에 미분류가 남았는지 → 항상 0.
+SELECT count(*) AS leak_a_bucket_still_null
+FROM public.products s
+WHERE s.includes_online_code IS NULL
+  AND s.category = '검사'
+  AND (s.name ILIKE '%set%' OR s.name LIKE '%세트%')
+  AND s.name NOT ILIKE '%온라인%'
+  AND (
+    s.test_group_id IS NULL
+    OR NOT EXISTS (
+      SELECT 1 FROM public.products sib
+      WHERE sib.test_group_id = s.test_group_id
+        AND sib.name ILIKE '%온라인%'
+    )
+  );
+
 -- (V2) 카테고리 × 3상태 교차표(어긋난 곳 찾기용).
---   기대:
---     검사  : true 432 / false 43   / null 651
---     도서  : true 0   / false 3392 / null 0
---     도구  : true 0   / false 75   / null 0
+--   2026-08-18 18시 시뮬레이션 스냅샷(참고용 — 상품 등록으로 계속 변한다):
+--     전체  : true 456 / false 3,506 / null 668 / total 4,630
+--     도서  : true 0 근처 / false ≈3,392 / null 0
+--     도구  : true 0      / false 75     / null 0
+--     검사  : true 대부분 / false = A버킷 / null = B버킷 165 + 미분류
+--   판정은 위 (V1-b)·(V1-c) 불변식으로 한다. 아래 표는 눈으로 훑는 용도.
 SELECT
   category,
   count(*) FILTER (WHERE includes_online_code IS TRUE)  AS is_true,

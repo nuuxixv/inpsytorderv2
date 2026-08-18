@@ -96,12 +96,18 @@ serve(async (req) => {
 
     // ── 온라인코드 판정 (서버 정본, 한 곳에 모음) ──────────────────────────────
     // 클라이언트 문자열 판정을 신뢰하지 않는다(가격 서버 재계산과 동일 원칙).
-    // 판정식(합집합): includes_online_code === true  OR  상품명에 '온라인' 포함.
-    //   includes_online_code 컬럼 부재(fallback select) 시 product.includes_online_code
-    //   는 undefined → 첫 항 false → 상품명 판정으로 graceful degrade(회귀 0).
-    const orderHasOnlineCode = (products ?? []).some(
-      (p: any) => p.includes_online_code === true || (p.name && p.name.includes('온라인'))
-    )
+    // 프론트 정본은 inpsyt-order-frontend/src/utils/onlineCode.js — 아래와 등가로 유지할 것.
+    // 3상태를 존중한다. 단순 OR 합집합이면 명시적 false 를 문자열이 덮어써 버린다 —
+    // 실측: 도서 5건('온라인상담개론' 등)이 상품명에 '온라인'을 포함하지만 온라인코드는 없다.
+    //   true  → 포함 확정
+    //   false → 미포함 확정. 문자열 폴백을 타지 않는다(오탐 차단).
+    //   NULL/undefined(미확인·컬럼 부재) → 상품명으로 폴백(기존 동작 보존, 회귀 0)
+    const productHasOnlineCode = (p: any): boolean => {
+      if (p.includes_online_code === true) return true
+      if (p.includes_online_code === false) return false
+      return Boolean(p.name && p.name.includes('온라인'))
+    }
+    const orderHasOnlineCode = (products ?? []).some(productHasOnlineCode)
 
     // 정책: 소프트 필수(건우님 결정) — inpsyt_id 공란이어도 주문은 정상 생성. 여기서 400 안 함.
     //   판정 지점을 여기 한 곳으로 모아, 추후 하드블록 전환 시 아래 3줄만 주석 해제하면 됨.
@@ -151,25 +157,46 @@ serve(async (req) => {
     const finalCost = totalDiscountedPrice + shippingCost
 
     // 3. Insert order and order items
-    const { data: newOrder, error: orderError } = await supabaseClient
-      .from('orders')
-      .insert({
-        customer_name,
-        phone_number,
-        shipping_address,
-        inpsyt_id,
-        customer_request,
-        total_cost: totalOriginalPrice,
-        discount_amount: totalDiscountAmount,
-        delivery_fee: shippingCost,
-        final_payment: finalCost,
-        is_on_site_sale,
-        has_online_code: orderHasOnlineCode,
-        event_id,
-        status_history: [{ status: 'pending', changed_at: new Date().toISOString() }],
-      })
-      .select()
-      .single()
+    // orders.has_online_code 는 신규 컬럼이다. Supabase는 프리뷰가 없어 함수 배포가 곧 운영이고,
+    // 마이그레이션보다 함수가 먼저 올라가면 이 컬럼 때문에 insert가 전부 실패한다(학회 중 = 치명적).
+    // 그래서 배포 순서에 의존하지 않고, 컬럼 부재(42703 / PGRST204)면 그 필드만 빼고 재시도한다.
+    // 읽기 쪽 is_active·discount_override의 graceful degrade와 같은 원칙을 쓰기 쪽에 적용한 것.
+    const baseOrderRow = {
+      customer_name,
+      phone_number,
+      shipping_address,
+      inpsyt_id,
+      customer_request,
+      total_cost: totalOriginalPrice,
+      discount_amount: totalDiscountAmount,
+      delivery_fee: shippingCost,
+      final_payment: finalCost,
+      is_on_site_sale,
+      event_id,
+      status_history: [{ status: 'pending', changed_at: new Date().toISOString() }],
+    }
+
+    const insertOrder = (row: any) =>
+      supabaseClient.from('orders').insert(row).select().single()
+
+    let { data: newOrder, error: orderError } = await insertOrder({
+      ...baseOrderRow,
+      has_online_code: orderHasOnlineCode,
+    })
+
+    // 컬럼 미적용 환경에서만 재시도. 다른 오류는 그대로 throw 해 삼키지 않는다.
+    const isMissingColumn =
+      orderError &&
+      (orderError.code === '42703' ||
+        orderError.code === 'PGRST204' ||
+        /has_online_code/i.test(orderError.message || ''))
+
+    if (isMissingColumn) {
+      console.warn('orders.has_online_code 컬럼 없음 — 해당 필드 제외하고 재시도(마이그레이션 미적용)')
+      const retry = await insertOrder(baseOrderRow)
+      newOrder = retry.data
+      orderError = retry.error
+    }
 
     if (orderError) throw orderError
 
