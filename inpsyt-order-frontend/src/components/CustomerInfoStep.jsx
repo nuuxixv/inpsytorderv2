@@ -22,7 +22,7 @@ import {
 
 // 사양 §Step 1 — 주문자 정보. 주소 3필드 분리 절대 유지.
 
-const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false, isOnsitePurchase = false, eventName = '', discountRate = 0 }) => {
+const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false, isOnsitePurchase = false, eventName = '', discountRate = 0, cart = [] }) => {
   const theme = useTheme();
   const [isPostcodeModalOpen, setIsPostcodeModalOpen] = useState(false);
 
@@ -93,7 +93,7 @@ const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false
         {eventName && (
           <Typography variant="body2" color="text.secondary">
             {eventName}
-            {discountRate > 0 && ` · ${(discountRate * 100).toFixed(0)}% 할인 적용`}
+            {discountRate > 0 && !cart.some((i) => i.discount_override != null) && ` · ${(discountRate * 100).toFixed(0)}% 할인 적용`}
           </Typography>
         )}
       </Box>

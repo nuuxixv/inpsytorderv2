@@ -265,6 +265,10 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
 
   const isEmpty = filteredGroups.length === 0 && displayedProducts.length === 0;
 
+  // 개별 할인율(discount_override) 상품이 하나라도 있으면 부제의 단일 "N% 할인" 숫자를 뺀다
+  // (품목별로 실효율이 달라 단일 숫자가 오해를 부름 — 정확한 율은 각 카드에 표시됨).
+  const hasOverrideProduct = baseProducts.some((p) => p.discount_override != null);
+
   return (
     <Box sx={{ px: 2, pb: 4 }}>
       {/* Header */}
@@ -275,7 +279,7 @@ const ProductSelectionStep = ({ cart, onCartChange, discountRate = 0, eventTags 
         {eventName && (
           <Typography variant="body2" color="text.secondary">
             {eventName}
-            {discountRate > 0 && ` · ${(discountRate * 100).toFixed(0)}% 할인 적용`}
+            {discountRate > 0 && !hasOverrideProduct && ` · ${(discountRate * 100).toFixed(0)}% 할인 적용`}
           </Typography>
         )}
       </Box>

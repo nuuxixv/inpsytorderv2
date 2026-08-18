@@ -364,6 +364,7 @@ const OrderPage = () => {
             isOnsitePurchase={isOnsitePurchase}
             eventName={eventInfo?.name || ''}
             discountRate={discountRate}
+            cart={cart}
           />
         )}
 
