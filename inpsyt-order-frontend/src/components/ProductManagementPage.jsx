@@ -47,6 +47,7 @@ import { useNotification } from '../hooks/useNotification';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../supabaseClient';
 import { matchesSearch } from '../utils/search';
+import { percentToRateNullable, rateToPercentNullable } from '../utils/pricing';
 import {
   CATEGORY_COLORS, CATEGORY_KEY_BY_LABEL,
   MASTER_COLOR_FALLBACK, MASTER_COLOR_PRESETS,
@@ -69,6 +70,7 @@ const createEmptyProduct = () => ({
   list_price: 0,
   notes: '',
   is_discountable: false,
+  discount_override: null,
   is_popular: false,
   is_new: false,
   is_active: true,
@@ -168,7 +170,14 @@ const renderProductCells = (product, subColorByName, theme, canEdit, onEdit) => 
             sx={{ bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main', border: 0 }}
           />
         )}
-        {product.is_active !== false && !product.is_popular && !product.is_new && !product.is_discountable && (
+        {product.discount_override != null && (
+          <Chip
+            label={`개별 ${rateToPercentNullable(product.discount_override)}%`}
+            size="small"
+            sx={{ bgcolor: alpha(theme.palette.info.main, 0.1), color: 'info.main', border: 0 }}
+          />
+        )}
+        {product.is_active !== false && !product.is_popular && !product.is_new && !product.is_discountable && product.discount_override == null && (
           <Typography variant="caption" color="text.secondary">-</Typography>
         )}
       </Box>
@@ -445,6 +454,7 @@ const ProductManagementPage = () => {
   // 카드용 집계 — 전체 상품 기준
   const totalProducts = allProducts.length;
   const totalDiscountableCount = useMemo(() => allProducts.filter(p => p.is_discountable).length, [allProducts]);
+  const totalOverrideCount = useMemo(() => allProducts.filter(p => p.discount_override != null).length, [allProducts]);
   const totalPopularCount = useMemo(() => allProducts.filter(p => p.is_popular).length, [allProducts]);
   const categoryCounts = useMemo(() => {
     const result = {};
@@ -483,6 +493,7 @@ const ProductManagementPage = () => {
     }
     if (selectedCategory) list = list.filter(p => p.category === selectedCategory);
     if (productQuickFilter === 'discountable') list = list.filter(p => p.is_discountable);
+    if (productQuickFilter === 'override') list = list.filter(p => p.discount_override != null);
     if (productQuickFilter === 'popular') list = list.filter(p => p.is_popular);
     if (selectedTags.length > 0) list = list.filter(p => selectedTags.some(tag => p.tags?.includes(tag)));
     return [...list].sort((a, b) => {
@@ -600,11 +611,12 @@ const ProductManagementPage = () => {
           return supabase.from('products').insert([body]);
         };
         let { error } = await run(data);
-        // 신규 가법 컬럼(image_filename·is_active) 미적용 환경 graceful — PGRST204 시 해당 키 빼고 재시도.
-        if (error && error.code === 'PGRST204' && ('image_filename' in data || 'is_active' in data)) {
+        // 신규 가법 컬럼(image_filename·is_active·discount_override) 미적용 환경 graceful — PGRST204 시 해당 키 빼고 재시도.
+        if (error && error.code === 'PGRST204' && ('image_filename' in data || 'is_active' in data || 'discount_override' in data)) {
           const rest = { ...data };
           delete rest.image_filename;
           delete rest.is_active;
+          delete rest.discount_override;
           ({ error } = await run(rest));
         }
         if (error) throw error;
@@ -757,7 +769,13 @@ const ProductManagementPage = () => {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(worksheet);
 
-      const allProducts = rows.map((row, idx) => ({
+      const allProducts = rows.map((row, idx) => {
+        // 개별 할인율 — 공란=NULL(해제), 값=clamp(0..100)/100. (현행 '할인여부' 공란=FALSE 규칙과 정합)
+        const discountOverride = percentToRateNullable(getRowValue(row, ['개별할인율', 'discount_override']));
+        // auto-T 보정 — 개별할인율(>0)이면 '할인여부'를 자동 TRUE로. 공식상 override가 이기지만 데이터 정합.
+        let isDiscountable = parseBool(getRowValue(row, ['할인여부', 'is_discountable']));
+        if (discountOverride != null && discountOverride > 0) isDiscountable = true;
+        return {
         _rowNum: idx + 2, // Excel row number (1-indexed header + 1)
         name: getRowValue(row, ['상품명', 'name']),
         product_code: getRowValue(row, ['상품코드', 'product_code']),
@@ -766,7 +784,8 @@ const ProductManagementPage = () => {
         image_filename: getRowValue(row, ['이미지', 'image_filename']) || null,
         list_price: parsePrice(getRowValue(row, ['가격', '정가', 'list_price'])),
         notes: getRowValue(row, ['비고', 'notes']) || null,
-        is_discountable: parseBool(getRowValue(row, ['할인여부', 'is_discountable'])),
+        is_discountable: isDiscountable,
+        discount_override: discountOverride,
         is_popular: parseBool(getRowValue(row, ['인기상품', 'is_popular'])),
         is_new: parseBool(getRowValue(row, ['신상품여부', 'is_new'])),
         tags: getRowValue(row, ['태그', 'tags'])
@@ -782,7 +801,8 @@ const ProductManagementPage = () => {
           sort_order: getRowValue(row, ['옵션정렬', 'sort_order']),
           is_active: getRowValue(row, ['노출(Y/N)', '노출', 'is_active']),
         },
-      }));
+        };
+      });
 
       // Phase 2: Client-side validation
       const validationErrors = [];
@@ -877,13 +897,14 @@ const ProductManagementPage = () => {
           delete rest._hier;
           if (rest.image_filename == null) delete rest.image_filename;
           if (!withHierarchy) {
-            // 마이그레이션 미적용(컬럼 없음) 환경 graceful — 위계 컬럼 제거 후 재시도.
+            // 마이그레이션 미적용(컬럼 없음) 환경 graceful — 신규 컬럼(위계·개별할인율) 제거 후 재시도.
             delete rest.test_group_id;
             delete rest.option_name;
             delete rest.option_label;
             delete rest.is_common;
             delete rest.sort_order;
             delete rest.is_active;
+            delete rest.discount_override;
           }
           return rest;
         });
@@ -897,12 +918,12 @@ const ProductManagementPage = () => {
           // 신규 위계 컬럼 미적용 환경 — 컬럼 미존재 오류면 위계 열 빼고 1회 재시도(구스키마 회귀 0).
           // Edge Fn은 배치 실패 시 행별 폴백으로 200+errors[]를 돌려줄 수 있어, data.errors 도 함께 감지.
           const columnMissing = (msg) => /column|does not exist|PGRST204|schema cache/i.test(msg || '');
-          const hierColsSent = payload.some((p) => 'test_group_id' in p || 'option_name' in p || 'option_label' in p || 'is_common' in p || 'sort_order' in p || 'is_active' in p);
+          const newColsSent = payload.some((p) => 'test_group_id' in p || 'option_name' in p || 'option_label' in p || 'is_common' in p || 'sort_order' in p || 'is_active' in p || 'discount_override' in p);
           const dataColErr = data?.error_count > 0 && (data.errors || []).some((e) => columnMissing(e.error));
-          if (hierColsSent && ((error && columnMissing(error.message)) || dataColErr)) {
+          if (newColsSent && ((error && columnMissing(error.message)) || dataColErr)) {
             payload = buildPayload(false);
             ({ data, error } = await supabase.functions.invoke('upload-products-excel', { body: { products: payload } }));
-            if (!error) setUploadLog(prev => [...prev, `청크 ${i + 1}: 검사 위계 컬럼 미적용 환경 — 기본 열만 반영`]);
+            if (!error) setUploadLog(prev => [...prev, `청크 ${i + 1}: 신규 컬럼(위계·개별할인율) 미적용 환경 — 기본 열만 반영`]);
           }
 
           if (error) {
@@ -1001,6 +1022,7 @@ const ProductManagementPage = () => {
       가격: 15000,
       비고: '설명',
       할인여부: 'TRUE',
+      개별할인율: '',
       인기상품: 'FALSE',
       신상품여부: 'TRUE',
       태그: '신경정신,치매',
@@ -1037,6 +1059,7 @@ const ProductManagementPage = () => {
           가격: product.list_price,
           비고: product.notes || '',
           할인여부: product.is_discountable ? 'TRUE' : 'FALSE',
+          개별할인율: rateToPercentNullable(product.discount_override),
           인기상품: product.is_popular ? 'TRUE' : 'FALSE',
           신상품여부: product.is_new ? 'TRUE' : 'FALSE',
           태그: product.tags?.join(',') || '',
@@ -1415,6 +1438,14 @@ const ProductManagementPage = () => {
           onClick: () => setProductQuickFilter((prev) => (prev === 'discountable' ? null : 'discountable')),
         })}
         {renderQuickFilterCard({
+          label: '개별 할인',
+          value: totalOverrideCount,
+          Icon: TagIcon,
+          baseColor: theme.palette.info.main,
+          active: productQuickFilter === 'override',
+          onClick: () => setProductQuickFilter((prev) => (prev === 'override' ? null : 'override')),
+        })}
+        {renderQuickFilterCard({
           label: '인기 상품',
           value: totalPopularCount,
           Icon: TrendingUpIcon,
@@ -1747,8 +1778,34 @@ const ProductManagementPage = () => {
             </Box>
             <TextField name="list_price" label="가격" type="number" fullWidth value={currentProduct.list_price} onChange={handleChange} disabled={!hasPermission('products:edit')} />
             <TextField name="notes" label="비고" fullWidth multiline rows={3} value={currentProduct.notes || ''} onChange={handleChange} disabled={!hasPermission('products:edit')} />
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
               <FormControlLabel control={<Checkbox checked={currentProduct.is_discountable} onChange={(event) => setCurrentProduct((prev) => ({ ...prev, is_discountable: event.target.checked }))} disabled={!hasPermission('products:edit')} />} label="할인 가능" />
+              <TextField
+                name="discount_override"
+                label="개별 할인율 (%)"
+                type="number"
+                size="small"
+                sx={{ width: 170 }}
+                value={rateToPercentNullable(currentProduct.discount_override)}
+                onChange={(event) => {
+                  const rate = percentToRateNullable(event.target.value);
+                  // auto-T: 개별 할인율(>0) 지정 시 '할인 가능'을 자동으로 켠다.
+                  // 공식상 override가 이겨서 가격은 이미 맞지만, 데이터 정합·UI 명료성(할인 상품으로 노출·필터)을 위해 맞춤.
+                  // 비우거나 0으로 되돌리면 강제 유지하지 않는다.
+                  const shouldAutoOn = rate != null && rate > 0 && !currentProduct.is_discountable;
+                  setCurrentProduct((prev) => ({
+                    ...prev,
+                    discount_override: rate,
+                    is_discountable: shouldAutoOn ? true : prev.is_discountable,
+                  }));
+                  if (shouldAutoOn) {
+                    addNotification("개별 할인율을 지정해 '할인 가능'을 자동으로 켰습니다.", 'info');
+                  }
+                }}
+                disabled={!hasPermission('products:edit')}
+                inputProps={{ min: 0, max: 100 }}
+                helperText="비우면 행사 할인율 적용"
+              />
               <FormControlLabel control={<Checkbox checked={currentProduct.is_popular} onChange={(event) => setCurrentProduct((prev) => ({ ...prev, is_popular: event.target.checked }))} disabled={!hasPermission('products:edit')} />} label="인기 상품" />
               <FormControlLabel control={<Checkbox checked={currentProduct.is_new} onChange={(event) => setCurrentProduct((prev) => ({ ...prev, is_new: event.target.checked }))} disabled={!hasPermission('products:edit')} />} label="신상품" />
             </Box>
