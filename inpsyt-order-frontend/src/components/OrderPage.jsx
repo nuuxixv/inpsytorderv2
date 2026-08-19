@@ -24,6 +24,7 @@ import OrderReviewStep from './OrderReviewStep';
 import CartBottomSheet from './CartBottomSheet';
 import { getTodayKST } from '../utils/date';
 import { SHIPPING_DEFAULTS } from '../constants/shipping';
+import { hasOnlineCode } from '../utils/onlineCode';
 
 const OrderPage = () => {
   const theme = useTheme();
@@ -55,6 +56,7 @@ const OrderPage = () => {
   });
   const [cart, setCart] = useState([]);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [inpsytConfirmOpen, setInpsytConfirmOpen] = useState(false);
   const [eventInfo, setEventInfo] = useState(null);
   const [accessError, setAccessError] = useState(null); // 'no_slug' | 'expired' | 'not_found'
 
@@ -70,8 +72,11 @@ const OrderPage = () => {
 
   const isCustomerInfoValid = customerInfo.name && customerInfo.phone
     && (isOnsitePurchase || (customerInfo.address && customerInfo.detailAddress));
-  const hasOnlineCode = validCartItems.some(item => item.category === '온라인코드' || (item.name && item.name.includes('온라인')));
+  const cartHasOnlineCode = hasOnlineCode(validCartItems);
   const isSubmittable = isCustomerInfoValid && hasCartItems;
+  // 인싸이트 ID 소프트 필수 판정 — 단일 지점. 온라인코드 상품인데 ID 공란이면 제출 전 확인 스텝만 띄운다
+  // (하드블록 아님, 부스 결제 차단 금지). 하드블록으로 뒤집으려면 isSubmittable에 `&& !needsInpsytIdConfirm`만 추가.
+  const needsInpsytIdConfirm = cartHasOnlineCode && !customerInfo.inpsytId.trim();
 
   // Fetch event data and settings
   useEffect(() => {
@@ -181,6 +186,20 @@ const OrderPage = () => {
     setError(null);
     setActiveStep(step);
     window.scrollTo(0, 0);
+  };
+
+  // 제출 버튼 진입점 — 소프트 필수 확인 스텝을 여기서만 가로챈다(판정은 needsInpsytIdConfirm 단일 지점).
+  const handleSubmitClick = () => {
+    if (needsInpsytIdConfirm) {
+      setInpsytConfirmOpen(true);
+      return;
+    }
+    handleSubmitOrder();
+  };
+
+  const handleConfirmWithoutInpsytId = () => {
+    setInpsytConfirmOpen(false);
+    handleSubmitOrder();
   };
 
   const handleSubmitOrder = async () => {
@@ -360,7 +379,7 @@ const OrderPage = () => {
           <CustomerInfoStep
             customerInfo={customerInfo}
             setCustomerInfo={setCustomerInfo}
-            hasOnlineCode={hasOnlineCode}
+            hasOnlineCode={cartHasOnlineCode}
             isOnsitePurchase={isOnsitePurchase}
             eventName={eventInfo?.name || ''}
           />
@@ -390,7 +409,7 @@ const OrderPage = () => {
         isOnsitePurchase={isOnsitePurchase}
         onNext={handleNext}
         onBack={handleBack}
-        onSubmit={handleSubmitOrder}
+        onSubmit={handleSubmitClick}
         onCartClick={() => setCartSheetOpen(true)}
         isSubmitting={isSubmitting}
         isSubmittable={isSubmittable}
@@ -441,6 +460,41 @@ const OrderPage = () => {
         </DialogActions>
       </Dialog>
 
+
+      {/* 인싸이트 ID 소프트 필수 확인 — 공란이어도 제출은 허용(하드블록 아님). 부스 결제 차단 방지. */}
+      <Dialog
+        open={inpsytConfirmOpen}
+        onClose={() => setInpsytConfirmOpen(false)}
+        PaperProps={{ sx: { mx: 2 } }}
+      >
+        <DialogTitle sx={{ textAlign: 'center', pt: 4, pb: 1 }}>
+          인싸이트 ID를 안 넣으셨어요
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ textAlign: 'center', color: 'text.secondary', lineHeight: 1.8 }}>
+            인싸이트 ID 없이 진행하면 온라인코드 전달이 늦어질 수 있어요. 계속할까요?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, flexDirection: 'column', gap: 1 }}>
+          <Button
+            variant="contained"
+            size="large"
+            fullWidth
+            onClick={() => { setInpsytConfirmOpen(false); handleGoToStep(1); }}
+          >
+            ID 입력하기
+          </Button>
+          <Button
+            variant="text"
+            size="large"
+            fullWidth
+            color="inherit"
+            onClick={handleConfirmWithoutInpsytId}
+          >
+            이대로 계속
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* On-site purchase snackbar */}
       <Snackbar

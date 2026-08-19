@@ -144,10 +144,11 @@ const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false
           <TextField
             fullWidth
             name="inpsytId"
-            label="인싸이트 ID (온라인코드 구매 시 필수)"
+            label="인싸이트 ID (온라인코드 전달용)"
             value={customerInfo.inpsytId}
             onChange={handleChange}
             placeholder="인싸이트 홈페이지 ID를 입력해주세요"
+            helperText="구매하신 온라인코드를 이 계정으로 보내드려요. 인싸이트(inpsyt.co.kr) 로그인 아이디를 입력해주세요."
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">

@@ -128,6 +128,9 @@
 - [ ] 카드 3: "인기 상품" — warning 색 그라데이션, `TrendingUpIcon`
   - 본문 숫자: `totalPopularCount` (`is_popular=true` 개수)
   - 클릭 효과: `productQuickFilter='popular'` 토글
+- [ ] 카드(2026-08-18 신규): "온라인코드 미확인" — error 색, `HelpOutlineIcon`
+  - 본문 숫자: `totalOnlineCodeUnknownCount` (`includes_online_code IS NULL AND category='검사'` 개수. 컬럼 미적용 시 undefined=NULL 취급 → 전체 검사 상품)
+  - 클릭 효과: `productQuickFilter='onlineUnknown'` 토글. 미확인 상품을 찾아 일괄 확정(포함/미포함)하는 진입점
 - [ ] 카드 4: "도서" — info 색 그라데이션, `MenuBookIcon`
   - 본문 숫자: `categoryCounts['도서']`
   - 클릭 효과: `selectedCategory='도서'` 토글
@@ -169,8 +172,9 @@
     - "인기" 칩 (warning, `is_popular=true`일 때)
     - "신상품" 칩 (primary, `is_new=true`일 때)
     - "할인" 칩 (success 톤, `is_discountable=true`일 때)
+    - **"온라인코드" 칩 (secondary 소프트 틴트, `includes_online_code === true`일 때)** — (2026-08-18 신규). 미확인(null)/미포함(false)은 무표시(노이즈 방지, 미확인은 퀵필터로 추적)
     - ~~동적 배지~~ — **(2026-06-29 폐기)** 동적 배지 칩 제거.
-    - 셋 다 false이면 "-" (caption)
+    - 넷 다 비활성(인기·신상품·할인 false + 온라인코드 true 아님)이면 "-" (caption)
   - **노출 상태 표시 — (2026-07-02 신규, is_active)**: `is_active=false`(숨김) 상품은 **행 전체를 회색 dim**(`opacity 0.55` 또는 `text.disabled` 톤)하고 상품명 옆(또는 상태 태그 컬럼 맨 앞)에 "숨김" 칩(`gray[200]` 배경 + `text.secondary`, 소프트 틴트). **`is_active=true`(노출 중)는 칩 없음**(기본 상태라 무표시 — 노이즈 방지). **숨김 상품이 표에서 사라지지 않는다**(재판매·이관 대비, PRD §절판 처리). 필터로 숨김만/노출만 보기는 별도 빠른 필터(아래 §필터 참조, 1차 선택). is_active는 검사·도서·도구 공통 전역 필드 — 검사 위계 UI에 종속되지 않는다.
   - 태그 (앞 2개 칩 + "+N" 칩으로 나머지)
   - 작업: 편집 아이콘 (`EditIcon`)
@@ -220,18 +224,19 @@
 
 - [ ] 검색어 입력 → 페이지 1 리셋 + 클라이언트 필터링
 - [ ] 카테고리 카드 클릭 → `selectedCategory` 토글
-- [ ] 빠른 필터 카드 클릭 → `productQuickFilter` 토글 (`discountable`/`popular`)
+- [ ] 빠른 필터 카드 클릭 → `productQuickFilter` 토글 (`discountable`/`popular`/`onlineUnknown`)
 - [ ] 태그 칩 클릭 → 다중 선택 토글
 - [ ] 초기화 → 검색·카테고리·빠른필터·태그 모두 리셋
 - [ ] 체크박스 전체 선택/해제 (현재 페이지 기준)
 - [ ] 체크박스 개별 토글
-- [ ] 상품 추가 다이얼로그 (line 912-947): 상품명·상품코드·카테고리·하위카테고리·가격·비고·할인가능·인기·신상품·태그
+- [ ] 상품 추가 다이얼로그 (line 912-947): 상품명·상품코드·카테고리·하위카테고리·가격·비고·할인가능·인기·신상품·**온라인코드 포함(3상태)**·태그
 - [ ] 상품 수정 다이얼로그 (편집 아이콘 클릭, 같은 폼)
 - [ ] 선택 삭제 다이얼로그 (line 937-949): "선택한 {N}개 상품을 삭제합니다" + "이 작업은 되돌릴 수 없습니다."
 - [ ] 전체 삭제 다이얼로그 (line 951-975): **`"삭제합니다"` 텍스트 입력 받아쓰기 확인** (DELETE_ALL_CONFIRM_TEXT). Enter로 확정.
 - [ ] 선택 항목 일괄 편집 다이얼로그 (line 977-1014):
   - 인기 상품: TriState 토글(변경 없음/ON/OFF)
   - 신상품: TriState 토글
+  - **온라인코드 포함: TriState 토글(변경 없음/ON=포함/OFF=미포함)** — (2026-08-18 신규). "변경 없음"이면 기존 값 보존(미확인 NULL 유지). 일괄로는 포함/미포함만 확정, NULL(미확인)로 되돌리기는 개별 폼·엑셀로. 컬럼 미적용 시 PGRST204 감지→해당 키 빼고 1회 재시도(graceful)
   - 태그: 추가/덮어쓰기 모드 토글 + Autocomplete 입력
 - [ ] 엑셀 양식 다운로드 (`handleDownloadTemplate`): 한국어 헤더 — 상품명·상품코드·카테고리·하위카테고리·가격·비고·할인여부·인기상품·신상품여부·태그·**이미지**. **(2026-06-29) "배지" 열 폐기.** **"이미지" 열 = `image_filename` 단일 파일명(예: `abc.webp`)** — 와박팀이 상품 엑셀에 직접 기입, `product-images` 버킷 객체 경로와 일치 전제. **"하위카테고리" 열은 기존 그대로**(이미 `sub_category` 매핑).
 - [ ] 상품 목록 다운로드 (`handleDownloadExcel`): 위와 동일 컬럼(`image_filename` 그대로, 배지 열 없음)
@@ -251,6 +256,7 @@
   - "할인 가능" (`is_discountable`)
   - "인기 상품" (`is_popular`)
   - "신상품" (`is_new`)
+- [ ] **온라인코드 포함 — (2026-08-18 신규, `includes_online_code`) 3상태 `Select`**(체크박스 아님): 미확인(null)/포함(true)/미포함(false). 같은 행(할인율·인기·신상품 옆) `minWidth 180`. **체크박스 2상태로 뭉개지 않는다** — NULL(미확인)을 명시 보존해야 미확인 상품을 퀵필터로 추적·확정할 수 있다. 신규 상품 기본 = 미확인(null). 고객 주문서의 인싸이트 ID 소프트 필수 판정(C1)과 출고 안전망(A3)의 상위 소스
 - [ ] **노출 여부 Switch — (2026-07-02 신규, `is_active`)**: 플래그 체크박스 3종과 **별도 행**에 `Switch` 컴포넌트로 배치(체크박스 아님 — on/off 상태가 진열에 즉시 영향인 "전역 스위치"라 체크박스와 시각 구분). 라벨 "고객 주문서 노출" + 보조문구 `caption`/`text.secondary` "끄면 주문서에서 숨겨집니다 (데이터는 보존 — 삭제 아님)". 기본값 `true`(신규 상품은 노출). off 시 Switch 회색·라벨 옆 "숨김" 칩. **검사 위계 전용 아님** — 모든 상품(검사/도서/도구) 폼에 공통 노출.
 - [ ] 태그 (`tags`, Autocomplete multiple freeSolo, `availableTags` 옵션)
 - ~~배지 (`badges`)~~ — **(2026-06-29 폐기)** 동적 배지 입력 필드 제거. 고객 노출 강조는 인기/신상품 boolean 체크박스(위)로만.
@@ -279,6 +285,7 @@
 - `is_popular` (boolean, default false)
 - `is_new` (boolean, default false)
 - `is_recommend` (boolean, default false) — **마이그레이션에는 있으나 ProductManagementPage UI에 노출 안 됨, 확인 필요**
+- `includes_online_code` (boolean, **nullable — 3상태: NULL(미확인)/true(포함)/false(미포함)**) — **(2026-08-18 신규, backend-engineer 병렬 씨딩)**. 온라인코드를 포함한 상품 여부. NULL=아직 확인 안 함(신규 상품 기본·백필 전). 고객 주문서(C1) 인싸이트 ID 소프트 필수 판정과 출고 안전망(A3)의 상위 소스. 폼 3상태 Select·일괄 TriState·엑셀 "온라인코드포함" 열로 관리, 퀵필터 "온라인코드 미확인"으로 미확인 추적. graceful: 컬럼 미적용(`undefined`) 환경은 NULL 취급 + 저장 시 PGRST204 재시도로 키 제외(회귀 0)
 - `is_active` (boolean, default true) — **노출여부(전역 필드). (2026-07-02 UI+API 구현)** false=고객 주문서에서 숨김(절판·판매중지). **삭제 아님** — 재판매·이관 대비 데이터 보존(PRD_검사위계.md §절판 처리, K-BASC-2·K-Bayley-Ⅲ·K-WAIS-IV 등). 검사 위계 전용이 아닌 **검사/도서/도구 공통**. 상품 표 상태칩·폼 Switch로 관리. graceful: 컬럼 미적용 환경(`is_active===undefined`)은 노출로 취급 + `handleSave` PGRST204 재시도로 키 제외(회귀 0). **DRAFT 마이그레이션 `20260630020000_DRAFT_add_products_is_active.sql` 존재**(가법 컬럼, `ADD COLUMN IF NOT EXISTS`) — 건우님 적용 전이면 코드가 graceful 처리.
 - `test_group_id`·`option_name`·`option_label`·`is_common`·`sort_order` (검사 위계 신규 가법 컬럼, PRD_검사위계.md) — **'검사' 그룹 뷰의 인라인 액션·옵션 편집 다이얼로그·엑셀 위계 열이 편집**. 도서·도구는 대부분 NULL. 엑셀 왕복 시 검사군 매칭(약어,검사명)→`test_group_id` 연결(`makeTestGroupResolver`).
 - `tags` (text[] — 코드에서 배열 사용. 마이그레이션 SQL에는 명시 없음, 확인 필요)
@@ -294,6 +301,7 @@
 - 할인여부 → is_discountable (TRUE/Y/YES/1 → true)
 - 인기상품 → is_popular
 - 신상품여부 → is_new
+- **온라인코드포함 → includes_online_code** (2026-08-18 신규, 3상태). 헤더 별칭 `['온라인코드포함','includes_online_code']`. `포함`/TRUE/Y/1→true, `미포함`/FALSE/N/0→false, **공란→NULL(미확인) 유지**. `discount_override`(공란=해제)와 의도가 다름: 여기선 공란이 "아직 확인 안 함"이므로 NULL 보존(false로 뭉개면 재업로드 때 미확인 추적이 전부 미포함으로 소실). 다운로드는 `포함`/`미포함`/`''`(공란)을 써서 라운드트립 정합. 파싱·다운로드·폼 문자열 일치 필수. graceful: 컬럼 미적용이면 위계 재시도 경로에서 함께 제외(회귀 0)
 - 태그 → tags (콤마 split)
 - ~~배지 → badges~~ — **(2026-06-29 폐기)** 엑셀 "배지" 열 제거(양식·목록·파싱 3곳). category 게이트는 종전대로 행 오류 유지.
 - **검사 위계 열 (2026-07-02 신규, 지시 3)** — 양식·목록·파싱 3곳 모두 추가. 검사 상품만 채움(도서·도구는 공란):
@@ -308,7 +316,8 @@
 - 검색어 (상품명 부분 일치)
 - 카테고리 단일 선택 (도서/검사/도구) — 카드 클릭으로 토글
 - **검사군 그룹 뷰 (2026-07-02 개편)**: `selectedCategory==='검사'`이면 **무조건 그룹 뷰**(토글 폐지, `groupViewActive = selectedCategory==='검사'`). 도서·도구·전체는 평면. 그룹 뷰 = 조회+수정(검사군·옵션 인라인 관리), 페이지네이션 숨김. §검사군 그룹 뷰 절 참조.
-- 빠른 필터: discountable | popular | null
+- 빠른 필터: discountable | popular | onlineUnknown | null
+  - **onlineUnknown (2026-08-18)**: `includes_online_code IS NULL AND category='검사'`. 미확인 검사 상품을 모아 일괄 확정하는 진입점(퀵필터 카드 "온라인코드 미확인"). 온라인코드는 사실상 검사 상품에만 딸리므로 검사군으로 좁힘
 - **노출 필터 — (2026-07-02 신규, 1차 선택)**: `productQuickFilter`에 `hidden`(숨김만) 추가 검토, 또는 검색·필터 카드에 "숨김 포함 N개" 표시 + 별도 토글. **기본은 전체 노출**(숨김 상품도 표에 보임 — dim+칩으로 구분). 운영자가 "숨김 상품만 모아보기"를 원할 때만 필터. **구현 우선순위 낮음** — is_active 상태칩·폼 Switch가 P0, 필터는 P1.
 - 태그 다중 선택 (OR 매칭)
 - 정렬: 인기 우선 → 이름 가나다순(고정, 사용자 선택 없음)
