@@ -181,6 +181,26 @@ WHERE s.includes_online_code IS NULL
     )
   );
 
+-- R5: 나머지 미분류 전량 → false. 기대 영향행: 520.
+--     ★ 건우님 확정(2026-08-19): "상품명에 온라인코드/SET가 아닌 검사지·지침서·기록지 등은
+--       전부 미확인 → 미포함으로." 검사 옵션의 잔여 NULL 을 비운다.
+--     적용 전 변칙 스캔 결과(11건)는 전부 실물이라 false 가 옳다 —
+--       '홀랜드 진로코드집(공용)(1)' 9건(인쇄 책자의 진로코드, 온라인코드 아님),
+--       '유아 창의성 검사 활용법 CD(1)' 1건, '활동 프로그램 USB(...)(1)' 1건.
+--     SET 는 제외한다(건우님 규칙). option_name 이 비어 매처가 못 잡는 행은
+--       name 기준 SET 판정으로 보완 → 'K-CTC 유아 창의적 특성검사_SET(1)'(비활성) 1건만
+--       NULL 로 남는다. 이게 유일한 잔여 미확인이며 판매되지 않아 무해하다.
+UPDATE public.products
+SET includes_online_code = false
+WHERE includes_online_code IS NULL
+  AND name NOT ILIKE '%온라인%'
+  AND coalesce(option_name, '') NOT ILIKE '%온라인%'
+  AND NOT (
+    coalesce(option_name, '') ILIKE 'SET%'
+    OR coalesce(option_name, '') ILIKE '%세트%'
+    OR (coalesce(option_name, '') = '' AND (name ILIKE '%set%' OR name LIKE '%세트%'))
+  );
+
 -- COMMIT;  -- (위 BEGIN 열었으면) 사후검증 통과 후 COMMIT / 불일치면 ROLLBACK;
 
 
@@ -238,8 +258,9 @@ WHERE category = '검사'
 
 -- (V2) 카테고리 × 3상태 교차표(어긋난 곳 찾기용).
 --   2026-08-19 시뮬레이션 스냅샷(참고용 — 상품 등록으로 계속 변한다):
---     전체  : true 611 (이름 451 + SET 160) / false 3,498 (도서도구 3,467 + SET 31)
---            / null 521 (지침서·기록지 등 미분류 검사) / total 4,630
+--     전체  : true 611 (이름 451 + SET 160) / false 4,018 / null 1 / total 4,630
+--     검사  : true 611 / false 551 / null 1 (비활성 K-CTC SET 하나만 미확인)
+--     도서  : false 3,392   ·   도구 : false 75
 --     도서  : true 0 근처 / false ≈3,392 / null 0
 --     도구  : true 0      / false 75     / null 0
 --     검사  : true 대부분 / false = A버킷 / null = B버킷 165 + 미분류
