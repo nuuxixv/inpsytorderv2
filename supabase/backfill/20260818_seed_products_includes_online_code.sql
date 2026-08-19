@@ -116,7 +116,7 @@ WHERE category IN ('도서','도구');
 -- ============================================================================
 -- BEGIN;   -- (권장) 수동 트랜잭션으로 진행하려면 주석 해제
 
--- R1: 상품명에 '온라인' 포함 → true. (온라인코드 상품 자체) 기대 영향행: 432.
+-- R1: 검사 중 상품명에 '온라인' 포함 → true. (온라인코드 상품 자체) 기대 영향행: 451.
 UPDATE public.products
 SET includes_online_code = true
 WHERE includes_online_code IS NULL
@@ -136,22 +136,47 @@ SET includes_online_code = false
 WHERE includes_online_code IS NULL
   AND category IN ('도서','도구');
 
--- R3: 검사 A버킷(SET & (test_group NULL OR 검사군에 온라인 옵션 0개)) → false.
+-- ── SET 판별식에 대하여 ─────────────────────────────────────────────────────
+--   SET 판별은 name 이 아니라 option_name 으로 한다.
+--   name 기준은 검사명에 'SET'이 든 검사군에서 오탐한다 — 예: UW-SET 검사군의
+--   '검사지(20)'·'온라인코드(10)'·'전문가지침서(1)'까지 SET로 잡혔다(실측 델타 17건).
+--   option_name 에는 검사명이 섞이지 않아 이 오탐이 원천 해소된다.
+--   접두 'SET%' 를 쓴다('%SET%' 보다 안전).
+
+-- R3: 검사 SET 중 "검사군에 온라인코드 옵션이 있는" 것 → true. 기대 영향행: 160.
+--     ★ 건우님 확정(2026-08-18): 해당 SET 160건 "전부 포함".
+--       상품 담당자 확인 요청 목록(SET 상품 160건 / 검사 116종)을 그대로 true 로 확정.
+--     자동 추론이 아니라 사람의 결정이다. 데이터만으로는 SET 구성품을 알 수 없다.
+--     오류 방향도 안전하다 — 실제로 미포함인 SET가 섞여 있으면 고객에게 인싸이트 ID를
+--     불필요하게 한 번 더 물을 뿐이고, 반대(코드를 줬는데 ID를 못 받는 사고)는 사라진다.
+UPDATE public.products s
+SET includes_online_code = true
+WHERE s.includes_online_code IS NULL
+  AND s.category = '검사'
+  AND (s.option_name ILIKE 'SET%' OR s.option_name ILIKE '%세트%')
+  AND s.test_group_id IS NOT NULL
+  AND EXISTS (
+    SELECT 1 FROM public.products sib
+    WHERE sib.test_group_id = s.test_group_id
+      AND sib.is_active
+      AND sib.option_name ILIKE '%온라인%'
+  );
+
+-- R4: 검사 SET 중 "검사군에 온라인코드 옵션이 0개"인 것 → false. 기대 영향행: 31.
+--     그런 검사군은 모든 옵션이 실제로 온라인코드가 없으므로 false 가 옳다.
 --     하드코딩 목록 아님 — test_group_id + 검사군 온라인 옵션 유무로 유도(재실행 가능).
---     B버킷(온라인 옵션 있는 검사군의 SET)은 EXISTS 로 자동 제외 → NULL 유지.
---     기대 영향행: 43.
 UPDATE public.products s
 SET includes_online_code = false
 WHERE s.includes_online_code IS NULL
   AND s.category = '검사'
-  AND (s.name ILIKE '%set%' OR s.name LIKE '%세트%')
-  AND s.name NOT ILIKE '%온라인%'
+  AND (s.option_name ILIKE 'SET%' OR s.option_name ILIKE '%세트%')
   AND (
     s.test_group_id IS NULL
     OR NOT EXISTS (
       SELECT 1 FROM public.products sib
       WHERE sib.test_group_id = s.test_group_id
-        AND sib.name ILIKE '%온라인%'
+        AND sib.is_active
+        AND sib.option_name ILIKE '%온라인%'
     )
   );
 
@@ -191,25 +216,29 @@ SELECT
   ) AS suspect_book_tool_true
 FROM public.products;
 
--- (V1-c) 검사 A버킷(검사군에 온라인코드 옵션이 없는 SET)에 미분류가 남았는지 → 항상 0.
-SELECT count(*) AS leak_a_bucket_still_null
+-- (V1-c) 검사 SET 에 미분류가 남았는지 → 항상 0.
+--   R3(true)·R4(false)가 검사 SET 전량을 덮으므로 잔여 NULL 이 있으면 판별식 사각지대다.
+--   가장 흔한 원인은 option_name 이 NULL 인 SET 상품 → 아래 두 번째 쿼리로 분리 확인.
+SELECT count(*) AS leak_set_still_null
 FROM public.products s
 WHERE s.includes_online_code IS NULL
   AND s.category = '검사'
-  AND (s.name ILIKE '%set%' OR s.name LIKE '%세트%')
-  AND s.name NOT ILIKE '%온라인%'
-  AND (
-    s.test_group_id IS NULL
-    OR NOT EXISTS (
-      SELECT 1 FROM public.products sib
-      WHERE sib.test_group_id = s.test_group_id
-        AND sib.name ILIKE '%온라인%'
-    )
-  );
+  AND (s.option_name ILIKE 'SET%' OR s.option_name ILIKE '%세트%');
+
+-- (V1-d) 판별식 사각지대 — 상품명은 SET 인데 option_name 이 비어 매처에 안 걸린 검사 상품.
+--   2026-08-19 실측 = 1건. id 36099 'K-CTC 유아 창의적 특성검사_SET(1)'(PITM 구코드,
+--   is_active=false, 검사군 없음). 판매되지 않으므로 NULL 유지로 무해 — 정상이다.
+--   2건 이상이면 새로 생긴 사각지대이니 목록을 사람이 직접 확인할 것(자동 확정 금지).
+SELECT count(*) AS blindspot_set_name_without_option_name
+FROM public.products
+WHERE category = '검사'
+  AND (name ILIKE '%set%' OR name LIKE '%세트%')
+  AND coalesce(option_name, '') = '';
 
 -- (V2) 카테고리 × 3상태 교차표(어긋난 곳 찾기용).
---   2026-08-18 18시 시뮬레이션 스냅샷(참고용 — 상품 등록으로 계속 변한다):
---     전체  : true 456 / false 3,506 / null 668 / total 4,630
+--   2026-08-19 시뮬레이션 스냅샷(참고용 — 상품 등록으로 계속 변한다):
+--     전체  : true 611 (이름 451 + SET 160) / false 3,498 (도서도구 3,467 + SET 31)
+--            / null 521 (지침서·기록지 등 미분류 검사) / total 4,630
 --     도서  : true 0 근처 / false ≈3,392 / null 0
 --     도구  : true 0      / false 75     / null 0
 --     검사  : true 대부분 / false = A버킷 / null = B버킷 165 + 미분류
