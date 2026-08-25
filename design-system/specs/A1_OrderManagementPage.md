@@ -103,9 +103,10 @@
 - [ ] 초기화 버튼 → 모든 필터·검색어·날짜 기본값(최근 7일) 복원
 
 ### 선택·일괄
-- [ ] 전체 체크 → 현재 페이지 모든 주문 ID 선택 (line 186-192)
-- [ ] 개별 체크 → 토글 (stopPropagation, line 194-212)
-- [ ] 상태 일괄 변경 적용 → `bulk_update_order_status` RPC 호출, **paid 일괄 전환 시 알림톡 순차 발송**(`for of`로 직렬), 부분 실패는 카운트 + 첫 실패 사유 표시 — line 283-334
+- [ ] 전체 체크 → 현재 페이지의 **단독 실 주문 ID만** 선택. **합배송 그룹 소속(껍데기·자식 전부, 대표 포함)은 제외** — `selectableOrderIds(state.orders)`(`utils/groupOrder.js`). 헤더 체크박스 indeterminate/all 판정도 이 목록 기준
+- [ ] 개별 체크 → 토글 (stopPropagation). **합배송 자식 행에는 체크박스 없음**(껍데기·그룹 자식 행은 `<TableCell padding="checkbox" />` 빈 셀). 단, **부모가 현재 페이지 밖인 고아 자식**은 단독 행(`renderSingleRow`)·카드(`renderMobileSingle`)로 렌더되며 `parent_order_id`가 있으므로 **체크박스를 disabled 처리** + Tooltip "합배송 주문은 개별 행 또는 상세에서 변경하세요"
+- [ ] 상태 일괄 변경 적용 → **최종 가드**: `partitionBulkSelectable(state.orders, selectedOrders)`로 그룹 소속을 걸러내 `allowedIds`만 실행. 제외분이 있으면 "합배송 묶음 N건은 제외했습니다 — 개별 변경을 이용하세요." 경고 토스트. 실행 대상 0건이면 선택만 비우고 종료. `allowedIds`로 `bulk_update_order_status` RPC 호출, **paid 일괄 전환 시 알림톡 순차 발송**(`for of`로 직렬, 대상=`allowedIds`), 부분 실패는 카운트 + 첫 실패 사유 표시
+- [ ] **합배송 위임을 일괄 경로에 재구현하지 않는다** — 그룹 상태 변경은 반드시 개별 행·상세의 위임 경로(`classifyGroupStatusChange` → auto/pick)를 태워야 하므로, 일괄은 그룹 소속을 전부 배제하는 것으로 사고(대표 취소 시 `representative_child_id` 스테일 → 배송 사고)를 차단한다 (QA P0-2, 2026-08-25)
 - [ ] **확인 필요** — `bulk_update_order_status` RPC는 마이그레이션 파일에 정의가 없음. 수동 SQL로 생성된 부채 후보. RPC 파라미터(`order_ids`, `new_status`)로 호출 중
 
 ### 행 액션
@@ -287,6 +288,7 @@ frontend가 M3 사이클에서 흡수해야 할 항목:
 6. ~~**viewer 권한은 의외로 많은 것을 본다.**~~ **2026-07-20 해소** — 엑셀 반출 기능 전면 폐지로 viewer의 고객정보 반출 경로 자체가 사라짐. viewer는 이제 조회·필터만 가능.
 
 ## 변경 이력
+- 2026-08-25 QA P0-2 일괄 변경 합배송 위임 우회 차단 — 일괄 상태 변경이 `bulk_update_order_status` RPC로 직행하며 단일 변경이 강제하는 대표 배송지 위임(`classifyGroupStatusChange`→auto/pick)을 우회하던 결함 수정. 대표 주문을 일괄 취소하면 `representative_child_id`가 취소된 주문을 계속 가리켜 묶음 배송지 스테일 = 배송 사고. **방침: 일괄 경로에서 합배송 그룹 소속(껍데기·자식 전부)을 제외**(위임은 개별 행·상세 경로 몫, 재구현 안 함). (1) 전체 선택·헤더 체크박스가 `selectableOrderIds`로 그룹 소속 제외, (2) 고아 자식 단독 행/카드 체크박스 disabled+Tooltip, (3) 실행 직전 `partitionBulkSelectable`로 최종 가드(제외 N건 토스트). 순수 함수 `selectableOrderIds`·`partitionBulkSelectable`·`isGroupMemberOrder`를 `utils/groupOrder.js`에 추출, `groupOrder.test.js`에 단위 테스트 7건 추가(독립만/자식섞임/대표섞임/전부그룹). 기존 단일 변경·모달 경로 무변경.
 - 2026-07-20 목록 드롭다운 현재상태 숨김 + 엑셀 반출 폐지 — (1) 목록 상태 Select를 `ALLOWED_TRANSITIONS` 직접 사용으로 변경: 현재 상태는 메뉴에서 제거하고 닫힘 표시값(`value="" + displayEmpty + renderValue`)으로만 고정, 열면 허용 전이 후보만 노출(단독 행·합배송 자식 행 동일). 종결은 읽기전용 배지 유지. `getStatusOptions`는 미사용이 되어 `orderStatus.js`·`orderStatus.test.js`에서 제거(`ALLOWED_TRANSITIONS` 검증은 유지). 상세모달(OrderSections) 상태 Select는 전체 자유전환 유지(미변경). (2) 엑셀 반출 전면 폐지 — 주문관리·출고관리(A3)의 엑셀 다운로드 버튼·Menu·핸들러·`utils/orderExcel.js`·`orderExcel.test.js` 삭제. viewer 고객정보 반출 부채(핵심 발견 6) 동시 해소. `xlsx` 의존성은 상품관리 등 잔존 사용처 있어 유지.
 - 2026-05-28 신설 — M3 frontend 위임 사전 작성. 게이트 1.5 통과 목적. 시안(`OrderManagementPreview.jsx`) vs 실 페이지(`OrderManagementPage.jsx`) 차이 10건 적출. RPC 부채 1건, viewer 엑셀 권한 1건 부채 후보로 기록.
 - 2026-06-10 알림톡 발송 결과 가시화 — `alimtalk_status`/`alimtalk_error`/`alimtalk_attempted_at` 컬럼 추가(backend 병렬)에 맞춰 발송 결과 DB 기록 사양 신설. 데스크톱 상태 셀·모바일 카드에 “알림톡 실패” 칩(error 토큰) 추가. 단건 paid 전환 시 알림톡 결과 수신 후 목록 재조회. 차이 적출 10번(알림톡 발송 트리거 UI 시그널 없음) 부분 해소.

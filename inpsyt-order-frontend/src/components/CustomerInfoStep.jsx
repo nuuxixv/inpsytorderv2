@@ -19,12 +19,16 @@ import {
   Badge as BadgeIcon,
   Note as NoteIcon,
 } from '@mui/icons-material';
+import { isValidMobile } from '../utils/formatPhone';
 
 // 사양 §Step 1 — 주문자 정보. 주소 3필드 분리 절대 유지.
 
 const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false, isOnsitePurchase = false, eventName = '' }) => {
   const theme = useTheme();
   const [isPostcodeModalOpen, setIsPostcodeModalOpen] = useState(false);
+  // 연락처 blur 후에만 인라인 안내(입력 중엔 방해 없음). 하드 차단은 OrderPage 제출 게이트 한 곳.
+  const [phoneBlurred, setPhoneBlurred] = useState(false);
+  const phoneInvalid = phoneBlurred && customerInfo.phone.length > 0 && !isValidMobile(customerInfo.phone);
 
   // 모달 스타일·인풋 스타일을 테마 토큰으로 정합화.
   const modalStyle = {
@@ -129,8 +133,12 @@ const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false
           placeholder="010-1234-5678"
           value={customerInfo.phone}
           onChange={handlePhoneChange}
+          onBlur={() => setPhoneBlurred(true)}
+          error={phoneInvalid}
           inputProps={{ maxLength: 13 }}
-          helperText="숫자만 입력해주세요."
+          helperText={phoneInvalid
+            ? '휴대폰 번호를 확인해주세요. 접수 확인 알림톡이 이 번호로 발송됩니다.'
+            : '숫자만 입력해주세요.'}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">

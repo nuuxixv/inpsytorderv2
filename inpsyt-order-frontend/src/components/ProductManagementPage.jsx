@@ -1551,12 +1551,21 @@ const ProductManagementPage = () => {
           <ActionSlot
             sx={{ px: 2, py: 1.5 }}
             leading={
-              <>
-                <CheckBoxIcon sx={{ color: 'primary.main' }} />
-                <Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                  {selectedCount}개 선택됨
-                </Typography>
-              </>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CheckBoxIcon sx={{ color: 'primary.main' }} />
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                    {selectedCount}개 선택됨
+                  </Typography>
+                </Box>
+                {/* 그룹 뷰엔 전체 선택 체크박스가 없어 선택은 평면 뷰에서 넘어온 잔여분일 수 있다.
+                    접힌 검사군의 안 보이는 선택 항목 오삭제를 막기 위한 안내 1줄. */}
+                {groupViewActive && (
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    선택된 상품이 현재 화면에 보이지 않을 수 있습니다.
+                  </Typography>
+                )}
+              </Box>
             }
           >
             <Button size="small" variant="outlined" startIcon={<TuneIcon />} onClick={handleOpenBulkEdit}>
@@ -1579,12 +1588,17 @@ const ProductManagementPage = () => {
               <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
                 {hasPermission('products:edit') && (
                   <TableCell padding="checkbox" sx={{ width: 48 }}>
-                    <Checkbox
-                      size="small"
-                      checked={allPageSelected}
-                      indeterminate={somePageSelected && !allPageSelected}
-                      onChange={handleToggleAll}
-                    />
+                    {/* 그룹 뷰에선 전체 선택 체크박스를 렌더하지 않는다(빈 셀로 정렬 유지).
+                        평면 슬라이스(displayedProducts)를 선택하면 접힌 검사군의 안 보이는 상품이
+                        선택돼 오삭제로 이어질 수 있어서. 그룹-aware 선택은 팬아웃 편집 트랙에서 다룬다. */}
+                    {!groupViewActive && (
+                      <Checkbox
+                        size="small"
+                        checked={allPageSelected}
+                        indeterminate={somePageSelected && !allPageSelected}
+                        onChange={handleToggleAll}
+                      />
+                    )}
                   </TableCell>
                 )}
                 <TableCell sx={{ fontWeight: 'bold' }} align="center">이미지</TableCell>

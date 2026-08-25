@@ -81,6 +81,41 @@ export const classifyGroupStatusChange = ({ children = [], repChildId, child, ne
 };
 
 /**
+ * 합배송 그룹 소속 주문인지 판정한다.
+ * - 껍데기 부모(is_group_parent) 또는 자식(parent_order_id 보유, 대표 포함) 전부.
+ * 일괄 상태 변경은 대표 배송지 위임 경로(classifyGroupStatusChange)를 우회하므로
+ * 그룹 소속은 선택·일괄 대상에서 전부 배제한다.
+ * @param {{is_group_parent?:boolean, parent_order_id?:(number|null)}} order
+ * @returns {boolean}
+ */
+export const isGroupMemberOrder = (order) =>
+  Boolean(order?.is_group_parent) || order?.parent_order_id != null;
+
+/**
+ * 일괄 선택(전체 선택) 대상 id — 합배송 그룹 소속을 뺀 단독 실 주문만.
+ * @param {Array} orders 현재 페이지 주문(플랫)
+ * @returns {number[]}
+ */
+export const selectableOrderIds = (orders = []) =>
+  orders.filter((o) => !isGroupMemberOrder(o)).map((o) => o.id);
+
+/**
+ * 일괄 상태 변경 실행 직전, 선택 목록에서 합배송 그룹 소속을 걸러낸다 (최종 가드).
+ * @param {Array} orders 현재 페이지 주문(플랫)
+ * @param {Array<number>} selectedIds 선택된 주문 id
+ * @returns {{ allowedIds:number[], excludedIds:number[] }} 실행 대상 / 그룹 소속으로 제외된 id
+ */
+export const partitionBulkSelectable = (orders = [], selectedIds = []) => {
+  const groupMemberIds = new Set(orders.filter(isGroupMemberOrder).map((o) => o.id));
+  const allowedIds = [];
+  const excludedIds = [];
+  selectedIds.forEach((id) => {
+    (groupMemberIds.has(id) ? excludedIds : allowedIds).push(id);
+  });
+  return { allowedIds, excludedIds };
+};
+
+/**
  * groupLinkedOrders 결과(플랫)를 트리 구조로 변환한다.
  * 껍데기 부모 → { type:'group', shell, children } / 그 외 → { type:'single', order }
  * 부모가 현재 페이지에 없는 고아 자식은 single 로 폴백(사라짐 방지).

@@ -25,6 +25,7 @@ import {
   Stack,
   Chip,
   SwipeableDrawer,
+  Tooltip,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
@@ -46,7 +47,7 @@ import { sortEventsForDropdown, groupEventsForDropdown, formatEventStartDate } f
 import { fetchAllProducts } from '../api/products';
 import { getOrders, groupLinkedOrders, reassignGroupRepresentative } from '../api/orders';
 import { sendAlimtalk } from '../api/alimtalk';
-import { buildOrderTree, summarizeGroupStatus, formatGroupCustomerNames, classifyGroupStatusChange } from '../utils/groupOrder';
+import { buildOrderTree, summarizeGroupStatus, formatGroupCustomerNames, classifyGroupStatusChange, selectableOrderIds, partitionBulkSelectable } from '../utils/groupOrder';
 import { PageHeader, SectionCard, StatusBadge, EmptyState, DateField } from './ui';
 import { STATUS_TO_KOREAN, ALLOWED_TRANSITIONS } from '../constants/orderStatus';
 
@@ -209,7 +210,8 @@ const OrderManagementPage = () => {
   const [pick, setPick] = React.useState({ open: false, oldRep: null, candidates: [], newStatus: null, groupParentId: null });
 
   const handleSelectAllClick = () => {
-    const selectable = state.orders.filter(o => !o.is_group_parent).map(o => o.id);
+    // 합배송 그룹 소속(껍데기·자식 전부)은 전체 선택 대상에서 제외 — 위임 경로 우회 방지.
+    const selectable = selectableOrderIds(state.orders);
     if (state.selectedOrders.length === selectable.length && selectable.length > 0) {
       dispatch({ type: 'SET_SELECTED_ORDERS', payload: [] });
     } else {
@@ -312,16 +314,28 @@ const OrderManagementPage = () => {
       return;
     }
 
+    // 최종 가드 — 선택 목록에 합배송 그룹 소속이 섞여 있으면 제외(대표 배송지 스테일 방지).
+    // 위임은 개별 행·상세 경로가 담당하므로 여기선 걸러내기만 한다.
+    const { allowedIds, excludedIds } = partitionBulkSelectable(state.orders, state.selectedOrders);
+    if (excludedIds.length > 0) {
+      addNotification(`합배송 묶음 ${excludedIds.length}건은 제외했습니다 — 개별 변경을 이용하세요.`, 'warning');
+    }
+    if (allowedIds.length === 0) {
+      dispatch({ type: 'SET_SELECTED_ORDERS', payload: [] });
+      setBulkStatus('');
+      return;
+    }
+
     dispatch({ type: 'SET_STATE', payload: { loading: true } });
     try {
       const { error } = await supabase.rpc('bulk_update_order_status', {
-        order_ids: state.selectedOrders,
+        order_ids: allowedIds,
         new_status: bulkStatus
       });
 
       if (error) throw error;
 
-      addNotification(`${state.selectedOrders.length}개 주문의 상태가 '${statusToKorean[bulkStatus]}'으로 업데이트되었습니다.`, 'success');
+      addNotification(`${allowedIds.length}개 주문의 상태가 '${statusToKorean[bulkStatus]}'으로 업데이트되었습니다.`, 'success');
 
       // paid 일괄 전환 시 알림톡 순차 발송
       if (bulkStatus === 'paid') {
@@ -329,7 +343,7 @@ const OrderManagementPage = () => {
         let failCount = 0;
         let firstFailReason = null;
 
-        for (const orderId of state.selectedOrders) {
+        for (const orderId of allowedIds) {
           const { success, skipped, error: alimtalkError } = await sendAlimtalk(orderId);
           if (skipped) continue;
           if (success) successCount++;
@@ -468,9 +482,9 @@ const OrderManagementPage = () => {
 
   // 합배송 트리 — 껍데기 그룹 노드 + 단독 노드
   const orderTree = React.useMemo(() => buildOrderTree(state.orders), [state.orders]);
-  // 체크박스·일괄 상태 변경 대상 = 껍데기가 아닌 실 주문만
+  // 체크박스·일괄 상태 변경 대상 = 합배송 그룹 소속(껍데기·자식)이 아닌 단독 실 주문만
   const selectableIds = React.useMemo(
-    () => state.orders.filter(o => !o.is_group_parent).map(o => o.id),
+    () => selectableOrderIds(state.orders),
     [state.orders]
   );
   const isEmpty = orderTree.length === 0;
@@ -483,9 +497,17 @@ const OrderManagementPage = () => {
     return (
       <TableRow key={order.id} hover selected={isSelected} sx={{ cursor: 'pointer' }}>
         {hasPermission('orders:edit') && (
-          <TableCell padding="checkbox" onClick={(e) => handleSelectOneClick(e, order.id)}>
-            <Checkbox checked={isSelected} />
-          </TableCell>
+          order.parent_order_id ? (
+            <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+              <Tooltip title="합배송 주문은 개별 행 또는 상세에서 변경하세요">
+                <span><Checkbox disabled /></span>
+              </Tooltip>
+            </TableCell>
+          ) : (
+            <TableCell padding="checkbox" onClick={(e) => handleSelectOneClick(e, order.id)}>
+              <Checkbox checked={isSelected} />
+            </TableCell>
+          )
         )}
         <TableCell onClick={() => openOrder(order)}>{formatOrderId(order)}</TableCell>
         <TableCell onClick={() => openOrder(order)}>{order.customer_name}</TableCell>
@@ -599,7 +621,13 @@ const OrderManagementPage = () => {
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
             <Box display="flex" alignItems="center" gap={1}>
               {hasPermission('orders:edit') && (
-                <Checkbox checked={isSelected} onClick={(e) => handleSelectOneClick(e, order.id)} sx={{ p: 0 }} />
+                order.parent_order_id ? (
+                  <Tooltip title="합배송 주문은 개별 행 또는 상세에서 변경하세요">
+                    <span onClick={(e) => e.stopPropagation()}><Checkbox disabled sx={{ p: 0 }} /></span>
+                  </Tooltip>
+                ) : (
+                  <Checkbox checked={isSelected} onClick={(e) => handleSelectOneClick(e, order.id)} sx={{ p: 0 }} />
+                )
               )}
               <Typography variant="body2" color="text.secondary">{format(new Date(order.created_at), 'yyyy-MM-dd')}</Typography>
             </Box>

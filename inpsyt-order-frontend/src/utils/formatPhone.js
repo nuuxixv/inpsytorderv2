@@ -1,5 +1,9 @@
 export const normalizePhone = (v) => String(v ?? '').replace(/\D/g, '');
 
+// 휴대폰 번호 유효성 — 정규화 후 "01로 시작하는 10~11자리"만 통과.
+// 접수 확인 알림톡이 이 번호로만 발송되므로 미완성·지역번호(02 등)를 걸러낸다.
+export const isValidMobile = (v) => /^01\d{8,9}$/.test(normalizePhone(v));
+
 export const formatPhone = (v) => {
   const d = normalizePhone(v);
   if (!d) return '';
