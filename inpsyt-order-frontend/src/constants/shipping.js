@@ -13,6 +13,16 @@ export const SHIPPING_DEFAULTS = {
 export const shippingBasisAmount = ({ basis, originalTotal, discountedTotal }) =>
   basis === 'discounted' ? discountedTotal : originalTotal;
 
+// 합배송 묶음 합계 산출 단일 소스. 저장된 주문 값에서 유도:
+//   정가 합   = Σ total_cost
+//   할인가 합 = Σ (final_payment - delivery_fee)
+// final_payment = 할인가 합 + delivery_fee 불변식은 create-order·합배송 RPC(link/reassign/delete)
+// 전 경로가 배송비 조정 시 두 값을 함께 갱신해 유지한다. 서버 RPC와 등가로 유지할 것.
+export const combinedOrderTotals = (orders) => ({
+  originalTotal: orders.reduce((s, o) => s + (o.total_cost || 0), 0),
+  discountedTotal: orders.reduce((s, o) => s + ((o.final_payment || 0) - (o.delivery_fee || 0)), 0),
+});
+
 // 배송비 계산 단일 소스. 현장수령·0원·기준 이상은 무료, 그 외 shippingCost.
 // 0원 주문은 basis 무관 무료(서버 규칙 동일). 서버(create-order)와 등가로 유지할 것.
 export const calcShippingFee = ({

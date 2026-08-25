@@ -342,3 +342,8 @@
   - **props**: `discountRate`=order.event_id 행사율, `eventTags`=행사 tags∪host_society(getEvents가 host_society 미포함이라 admin은 tags만·graceful), `eventName`, `visibleCategories=null`(어드민 자유도 — 전 상품 노출).
   - **보존**: 기존 행별 Autocomplete(담긴 행 교체·수정용)·수량 TextField·삭제 아이콘·현장수령 컬럼·합배송 잠금(itemsLocked)·권한 게이트 유지. `ProductSelectionStep` 무수정(고객 화면 회귀 0). 표시 항목·라벨 삭제/통합 0.
   - **검증**: build EXIT 0·lint 신규 0(변경 파일 clean), 전체 vitest 294 pass·2 fail(기존 편집버튼 다중매칭, 증가 0)·2 skip.
+- 2026-08-25 합배송 무료배송 판정 기준(free_shipping_basis) 확장 —
+  - **프론트 2곳**: `LinkPreviewDialog`(묶음 미리보기)·`ShippingPickModal`(대표 취소 위임)의 배송비 판정을 정가 고정 → `site_settings.free_shipping_basis` 설정 경유로 교체. 공유 함수 `constants/shipping.js`의 `shippingBasisAmount` + 신설 `combinedOrderTotals` 사용.
+  - **묶음 합계 유도** (`combinedOrderTotals`): 정가 합 = Σ `total_cost`, 할인가 합 = Σ (`final_payment` − `delivery_fee`). `final_payment = 할인가 합 + delivery_fee` 불변식은 배송비를 조정하는 전 경로(create-order·합배송 RPC)가 두 값을 함께 갱신해 유지.
+  - **서버 3 RPC 동일 규칙**: `link_orders_into_group`·`reassign_group_representative`·`delete_order_group`이 같은 기준으로 재판정(마이그레이션 `20260825000100`). basis 컬럼 미적용 환경은 create-order 와 동일한 undefined_column graceful fallback → 정가 폴백.
+  - **회귀 0**: basis NULL('미설정')·'list_price'면 판정식 기존과 동일(정가 합 ≥ 임계치). 0원 무료 규칙(create-order 의 0원 → 무료)은 합배송엔 기존에도 없었고 이번에도 도입하지 않음(동작 무변경 우선).
