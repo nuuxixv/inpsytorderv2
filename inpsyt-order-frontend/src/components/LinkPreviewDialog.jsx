@@ -23,7 +23,7 @@ import {
 } from '@mui/material';
 import { getLinkableOrdersByEvent, linkOrders } from '../api/orders';
 import { supabase } from '../supabaseClient';
-import { SHIPPING_DEFAULTS } from '../constants/shipping';
+import { SHIPPING_DEFAULTS, shippingBasisAmount, combinedOrderTotals } from '../constants/shipping';
 import { SectionCard, PriceBlock } from './ui';
 import { normalizePhone } from '../utils/formatPhone';
 
@@ -92,9 +92,13 @@ const LinkPreviewDialog = ({ open, onClose, baseOrder, events, addNotification, 
   const participants = [baseOrder, ...selected];
   const canPreview = participants.length >= 2;
 
-  // 배송비 미리보기 — 정가 합 기준 무료배송 판정
-  const combinedListPrice = participants.reduce((s, o) => s + (o.total_cost || 0), 0);
-  const freeShipping = combinedListPrice >= settings.free_shipping_threshold;
+  // 배송비 미리보기 — 무료배송 판정 기준(정가/할인가)은 설정(free_shipping_basis) 경유.
+  // 묶음 합계 유도·기준 선택은 공유 함수(combinedOrderTotals·shippingBasisAmount) — 서버 RPC와 등가.
+  const basisAmount = shippingBasisAmount({
+    basis: settings.free_shipping_basis,
+    ...combinedOrderTotals(participants),
+  });
+  const freeShipping = basisAmount >= settings.free_shipping_threshold;
   const currentDeliverySum = participants.reduce((s, o) => s + (o.delivery_fee || 0), 0);
   const afterDelivery = freeShipping ? 0 : settings.shipping_cost;
   const saved = Math.max(0, currentDeliverySum - afterDelivery);

@@ -332,3 +332,8 @@
   - **구 연계 연결 Dialog 폐기** → `LinkPreviewDialog`(검색·다중선택·묶음 배송지 RadioGroup·배송비 변화/절감·Case A/B Alert·"다시 나눌 수 없습니다" 확인 체크 → `linkOrders(childIds, repChildId)`). 신규 시그니처(구 2인자 `linkOrders(parentId, childId)` 호출부 제거).
   - **회귀**: 비연계 단일 주문 편집·저장·상태 변경·알림톡 재발송·삭제·현장수령·주문성격(B) 동작 보존. 정보구조·3필드 분리 유지.
   - **stale 테스트**: `OrderDetailModal.test.jsx` 2건(전역 편집 버튼·`update_order_details` RPC 기대)은 78e440f(섹션별 편집 재설계)부터 이미 red — 현 아키텍처와 불일치. 이번 리팩터로 신규 실패 없음(회귀 0).
+- 2026-08-25 합배송 무료배송 판정 기준(free_shipping_basis) 확장 —
+  - **프론트 2곳**: `LinkPreviewDialog`(묶음 미리보기)·`ShippingPickModal`(대표 취소 위임)의 배송비 판정을 정가 고정 → `site_settings.free_shipping_basis` 설정 경유로 교체. 공유 함수 `constants/shipping.js`의 `shippingBasisAmount` + 신설 `combinedOrderTotals` 사용.
+  - **묶음 합계 유도** (`combinedOrderTotals`): 정가 합 = Σ `total_cost`, 할인가 합 = Σ (`final_payment` − `delivery_fee`). `final_payment = 할인가 합 + delivery_fee` 불변식은 배송비를 조정하는 전 경로(create-order·합배송 RPC)가 두 값을 함께 갱신해 유지.
+  - **서버 3 RPC 동일 규칙**: `link_orders_into_group`·`reassign_group_representative`·`delete_order_group`이 같은 기준으로 재판정(마이그레이션 `20260825000100`). basis 컬럼 미적용 환경은 create-order 와 동일한 undefined_column graceful fallback → 정가 폴백.
+  - **회귀 0**: basis NULL('미설정')·'list_price'면 판정식 기존과 동일(정가 합 ≥ 임계치). 0원 무료 규칙(create-order 의 0원 → 무료)은 합배송엔 기존에도 없었고 이번에도 도입하지 않음(동작 무변경 우선).

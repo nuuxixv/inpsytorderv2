@@ -118,7 +118,7 @@ master 권한자가 학회 직전 한 번 들어와 (1) 이번 학회의 `/go` �
 - `id` (integer PK, default 1, **단일 행 강제**: `CHECK (id = 1)`)
 - `free_shipping_threshold` (integer, NOT NULL, default 30000)
 - `shipping_cost` (integer, NOT NULL, default 3000)
-- `free_shipping_basis` (text, `'list_price' | 'discounted'`, NULL=미설정=정가 폴백; 2026-08-25 병렬 백엔드 추가. 무료배송 판정 기준을 정가/할인가 중 택일)
+- `free_shipping_basis` (text, `'list_price' | 'discounted'`, NULL=미설정=정가 폴백; 2026-08-25 병렬 백엔드 추가. 무료배송 판정 기준을 정가/할인가 중 택일. 적용 범위: 일반 판정 4경로(create-order·CartBottomSheet·NewOrderModal·OrderSections) + 합배송 도메인(LinkPreviewDialog·ShippingPickModal, 서버 RPC link/reassign/delete — 2026-08-25 확장, 마이그레이션 `20260825000100`))
 - `email_domains` (jsonb, NOT NULL, default `["naver.com", "gmail.com", "daum.net", "hanmail.net"]`)
 - `updated_at` (timestamptz)
 

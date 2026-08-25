@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import { reassignGroupRepresentative } from '../api/orders';
 import { supabase } from '../supabaseClient';
-import { SHIPPING_DEFAULTS } from '../constants/shipping';
+import { SHIPPING_DEFAULTS, shippingBasisAmount, combinedOrderTotals } from '../constants/shipping';
 
 // 대표 취소 위임 — 묶음 배송지 선택 모달 (설계 §4 / 위임 §6).
 // 남은 활성 자식 2건+ 일 때만 사용. 1건이면 상위에서 모달 없이 자동 위임.
@@ -44,9 +44,13 @@ const ShippingPickModal = ({ open, onClose, groupParentId, oldRep, candidates, n
 
   if (!open || !candidates?.length) return null;
 
-  // 옛 대표 상품이 빠진 그룹의 정가 합 기준 배송비 재계산
-  const remainingListPrice = candidates.reduce((s, o) => s + (o.total_cost || 0), 0);
-  const freeShipping = remainingListPrice >= cfg.free_shipping_threshold;
+  // 옛 대표 상품이 빠진 그룹의 배송비 재계산 — 판정 기준(정가/할인가)은 설정(free_shipping_basis) 경유.
+  // 묶음 합계 유도·기준 선택은 공유 함수(combinedOrderTotals·shippingBasisAmount) — 서버 RPC와 등가.
+  const basisAmount = shippingBasisAmount({
+    basis: cfg.free_shipping_basis,
+    ...combinedOrderTotals(candidates),
+  });
+  const freeShipping = basisAmount >= cfg.free_shipping_threshold;
   const newRepDeliveryFee = freeShipping ? 0 : cfg.shipping_cost;
 
   const newRep = candidates.find((c) => c.id === newRepId) || candidates[0];
