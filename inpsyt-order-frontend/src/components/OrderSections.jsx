@@ -480,7 +480,7 @@ const OrderSections = ({
 
   const renderEvent = events?.find(e => e.id === order.event_id);
   const discountRate = renderEvent?.discount_rate || 0;
-  // 태그 우선 정렬용 — OrderPage.jsx와 동일 식(tags ∪ host_society). getEvents는 host_society 미포함이라 tags만 반영(graceful).
+  // 태그 우선 정렬용 — OrderPage.jsx와 동일 식(tags ∪ host_society). getEvents가 host_society를 포함해 고객 주문서와 완전 동치.
   const eventTags = [...new Set([...(renderEvent?.tags || []), renderEvent?.host_society].filter(Boolean))];
 
   // 상품 편집 잠금 — 병합 아이템에 다른 주문(order_id 불일치) 아이템이 섞였거나 껍데기 부모면 잠금.
