@@ -26,6 +26,8 @@ import { getTodayKST } from '../utils/date';
 import { SHIPPING_DEFAULTS, shippingBasisAmount } from '../constants/shipping';
 import { getDiscountedUnit } from '../utils/pricing';
 import { hasOnlineCode } from '../utils/onlineCode';
+import { isValidMobile } from '../utils/formatPhone';
+import { loadOrderDraft, saveOrderDraft, clearOrderDraft, DEFAULT_CUSTOMER_INFO } from '../utils/orderDraft';
 
 const OrderPage = () => {
   const theme = useTheme();
@@ -33,8 +35,13 @@ const OrderPage = () => {
   const navigate = useNavigate();
   const eventSlug = searchParams.get('events');
 
+  // 마운트 시 sessionStorage에서 진행 내용 복원(같은 탭·같은 행사 slug 한정, utils/orderDraft).
+  // cart 스냅샷은 그대로 복원한다 — 제출 시 서버(create-order)가 product_id로 금액을 재계산하므로
+  // 표시 스냅샷이 최신 상품과 달라도 실제 결제 금액에는 영향이 없다(재결합 fetch 생략).
+  const [draft] = useState(() => loadOrderDraft(eventSlug));
+
   // Step state
-  const [activeStep, setActiveStep] = useState(0);
+  const [activeStep, setActiveStep] = useState(() => draft?.activeStep ?? 0);
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const [isOnsitePurchase, setIsOnsitePurchase] = useState(false);
   const [onsiteSnackbar, setOnsiteSnackbar] = useState(false);
@@ -51,11 +58,8 @@ const OrderPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [customerInfo, setCustomerInfo] = useState({
-    name: '', phone: '', postcode: '',
-    address: '', detailAddress: '', inpsytId: '', request: '',
-  });
-  const [cart, setCart] = useState([]);
+  const [customerInfo, setCustomerInfo] = useState(() => draft?.customerInfo ?? DEFAULT_CUSTOMER_INFO);
+  const [cart, setCart] = useState(() => draft?.cart ?? []);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [inpsytConfirmOpen, setInpsytConfirmOpen] = useState(false);
   const [eventInfo, setEventInfo] = useState(null);
@@ -154,6 +158,11 @@ const OrderPage = () => {
     fetchData();
   }, [eventSlug]);
 
+  // 진행 내용 자동 저장 — 새로고침·탭 퇴출 대비. slug별 분리(같은 탭 한정).
+  useEffect(() => {
+    saveOrderDraft(eventSlug, { cart, customerInfo, activeStep });
+  }, [eventSlug, cart, customerInfo, activeStep]);
+
 
 
   const handleNext = () => {
@@ -170,6 +179,11 @@ const OrderPage = () => {
         setError(isOnsitePurchase
           ? '필수 정보(성함, 연락처)를 입력해주세요.'
           : '필수 정보(성함, 연락처, 배송지)를 입력해주세요.');
+        return;
+      }
+      // 연락처 하드 차단 — 단일 지점. 미완성·지역번호 번호로 제출되면 접수 확인 알림톡이 유실된다.
+      if (!isValidMobile(customerInfo.phone)) {
+        setError('휴대폰 번호를 확인해주세요. 접수 확인 알림톡이 이 번호로 발송됩니다.');
         return;
       }
       setError(null);
@@ -247,6 +261,9 @@ const OrderPage = () => {
       }
       if (data.error) throw new Error(data.error);
 
+      // 제출 성공 — 임시 보존분 제거(다음 진입은 빈 상태로 시작).
+      clearOrderDraft(eventSlug);
+
       const token = data.order?.access_token;
       if (token) {
         navigate(`/order/status/${token}`);
@@ -262,12 +279,10 @@ const OrderPage = () => {
 
   const handleCloseSuccessDialog = () => {
     setShowSuccessDialog(false);
-    setCustomerInfo({
-      name: '', phone: '', postcode: '',
-      address: '', detailAddress: '', inpsytId: '', request: '',
-    });
+    setCustomerInfo(DEFAULT_CUSTOMER_INFO);
     setCart([]);
     setActiveStep(0);
+    clearOrderDraft(eventSlug);
   };
 
 
