@@ -23,7 +23,8 @@ import CustomerInfoStep from './CustomerInfoStep';
 import OrderReviewStep from './OrderReviewStep';
 import CartBottomSheet from './CartBottomSheet';
 import { getTodayKST } from '../utils/date';
-import { SHIPPING_DEFAULTS } from '../constants/shipping';
+import { SHIPPING_DEFAULTS, shippingBasisAmount } from '../constants/shipping';
+import { getDiscountedUnit } from '../utils/pricing';
 import { hasOnlineCode } from '../utils/onlineCode';
 
 const OrderPage = () => {
@@ -65,10 +66,19 @@ const OrderPage = () => {
   const validCartItems = cart.filter(item => item.id);
   const hasCartItems = validCartItems.length > 0;
 
-  // 무료배송 기준은 정가(할인 전) 기준
   const totalOriginalPrice = useMemo(() => {
     return validCartItems.reduce((sum, item) => sum + (item.list_price || 0) * item.quantity, 0);
   }, [validCartItems]);
+
+  // 무료배송 진행바(FloatingBottomBar) 판정 기준 — 설정 기반(정가/할인가), 기본 정가. 3경로 공유 함수 경유.
+  const shippingBasisTotal = useMemo(() => {
+    const discountedTotal = validCartItems.reduce((sum, item) => sum + getDiscountedUnit(item, discountRate) * item.quantity, 0);
+    return shippingBasisAmount({
+      basis: settings.free_shipping_basis,
+      originalTotal: totalOriginalPrice,
+      discountedTotal,
+    });
+  }, [validCartItems, discountRate, totalOriginalPrice, settings.free_shipping_basis]);
 
   const isCustomerInfoValid = customerInfo.name && customerInfo.phone
     && (isOnsitePurchase || (customerInfo.address && customerInfo.detailAddress));
@@ -404,7 +414,7 @@ const OrderPage = () => {
       <FloatingBottomBar
         activeStep={activeStep}
         cart={cart}
-        totalPrice={totalOriginalPrice}
+        totalPrice={shippingBasisTotal}
         freeShippingThreshold={settings.free_shipping_threshold}
         isOnsitePurchase={isOnsitePurchase}
         onNext={handleNext}

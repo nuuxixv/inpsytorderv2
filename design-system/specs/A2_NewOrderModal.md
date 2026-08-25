@@ -238,12 +238,12 @@
 - `id, name, start_date, end_date, discount_rate` — 옵션 표시·할인 계산
 
 ### `site_settings` (prop으로 전달받음)
-- `free_shipping_threshold, shipping_cost`
-- 배송비 로직 (line 167-181, 173 줄 핵심):
+- `free_shipping_threshold, shipping_cost, free_shipping_basis`
+- 배송비 로직 (2026-08-25 통일): `constants/shipping.js`의 `calcShippingFee` 공유 함수 경유.
   - `isOnSite` → 0
-  - `discountedSubtotal > 0 && discountedSubtotal < freeThreshold` → `shipping_cost`
-  - 그 외 (= discountedSubtotal >= freeThreshold OR == 0) → 0
-- **주의** — 무료배송 기준이 `discountedSubtotal`(할인 후) 인 반면, `create-order` Edge Function·`OrderDetailModal` 편집 재계산은 `totalOriginalPrice`(할인 전)을 쓴다. **세 군데가 서로 다른 기준을 사용함**. **부채 — CTO 검수 권장**.
+  - `free_shipping_basis === 'discounted'`면 할인가(실결제) 합계, 그 외(NULL 폴백 포함) 정가 합계로 임계치 판정
+  - 판정액 `=== 0` 또는 `>= threshold` → 0, 그 외 → `shipping_cost`
+- **동작 변경(2026-08-25)** — 이전엔 NewOrderModal만 `discountedSubtotal`(할인가)로 판정해 3경로 중 혼자 달랐다. 이제 설정 기반으로 통일되어, **기본(정가) 설정에서는 정가 판정으로 교정된다**(CartBottomSheet·OrderSections·create-order와 동일). 관리자 설정으로 할인가 판정도 선택 가능.
 
 ## 빈 상태·로딩·오류 처리
 
@@ -260,11 +260,9 @@
 
 2. **`status_history` 초기 항목 누락.** `create-order` Edge Function은 INSERT 시 `status_history: [{ status: 'pending', changed_at: now }]` 를 명시적으로 박지만(line 100), NewOrderModal은 안 박는다. DB 트리거(`append_status_history`)는 UPDATE OF status에 걸려 있어 INSERT 시 발화하지 않으므로, 어드민 등록 주문은 `pending` 첫 항목이 비어 있다가 첫 상태 변경 때 비로소 이력이 생긴다. OrderDetailModal의 “상태 이력” 섹션이 첫 변경 전까지 안 보이게 되는 UX 사고. **확인 필요**.
 
-3. **배송비 무료 기준이 세 군데에서 서로 다르다.**
-   - `NewOrderModal`: `discountedSubtotal` (할인 후) 기준
-   - `OrderDetailModal` 편집 재계산: `currentSubtotal` (할인 전) 기준 (line 141 “무료배송 기준은 정가(할인 전) 기준 — create-order Edge Function과 동일한 로직” 주석)
-   - `create-order` Edge Function: `totalOriginalPrice` (할인 전) 기준
-   - 결과: 같은 장바구니라도 “어드민이 신규로 등록한 주문”과 “고객이 직접 주문한 주문”의 배송비가 다를 수 있음. **CTO 결정 사안 — 어느 기준이 정합인지 확정 필요**.
+3. **배송비 무료 기준 3경로 불일치 — 해소됨(2026-08-25).**
+   - ~~`NewOrderModal`: `discountedSubtotal`(할인 후)~~ / ~~`OrderDetailModal`·`create-order`: 정가~~
+   - `constants/shipping.js`의 `shippingBasisAmount`·`calcShippingFee` 공유 함수로 3경로(고객 주문서·NewOrderModal·OrderSections) 통일. `site_settings.free_shipping_basis`(정가/할인가) 설정 기반, 기본 정가. 서버 `create-order`도 병렬 백엔드가 동일 규칙으로 통일.
 
 4. **`customer_request`(배송 메모) 입력란 부재.** 어드민이 학회 부스에서 “책 빨리 보내달라” 같은 고객 요청을 받았을 때 적을 곳이 없다. OrderDetailModal에서 편집으로 추가할 수는 있지만, 처음 등록 시점에 못 받으면 누락 사고가 잦다. 시안 작업 시 이 필드 추가할지 결정 필요.
 

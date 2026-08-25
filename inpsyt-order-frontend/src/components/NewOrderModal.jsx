@@ -21,7 +21,7 @@ import { supabase } from '../supabaseClient';
 import { useNotification } from '../hooks/useNotification';
 import { matchesSearch } from '../utils/search';
 import { getDiscountedUnit, getEffectiveRate } from '../utils/pricing';
-import { SHIPPING_DEFAULTS } from '../constants/shipping';
+import { SHIPPING_DEFAULTS, calcShippingFee } from '../constants/shipping';
 import { PriceBlock, ActionSlot, EmptyState } from './ui';
 
 // 사양 시트: design-system/specs/A2_NewOrderModal.md
@@ -162,7 +162,15 @@ const NewOrderModal = ({ open, onClose, onSuccess, events = [], products = [], s
     const calcDiscount = originalSubtotal - discountedSubtotal;
     const freeThreshold = settings.free_shipping_threshold ?? SHIPPING_DEFAULTS.FREE_SHIPPING_THRESHOLD;
     const shipCost = settings.shipping_cost ?? SHIPPING_DEFAULTS.SHIPPING_COST;
-    const fee = isOnSite ? 0 : (discountedSubtotal > 0 && discountedSubtotal < freeThreshold ? shipCost : 0);
+    // 무료배송 판정 기준(정가/할인가)은 설정 기반, 기본 정가. 3경로 공유 함수 경유.
+    const fee = calcShippingFee({
+      basis: settings.free_shipping_basis,
+      originalTotal: originalSubtotal,
+      discountedTotal: discountedSubtotal,
+      threshold: freeThreshold,
+      shippingCost: shipCost,
+      isOnsite: isOnSite,
+    });
     return {
       totalAmount: originalSubtotal,
       discountAmount: calcDiscount,

@@ -40,13 +40,29 @@ serve(async (req) => {
 
   try {
     // 1. Fetch products, event details, and site settings for server-side calculation
-    const { data: settings, error: settingsError } = await supabaseClient
+    // free_shipping_basis 는 신규 컬럼(무료배송 판정 기준). 미적용 환경에선 이 컬럼을
+    // 포함한 select 가 통째로 실패해 threshold/shipping_cost 까지 잃는다 → products 읽기와
+    // 같은 graceful fallback: 컬럼 포함 select 실패 시 컬럼 없이 재조회하고, basis 는
+    // undefined 로 남겨 아래에서 'list_price'(정가) 폴백을 타게 한다(회귀 0).
+    let settings: any = null
+
+    const settingsWithBasis = await supabaseClient
       .from('site_settings')
-      .select('free_shipping_threshold, shipping_cost')
+      .select('free_shipping_threshold, shipping_cost, free_shipping_basis')
       .single()
-    
-    if (settingsError) {
-      console.error('Settings fetch error:', settingsError)
+
+    if (settingsWithBasis.error) {
+      console.warn('free_shipping_basis select 실패 — 컬럼 없이 재조회 fallback:', settingsWithBasis.error.message)
+      const { data: fallbackSettings, error: fallbackSettingsError } = await supabaseClient
+        .from('site_settings')
+        .select('free_shipping_threshold, shipping_cost')
+        .single()
+      if (fallbackSettingsError) {
+        console.error('Settings fetch error:', fallbackSettingsError)
+      }
+      settings = fallbackSettings
+    } else {
+      settings = settingsWithBasis.data
     }
 
     const productIds = cart.map((item: any) => item.product_id)
@@ -146,12 +162,18 @@ serve(async (req) => {
 
     const SHIPPING_FEE = settings?.shipping_cost ?? 3000
     const FREE_SHIPPING_THRESHOLD = settings?.free_shipping_threshold ?? 30000
+    // 무료배송 판정 기준(설정값). NULL/undefined(미설정·컬럼 부재) → 'list_price'(정가) 폴백.
+    // 설정을 안 만지면 정가 기준 = 현행 동작 그대로(회귀 0).
+    const freeShippingBasis = settings?.free_shipping_basis ?? 'list_price'
 
     const totalDiscountAmount = totalOriginalPrice - totalDiscountedPrice
-    // 현장구매는 배송이 없으므로 배송비 무조건 0. 그 외에는 정가 기준 무료배송 임계치 로직 유지.
+    // 무료배송 임계치 판정에 쓰는 합계를 설정(free_shipping_basis)으로 선택한다.
+    //   list_price(기본) → 정가(할인 전) 합계 / discounted → 할인가(실결제) 합계.
+    // 0원 무료 규칙은 basis 무관 유지. 현장구매는 배송이 없으므로 배송비 무조건 0.
+    const basisAmount = freeShippingBasis === 'discounted' ? totalDiscountedPrice : totalOriginalPrice
     const shippingCost = is_on_site_sale
       ? 0
-      : totalOriginalPrice >= FREE_SHIPPING_THRESHOLD || totalOriginalPrice === 0
+      : basisAmount >= FREE_SHIPPING_THRESHOLD || basisAmount === 0
         ? 0
         : SHIPPING_FEE
     const finalCost = totalDiscountedPrice + shippingCost

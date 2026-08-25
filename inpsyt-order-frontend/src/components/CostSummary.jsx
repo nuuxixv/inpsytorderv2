@@ -8,10 +8,11 @@ import {
   useTheme,
 } from '@mui/material';
 import { getDiscountedUnit } from '../utils/pricing';
+import { shippingBasisAmount, calcShippingFee } from '../constants/shipping';
 
 const CostSummary = ({ cart, settings, discountRate = 0, embedded = false, compact = false, isOnsitePurchase = false }) => {
   const theme = useTheme();
-  const { free_shipping_threshold = 30000, shipping_cost = 3000 } = settings || {};
+  const { free_shipping_threshold = 30000, shipping_cost = 3000, free_shipping_basis } = settings || {};
   const calculateCosts = () => {
     let totalOriginalPrice = 0;
     let totalDiscountedPrice = 0;
@@ -28,15 +29,24 @@ const CostSummary = ({ cart, settings, discountRate = 0, embedded = false, compa
     });
 
     const totalDiscountAmount = totalOriginalPrice - totalDiscountedPrice;
-    const shippingCost = isOnsitePurchase ? 0 : (totalOriginalPrice >= free_shipping_threshold || totalOriginalPrice === 0 ? 0 : shipping_cost);
+    // 무료배송 판정 기준(정가/할인가)은 설정 기반, 기본 정가. 3경로 공유 함수 경유.
+    const basisTotal = shippingBasisAmount({ basis: free_shipping_basis, originalTotal: totalOriginalPrice, discountedTotal: totalDiscountedPrice });
+    const shippingCost = calcShippingFee({
+      basis: free_shipping_basis,
+      originalTotal: totalOriginalPrice,
+      discountedTotal: totalDiscountedPrice,
+      threshold: free_shipping_threshold,
+      shippingCost: shipping_cost,
+      isOnsite: isOnsitePurchase,
+    });
     const finalCost = totalDiscountedPrice + shippingCost;
-    const freeShippingProgress = Math.min((totalOriginalPrice / free_shipping_threshold) * 100, 100);
+    const freeShippingProgress = Math.min((basisTotal / free_shipping_threshold) * 100, 100);
 
-    return { totalOriginalPrice, totalDiscountAmount, shippingCost, finalCost, freeShippingProgress };
+    return { totalOriginalPrice, totalDiscountAmount, shippingCost, finalCost, freeShippingProgress, basisTotal };
   };
 
-  const { totalOriginalPrice, totalDiscountAmount, shippingCost, finalCost, freeShippingProgress } = calculateCosts();
-  const remainingForFreeShipping = free_shipping_threshold - totalOriginalPrice;
+  const { totalOriginalPrice, totalDiscountAmount, shippingCost, finalCost, freeShippingProgress, basisTotal } = calculateCosts();
+  const remainingForFreeShipping = free_shipping_threshold - basisTotal;
 
   // Compact mode: only show final price (for FloatingBottomBar)
   if (compact) {
@@ -56,7 +66,7 @@ const CostSummary = ({ cart, settings, discountRate = 0, embedded = false, compa
         <Box sx={{ mb: 3, p: 2, bgcolor: theme.gray[100], borderRadius: `${theme.radii.md}px` }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
-              {totalOriginalPrice < free_shipping_threshold
+              {basisTotal < free_shipping_threshold
                 ? `무료배송까지 ${remainingForFreeShipping.toLocaleString()}원 남았습니다!`
                 : '무료배송 혜택이 적용되었습니다!'}
             </Typography>

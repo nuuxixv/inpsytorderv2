@@ -11,6 +11,10 @@ import {
   MenuItem,
   Divider,
   FormControl,
+  FormLabel,
+  FormControlLabel,
+  RadioGroup,
+  Radio,
   InputLabel,
   useTheme,
 } from '@mui/material';
@@ -48,6 +52,8 @@ const SettingsPage = () => {
     free_shipping_threshold: 30000,
     shipping_cost: 3000,
     active_event_slug: '',
+    // 무료배송 판정 기준: 'list_price'(정가) | 'discounted'(할인가). 기본·폴백 = 정가(현행 동작).
+    free_shipping_basis: 'list_price',
   });
   // 사양 §핵심 발견 1: active_event_slug 마이그레이션 누락 감지.
   // fetchSettings에서 select 결과에 컬럼이 없으면 true.
@@ -85,6 +91,8 @@ const SettingsPage = () => {
           free_shipping_threshold: data.free_shipping_threshold,
           shipping_cost: data.shipping_cost,
           active_event_slug: data.active_event_slug || '',
+          // 컬럼 미적용 환경에선 응답에 키가 없어 undefined → 정가 폴백(graceful).
+          free_shipping_basis: data.free_shipping_basis || 'list_price',
         });
         // 사양 §핵심 발견 1: 컬럼 자체가 응답에 없으면 운영 DB 마이그레이션 누락.
         setActiveSlugMissing(!Object.prototype.hasOwnProperty.call(data, 'active_event_slug'));
@@ -100,15 +108,22 @@ const SettingsPage = () => {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const { error } = await supabase
-        .from('site_settings')
-        .update({
-          free_shipping_threshold: parseInt(settings.free_shipping_threshold, 10),
-          shipping_cost: parseInt(settings.shipping_cost, 10),
-          active_event_slug: settings.active_event_slug || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', 1); // Assuming ID 1 for now, or we can use a more robust way if needed
+      const payload = {
+        free_shipping_threshold: parseInt(settings.free_shipping_threshold, 10),
+        shipping_cost: parseInt(settings.shipping_cost, 10),
+        active_event_slug: settings.active_event_slug || null,
+        free_shipping_basis: settings.free_shipping_basis || 'list_price',
+        updated_at: new Date().toISOString(),
+      };
+      const save = (body) => supabase.from('site_settings').update(body).eq('id', 1);
+      let { error } = await save(payload);
+      // free_shipping_basis 컬럼 미적용 환경 graceful — PGRST204 시 해당 키 빼고 1회 재시도.
+      // (ProductManagementPage handleSave 의 가법 컬럼 graceful 패턴과 동종)
+      if (error && error.code === 'PGRST204' && 'free_shipping_basis' in payload) {
+        const rest = { ...payload };
+        delete rest.free_shipping_basis;
+        ({ error } = await save(rest));
+      }
 
       if (error) throw error;
       addNotification('설정이 성공적으로 저장되었습니다.', 'success');
@@ -356,6 +371,59 @@ const SettingsPage = () => {
               {' 부과'}
             </Typography>
           </Box>
+
+          <Divider sx={{ my: 0.5 }} />
+
+          {/* 무료배송 적용 방식 — 정가/할인가 기준 라디오. 기본·폴백 = 정가(현행 동작). */}
+          <FormControl>
+            <FormLabel
+              sx={{
+                ...theme.typography.subtitle2,
+                color: 'text.primary',
+                fontWeight: 700,
+                mb: 1,
+                '&.Mui-focused': { color: 'text.primary' },
+              }}
+            >
+              무료배송 적용 방식
+            </FormLabel>
+            <RadioGroup
+              value={settings.free_shipping_basis || 'list_price'}
+              onChange={(e) => setSettings({ ...settings, free_shipping_basis: e.target.value })}
+            >
+              <Box sx={{ mb: 1 }}>
+                <FormControlLabel
+                  value="list_price"
+                  control={<Radio size="small" />}
+                  label={
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      정가 기준 <Box component="span" sx={{ color: 'text.disabled', fontWeight: 500 }}>(기본)</Box>
+                    </Typography>
+                  }
+                />
+                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', pl: 3.75 }}>
+                  할인 전 금액이 {threshold.toLocaleString()}원 이상이면 무료배송
+                </Typography>
+              </Box>
+              <Box>
+                <FormControlLabel
+                  value="discounted"
+                  control={<Radio size="small" />}
+                  label={
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      할인가 기준
+                    </Typography>
+                  }
+                />
+                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', pl: 3.75 }}>
+                  실제 결제 금액이 {threshold.toLocaleString()}원 이상이면 무료배송
+                </Typography>
+              </Box>
+            </RadioGroup>
+            <Typography variant="caption" sx={{ display: 'block', color: 'text.disabled', mt: 1 }}>
+              변경 즉시 새 주문부터 적용됩니다. 기존 주문의 배송비는 바뀌지 않습니다.
+            </Typography>
+          </FormControl>
         </Box>
       </SectionCard>
 
