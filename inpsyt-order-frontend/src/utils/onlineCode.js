@@ -28,8 +28,10 @@ const nameHasOnline = (item) => {
 // 단일 품목 판정 — 3상태 존중. true=포함, false=미포함(폴백 차단), null/undefined=이름 폴백.
 export const itemHasOnlineCode = (item) => {
   if (!item) return false;
-  if (item.includes_online_code === true) return true;
-  if (item.includes_online_code === false) return false;
+  // 카트 아이템은 플래그가 자기 자신에, 출고 order_items는 join된 products에 실린다.
+  const flag = item.includes_online_code ?? item.products?.includes_online_code;
+  if (flag === true) return true;
+  if (flag === false) return false;
   return nameHasOnline(item);
 };
 

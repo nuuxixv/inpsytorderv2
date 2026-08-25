@@ -118,10 +118,10 @@ export const getFulfillmentOrders = async ({ eventId, statuses, dateFrom, dateTo
     .select(`
       id, parent_order_id, is_group_parent, representative_child_id, customer_name, phone_number, shipping_address,
       final_payment, delivery_fee, status, created_at, is_on_site_sale,
-      customer_request, admin_memo, event_id, inpsyt_id,
+      customer_request, admin_memo, event_id, inpsyt_id, has_online_code,
       events(name),
       order_items(id, product_id, quantity, price_at_purchase, product_name, product_code, category, list_price, on_site_pickup,
-        products(name, category)
+        products(name, category, includes_online_code)
       )
     `)
     .in('status', statuses || ['paid', 'completed'])
