@@ -49,6 +49,7 @@ import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../supabaseClient';
 import { matchesSearch } from '../utils/search';
 import { percentToRateNullable, rateToPercentNullable } from '../utils/pricing';
+import { parseBool, parseProductSheet } from '../utils/productExcel';
 import {
   CATEGORY_COLORS, CATEGORY_KEY_BY_LABEL,
   MASTER_COLOR_FALLBACK, MASTER_COLOR_PRESETS,
@@ -79,47 +80,6 @@ const createEmptyProduct = () => ({
   includes_online_code: null,
   tags: [],
 });
-
-const parseBool = (value) => {
-  if (value === true || value === false) return value;
-  if (typeof value === 'number') return value === 1;
-  if (typeof value === 'string') {
-    const normalized = value.trim().toUpperCase();
-    return ['TRUE', 'Y', 'YES', '1'].includes(normalized);
-  }
-  return false;
-};
-
-// 온라인코드 3상태 엑셀 파싱 — 공란=NULL(미확인) 유지가 핵심.
-// discount_override(공란=해제)와 의도가 다르다: 여기선 공란이 "아직 확인 안 함"을 뜻하므로
-// null로 보존해야 한다(false로 뭉개면 재업로드 때 미확인 추적이 전부 미포함으로 소실됨).
-// 다운로드가 '포함'/'미포함'/'' 를 쓰므로 라운드트립 정합. TRUE/Y/1·FALSE/N/0 별칭도 허용.
-const parseTriState = (value) => {
-  if (value === undefined || value === null || value === '') return null;
-  const s = String(value).trim().toUpperCase();
-  if (['포함', 'TRUE', 'Y', 'YES', '1', 'O'].includes(s)) return true;
-  if (['미포함', 'FALSE', 'N', 'NO', '0', 'X'].includes(s)) return false;
-  return null; // 알 수 없는 값 = 미확인(안전)
-};
-
-const getRowValue = (row, keys) => {
-  for (const key of keys) {
-    if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
-      return row[key];
-    }
-  }
-  return undefined;
-};
-
-const parsePrice = (value) => {
-  if (typeof value === 'number') return Math.round(value);
-  if (typeof value === 'string') {
-    const normalized = value.replace(/[^\d.-]/g, '');
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? Math.round(parsed) : 0;
-  }
-  return 0;
-};
 
 // 상품 표 썸네일(A6 §표 썸네일). 1:1 작은 정방형.
 // 미등록·onError면 셀 비움(null) — 플레이스홀더 폐기(건우님 2026-06-29). 대부분 미등록(NULL)이 정상.
@@ -806,62 +766,13 @@ const ProductManagementPage = () => {
     setUploadProgress({ current: 0, total: 0, phase: 'parsing' });
 
     try {
-      // Phase 1: Parse Excel
+      // Phase 1: Parse Excel — 양식 v2(1행 안내문·2행 헤더·괄호 설명) + 구양식(1행 헤더) 모두 흡수.
+      // 헤더 행 탐지·괄호 헤더 정규화·열 존재 게이트(온라인코드·판매여부)·검사 외 온라인코드 false 강제는
+      // utils/productExcel.parseProductSheet 에서 처리(단위 테스트 대상).
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(worksheet);
-
-      // '온라인코드포함' 열이 시트에 있는지 헤더로 판정한다.
-      //   열 없음        → 페이로드에서 키 자체를 빼 기존 값을 건드리지 않는다(구양식 업로드 보호).
-      //   열 있고 셀 공란 → NULL(미확인)로 저장(운영자가 의도적으로 비운 것).
-      // 행 단위로는 구분할 수 없다 — sheet_to_json 은 빈 셀의 키를 만들지 않아
-      // "열 없음"과 "셀 공란"이 둘 다 undefined 로 온다. 그래서 헤더를 직접 읽는다.
-      // 이 구분이 없으면 담당자가 확정한 값(미확인 SET 165개 판정 등)이 구양식 시트 한 번에 전부 NULL로 소실된다.
-      // 옆 _hier 열들의 "구양식엔 없음 → undefined면 미변경" 규약과 동일한 사상.
-      const headerRow = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: 0 })[0] || [];
-      const headerNames = headerRow.map((h) => String(h ?? '').trim());
-      const hasOnlineCodeColumn =
-        headerNames.includes('온라인코드포함') || headerNames.includes('includes_online_code');
-
-      const allProducts = rows.map((row, idx) => {
-        // 개별 할인율 — 공란=NULL(해제), 값=clamp(0..100)/100. (현행 '할인여부' 공란=FALSE 규칙과 정합)
-        const discountOverride = percentToRateNullable(getRowValue(row, ['개별할인율', 'discount_override']));
-        // auto-T 보정 — 개별할인율(>0)이면 '할인여부'를 자동 TRUE로. 공식상 override가 이기지만 데이터 정합.
-        let isDiscountable = parseBool(getRowValue(row, ['할인여부', 'is_discountable']));
-        if (discountOverride != null && discountOverride > 0) isDiscountable = true;
-        return {
-        _rowNum: idx + 2, // Excel row number (1-indexed header + 1)
-        name: getRowValue(row, ['상품명', 'name']),
-        product_code: getRowValue(row, ['상품코드', 'product_code']),
-        category: String(getRowValue(row, ['카테고리', 'category']) || '').trim(),
-        sub_category: getRowValue(row, ['하위카테고리', 'sub_category']) || null,
-        image_filename: getRowValue(row, ['이미지', 'image_filename']) || null,
-        list_price: parsePrice(getRowValue(row, ['가격', '정가', 'list_price'])),
-        notes: getRowValue(row, ['비고', 'notes']) || null,
-        is_discountable: isDiscountable,
-        discount_override: discountOverride,
-        is_popular: parseBool(getRowValue(row, ['인기상품', 'is_popular'])),
-        is_new: parseBool(getRowValue(row, ['신상품여부', 'is_new'])),
-        // 온라인코드 포함 3상태. 열이 없는 시트면 키를 아예 넣지 않아 기존 값을 보존한다(위 주석 참조).
-        ...(hasOnlineCodeColumn
-          ? { includes_online_code: parseTriState(getRowValue(row, ['온라인코드포함', 'includes_online_code'])) }
-          : {}),
-        tags: getRowValue(row, ['태그', 'tags'])
-          ? String(getRowValue(row, ['태그', 'tags'])).split(',').map((tag) => tag.trim()).filter(Boolean)
-          : [],
-        // 검사 위계 열(구양식엔 없음 — undefined면 미변경). 원시값만 보관, test_group_id는 검증 후 매칭.
-        _hier: {
-          abbr: getRowValue(row, ['검사군약어', 'test_group_abbr']),
-          groupName: getRowValue(row, ['검사군명', 'test_group_name']),
-          option_name: getRowValue(row, ['옵션명', 'option_name']),
-          option_label: getRowValue(row, ['말머리', 'option_label']),
-          is_common: getRowValue(row, ['공용(Y/공란)', '공용', 'is_common']),
-          sort_order: getRowValue(row, ['옵션정렬', 'sort_order']),
-          is_active: getRowValue(row, ['노출(Y/N)', '노출', 'is_active']),
-        },
-        };
-      });
+      const { products: allProducts } = parseProductSheet(worksheet);
 
       // Phase 2: Client-side validation
       const validationErrors = [];
@@ -925,8 +836,8 @@ const ProductManagementPage = () => {
           const so = parseInt(h.sort_order, 10);
           if (Number.isFinite(so)) product.sort_order = so;
         }
-        if (h.is_active != null && String(h.is_active).trim() !== '') product.is_active = parseBool(h.is_active);
-        if (hasGroup || product.option_name !== undefined || product.is_active !== undefined) hierApplied++;
+        // is_active(판매여부)는 검사 전용이 아니라 H열(공통 구역) — parseProductSheet 에서 최상위 필드로 이미 반영됨.
+        if (hasGroup || product.option_name !== undefined || product.option_label !== undefined || product.is_common !== undefined || product.sort_order !== undefined) hierApplied++;
       }
       if (hierApplied > 0) {
         setUploadLog(prev => [...prev, `검사 위계 열 반영: ${hierApplied}건 (검사군 매칭·옵션 표기)`]);
@@ -1073,36 +984,25 @@ const ProductManagementPage = () => {
     if (imageInputRef.current) imageInputRef.current.value = '';
   };
 
-  const handleDownloadTemplate = () => {
-    const template = [{
-      상품명: '예시 상품',
-      상품코드: 'PROD001',
-      카테고리: '검사',
-      하위카테고리: '',
-      가격: 15000,
-      비고: '설명',
-      할인여부: 'TRUE',
-      개별할인율: '',
-      인기상품: 'FALSE',
-      신상품여부: 'TRUE',
-      온라인코드포함: '포함', // 포함 / 미포함 / 공란(=미확인). 공란은 기존 값 유지 아님 — NULL로 저장.
-      태그: '신경정신,치매',
-      이미지: 'sample.webp',
-      // 검사 위계 열 — 검사 상품만 채움(도서·도구는 공란). 검사군 매칭 키 = (검사군약어, 검사군명).
-      검사군약어: 'K·BASC-3',
-      검사군명: '한국판 정서-행동 평가시스템',
-      옵션명: '검사지·온라인코드 20개',
-      말머리: '부모보고형 청소년용',
-      '공용(Y/공란)': '',
-      옵션정렬: 1,
-      '노출(Y/N)': 'Y',
-    }];
-
-    const worksheet = XLSX.utils.json_to_sheet(template);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, '상품_업로드_양식');
-    XLSX.writeFile(workbook, '상품_업로드_양식.xlsx');
-    addNotification('업로드 양식을 다운로드했습니다.', 'success');
+  // 정적 양식 파일을 그대로 내려준다(건우님이 다듬은 안내문·색상·틀고정·상품 예시 9행 1:1 보존).
+  // json_to_sheet 하드코딩 폐기 — 서식 보존이 목적. 선례: utils/depositResolution·paymentReceipt 정적 양식.
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await fetch('/templates/product-upload-template.xlsx');
+      if (!res.ok) throw new Error(`양식 파일을 불러오지 못했습니다 (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '상품_업로드_양식.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      addNotification('업로드 양식을 다운로드했습니다.', 'success');
+    } catch (error) {
+      addNotification(`양식 다운로드 실패: ${error.message}`, 'error');
+    }
   };
 
   const handleDownloadExcel = async () => {
@@ -1110,30 +1010,32 @@ const ProductManagementPage = () => {
       const [products, groups] = await Promise.all([fetchAllProducts(), fetchTestGroups()]);
       // test_group_id → 검사군(약어·검사명) 룩업. 미적재 환경이면 빈 맵 → 위계 열 공란.
       const groupById = new Map(groups.map((g) => [g.id, g]));
+      // 열 이름·순서 = 양식 v2(A~T 20열)와 동일 → 다운로드→수정→업로드 라운드트립.
+      // 헤더는 괄호 포함 풀네임(파서가 정규화하므로 안전·사람이 읽기 좋음). 값 포맷은 파서 규약과 일치.
       const rows = products.map((product) => {
         const group = product.test_group_id != null ? groupById.get(product.test_group_id) : null;
         return {
           상품명: product.name,
           상품코드: product.product_code,
-          카테고리: product.category,
+          '카테고리(검사/도서/도구)': product.category,
           하위카테고리: product.sub_category || '',
           가격: product.list_price,
           비고: product.notes || '',
-          할인여부: product.is_discountable ? 'TRUE' : 'FALSE',
-          개별할인율: rateToPercentNullable(product.discount_override),
-          인기상품: product.is_popular ? 'TRUE' : 'FALSE',
-          신상품여부: product.is_new ? 'TRUE' : 'FALSE',
-          // 3상태 라운드트립 — 포함/미포함/공란(미확인). parseTriState와 문자열 일치.
-          온라인코드포함: product.includes_online_code == null ? '' : product.includes_online_code ? '포함' : '미포함',
+          '할인여부(Y/N)': product.is_discountable ? 'Y' : 'N',
+          '판매여부(Y/N)': product.is_active === false ? 'N' : 'Y',
+          '개별할인율(%/공란)': rateToPercentNullable(product.discount_override),
+          '배지_인기(Y/N)': product.is_popular ? 'Y' : 'N',
+          '배지_신규(Y/N)': product.is_new ? 'Y' : 'N',
           태그: product.tags?.join(',') || '',
           이미지: product.image_filename || '',
           검사군약어: group?.abbr || '',
           검사군명: group?.name || '',
           옵션명: product.option_name || '',
-          말머리: product.option_label || '',
           '공용(Y/공란)': product.is_common ? 'Y' : '',
+          말머리: product.option_label || '',
+          // 3상태 라운드트립 — 포함/미포함/공란(미확인). parseTriState와 문자열 일치.
+          '온라인코드포함(포함/미포함/공란)': product.includes_online_code == null ? '' : product.includes_online_code ? '포함' : '미포함',
           옵션정렬: product.sort_order ?? '',
-          '노출(Y/N)': product.is_active === false ? 'N' : 'Y',
         };
       });
 
