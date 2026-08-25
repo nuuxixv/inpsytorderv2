@@ -3,11 +3,14 @@
 > 이 시트는 어드민 주문 상세·편집 모달의 정보·기능·데이터 구조의 단일 진실 소스다.
 > 시안 부재 화면이므로 실 컴포넌트(`OrderDetailModal.jsx`)가 사실상의 기획이다. 시안이 작성되면 이 시트에 모든 항목이 1:1로 반영되어야 한다.
 > 임의 단순화·통합·생략은 건우님의 명시적 승인 후 이 시트를 먼저 갱신한 다음에만 허용된다.
-> 마지막 갱신: 2026-08-18 **상품 표 행별 할인 가시화**(frontend-engineer, 프리뷰 QA 수정). 할인가 셀에 **할인율 % 보조표기**(정가 대비 역산 `round((1−할인가/정가)×100)` — 스냅샷 주문은 당시 실제율, 0%인 행은 `-`), 합계 셀에 **행별 할인액 보조표기**(`−(정가−할인가)×수량`) 추가. 신규 열이 아닌 셀 보조표기(모달 폭 제약). 계산은 `getDiscountedUnit`/스냅샷 우선 규칙 유지, %는 표시된 정가·할인가에서 역산(표시 정합 보장). 목적: 어떤 상품이 몇 % 할인됐는지 육안 구분 + **고객(정가·%·할인가) < 어드민(정가·%·할인가·할인액)** 정보량 원칙. 검증: build·lint 신규 0·pricing.test 14. (OrderDetailModal.test 편집버튼 다중매칭 실패 2건은 기존 실패로 무관 — HEAD 베이스라인 동일 확인.)
+> 마지막 갱신: 2026-08-25 **상품 추가 = 고객 프론트 상품 선택 UX 재사용**(frontend-engineer, tech-cto 위임). 편집 모드 "상품 추가" 버튼이 **첫 상품 자동 삽입**을 폐기하고 신규 `ProductPickerDialog`(고객 `ProductSelectionStep` 재사용: 검사군 트리·검색·인기/신규 필터)를 연다. 담기 임시 카트 확정 시 각 항목을 `editedOrderItems`에 `{product_id, quantity}`로 append(이미 있는 상품이면 **수량 합산**, 중복 행 금지). 가격·스냅샷은 기존 파이프라인(useEffect 재계산 + handleSaveItems payload)이 그대로 처리 — 신설 없음. 어드민 자유도 원칙상 `visibleCategories=null`(전 상품 노출). 태그 우선 정렬은 행사 `tags ∪ host_society`(getEvents가 host_society 미포함이라 admin에선 tags만, graceful). 기존 행별 Autocomplete는 담긴 행 교체·수정용으로 유지. `ProductSelectionStep` 내부 무수정. 검증: build·lint 신규 0, 전체 테스트 294 pass·2 fail(기존 편집버튼 다중매칭, 증가 0).
+> 이전 갱신: 2026-08-18 **상품 표 행별 할인 가시화**(frontend-engineer, 프리뷰 QA 수정). 할인가 셀에 **할인율 % 보조표기**(정가 대비 역산 `round((1−할인가/정가)×100)` — 스냅샷 주문은 당시 실제율, 0%인 행은 `-`), 합계 셀에 **행별 할인액 보조표기**(`−(정가−할인가)×수량`) 추가. 신규 열이 아닌 셀 보조표기(모달 폭 제약). 계산은 `getDiscountedUnit`/스냅샷 우선 규칙 유지, %는 표시된 정가·할인가에서 역산(표시 정합 보장). 목적: 어떤 상품이 몇 % 할인됐는지 육안 구분 + **고객(정가·%·할인가) < 어드민(정가·%·할인가·할인액)** 정보량 원칙. 검증: build·lint 신규 0·pricing.test 14. (OrderDetailModal.test 편집버튼 다중매칭 실패 2건은 기존 실패로 무관 — HEAD 베이스라인 동일 확인.)
 > 이전 갱신: 2026-08-18 **편집 상품 금액 계산 정정 + 스냅샷 우선**(frontend-engineer, tech-cto 위임). 상품 편집 소계 재계산(useEffect)·저장 payload(order_items 직접 write)·표 표시 3곳(OrderSections)의 할인가를 공용 유틸 `getDiscountedUnit(product, discountRate)`로 교체. 기존 `originalPrice*(1-discountRate)`는 **`Math.round` 누락·`is_discountable` 미반영·`discount_override` 미반영**이었음(동시 해소). **저장 payload는 서버(create-order)를 우회하는 직접 DB write라 이 공식이 정본.** 배송비 판정은 정가(할인 전) 총액 기준 유지(회귀 가드 보존). **표 표시(비편집=기존 아이템)는 스냅샷 우선** — `item.price_at_purchase`가 있으면 그걸 표시, 없을 때만 유틸 폴백. **동작 변경**: 과거 비할인(is_discountable=false) 상품에도 행사 할인이 잘못 적용되던 표시·저장이 바로잡힘(운영 DB 불일치 0건 확인 — 깨질 기존 동작 없음). **근인 = `OrderManagementPage:237` productsMap 화이트리스트**에 `is_discountable`이 없어 OrderSections가 못 보던 것 → map에 `is_discountable`·`discount_override` 추가. 검증: build·lint 신규 0·pricing.test 14. (참고: `OrderDetailModal.test`의 편집 버튼 다중매칭 실패 2건은 SectionCard 다(多)편집 리팩터 이후 잔존한 기존 실패로 본 작업과 무관 — mockProducts에 `is_discountable:true` 추가해 렌더 테스트만 정합화.)
 > 이전 갱신: 2026-07-07 섹션별 인라인 편집 재설계.
 
 ## 참조 파일
+- 상품 추가 피커: `inpsyt-order-frontend/src/components/ProductPickerDialog.jsx` — 고객 `ProductSelectionStep` 재사용 래퍼(2026-08-25). `OrderSections`의 편집 모드 "상품 추가"가 여는 다이얼로그
+- 재사용 원본: `inpsyt-order-frontend/src/components/ProductSelectionStep.jsx` (고객 주문서 step0, 무수정 재사용). `fetchAllProducts`·`fetchTestGroups` 자체 호출
 - 실 컴포넌트: `inpsyt-order-frontend/src/components/OrderDetailModal.jsx` (607줄)
 - 호출 위치: `inpsyt-order-frontend/src/components/OrderManagementPage.jsx` 행 클릭 시
 - 관련 API:
@@ -107,7 +110,7 @@
 - [ ] 수량 — 조회: 숫자만 / 편집: TextField type number (min 0)
 - [ ] 합계 — `discountedPrice * quantity`.toLocaleString()원 + **보조표기(별도 열 아님): 행별 할인액** `−((정가 − 할인가) × 수량)`원(error.main, 할인 있는 행만). 모달 폭 제약으로 신규 열 대신 할인가/합계 셀 보조표기 채택. (2026-08-18 추가)
 - [ ] (조건부, 편집 모드) 삭제 아이콘 `CloseIcon`(error) — `handleRemoveOrderItem`
-- [ ] (조건부, 편집 모드) “상품 추가” 버튼 — 첫 번째 product를 quantity 1로 추가 (line 175-182)
+- [ ] (조건부, 편집 모드) “상품 추가” 버튼 — **`ProductPickerDialog`를 연다**(2026-08-25, 첫 상품 자동 삽입 폐기). 고객 프론트 `ProductSelectionStep`을 그대로 재사용(검사군 카드·검색·인기/신규 필터). 담기 임시 카트를 확정하면 각 항목이 `{product_id, quantity}`로 `editedOrderItems`에 append(이미 있는 상품이면 수량 합산). 다이얼로그 하단 바 "담은 상품 N개 · 합계 …원" + [취소]/[추가하기]. props: `discountRate`(order.event_id 기준)·`eventTags`(tags∪host_society)·`eventName`·`visibleCategories=null`(어드민 전 상품). 기존 행별 Autocomplete는 담긴 행 교체·수정용으로 유지
 - [ ] (productsLoading 시) CircularProgress 한 줄
 
 ### 결제 정보 섹션 (Table, line 428)
@@ -210,7 +213,7 @@
 - [ ] **상세 주소**: 독립 TextField
 - [ ] **배송 메모(customer_request)**: TextField
 - [ ] **관리자 메모(admin_memo)**: TextField multiline rows=3
-- [ ] **주문 상품 목록**: 각 행 Autocomplete(상품)·TextField(수량). “상품 추가” 버튼으로 행 증감.
+- [ ] **주문 상품 목록**: 각 행 Autocomplete(상품)·TextField(수량)로 담긴 행 교체·수정. “상품 추가” 버튼은 `ProductPickerDialog`(고객 상품 선택 UX 재사용)를 열어 검사군 트리·검색으로 담기(2026-08-25). 삭제 아이콘으로 행 제거.
 
 **시안 절대 금지 사항**:
 1. 우편번호+도로명 주소+상세 주소를 한 줄로 통합
@@ -332,6 +335,13 @@
   - **구 연계 연결 Dialog 폐기** → `LinkPreviewDialog`(검색·다중선택·묶음 배송지 RadioGroup·배송비 변화/절감·Case A/B Alert·"다시 나눌 수 없습니다" 확인 체크 → `linkOrders(childIds, repChildId)`). 신규 시그니처(구 2인자 `linkOrders(parentId, childId)` 호출부 제거).
   - **회귀**: 비연계 단일 주문 편집·저장·상태 변경·알림톡 재발송·삭제·현장수령·주문성격(B) 동작 보존. 정보구조·3필드 분리 유지.
   - **stale 테스트**: `OrderDetailModal.test.jsx` 2건(전역 편집 버튼·`update_order_details` RPC 기대)은 78e440f(섹션별 편집 재설계)부터 이미 red — 현 아키텍처와 불일치. 이번 리팩터로 신규 실패 없음(회귀 0).
+- 2026-08-25 상품 추가 = 고객 상품 선택 UX 재사용 (frontend-engineer, tech-cto 위임) —
+  - **첫 상품 자동 삽입 폐기**: `handleAddOrderItem`이 `products[0]` 삽입 대신 신규 `ProductPickerDialog`를 연다.
+  - **`ProductPickerDialog`(신규)**: 고객 `ProductSelectionStep`을 Dialog(fullWidth·maxWidth md, 모바일 fullScreen)에 무수정 재사용. 검사군 트리·검색·인기/신규 필터·태그 우선 정렬을 어드민에서 그대로 사용. 담기 임시 카트는 다이얼로그 로컬 state, 하단 바 "담은 상품 N개 · 합계 …원" + [취소]/[추가하기].
+  - **병합**: `handlePickerConfirm`이 임시 카트를 `editedOrderItems`에 append — 이미 있는 상품이면 수량 합산(중복 행 생성 금지), 신규는 `{product_id, quantity}`(현행 형태). 가격 재계산·저장 payload는 기존 파이프라인 그대로(신설 0).
+  - **props**: `discountRate`=order.event_id 행사율, `eventTags`=행사 tags∪host_society(getEvents가 host_society 미포함이라 admin은 tags만·graceful), `eventName`, `visibleCategories=null`(어드민 자유도 — 전 상품 노출).
+  - **보존**: 기존 행별 Autocomplete(담긴 행 교체·수정용)·수량 TextField·삭제 아이콘·현장수령 컬럼·합배송 잠금(itemsLocked)·권한 게이트 유지. `ProductSelectionStep` 무수정(고객 화면 회귀 0). 표시 항목·라벨 삭제/통합 0.
+  - **검증**: build EXIT 0·lint 신규 0(변경 파일 clean), 전체 vitest 294 pass·2 fail(기존 편집버튼 다중매칭, 증가 0)·2 skip.
 - 2026-08-25 합배송 무료배송 판정 기준(free_shipping_basis) 확장 —
   - **프론트 2곳**: `LinkPreviewDialog`(묶음 미리보기)·`ShippingPickModal`(대표 취소 위임)의 배송비 판정을 정가 고정 → `site_settings.free_shipping_basis` 설정 경유로 교체. 공유 함수 `constants/shipping.js`의 `shippingBasisAmount` + 신설 `combinedOrderTotals` 사용.
   - **묶음 합계 유도** (`combinedOrderTotals`): 정가 합 = Σ `total_cost`, 할인가 합 = Σ (`final_payment` − `delivery_fee`). `final_payment = 할인가 합 + delivery_fee` 불변식은 배송비를 조정하는 전 경로(create-order·합배송 RPC)가 두 값을 함께 갱신해 유지.
