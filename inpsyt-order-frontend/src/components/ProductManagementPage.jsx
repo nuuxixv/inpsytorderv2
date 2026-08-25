@@ -51,6 +51,7 @@ import { matchesSearch } from '../utils/search';
 import { percentToRateNullable, rateToPercentNullable } from '../utils/pricing';
 import { parseBool, parseProductSheet } from '../utils/productExcel';
 import { exportProductList } from '../utils/productExcelExport';
+import { buildProductImageFilename, MAX_IMAGE_BYTES } from '../utils/productImageName';
 import {
   CATEGORY_COLORS, CATEGORY_KEY_BY_LABEL,
   MASTER_COLOR_FALLBACK, MASTER_COLOR_PRESETS,
@@ -111,6 +112,26 @@ const ProductThumb = React.memo(({ filename, name }) => {
     </Box>
   );
 });
+
+// 개별 편집 다이얼로그의 현재 이미지 미리보기. 표 썸네일(ProductThumb)과 달리 로드 실패·미등록 시
+// "이미지 없음" 문구를 노출(폼에선 첨부 상태 피드백이 필요 — 셀 비움 정책과 분리).
+// 호출부에서 key={filename}로 파일명 바뀔 때 remount → 이전 에러 state가 새 이미지에 남지 않게 함.
+const ProductImagePreview = ({ filename }) => {
+  const [failed, setFailed] = useState(false);
+  const url = getProductImageUrl(filename);
+  if (!url || failed) {
+    return <Typography variant="caption" color="text.secondary">이미지 없음</Typography>;
+  }
+  return (
+    <Box
+      component="img"
+      src={url}
+      alt="상품 이미지 미리보기"
+      onError={() => setFailed(true)}
+      sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+    />
+  );
+};
 
 // 상품명 이후 공통 셀(카테고리·하위카테고리·가격·비고·상태태그·태그·작업).
 // 평면 행과 검사군 옵션 하위 행이 동일하게 재사용(사양 §옵션 하위 행).
@@ -306,6 +327,10 @@ const ProductManagementPage = () => {
   const { addNotification } = useNotification();
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
+  const productImageInputRef = useRef(null); // 개별 편집 폼의 단일 이미지 첨부 input
+
+  // 개별 상품 이미지 첨부 진행 상태(다이얼로그)
+  const [imageAttaching, setImageAttaching] = useState(false);
 
   // 이미지 일괄 업로드(product-images 공개 버킷)
   const [imageUploadOpen, setImageUploadOpen] = useState(false);
@@ -589,9 +614,16 @@ const ProductManagementPage = () => {
 
     try {
       const payload = { ...currentProduct, list_price: Math.round(Number(currentProduct.list_price) || 0) };
-      // image_filename 마이그레이션 미적용(컬럼 없음) 시 graceful — 빈값이면 payload에서 제외.
-      // 값이 있는데 컬럼이 없으면 mutate 함수가 PGRST204 감지 후 해당 키 빼고 재시도.
-      if (payload.image_filename === '' || payload.image_filename == null) delete payload.image_filename;
+      // image_filename 정규화:
+      //  - '' (개별 폼에서 '제거') → 편집이면 NULL로 명시 저장(기존 이미지 지움), 추가면 보낼 값 없어 키 제외.
+      //  - null/undefined → 키 제외(컬럼 미적용 환경 graceful, 불필요 왕복 방지).
+      // 값이 있는데 컬럼이 없으면 아래 mutate가 PGRST204 감지 후 해당 키 빼고 재시도.
+      if (payload.image_filename === '') {
+        if (isEditing) payload.image_filename = null;
+        else delete payload.image_filename;
+      } else if (payload.image_filename == null) {
+        delete payload.image_filename;
+      }
 
       const mutate = async (data) => {
         const run = async (body) => {
@@ -620,6 +652,46 @@ const ProductManagementPage = () => {
       fetchProducts();
     } catch (error) {
       addNotification(`상품 저장 실패: ${error.message}`, 'error');
+    }
+  };
+
+  // 개별 편집 폼의 이미지 첨부(단일 파일). 일괄 업로드와 달리 파일명을 안전하게 새로 지어(buildProductImageFilename)
+  // 한글 파일명 사진도 그대로 받는다. 첨부 즉시 버킷에 업로드하되 image_filename 반영은 폼 상태로만 —
+  // 저장을 취소하면 DB엔 반영되지 않는다. 단, 업로드된 파일 자체는 버킷에 남는다(다른 상품이 같은 파일을
+  // 참조할 수 있어 롤백하지 않음. 고아 파일은 무해하므로 정리 로직 없음 — 오버엔지니어링 방어).
+  const handleAttachProductImage = async (event) => {
+    if (!hasPermission('products:edit')) return;
+    const file = event.target.files?.[0];
+    if (event.target) event.target.value = ''; // 같은 파일 재선택 허용
+    if (!file) return;
+
+    if (file.size > MAX_IMAGE_BYTES) {
+      addNotification('이미지가 너무 큽니다. 1MB 이하 파일을 첨부해 주세요 (200KB 이하 권장).', 'warning');
+      return;
+    }
+
+    const safeName = buildProductImageFilename({
+      originalName: file.name,
+      productCode: currentProduct.product_code,
+      productId: currentProduct.id,
+    });
+    if (!safeName) {
+      addNotification('지원하지 않는 형식입니다. JPG·PNG·WEBP·GIF 파일만 첨부할 수 있습니다.', 'warning');
+      return;
+    }
+
+    setImageAttaching(true);
+    try {
+      // 안전한 새 파일명으로 업로드(uploadProductImage는 file.name을 Storage 키로 씀).
+      const renamed = new File([file], safeName, { type: file.type || undefined });
+      const { error } = await uploadProductImage(renamed);
+      if (error) throw error;
+      setCurrentProduct((prev) => ({ ...prev, image_filename: safeName }));
+      addNotification('이미지를 첨부했습니다. 저장을 눌러야 반영됩니다.', 'success');
+    } catch (error) {
+      addNotification(`이미지 첨부 실패: ${error.message}`, 'error');
+    } finally {
+      setImageAttaching(false);
     }
   };
 
@@ -1720,6 +1792,70 @@ const ProductManagementPage = () => {
             </Box>
             <TextField name="list_price" label="가격" type="number" fullWidth value={currentProduct.list_price} onChange={handleChange} disabled={!hasPermission('products:edit')} />
             <TextField name="notes" label="비고" fullWidth multiline rows={3} value={currentProduct.notes || ''} onChange={handleChange} disabled={!hasPermission('products:edit')} />
+            {/* 상품 이미지 — 개별 첨부(단일 파일). 일괄 업로드와 달리 파일명을 안전하게 새로 지어(buildProductImageFilename)
+                한글 파일명 사진도 그대로 받는다. 첨부 즉시 버킷 업로드, image_filename 반영은 저장 시(폼 상태). */}
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>상품 이미지</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box
+                  sx={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: 1,
+                    overflow: 'hidden',
+                    bgcolor: 'grey.100',
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <ProductImagePreview
+                    key={currentProduct.image_filename || 'none'}
+                    filename={currentProduct.image_filename}
+                  />
+                </Box>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1 }}>
+                  {hasPermission('products:edit') && (
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={imageAttaching ? <CircularProgress size={16} /> : <PhotoLibraryIcon />}
+                        onClick={() => productImageInputRef.current?.click()}
+                        disabled={imageAttaching}
+                      >
+                        {imageAttaching ? '첨부 중…' : '이미지 첨부'}
+                      </Button>
+                      {currentProduct.image_filename && (
+                        <Button
+                          variant="text"
+                          size="small"
+                          color="error"
+                          onClick={() => setCurrentProduct((prev) => ({ ...prev, image_filename: '' }))}
+                          disabled={imageAttaching}
+                        >
+                          제거
+                        </Button>
+                      )}
+                    </Box>
+                  )}
+                  <Typography variant="caption" color="text.secondary">
+                    JPG·PNG·WEBP·GIF, 1MB 이하(200KB 이하 권장). 파일명은 자동으로 정리됩니다.
+                  </Typography>
+                </Box>
+              </Box>
+              <input
+                ref={productImageInputRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={handleAttachProductImage}
+              />
+            </Box>
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
               <FormControlLabel control={<Checkbox checked={currentProduct.is_discountable} onChange={(event) => setCurrentProduct((prev) => ({ ...prev, is_discountable: event.target.checked }))} disabled={!hasPermission('products:edit')} />} label="할인 가능" />
               <TextField
