@@ -49,6 +49,13 @@ master 권한자가 학회 직전 한 번 들어와 (1) 이번 학회의 `/go` �
 - [ ] 필드: "배송비" (`TextField` type=number, 끝 어드먼트 "원")
   - helperText: "기준 금액 미만 구매 시 부과되는 배송비입니다."
   - 기본값: 3000 (`SHIPPING_DEFAULTS.SHIPPING_COST`, DB default)
+- [ ] 필드: "무료배송 적용 방식" (`RadioGroup`, 라벨 `FormLabel`, 2026-08-25 신설)
+  - Divider로 위 금액 필드들과 구분
+  - 옵션 1 `list_price`: "정가 기준 (기본)" — 캡션 "할인 전 금액이 {현재 임계치}원 이상이면 무료배송"
+  - 옵션 2 `discounted`: "할인가 기준" — 캡션 "실제 결제 금액이 {현재 임계치}원 이상이면 무료배송"
+  - 각 옵션 캡션은 `threshold` state를 실시간 반영(`{threshold.toLocaleString()}원`)
+  - 하단 캡션: "변경 즉시 새 주문부터 적용됩니다. 기존 주문의 배송비는 바뀌지 않습니다."
+  - 기본값·폴백: `list_price`(= 현행 정가 판정 동작)
 
 ### 블록 3 — 시스템 정보 (readonly)
 - [ ] 섹션 제목: "시스템 정보" (`InfoIcon`)
@@ -71,7 +78,7 @@ master 권한자가 학회 직전 한 번 들어와 (1) 이번 학회의 `/go` �
 ## 액션·기능 (누락 금지)
 
 - [ ] 진입 시 `fetchSettings` + `fetchEvents` 병렬 호출 (line 38-41)
-  - `fetchSettings` — `site_settings`에서 `*` 단일 행 select. `free_shipping_threshold`/`shipping_cost`/`active_event_slug` 3종 추출.
+  - `fetchSettings` — `site_settings`에서 `*` 단일 행 select. `free_shipping_threshold`/`shipping_cost`/`active_event_slug`/`free_shipping_basis` 4종 추출. `free_shipping_basis`는 컬럼 미적용 시 응답에서 빠지므로 `data.free_shipping_basis || 'list_price'` 폴백(graceful).
   - `fetchEvents` — `events`에서 `id, name, order_url_slug, start_date` select, `created_at` desc 조회 후 `sortEventsForDropdown` 재정렬
 - [ ] 활성 학회 선택 → `settings.active_event_slug` state 변경 (저장 누르기 전까지는 DB 미반영)
 - [ ] URL 복사 → `navigator.clipboard.writeText(REDIRECT_URL)` (`${VITE_APP_URL || origin}/go`) + 토스트 "URL이 클립보드에 복사되었습니다."
@@ -82,7 +89,8 @@ master 권한자가 학회 직전 한 번 들어와 (1) 이번 학회의 `/go` �
 - [ ] 배송비 필드 변경 → state만 업데이트 (저장 누르기 전까지 DB 미반영)
 - [ ] 저장 (`handleSave`, line 80-101):
   - `site_settings` 테이블 update `WHERE id=1` (하드코딩, 코드 주석에 "ID 1 for now, or we can use a more robust way if needed")
-  - 페이로드: `free_shipping_threshold`(parseInt), `shipping_cost`(parseInt), `active_event_slug`(빈 문자열은 null로 변환), `updated_at`
+  - 페이로드: `free_shipping_threshold`(parseInt), `shipping_cost`(parseInt), `active_event_slug`(빈 문자열은 null로 변환), `free_shipping_basis`(폴백 `list_price`), `updated_at`
+  - `free_shipping_basis` 컬럼 미적용 환경 graceful — 저장 시 `PGRST204`면 해당 키 빼고 1회 재시도(ProductManagementPage 가법 컬럼 패턴 답습)
   - 성공 시 토스트, 실패 시 에러 토스트
 - [ ] 취소 → `fetchSettings`로 DB 값 다시 가져와 폼 리셋
 
@@ -94,6 +102,7 @@ master 권한자가 학회 직전 한 번 들어와 (1) 이번 학회의 `/go` �
 - [ ] `active_event_slug` (단일 select — events 테이블의 slug 또는 빈 문자열)
 - [ ] `free_shipping_threshold` (단일 number, 정수, 원 단위)
 - [ ] `shipping_cost` (단일 number, 정수, 원 단위)
+- [ ] `free_shipping_basis` (단일 radio, `'list_price' | 'discounted'`, 기본 `list_price`)
 - [ ] **(P1) 소분류 추가/편집 다이얼로그 → A6로 이동.** 입력 폼 구조(소분류 4필드)는 A6 시트 참조. **배지 다이얼로그는 폐기**(2026-06-29).
 
 ## 권한별 차이
@@ -109,6 +118,7 @@ master 권한자가 학회 직전 한 번 들어와 (1) 이번 학회의 `/go` �
 - `id` (integer PK, default 1, **단일 행 강제**: `CHECK (id = 1)`)
 - `free_shipping_threshold` (integer, NOT NULL, default 30000)
 - `shipping_cost` (integer, NOT NULL, default 3000)
+- `free_shipping_basis` (text, `'list_price' | 'discounted'`, NULL=미설정=정가 폴백; 2026-08-25 병렬 백엔드 추가. 무료배송 판정 기준을 정가/할인가 중 택일)
 - `email_domains` (jsonb, NOT NULL, default `["naver.com", "gmail.com", "daum.net", "hanmail.net"]`)
 - `updated_at` (timestamptz)
 

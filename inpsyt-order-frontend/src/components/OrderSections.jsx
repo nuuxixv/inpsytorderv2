@@ -34,7 +34,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DaumPostcode from 'react-daum-postcode';
 import { supabase } from '../supabaseClient';
 import { sendAlimtalk } from '../api/alimtalk';
-import { SHIPPING_DEFAULTS } from '../constants/shipping';
+import { SHIPPING_DEFAULTS, calcShippingFee } from '../constants/shipping';
 import { SectionCard, StatusBadge, InfoRow, PriceBlock } from './ui';
 import { formatPhone } from '../utils/formatPhone';
 import { getDiscountedUnit } from '../utils/pricing';
@@ -149,8 +149,14 @@ const OrderSections = ({
     });
 
     const currentTotalDiscount = currentSubtotal - discountedSubtotal;
-    // 배송비 판정은 정가(할인 전) 총액 기준 유지(회귀 가드).
-    const currentShippingFee = currentSubtotal >= settings.free_shipping_threshold ? 0 : settings.shipping_cost;
+    // 배송비 판정은 설정 기반(정가/할인가), 기본 정가. 3경로 공유 함수 경유.
+    const currentShippingFee = calcShippingFee({
+      basis: settings.free_shipping_basis,
+      originalTotal: currentSubtotal,
+      discountedTotal: discountedSubtotal,
+      threshold: settings.free_shipping_threshold,
+      shippingCost: settings.shipping_cost,
+    });
     const currentFinalTotal = discountedSubtotal + currentShippingFee;
 
     setSubtotal(currentSubtotal);
@@ -340,11 +346,17 @@ const OrderSections = ({
     }
   };
 
-  // B — 주문 성격 전환 (pending 전용)
+  // B — 주문 성격 전환 (pending 전용). 무료배송 판정은 설정 기반(정가/할인가), 기본 정가. 공유 함수 경유.
   const computeShipping = (onSite) => {
-    if (onSite) return 0;
-    const base = order.total_cost || 0;
-    return base >= settings.free_shipping_threshold || base === 0 ? 0 : settings.shipping_cost;
+    const originalTotal = order.total_cost || 0;
+    return calcShippingFee({
+      basis: settings.free_shipping_basis,
+      originalTotal,
+      discountedTotal: originalTotal - (order.discount_amount || 0),
+      threshold: settings.free_shipping_threshold,
+      shippingCost: settings.shipping_cost,
+      isOnsite: onSite,
+    });
   };
 
   const nextShippingFee = computeShipping(isOnSiteSale);
