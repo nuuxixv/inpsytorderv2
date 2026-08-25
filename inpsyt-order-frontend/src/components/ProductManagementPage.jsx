@@ -50,6 +50,7 @@ import { supabase } from '../supabaseClient';
 import { matchesSearch } from '../utils/search';
 import { percentToRateNullable, rateToPercentNullable } from '../utils/pricing';
 import { parseBool, parseProductSheet } from '../utils/productExcel';
+import { exportProductList } from '../utils/productExcelExport';
 import {
   CATEGORY_COLORS, CATEGORY_KEY_BY_LABEL,
   MASTER_COLOR_FALLBACK, MASTER_COLOR_PRESETS,
@@ -1008,41 +1009,9 @@ const ProductManagementPage = () => {
   const handleDownloadExcel = async () => {
     try {
       const [products, groups] = await Promise.all([fetchAllProducts(), fetchTestGroups()]);
-      // test_group_id → 검사군(약어·검사명) 룩업. 미적재 환경이면 빈 맵 → 위계 열 공란.
-      const groupById = new Map(groups.map((g) => [g.id, g]));
-      // 열 이름·순서 = 양식 v2(A~T 20열)와 동일 → 다운로드→수정→업로드 라운드트립.
-      // 헤더는 괄호 포함 풀네임(파서가 정규화하므로 안전·사람이 읽기 좋음). 값 포맷은 파서 규약과 일치.
-      const rows = products.map((product) => {
-        const group = product.test_group_id != null ? groupById.get(product.test_group_id) : null;
-        return {
-          상품명: product.name,
-          상품코드: product.product_code,
-          '카테고리(검사/도서/도구)': product.category,
-          하위카테고리: product.sub_category || '',
-          가격: product.list_price,
-          비고: product.notes || '',
-          '할인여부(Y/N)': product.is_discountable ? 'Y' : 'N',
-          '판매여부(Y/N)': product.is_active === false ? 'N' : 'Y',
-          '개별할인율(%/공란)': rateToPercentNullable(product.discount_override),
-          '배지_인기(Y/N)': product.is_popular ? 'Y' : 'N',
-          '배지_신규(Y/N)': product.is_new ? 'Y' : 'N',
-          태그: product.tags?.join(',') || '',
-          이미지: product.image_filename || '',
-          검사군약어: group?.abbr || '',
-          검사군명: group?.name || '',
-          옵션명: product.option_name || '',
-          '공용(Y/공란)': product.is_common ? 'Y' : '',
-          말머리: product.option_label || '',
-          // 3상태 라운드트립 — 포함/미포함/공란(미확인). parseTriState와 문자열 일치.
-          '온라인코드포함(포함/미포함/공란)': product.includes_online_code == null ? '' : product.includes_online_code ? '포함' : '미포함',
-          옵션정렬: product.sort_order ?? '',
-        };
-      });
-
-      const worksheet = XLSX.utils.json_to_sheet(rows);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, '상품_목록');
-      XLSX.writeFile(workbook, '상품_목록.xlsx');
+      // 확정 양식 v2 서식(안내문·색상 헤더·검사 전용 열 색·틀고정 A3·자동필터) 그대로 전체 상품을 채워 내보낸다.
+      // 열 순서·값 포맷은 업로드 파서(parseProductSheet)와 라운드트립 정합. util로 분리(단위 테스트).
+      await exportProductList({ products, groups });
       addNotification('상품 목록을 다운로드했습니다.', 'success');
     } catch (error) {
       addNotification(`엑셀 다운로드 실패: ${error.message}`, 'error');
