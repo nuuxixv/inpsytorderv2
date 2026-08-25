@@ -1,6 +1,22 @@
 import * as XLSX from 'xlsx';
 import { percentToRateNullable } from './pricing';
 
+// 엑셀 '개별할인율' 셀 → 0~100 퍼센트 숫자로 정규화.
+// 엑셀에서 "50%"라고 치면 셀이 퍼센트 형식이 되고 raw 값은 0.5(소수)로 온다 —
+// 이를 0~100 기대값으로 그대로 읽으면 0.5%가 되어 의도(50%)의 1/100로 저장되는 사고가 났다
+// (2026-08-25 실제 발생: 도구 93개 상품, 복구 완료).
+//  - 문자열 "50%" → parseFloat가 50으로 읽음(% 무시) → 그대로
+//  - 숫자 0 < n < 1  → 엑셀 퍼센트 형식의 소수 → ×100 (0.5 → 50)
+//  - 숫자 n ≥ 1     → 이미 퍼센트 → 그대로 (50 → 50)
+//  - 0·공란         → 기존 의미 유지(0=명시적 정가, 공란=해제)
+// 한계(문서화): 0.5%처럼 1% 미만 할인은 이 규칙상 표현 불가 — 이 사업에서 실존하지 않는 값이다.
+//   엑셀 퍼센트 형식 "100%"는 raw 1이라 1%로 읽힌다 — 100% 할인(무료)도 실존하지 않아 수용.
+export const normalizeExcelPercent = (value) => {
+  if (value === '' || value == null) return value;
+  if (typeof value === 'number' && value > 0 && value < 1) return value * 100;
+  return value;
+};
+
 // 상품 엑셀 업로드 파서(양식 v2 대응). ProductManagementPage 에서 분리해 단위 테스트 가능하게 함.
 // v2 양식: 1행=안내문, 2행=헤더(괄호 설명 포함), 3행~=상품. 판매여부가 H열(공통 구역)로 이동.
 // 구양식(1행 헤더·괄호 없는 헤더)도 동일 로직으로 회귀 없이 통과해야 한다.
@@ -94,7 +110,7 @@ export const parseProductSheet = (worksheet) => {
     const row = withNormalizedKeys(raw);
     const category = String(getRowValue(row, ['카테고리', 'category']) || '').trim();
     // 개별 할인율 — 공란=NULL(해제), 값=clamp(0..100)/100. (현행 '할인여부' 공란=FALSE 규칙과 정합)
-    const discountOverride = percentToRateNullable(getRowValue(row, ['개별할인율', 'discount_override']));
+    const discountOverride = percentToRateNullable(normalizeExcelPercent(getRowValue(row, ['개별할인율', 'discount_override'])));
     // auto-T 보정 — 개별할인율(>0)이면 '할인여부'를 자동 TRUE로.
     let isDiscountable = parseBool(getRowValue(row, ['할인여부', 'is_discountable']));
     if (discountOverride != null && discountOverride > 0) isDiscountable = true;

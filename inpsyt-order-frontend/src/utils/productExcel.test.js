@@ -8,6 +8,7 @@ import {
   parseTriState,
   detectHeaderRow,
   parseProductSheet,
+  normalizeExcelPercent,
 } from './productExcel';
 
 // AOA(2차원 배열) → 워크시트. 파싱 로직만 격리 검증(네트워크·컴포넌트 상태 무관).
@@ -213,5 +214,33 @@ describe('실제 확정 템플릿 파일 — 라운드트립 스모크', () => {
   });
   it('전 행 판매여부 Y → is_active true', () => {
     products.forEach((p) => expect(p.is_active).toBe(true));
+  });
+});
+
+describe('normalizeExcelPercent — 엑셀 퍼센트 형식(소수) 정규화', () => {
+  it('엑셀 "50%" 셀의 raw 0.5 → 50', () => {
+    expect(normalizeExcelPercent(0.5)).toBe(50);
+    expect(normalizeExcelPercent(0.2)).toBe(20);
+    expect(normalizeExcelPercent(0.0349999999)).toBeCloseTo(3.49999, 3);
+  });
+  it('평숫자·문자열·경계값은 그대로', () => {
+    expect(normalizeExcelPercent(50)).toBe(50);
+    expect(normalizeExcelPercent('50%')).toBe('50%'); // parseFloat('50%')=50 — 후단(percentToRateNullable)에서 처리
+    expect(normalizeExcelPercent(1)).toBe(1);   // 1 이상은 퍼센트로 간주
+    expect(normalizeExcelPercent(0)).toBe(0);   // 명시적 정가 의미 유지
+    expect(normalizeExcelPercent('')).toBe(''); // 공란 = 해제 의미 유지
+    expect(normalizeExcelPercent(null)).toBe(null);
+  });
+  it('파서 경유: 0.5(퍼센트형식)·50(평숫자)·"50%"(문자열) 전부 → 0.5(=50%)', () => {
+    const ws = sheetFrom([
+      ['상품명', '상품코드', '카테고리', '가격', '개별할인율(%/공란)'],
+      ['A', 'C1', '도구', 1000, 0.5],
+      ['B', 'C2', '도구', 1000, 50],
+      ['C', 'C3', '도구', 1000, '50%'],
+    ]);
+    const { products } = parseProductSheet(ws);
+    expect(products[0].discount_override).toBe(0.5);
+    expect(products[1].discount_override).toBe(0.5);
+    expect(products[2].discount_override).toBe(0.5);
   });
 });
