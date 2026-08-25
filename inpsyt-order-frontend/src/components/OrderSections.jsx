@@ -36,6 +36,7 @@ import { supabase } from '../supabaseClient';
 import { sendAlimtalk } from '../api/alimtalk';
 import { SHIPPING_DEFAULTS, calcShippingFee } from '../constants/shipping';
 import { SectionCard, StatusBadge, InfoRow, PriceBlock } from './ui';
+import ProductPickerDialog from './ProductPickerDialog';
 import { formatPhone } from '../utils/formatPhone';
 import { getDiscountedUnit } from '../utils/pricing';
 
@@ -80,6 +81,9 @@ const OrderSections = ({
   const [totalDiscount, setTotalDiscount] = useState(0);
   const [shippingFee, setShippingFee] = useState(0);
   const [finalTotal, setFinalTotal] = useState(0);
+
+  // 상품 추가 피커 — 고객 프론트 ProductSelectionStep 재사용 다이얼로그.
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // B — 주문 성격(일반배송/현장수령) 전환. pending 전용.
   const [isOnSiteSale, setIsOnSiteSale] = useState(false);
@@ -166,12 +170,25 @@ const OrderSections = ({
   }, [editingSection, editedOrderItems, order, productsMap, events, settings]);
 
   const handleAddOrderItem = () => {
-    if (products && products.length > 0) {
-      const defaultProduct = products[0];
-      setEditedOrderItems([...editedOrderItems, { product_id: defaultProduct.id, quantity: 1 }]);
-    } else {
-      addNotification('추가할 상품 정보가 없습니다.', 'warning');
-    }
+    setPickerOpen(true);
+  };
+
+  // 피커 확정 — 임시 카트를 편집 버퍼에 병합. 이미 있는 상품이면 수량 합산(중복 행 생성 금지).
+  // 신규 행은 현행과 동일하게 { product_id, quantity }만 — 가격·스냅샷은 저장 파이프라인이 채운다.
+  const handlePickerConfirm = (pickedCart) => {
+    setEditedOrderItems(prev => {
+      const next = [...prev];
+      (pickedCart || []).forEach(picked => {
+        const idx = next.findIndex(it => it.product_id === picked.id);
+        if (idx >= 0) {
+          next[idx] = { ...next[idx], quantity: next[idx].quantity + picked.quantity };
+        } else {
+          next.push({ product_id: picked.id, quantity: picked.quantity });
+        }
+      });
+      return next;
+    });
+    setPickerOpen(false);
   };
 
   const handleRemoveOrderItem = (index) => {
@@ -463,6 +480,8 @@ const OrderSections = ({
 
   const renderEvent = events?.find(e => e.id === order.event_id);
   const discountRate = renderEvent?.discount_rate || 0;
+  // 태그 우선 정렬용 — OrderPage.jsx와 동일 식(tags ∪ host_society). getEvents는 host_society 미포함이라 tags만 반영(graceful).
+  const eventTags = [...new Set([...(renderEvent?.tags || []), renderEvent?.host_society].filter(Boolean))];
 
   // 상품 편집 잠금 — 병합 아이템에 다른 주문(order_id 불일치) 아이템이 섞였거나 껍데기 부모면 잠금.
   // (자식 단건·비연계 단건은 자기 아이템만 → 편집 가능)
@@ -863,6 +882,16 @@ const OrderSections = ({
           totalColor={theme.palette.primary.main}
         />
       </SectionCard>
+
+      {/* 상품 추가 피커 — 고객 프론트 상품 선택 UX 재사용 */}
+      <ProductPickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onConfirm={handlePickerConfirm}
+        discountRate={discountRate}
+        eventTags={eventTags}
+        eventName={renderEvent?.name || ''}
+      />
 
       {/* Daum 우편번호 */}
       <Dialog open={showPostcode} onClose={() => setShowPostcode(false)} maxWidth="sm" fullWidth sx={{ zIndex: 1400 }}>
