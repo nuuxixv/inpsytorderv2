@@ -59,6 +59,23 @@ const OrderPage = () => {
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customerInfo, setCustomerInfo] = useState(() => draft?.customerInfo ?? DEFAULT_CUSTOMER_INFO);
+
+  // 검수 모드(?qa=1) — 운영자 테스트 주문용 자동 입력. 빈 필드만 채워 실입력·복원 초안을 덮지 않는다.
+  // 이름이 '검수'로 시작해 어드민 검색·정리가 쉽다. 연락처는 형식 가드(01·11자리)를 통과하는
+  // 무해 번호. 단 검수 주문을 결제완료로 바꾸면 이 번호로 알림톡 발송을 시도한다(실패 무해, 건수 소모 유의).
+  const qaFill = searchParams.get('qa') != null;
+  useEffect(() => {
+    if (!qaFill) return;
+    setCustomerInfo((prev) => ({
+      ...prev,
+      name: prev.name || '검수용 주문',
+      phone: prev.phone || '010-0000-0000',
+      postcode: prev.postcode || '06626',
+      address: prev.address || '서울특별시 서초구 테스트로 1',
+      detailAddress: prev.detailAddress || '검수',
+      inpsytId: prev.inpsytId || 'qa_test',
+    }));
+  }, [qaFill]);
   const [cart, setCart] = useState(() => draft?.cart ?? []);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [inpsytConfirmOpen, setInpsytConfirmOpen] = useState(false);
@@ -183,7 +200,7 @@ const OrderPage = () => {
       }
       // 연락처 하드 차단 — 단일 지점. 미완성·지역번호 번호로 제출되면 접수 확인 알림톡이 유실된다.
       if (!isValidMobile(customerInfo.phone)) {
-        setError('휴대폰 번호를 확인해주세요. 접수 확인 알림톡이 이 번호로 발송됩니다.');
+        setError('휴대폰 번호를 확인해주세요.');
         return;
       }
       setError(null);

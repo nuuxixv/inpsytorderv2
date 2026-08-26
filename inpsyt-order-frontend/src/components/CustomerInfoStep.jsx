@@ -137,7 +137,7 @@ const CustomerInfoStep = ({ customerInfo, setCustomerInfo, hasOnlineCode = false
           error={phoneInvalid}
           inputProps={{ maxLength: 13 }}
           helperText={phoneInvalid
-            ? '휴대폰 번호를 확인해주세요. 접수 확인 알림톡이 이 번호로 발송됩니다.'
+            ? '휴대폰 번호를 확인해주세요.'
             : '숫자만 입력해주세요.'}
           InputProps={{
             startAdornment: (
