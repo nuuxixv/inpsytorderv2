@@ -26,7 +26,7 @@ import { getTodayKST } from '../utils/date';
 import { SHIPPING_DEFAULTS, shippingBasisAmount } from '../constants/shipping';
 import { getDiscountedUnit } from '../utils/pricing';
 import { hasOnlineCode } from '../utils/onlineCode';
-import { isValidMobile } from '../utils/formatPhone';
+import { isValidMobile, formatPhone, QA_TEST_PHONE_DIGITS } from '../utils/formatPhone';
 import { loadOrderDraft, saveOrderDraft, clearOrderDraft, DEFAULT_CUSTOMER_INFO } from '../utils/orderDraft';
 
 const OrderPage = () => {
@@ -61,15 +61,15 @@ const OrderPage = () => {
   const [customerInfo, setCustomerInfo] = useState(() => draft?.customerInfo ?? DEFAULT_CUSTOMER_INFO);
 
   // 검수 모드(?qa=1) — 운영자 테스트 주문용 자동 입력. 빈 필드만 채워 실입력·복원 초안을 덮지 않는다.
-  // 이름이 '검수'로 시작해 어드민 검색·정리가 쉽다. 연락처는 형식 가드(01·11자리)를 통과하는
-  // 무해 번호. 단 검수 주문을 결제완료로 바꾸면 이 번호로 알림톡 발송을 시도한다(실패 무해, 건수 소모 유의).
+  // 이름이 '검수'로 시작해 어드민 검색·정리가 쉽다. 연락처는 예약 번호(QA_TEST_PHONE_DIGITS) —
+  // 이 번호의 주문은 알림톡 발송이 생략된다(api/alimtalk.js 가드, 건수 소모 없음).
   const qaFill = searchParams.get('qa') != null;
   useEffect(() => {
     if (!qaFill) return;
     setCustomerInfo((prev) => ({
       ...prev,
       name: prev.name || '검수용 주문',
-      phone: prev.phone || '010-0000-0000',
+      phone: prev.phone || formatPhone(QA_TEST_PHONE_DIGITS),
       postcode: prev.postcode || '06626',
       address: prev.address || '서울특별시 서초구 테스트로 1',
       detailAddress: prev.detailAddress || '검수',

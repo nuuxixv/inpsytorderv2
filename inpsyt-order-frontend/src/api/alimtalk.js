@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { normalizePhone, QA_TEST_PHONE_DIGITS } from '../utils/formatPhone';
 
 const ENDPOINT = 'https://api2.msgagent.com/api/webshot/send/kakao/AT/inpsyt2';
 const SENDER_KEY = '799de9af7fd86b7301222f39715f012c33d8ed85';
@@ -33,6 +34,11 @@ export const sendAlimtalk = async (orderId) => {
   if (orderError || !order) return { success: false, error: '주문을 찾을 수 없습니다.' };
   // 현장수령 주문도 접수 알림톡을 발송한다(건우님 결정 2026-07-06). 과거의 is_on_site_sale 스킵 제거.
   if (!order.phone_number) return { success: false, error: '수신자 연락처가 없습니다.' };
+  // 검수 주문(예약 번호 010-0000-0000, ?qa=1 자동 입력 값)은 발송하지 않는다 —
+  // 결제완료로 바꿔도 알림톡 건수가 소모되지 않는다. 호출자들은 skipped 를 조용히 넘긴다.
+  if (normalizePhone(order.phone_number) === QA_TEST_PHONE_DIGITS) {
+    return { success: true, skipped: true };
+  }
 
   const attemptedAt = new Date().toISOString();
   try {
