@@ -103,6 +103,14 @@ const LinkPreviewDialog = ({ open, onClose, baseOrder, events, addNotification, 
   const afterDelivery = freeShipping ? 0 : settings.shipping_cost;
   const saved = Math.max(0, currentDeliverySum - afterDelivery);
 
+  // 이미 결제된 배송비는 시스템이 자동으로 되돌리지 못한다(결제완료 금액 불변 원칙).
+  // 묶음 안에 그런 주문이 있으면 그 사실과 회수 방법을 운영자에게 알린다.
+  // 최악은 A·B·C 모두 배송비를 낸 뒤 부스에서 합배송을 요청하는 경우로, 회수액이 배송비 여러 건이 된다.
+  const paidFeeOrders = participants.filter((o) => o.status === 'paid' && (o.delivery_fee || 0) > 0);
+  const paidFeeTotal = paidFeeOrders.reduce((s, o) => s + (o.delivery_fee || 0), 0);
+  // 묶음 뒤 실제로 물어야 할 배송비를 한 건만 남기고, 나머지가 회수 대상이다.
+  const refundableFee = Math.max(0, paidFeeTotal - (freeShipping ? 0 : Math.min(paidFeeTotal, settings.shipping_cost)));
+
   const rep = participants.find((o) => o.id === repId) || baseOrder;
   const isCaseB = afterDelivery > 0;
   const repIsPending = rep.status === 'pending';
@@ -209,6 +217,22 @@ const LinkPreviewDialog = ({ open, onClose, baseOrder, events, addNotification, 
                 totalColor={saved > 0 ? theme.status.paid : undefined}
               />
             </SectionCard>
+
+            {/* 이미 결제된 배송비 회수 안내 — 시스템이 자동으로 되돌리지 못하는 금액 */}
+            {refundableFee > 0 && (
+              <Alert severity="warning" sx={{ mt: 1.5 }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                  이미 결제된 배송비 {refundableFee.toLocaleString()}원은 자동으로 차감되지 않습니다.
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 0.5 }}>
+                  {paidFeeOrders.map((o) => o.customer_name).join(', ')} 님의 주문은 결제가 끝나 시스템이 금액을 바꾸지 않습니다.
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  해당 주문을 취소한 뒤 배송비 없이 다시 결제하시면 정리됩니다.
+                  아직 결제하지 않은 주문이 있다면, 그 주문을 묶음 배송지로 지정할 때 배송비가 자동으로 면제됩니다.
+                </Typography>
+              </Alert>
+            )}
 
             {/* ③ Case A / B */}
             {isCaseB ? (
